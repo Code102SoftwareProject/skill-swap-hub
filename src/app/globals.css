@@ -1,6 +1,10 @@
+@import '@fontsource/manrope';
+@import '@fontsource/roboto';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 
 :root {
   --background: #ffffff;

@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+**README.md**
 
-## Getting Started
+# Project Guidelines
 
-First, run the development server:
+## File Structure
+- Organize files by feature or module.
+- Keep related files together (e.g., components, styles, tests).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## CSS Naming Convention
+- CSS files should be named as `module.module.styles.css`.
+- Example: `header.module.styles.css`.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Indentation
+- Use tabs for indentation in all JavaScript and TypeScript files.
+- Configure ESLint to enforce tab indentation.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## File Naming
+- The first line of each file should be a comment with the file name.
+- Example for a JavaScript file:
+  ```
+  // header.module.styles.css
+  ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ESLint Configuration
+- Ensure ESLint is configured to enforce tab indentation.
+- Example `eslint.config.mjs`:
+  ```javascript
+  import { dirname } from "path";
+  import { fileURLToPath } from "url";
+  import { FlatCompat } from "@eslint/eslintrc";
 
-## Learn More
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
 
-To learn more about Next.js, take a look at the following resources:
+  const compat = new FlatCompat({
+    baseDirectory: __dirname,
+  });
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+  const eslintConfig = [
+    ...compat.extends("next/core-web-vitals", "next/typescript"),
+    {
+      rules: {
+        indent: ["error", "tab"],
+      },
+    },
+  ];
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+  export default eslintConfig;
+  ```
