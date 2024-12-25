@@ -10,10 +10,21 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  ...compat.extends(
+    "next/core-web-vitals",
+    "plugin:@typescript-eslint/recommended" // Adds recommended TypeScript linting rules
+  ),
   {
+    parser: "@typescript-eslint/parser", // Specify TypeScript parser
+    parserOptions: {
+      ecmaVersion: 2020,
+      sourceType: "module",
+    },
+    plugins: ["@typescript-eslint"], // Include TypeScript plugin
     rules: {
-      indent: ["error", "tab"],
+      indent: ["error", "tab"], // Enforce tab indentation
+      "@typescript-eslint/no-unused-vars": ["warn"], // Warn on unused variables
+      "no-console": "warn", // Warn about console statements
     },
   },
 ];
