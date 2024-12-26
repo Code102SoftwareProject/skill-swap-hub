@@ -20,7 +20,7 @@ export class SearchService {
 
     const isConnected = await testConnection();
     if (!isConnected) {
-      throw new Error('Failed to connect to Elasticsearch');
+      throw new Error('Failed to connect to Elasticsearch Cloud');
     }
 
     this.isInitialized = true;
@@ -54,7 +54,7 @@ export class SearchService {
       body: {
         settings: {
           number_of_shards: 1,
-          number_of_replicas: 0,
+          number_of_replicas: 1, 
           analysis: {
             analyzer: {
               custom_analyzer: {
@@ -108,23 +108,56 @@ export class SearchService {
   }
 
   async searchForums(query: string): Promise<Forum[]> {
-    const response = await elasticClient.search({
-      index: this.indexName,
-      body: {
-        query: {
-          multi_match: {
-            query,
-            fields: ['title^2', 'description'], // Boost title field in query instead of mapping
-            fuzziness: 'AUTO'
+    try {
+      await this.initialize();
+      
+      const response = await elasticClient.search({
+        index: this.indexName,
+        body: {
+          query: {
+            bool: {
+              should: [
+                {
+                  multi_match: {
+                    query,
+                    fields: ['title^2', 'description'],
+                    type: 'best_fields',
+                    fuzziness: 'AUTO'
+                  }
+                },
+                {
+                  match_phrase_prefix: {
+                    title: {
+                      query,
+                      boost: 3
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          highlight: {
+            fields: {
+              title: {},
+              description: {}
+            },
+            pre_tags: ['<mark>'],
+            post_tags: ['</mark>']
           }
         }
-      }
-    });
+      });
 
-    return response.hits.hits.map((hit: any) => ({
-      id: hit._id,
-      ...hit._source
-    }));
+      return response.hits.hits.map((hit: any) => ({
+        id: hit._id,
+        ...hit._source,
+        score: hit._score || 1.0,
+        title: hit.highlight?.title?.[0] || hit._source.title,
+        description: hit.highlight?.description?.[0] || hit._source.description
+      }));
+    } catch (error) {
+      console.error('Search error:', error);
+      throw new Error('Search failed');
+    }
   }
 
   private async seedSampleData(): Promise<void> {
@@ -139,7 +172,26 @@ export class SearchService {
         createdAt: new Date(),
         updatedAt: new Date()
       },
-      // Add more sample data as needed
+      {
+        title: 'Next.js Discussion Forum',
+        description: 'Everything about Next.js framework, SSR, and React server components.',
+        posts: 25,
+        replies: 48,
+        lastActive: '2 days',
+        image: '/api/placeholder/80/80',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      },
+      {
+        title: 'TypeScript Help Center',
+        description: 'Get help with TypeScript types, interfaces, and advanced features.',
+        posts: 18,
+        replies: 35,
+        lastActive: '1 week',
+        image: '/api/placeholder/80/80',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
     ];
 
     const body = sampleData.flatMap(doc => [
@@ -148,5 +200,6 @@ export class SearchService {
     ]);
 
     await elasticClient.bulk({ refresh: true, body });
+    console.log('Sample data seeded successfully');
   }
 }

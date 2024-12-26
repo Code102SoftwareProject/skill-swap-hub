@@ -1,35 +1,29 @@
 import { Client } from '@elastic/elasticsearch';
 
-const createElasticsearchClient = () => {
-  // Check for required environment variables
-  if (!process.env.ELASTIC_API_KEY) {
-    throw new Error('ELASTIC_API_KEY not found in environment variables');
+
+const ELASTIC_CLOUD_ID = process.env.ELASTIC_CLOUD_ID || '';
+const ELASTIC_API_KEY = process.env.ELASTIC_API_KEY || '';
+
+if (!ELASTIC_CLOUD_ID || !ELASTIC_API_KEY) {
+  throw new Error('Elasticsearch Cloud credentials are not configured');
+}
+
+export const elasticClient = new Client({
+  cloud: {
+    id: ELASTIC_CLOUD_ID
+  },
+  auth: {
+    apiKey: ELASTIC_API_KEY
   }
+});
 
-  const client = new Client({
-    node: 'https://0edbad337a9c49d68e2143ac561c535b.us-central1.gcp.cloud.es.io:443',
-    auth: {
-      apiKey: 'a3ItZ0FwUUJmS2NIOElBVVBqdl86bF9acTd4YkJTdzZQTnRzM05lTTMwZw=='
-    },
-    tls: {
-      rejectUnauthorized: true
-    }
-  });
-
-  return client;
-};
-
-// Export a function that tests the connection
-export const testConnection = async () => {
-  const client = createElasticsearchClient();
+export async function testConnection() {
   try {
-    const result = await client.ping();
-    console.log('Elasticsearch Cloud connection successful:', result);
+    const health = await elasticClient.cluster.health();
+    console.log('Elasticsearch health status:', health.status);
     return true;
   } catch (error) {
-    console.error('Elasticsearch Cloud connection failed:', error);
+    console.error('Elasticsearch connection failed:', error);
     return false;
   }
-};
-
-export const elasticClient = createElasticsearchClient();
+}
