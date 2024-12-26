@@ -12,6 +12,7 @@
     "@elastic/elasticsearch": "^8.17.0",
     "@fontsource/manrope": "^5.1.0",
     "@fontsource/roboto": "^5.1.0",
+    "bcryptjs": "^2.4.3",
     "dompurify": "^3.2.3",
     "dotenv": "^16.4.7",
     "framer-motion": "^11.15.0",
@@ -25,6 +26,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/bcryptjs": "^2.4.6",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^20",
     "@types/react": "^19",
