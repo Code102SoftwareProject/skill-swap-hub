@@ -6,7 +6,7 @@ async function setupElasticsearch() {
       SearchService = (await import('../app/services/SearchService')).SearchService;
     }
     const searchService = SearchService.getInstance();
-    await searchService.initialize();  // Add initialization step
+    await searchService.initialize();  
     console.log('Connection successful, setting up index...');
     await searchService.setupIndex(true);
     console.log('Elasticsearch setup completed successfully');
