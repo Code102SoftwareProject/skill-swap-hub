@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import DOMPurify from 'dompurify';
+import { useRouter } from 'next/navigation'; // Changed to next/navigation for App Router
 
 interface SearchResult {
   id: string;
@@ -15,6 +16,7 @@ interface SearchResult {
   lastActive: string;
   image: string;
   score: number;
+ // slug: string;
 }
 
 interface SearchPopupProps {
@@ -23,6 +25,7 @@ interface SearchPopupProps {
 }
 
 const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 300);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -88,6 +91,13 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleResultClick = (result: SearchResult) => {
+    handleClose();
+   
+    router.push(`/forum`);
+    //router.push(`/forum/${result.slug}`);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -107,7 +117,6 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-4 relative">
-              {/* Close button in top-right corner */}
               <button
                 onClick={handleClose}
                 className="absolute right-4 top-4 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
@@ -126,7 +135,6 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                   placeholder="Search threads.."
                   className="w-full px-4 py-2 pr-20 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
-                {/* Clear button inside search input */}
                 {searchTerm && (
                   <button
                     onClick={handleClearSearch}
@@ -156,6 +164,7 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.1 }}
                     className="bg-[#3B82B3] rounded-lg p-4 text-white flex items-start gap-4 hover:bg-[#2C6A94] transition-colors duration-200 cursor-pointer"
+                    onClick={() => handleResultClick(result)}
                   >
                     <div className="w-20 h-20 flex-shrink-0 overflow-hidden rounded">
                       <Image
