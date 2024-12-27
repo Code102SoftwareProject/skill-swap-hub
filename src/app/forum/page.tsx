@@ -42,14 +42,14 @@ const ForumPage = () => {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-500 rounded-full" />
               <div>
-                <div className="font-medium">{post.author}</div>
-                <div className="text-sm text-gray-500">{post.date}</div>
+                <div className="font-mediumn text-black">{post.author}</div>
+                <div className="text-sm text-black">{post.date}</div>
               </div>
               <button className="ml-auto">•••</button>
             </div>
             
-            <h2 className="text-xl font-semibold">{post.title}</h2>
-            <p className="text-gray-600">{post.content}</p>
+            <h2 className="text-xl font-semibold text-black">{post.title}</h2>
+            <p className="text-gray-700">{post.content}</p>
             
             <div className="flex items-center justify-between pt-4">
               <div className="flex items-center gap-4">
