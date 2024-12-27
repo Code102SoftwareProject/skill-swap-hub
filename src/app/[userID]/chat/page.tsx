@@ -1,3 +1,4 @@
+//app/chat/page.tsx
 'use client';
 import React, { useState } from "react";
 import MessageList from "@/components/messageSystem/sideMessageList";
@@ -22,6 +23,9 @@ export default function ChatPage() {
     setActiveChat(id);
   };
 
+  // Get details of the active chat
+  const activeChatDetails = messagesData.find((msg) => msg.id === activeChat);
+
   return (
     <div className="flex h-screen">
       {/* Side Message List */}
@@ -32,8 +36,13 @@ export default function ChatPage() {
       />
 
       {/* Chat Window */}
-      <ChatWindow 
-      activeChatId={activeChat} />
+      {activeChatDetails ? (
+        <ChatWindow activeChatId={activeChatDetails.id} activeChatName={activeChatDetails.name} />
+      ) : (
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500">Please select a chat to view details.</p>
+        </div>
+      )}
     </div>
   );
 }
