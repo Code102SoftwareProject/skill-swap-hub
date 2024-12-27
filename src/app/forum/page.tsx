@@ -2,7 +2,7 @@
 import React from 'react';
 import { FileText, MessageSquare, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
-
+import Navbar from '@/components/Navbar'
 const ForumPage = () => {
   const categories = [
     { id: 1, name: 'Web Development Tools', count: 2 },
@@ -35,10 +35,15 @@ const ForumPage = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-6 flex gap-6">
-      <div className="flex-1 space-y-6">
+    <>
+    <div>
+    <Navbar userName="Nethmal" userImage="" />
+  </div>
+    <div className="max-w-7xl bg-white mx-auto flex gap-6">
+     
+      <div className="  flex-1 space-y-6">
         {recentPosts.map(post => (
-          <div key={post.id} className="bg-white rounded-lg shadow-sm p-6 space-y-4">
+          <div key={post.id} className="bg-blue-100 rounded-lg shadow-sm p-6 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-500 rounded-full" />
               <div>
@@ -65,25 +70,25 @@ const ForumPage = () => {
       </div>
 
       <div className="w-80 space-y-6">
-        <div className="bg-blue-50 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Forums</h2>
+        <div className="bg-blue-200 rounded-lg p-6">
+          <h2 className="text-lg text-black font-semibold mb-4">Forums</h2>
           <div className="space-y-3">
             {categories.map(category => (
               <Link 
                 href={`/forum/${category.id}`} 
                 key={category.id}
-                className="flex items-center justify-between p-2 hover:bg-blue-100 rounded transition-colors"
+                className="flex items-center justify-between p-2 hover:bg-blue-400 rounded transition-colors"
               >
-                <span>{category.name}</span>
+                <span className="text-black">{category.name}</span>
                 <span className="text-blue-500">{category.count}</span>
               </Link>
             ))}
           </div>
         </div>
 
-        <div className="bg-blue-50 rounded-lg p-6">
-          <h2 className="text-lg font-semibold mb-4">Recent Blog Posts</h2>
-          <div className="space-y-3">
+        <div className="bg-blue-200 rounded-lg p-6">
+          <h2 className="text-lg text-black font-semibold mb-4">Recent Blog Posts</h2>
+          <div className="space-y-3 text-blue-950">
             <Link href="#" className="block hover:text-blue-500">
               Mastering Modern JavaScript Frameworks
             </Link>
@@ -100,6 +105,7 @@ const ForumPage = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
