@@ -1,4 +1,4 @@
-//app/chat/page.tsx
+//app/[userID]/chat/page.tsx
 'use client';
 import React, { useState } from "react";
 import MessageList from "@/components/messageSystem/sideMessageList";
