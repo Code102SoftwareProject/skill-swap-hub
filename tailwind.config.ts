@@ -11,6 +11,7 @@ module.exports = {
         primary: '#0369A1',
         secondary: '#BAE6FD',
         accent: '#F5F8FA',
+        buttonHover: '#025A89'
       },
       fontFamily: {
         heading: ['Manrope', 'sans-serif'],
