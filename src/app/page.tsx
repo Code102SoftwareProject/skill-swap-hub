@@ -1,14 +1,20 @@
-// page.tsx
-'use client';
-import ChatInput from "@/components/messageSystem/chatInput";
-import Navbar from "../components/Navbar";
+import { CardWithBar } from "@/components/Dashboard/SkillsRequested";
+import { CardWithChart } from "@/components/Dashboard/TimeSpentChart";
 
-export default function Home() {
+const Home = () => {
   return (
-      <>
-        <div className="p-8">
-         <Navbar userName={"Nethmal"} userImage={""} />
-        </div>
-      </>
-  );
+   
+
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-2xl font-bold text-center mb-6">Dashboard</h1>
+      <CardWithChart />
+      <div>
+      <CardWithBar/>
+      </div>
+    </div>
+    
+    
+  )
 }
+
+export default Home;
