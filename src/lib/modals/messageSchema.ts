@@ -2,8 +2,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IMessage extends Document {
   chatRoomId: mongoose.Types.ObjectId;
-  senderId: bigint;
-  receiverId: bigint;
+  senderId: string; // Store as string
+  receiverId: string; // Store as string
   content?: string;
   attachment?: {
     url: string;
@@ -15,8 +15,8 @@ export interface IMessage extends Document {
 
 const MessageSchema: Schema = new Schema<IMessage>({
   chatRoomId: { type: Schema.Types.ObjectId, ref: 'ChatRoom', required: true },
-  senderId: { type: Schema.Types.Mixed, ref: 'User', required: true },
-  receiverId: { type: Schema.Types.Mixed, ref: 'User', required: true },
+  senderId: { type: String, ref: 'User', required: true }, // Store as string
+  receiverId: { type: String, ref: 'User', required: true }, // Store as string
   content: { type: String },
   attachment: {
     url: { type: String },

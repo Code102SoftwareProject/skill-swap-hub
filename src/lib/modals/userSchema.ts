@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IUser extends Document {
-  _id: bigint;
+  _id: string; // Change to string
   name: string;
   email: string;
   avatar?: string;
@@ -9,7 +9,7 @@ export interface IUser extends Document {
 }
 
 const UserSchema: Schema = new Schema<IUser>({
-  _id: { type: Schema.Types.Mixed, required: true }, // Use Mixed for BigInt compatibility
+  _id: { type: String, required: true }, // Store ID as string
   name: { type: String, required: true },
   email: { type: String, unique: true, required: true },
   avatar: { type: String },
