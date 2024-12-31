@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
   try {
     await client.connect();
-    const db = client.db('skillSwapHub');
+    const db = client.db('SkillSwapHub');
     const collection = db.collection('users');
 
     // Check if user already exists
