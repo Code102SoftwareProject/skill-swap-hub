@@ -10,6 +10,10 @@
 - CSS files should be named as `module.module.styles.css`.
 - Example: `header.module.styles.css`.
 
+## Use Styling in tailwind.config.ts
+- colors: `accent,primary,secondary`.
+- font:`monrope,roboto`.
+
 ## Indentation
 - Use tabs for indentation in all JavaScript and TypeScript files.
 - Configure ESLint to enforce tab indentation.
