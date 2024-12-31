@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 interface ChatInputProps {
   onSend: (message: string) => void;
   onAttach?: () => void;
-  onPlus?: () => void; // For the plus button functionality
+  onPlus?: () => void; // For the plus button 
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ onSend, onAttach, onPlus }) => {
@@ -24,7 +24,8 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSend, onAttach, onPlus }) => {
   };
 
   return (
-    <div className="flex items-center border border-secondary rounded-full px-4 py-2 bg-accent shadow-md">
+    
+  <div className="flex items-center border border-secondary rounded-full px-4 py-2 bg-accent shadow-md">
       {/* Plus Button (LHS) */}
       <button
         className="p-2 rounded-full bg-primary text-white hover:opacity-90 mr-2"
