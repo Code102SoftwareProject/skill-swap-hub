@@ -8,8 +8,11 @@ interface Message {
 }
 
 interface MessageListProps {
-  messages: Message[];
-  activeChat: string;
+  // Array of message 
+  messages: Message[]; //  message must have {id, name, date}
+  // Currently selected chat ID to highlight
+  activeChat: string; 
+  // Callback function 
   onSelectChat: (id: string) => void;
 }
 
