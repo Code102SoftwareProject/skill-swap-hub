@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import DOMPurify from 'dompurify';
 import { useRouter } from 'next/navigation';
-import { IForum } from '@/models/Forum';
+import { IForum } from '@/lib/modals/Forum';
 
 interface SearchPopupProps {
   isOpen: boolean;
