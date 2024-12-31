@@ -1,12 +1,17 @@
-import { elasticClient, testConnection } from '@/config/elasticsearch';
-import { Forum } from '@/models/Forum';
+import mongoose from 'mongoose';
+import { Forum, IForum } from '@/lib/modals/Forum';
 
 export class SearchService {
   private static instance: SearchService;
-  private readonly indexName = 'forums';
   private isInitialized = false;
+  private readonly dbName: string;
 
-  private constructor() {}
+  private constructor() {
+    const mongoUri = process.env.MONGODB_URI;
+    this.dbName = mongoUri ? 
+      mongoUri.split('/').pop()?.split('?')[0] || 'skillSwapHub' : 
+      'skillSwapHub';
+  }
 
   public static getInstance(): SearchService {
     if (!SearchService.instance) {
@@ -17,189 +22,162 @@ export class SearchService {
 
   async initialize() {
     if (this.isInitialized) return;
-
-    const isConnected = await testConnection();
-    if (!isConnected) {
-      throw new Error('Failed to connect to Elasticsearch Cloud');
-    }
-
-    this.isInitialized = true;
-  }
-
-  async setupIndex(deleteExisting = false): Promise<void> {
+  
     try {
-      await this.initialize();
-
-      const indexExists = await elasticClient.indices.exists({
-        index: this.indexName
-      });
-
-      if (indexExists && deleteExisting) {
-        await elasticClient.indices.delete({ index: this.indexName });
+      if (!process.env.MONGODB_URI) {
+        throw new Error('MONGODB_URI is not defined in environment variables');
       }
 
-      if (!indexExists || deleteExisting) {
-        await this.createIndex();
-        await this.seedSampleData();
+      if (!mongoose.connection.readyState) {
+        console.log('Connecting to MongoDB...');
+        await mongoose.connect(process.env.MONGODB_URI, {
+          dbName: this.dbName
+        });
+        console.log(`Connected successfully to database: ${this.dbName}`);
       }
+      this.isInitialized = true;
     } catch (error) {
-      console.error('Setup error:', error);
-      throw new Error(`Index setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('MongoDB connection error:', error);
+      throw error;
     }
   }
 
-  private async createIndex(): Promise<void> {
-    await elasticClient.indices.create({
-      index: this.indexName,
-      body: {
-        settings: {
-          number_of_shards: 1,
-          number_of_replicas: 1, 
-          analysis: {
-            analyzer: {
-              custom_analyzer: {
-                type: 'custom',
-                tokenizer: 'standard',
-                filter: ['lowercase', 'stop', 'snowball']
-              }
-            }
-          }
-        },
-        mappings: {
-          properties: {
-            title: {
-              type: 'text',
-              analyzer: 'custom_analyzer',
-              fields: {
-                keyword: {
-                  type: 'keyword',
-                  ignore_above: 256
-                }
-              }
-            },
-            description: {
-              type: 'text',
-              analyzer: 'custom_analyzer'
-            },
-            posts: { 
-              type: 'integer' 
-            },
-            replies: { 
-              type: 'integer' 
-            },
-            lastActive: { 
-              type: 'keyword' 
-            },
-            image: { 
-              type: 'keyword' 
-            },
-            createdAt: { 
-              type: 'date',
-              format: 'strict_date_optional_time||epoch_millis'
-            },
-            updatedAt: { 
-              type: 'date',
-              format: 'strict_date_optional_time||epoch_millis'
-            }
-          }
-        }
-      }
-    });
-  }
-
-  async searchForums(query: string): Promise<Forum[]> {
+  async searchForums(query: string): Promise<IForum[]> {
     try {
       await this.initialize();
       
-      const response = await elasticClient.search({
-        index: this.indexName,
-        body: {
-          query: {
-            bool: {
-              should: [
-                {
-                  multi_match: {
-                    query,
-                    fields: ['title^2', 'description'],
-                    type: 'best_fields',
-                    fuzziness: 'AUTO'
-                  }
-                },
-                {
-                  match_phrase_prefix: {
-                    title: {
-                      query,
-                      boost: 3
+      console.log('Searching with query:', query);
+
+      try {
+        const searchResults = await Forum.aggregate([
+          {
+            $search: {
+              index: "default",
+              compound: {
+                should: [
+                  {
+                    text: {
+                      query: query,
+                      path: "title",
+                      score: { boost: { value: 2 } },
+                      highlighting: { maxCharsToExamine: 500, maxNumPassages: 5 }
+                    }
+                  },
+                  {
+                    text: {
+                      query: query,
+                      path: "description",
+                      highlighting: { maxCharsToExamine: 1000, maxNumPassages: 5 }
                     }
                   }
-                }
-              ]
+                ]
+              }
             }
           },
-          highlight: {
-            fields: {
-              title: {},
-              description: {}
-            },
-            pre_tags: ['<mark>'],
-            post_tags: ['</mark>']
+          {
+            $addFields: {
+              score: { $meta: "searchScore" },
+              highlights: { $meta: "searchHighlights" }
+            }
+          },
+          {
+            $sort: { score: -1 }
           }
-        }
-      });
+        ]);
 
-      return response.hits.hits.map((hit: any) => ({
-        id: hit._id,
-        ...hit._source,
-        score: hit._score || 1.0,
-        title: hit.highlight?.title?.[0] || hit._source.title,
-        description: hit.highlight?.description?.[0] || hit._source.description
-      }));
+        console.log('Atlas Search results with highlights:', searchResults);
+
+        // Process the results to add highlighting
+        const processedResults = searchResults.map(result => {
+          let titleHighlighted = result.title;
+          let descriptionHighlighted = result.description;
+
+          // Process highlights if they exist
+          if (result.highlights) {
+            result.highlights.forEach((highlight: any) => {
+              const texts = highlight.texts;
+              texts.forEach((text: any) => {
+                if (text.type === 'hit') {
+                  const regex = new RegExp(text.value, 'gi');
+                  if (highlight.path === 'title') {
+                    titleHighlighted = titleHighlighted.replace(
+                      regex,
+                      `<mark class="bg-yellow-200">${text.value}</mark>`
+                    );
+                  } else if (highlight.path === 'description') {
+                    descriptionHighlighted = descriptionHighlighted.replace(
+                      regex,
+                      `<mark class="bg-yellow-200">${text.value}</mark>`
+                    );
+                  }
+                }
+              });
+            });
+          }
+
+          return {
+            ...result,
+            title: titleHighlighted,
+            description: descriptionHighlighted,
+            score: Math.round((result.score || 0) * 100) / 100
+          };
+        });
+
+        return processedResults;
+      } catch (searchError) {
+        console.error('Atlas Search error:', searchError);
+        
+        // Fallback to regex search with basic highlighting
+        console.log('Falling back to regex search');
+        const regex = new RegExp(`(${query})`, 'gi');
+        const fallbackResults = await Forum.find({
+          $or: [
+            { title: { $regex: regex } },
+            { description: { $regex: regex } }
+          ]
+        });
+
+        // Add basic highlighting to fallback results
+        const processedFallbackResults = fallbackResults.map(doc => {
+          const result = doc.toObject();
+          result.title = result.title.replace(
+            regex,
+            '<mark class="bg-yellow-200">$1</mark>'
+          );
+          result.description = result.description.replace(
+            regex,
+            '<mark class="bg-yellow-200">$1</mark>'
+          );
+          return result;
+        });
+
+        console.log('Fallback search results:', processedFallbackResults);
+        return processedFallbackResults;
+      }
     } catch (error) {
       console.error('Search error:', error);
-      throw new Error('Search failed');
+      throw error;
     }
   }
 
-  private async seedSampleData(): Promise<void> {
-    const sampleData: Omit<Forum, 'id'>[] = [
-      {
-        title: 'REACT JS Community Forums',
-        description: 'Discuss the latest React.js frameworks, libraries, and best practices with the React developer community.',
-        posts: 14,
-        replies: 22,
-        lastActive: '10 months',
-        image: '/api/placeholder/80/80',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        title: 'Next.js Discussion Forum',
-        description: 'Everything about Next.js framework, SSR, and React server components.',
-        posts: 25,
-        replies: 48,
-        lastActive: '2 days',
-        image: '/api/placeholder/80/80',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      },
-      {
-        title: 'TypeScript Help Center',
-        description: 'Get help with TypeScript types, interfaces, and advanced features.',
-        posts: 18,
-        replies: 35,
-        lastActive: '1 week',
-        image: '/api/placeholder/80/80',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    ];
-
-    const body = sampleData.flatMap(doc => [
-      { index: { _index: this.indexName } },
-      doc
-    ]);
-
-    await elasticClient.bulk({ refresh: true, body });
-    console.log('Sample data seeded successfully');
+  async checkSearchIndex(): Promise<boolean> {
+    try {
+      const results = await Forum.aggregate([
+        {
+          $search: {
+            index: "default",
+            text: {
+              query: "test",
+              path: ["title", "description"]
+            }
+          }
+        },
+        { $limit: 1 }
+      ]);
+      return true;
+    } catch (error) {
+      console.error('Search index check failed:', error);
+      return false;
+    }
   }
 }

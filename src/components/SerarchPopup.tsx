@@ -1,21 +1,12 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { X, FileText, MessageSquare, Loader2, TrendingUp } from 'lucide-react';
+import { X, FileText, MessageSquare, Loader2, Clock } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import DOMPurify from 'dompurify';
-
-interface SearchResult {
-  id: string;
-  title: string;
-  description: string;
-  posts: number;
-  replies: number;
-  lastActive: string;
-  image: string;
-  score: number;
-}
+import { useRouter } from 'next/navigation';
+import { IForum } from '@/lib/modals/Forum';
 
 interface SearchPopupProps {
   isOpen: boolean;
@@ -23,9 +14,10 @@ interface SearchPopupProps {
 }
 
 const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch] = useDebounce(searchTerm, 300);
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [results, setResults] = useState<IForum[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -41,11 +33,19 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
         setResults([]);
         return;
       }
-
+  
       setIsLoading(true);
       try {
+        console.log('Fetching results for:', debouncedSearch);
         const response = await fetch(`/api/search?q=${encodeURIComponent(debouncedSearch)}`);
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          throw new Error('Search request failed');
+        }
+        
         const data = await response.json();
+        console.log('Search response data:', data);
         
         if (data.error) {
           throw new Error(data.error);
@@ -54,18 +54,28 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
         setResults(data.forums);
       } catch (error) {
         console.error('Search failed:', error);
+        setResults([]);
       } finally {
         setIsLoading(false);
       }
     };
-
+  
     fetchResults();
   }, [debouncedSearch]);
 
   const renderHighlightedText = (text: string) => {
+    if (!text) return { __html: '' };
     return {
       __html: DOMPurify.sanitize(text)
     };
+  };
+
+  const formatDate = (date: Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
   const handleClose = () => {
@@ -88,6 +98,11 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleResultClick = (result: IForum) => {
+    handleClose();
+    router.push(`/forum/${result._id}`);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -107,26 +122,27 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
             onClick={e => e.stopPropagation()}
           >
             <div className="p-4 relative">
-              {/* Close button in top-right corner */}
-              <button
-                onClick={handleClose}
-                className="absolute right-4 top-4 hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
-                aria-label="Close popup"
-              >
-                <X className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Search Forums</h2>
+                <button
+                  onClick={handleClose}
+                  className="hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
+                  aria-label="Close popup"
+                >
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
 
-              <div className="relative mb-6 mt-8">
+              <div className="relative mb-6">
                 <input
                   ref={inputRef}
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Search threads.."
-                  className="w-full px-4 py-2 pr-20 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Search forums..."
+                  className="w-full px-4 py-3 pr-20 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
-                {/* Clear button inside search input */}
                 {searchTerm && (
                   <button
                     onClick={handleClearSearch}
@@ -149,60 +165,55 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
               )}
 
               <motion.div layout className="space-y-4">
-                {results.map((result, index) => (
+                {results.map((result) => (
                   <motion.div
-                    key={result.id}
+                    key={result._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-[#3B82B3] rounded-lg p-4 text-white flex items-start gap-4 hover:bg-[#2C6A94] transition-colors duration-200 cursor-pointer"
+                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    onClick={() => handleResultClick(result)}
                   >
-                    <div className="w-20 h-20 flex-shrink-0 overflow-hidden rounded">
-                      <Image
-                        src={result.image}
-                        alt={result.title}
-                        width={80}
-                        height={80}
-                        className="object-cover transform hover:scale-110 transition-transform duration-200"
-                      />
-                    </div>
-                    
-                    <div className="flex-1">
-                      <h3 
-                        className="font-semibold text-lg mb-2"
-                        dangerouslySetInnerHTML={renderHighlightedText(result.title)}
-                      />
-                      <p 
-                        className="text-sm text-gray-100 mb-4"
-                        dangerouslySetInnerHTML={renderHighlightedText(result.description)}
-                      />
+                    <div className="flex gap-4">
+                      <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
+                        <Image
+                          src={result.image}
+                          alt={result.title}
+                          width={96}
+                          height={96}
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
                       
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <motion.div 
-                            whileHover={{ scale: 1.1 }}
-                            className="flex items-center gap-1"
-                          >
-                            <FileText className="w-4 h-4" />
-                            <span>{result.posts}</span>
-                          </motion.div>
-                          <motion.div 
-                            whileHover={{ scale: 1.1 }}
-                            className="flex items-center gap-1"
-                          >
-                            <MessageSquare className="w-4 h-4" />
-                            <span>{result.replies}</span>
-                          </motion.div>
-                          <motion.div 
-                            whileHover={{ scale: 1.1 }}
-                            className="flex items-center gap-1"
-                          >
-                            <TrendingUp className="w-4 h-4" />
-                            <span>{Math.round(result.score * 100)}%</span>
-                          </motion.div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{result.lastActive}</span>
+                      <div className="flex-1 space-y-2">
+                        <h3 
+                          className="text-lg font-semibold text-gray-900"
+                          dangerouslySetInnerHTML={renderHighlightedText(result.title)}
+                        />
+                        <p 
+                          className="text-sm text-gray-600 line-clamp-2"
+                          dangerouslySetInnerHTML={renderHighlightedText(result.description)}
+                        />
+                        
+                        <div className="flex items-center justify-between pt-2">
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <div className="flex items-center gap-1">
+                              <FileText className="w-4 h-4" />
+                              <span>{result.posts}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <MessageSquare className="w-4 h-4" />
+                              <span>{result.replies}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatDate(new Date(result.lastActive))}</span>
+                            </div>
+                          </div>
+                          {result.score && (
+                            <div className="text-sm font-medium text-blue-600">
+                              Match: {Math.round(result.score * 100)}%
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

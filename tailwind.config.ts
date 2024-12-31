@@ -3,6 +3,7 @@ module.exports = {
   content: [
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/*//.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
@@ -10,6 +11,7 @@ module.exports = {
         primary: '#0369A1',
         secondary: '#BAE6FD',
         accent: '#F5F8FA',
+        buttonHover: '#025A89'
       },
       fontFamily: {
         heading: ['Manrope', 'sans-serif'],
