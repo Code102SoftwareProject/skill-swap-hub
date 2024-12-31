@@ -19,11 +19,16 @@ const messagesData: Message[] = [
 export default function ChatPage() {
   const [activeChat, setActiveChat] = useState<string>(messagesData[0].id);
 
+  // This function is called when a chat is selected from the MessageList
   const handleSelectChat = (id: string) => {
-    setActiveChat(id);
+    setActiveChat(id);  // Updates the active chat state
+    // Here you can add:
+    // 1. Fetch chat messages for the selected chat
+    // 2. Update read status
+    // 3. Load chat history
   };
 
-  // Get details of the active chat
+  // Gets the details of selected chat to display in ChatWindow
   const activeChatDetails = messagesData.find((msg) => msg.id === activeChat);
 
   return (

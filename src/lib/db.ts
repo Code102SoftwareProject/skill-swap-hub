@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import exp from "node:constants";
 
-const  MONGODB_URI=process.env.MONGODB_URI
+const MONGODB_URI = process.env.MONGODB_URI as string;
 
 const connect = async ()=>{
     const connectionState=mongoose.connection.readyState;
