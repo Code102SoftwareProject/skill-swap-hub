@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Message from '@/lib/modals/messageSchema';
 
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { roomId: string } }
 ) {
   await connect();
@@ -26,7 +26,7 @@ export async function GET(
 }
 
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { roomId: string } }
 ) {
   await connect();
