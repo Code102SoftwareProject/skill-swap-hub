@@ -2,10 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Message from '@/lib/modals/messageSchema';
 
-export async function GET(req: NextRequest, { params }: { params: { roomId: string } }) {
+export async function GET(req: NextRequest, context: { params: { roomId: string } }) {
   await connect();
+
   try {
-    const messages = await Message.find({ chatRoomId: params.roomId })
+    // Await the params object if needed
+    const { roomId } = await context.params;
+
+    const messages = await Message.find({ chatRoomId: roomId })
       .populate('sender', 'name email') // Add the fields you want to include from the user
       .sort({ timestamp: 1 }); // Sort by timestamp ascending
 
@@ -22,9 +26,13 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
   }
 }
 
-export async function POST(req: NextRequest, { params }: { params: { roomId: string } }) {
+export async function POST(req: NextRequest, context: { params: { roomId: string } }) {
   await connect();
+
   try {
+    // Await the params object if needed
+    const { roomId } = await context.params;
+
     const body = await req.json();
     const { content, sender } = body;
 
@@ -36,7 +44,7 @@ export async function POST(req: NextRequest, { params }: { params: { roomId: str
     }
 
     const message = await Message.create({
-      chatRoomId: params.roomId,
+      chatRoomId: roomId,
       content,
       sender
     });
