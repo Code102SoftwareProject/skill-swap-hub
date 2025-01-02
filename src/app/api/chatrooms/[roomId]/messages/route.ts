@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Message from '@/lib/modals/messageSchema';
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { roomId: string } }
-) {
+export async function GET(req: NextRequest, { params }: { params: { roomId: string } }) {
   await connect();
   try {
     const messages = await Message.find({ chatRoomId: params.roomId })
@@ -25,10 +22,7 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: { roomId: string } }
-) {
+export async function POST(req: NextRequest, { params }: { params: { roomId: string } }) {
   await connect();
   try {
     const body = await req.json();
