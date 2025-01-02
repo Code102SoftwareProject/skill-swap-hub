@@ -26,4 +26,26 @@ const MessageSchema: Schema = new Schema<IMessage>({
   readStatus: { type: Boolean, default: false },
 });
 
-export default mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);
+const messageSchema = new mongoose.Schema({
+  chatRoomId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ChatRoom',
+    required: true
+  },
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  content: {
+    type: String,
+    required: true
+  },
+  timestamp: {
+    type: Date,
+    default: Date.now
+  }
+});
+
+const Message = mongoose.models.Message || mongoose.model('Message', messageSchema);
+export default Message;

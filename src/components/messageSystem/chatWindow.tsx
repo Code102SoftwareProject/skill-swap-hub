@@ -50,9 +50,10 @@ const sampleMessages = [
 
 interface ChatWindowProps {
   activeChatId: string;
+  activeChatName: string;  // Add this line
 }
 
-const ChatWindow = ({ activeChatId }: ChatWindowProps) => {
+const ChatWindow = ({ activeChatId, activeChatName }: ChatWindowProps) => {
   const handleSend = (message: string) => {
     console.log("Message sent:", message);
   };
@@ -71,7 +72,7 @@ const ChatWindow = ({ activeChatId }: ChatWindowProps) => {
       <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
         <div>
           <h2 className="text-lg font-semibold text-gray-800">
-            Chat with Joey Nil
+            Chat with {activeChatName}
           </h2>
           <p className="text-sm text-gray-500">Response time: 1 hour</p>
         </div>

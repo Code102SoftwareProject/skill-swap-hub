@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "dev:socket":"NODE_OPTIONS='--loader ts-node/esm  --trace-warnings --no-warnings' ts-node server.mts",
+    "dev:socket": "NODE_OPTIONS='--loader ts-node/esm  --trace-warnings --no-warnings' ts-node server.mts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -30,10 +30,10 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.4.0",
     "recharts": "^2.15.0",
-    "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
+    "tailwind-merge": "^2.6.0",
+    "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.4"
   },
   "devDependencies": {

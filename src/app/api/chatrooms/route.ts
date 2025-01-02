@@ -2,6 +2,28 @@ import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import ChatRoom from '@/lib/modals/chatRoomShema';
 
+export async function GET(req: Request) {
+  await connect();
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    let query = {};
+    if (userId) {
+      query = { participants: userId };
+    }
+
+    const chatRooms = await ChatRoom.find(query);
+    return NextResponse.json({ success: true, chatRooms }, { status: 200 });
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(req: Request) {
   await connect();
   try {
