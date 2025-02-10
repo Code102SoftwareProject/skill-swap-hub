@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatRoom extends Document {
-  participants: string[]; // Array of strings
+  participants: string[]; // Array of user IDs (strings)
   createdAt: Date;
   lastMessage?: {
     content: string;
@@ -10,9 +10,9 @@ export interface IChatRoom extends Document {
   };
 }
 
-const ChatRoomSchema: Schema = new Schema<IChatRoom>({
+const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   participants: [
-    { type: String, ref: 'User', required: true }, // Store user IDs as strings
+    { type: String, ref: 'User', required: true }, // store user IDs as strings
   ],
   createdAt: { type: Date, default: Date.now },
   lastMessage: {
@@ -22,6 +22,7 @@ const ChatRoomSchema: Schema = new Schema<IChatRoom>({
   },
 });
 
+// Create a compound index if needed (unique pairs)
 ChatRoomSchema.index(
   { participants: 1 },
   { unique: true, partialFilterExpression: { "participants.1": { $exists: true } } }

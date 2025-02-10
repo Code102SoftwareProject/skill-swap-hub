@@ -22,11 +22,11 @@ export async function POST(req: Request) {
     // Convert string ID to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
 
-    // Create message using senderId/receiverId directly
+    // Create a new message document
     const message = await Message.create({
       chatRoomId: chatRoomObjectId,
-      senderId,    // Match schema field name
-      receiverId,  // Match schema field name
+      senderId,
+      receiverId,
       content,
       sentAt: new Date(),
       readStatus: false
@@ -44,9 +44,12 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   await connect();
+
   try {
+    // Extract query params from the request URL
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get('chatRoomId');
+    const lastMessageOnly = searchParams.get('lastMessage') === 'true';
 
     if (!chatRoomId) {
       return NextResponse.json(
@@ -55,10 +58,21 @@ export async function GET(req: Request) {
       );
     }
 
-    // Convert string ID to ObjectId for querying
+    // Convert the string ID to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
-    const messages = await Message.find({ chatRoomId: chatRoomObjectId }).sort({ sentAt: 1 });
-    
+
+    if (lastMessageOnly) {
+      // Return only the last message (by sentAt descending)
+      const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
+        .sort({ sentAt: -1 });
+
+      return NextResponse.json({ success: true, message: lastMessage }, { status: 200 });
+    }
+
+    // Otherwise, return all messages sorted by sentAt ascending
+    const messages = await Message.find({ chatRoomId: chatRoomObjectId })
+      .sort({ sentAt: 1 });
+
     return NextResponse.json({ success: true, messages }, { status: 200 });
   } catch (error: any) {
     console.error(error);
