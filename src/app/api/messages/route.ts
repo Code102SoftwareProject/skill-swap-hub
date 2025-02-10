@@ -22,11 +22,11 @@ export async function POST(req: Request) {
     // Convert string ID to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
 
-    // Create message using senderId/receiverId directly
+    // Create a new message document
     const message = await Message.create({
       chatRoomId: chatRoomObjectId,
-      senderId,    // Match schema field name
-      receiverId,  // Match schema field name
+      senderId,
+      receiverId,
       content,
       sentAt: new Date(),
       readStatus: false
@@ -44,7 +44,9 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   await connect();
+
   try {
+    // Extract query params from the request URL
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get('chatRoomId');
     const lastMessageOnly = searchParams.get('lastMessage') === 'true';
@@ -56,22 +58,21 @@ export async function GET(req: Request) {
       );
     }
 
+    // Convert the string ID to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
-    
+
     if (lastMessageOnly) {
-      // Get only the last message
-      const lastMessage = await Message.findOne({ 
-        chatRoomId: chatRoomObjectId 
-      }).sort({ sentAt: -1 });
-      
+      // Return only the last message (by sentAt descending)
+      const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
+        .sort({ sentAt: -1 });
+
       return NextResponse.json({ success: true, message: lastMessage }, { status: 200 });
     }
 
-    // Get all messages
-    const messages = await Message.find({ 
-      chatRoomId: chatRoomObjectId 
-    }).sort({ sentAt: 1 });
-    
+    // Otherwise, return all messages sorted by sentAt ascending
+    const messages = await Message.find({ chatRoomId: chatRoomObjectId })
+      .sort({ sentAt: 1 });
+
     return NextResponse.json({ success: true, messages }, { status: 200 });
   } catch (error: any) {
     console.error(error);
@@ -80,16 +81,4 @@ export async function GET(req: Request) {
       { status: 500 }
     );
   }
-}
-
-// Make a GET request to /api/messages?chatRoomId={CHATROOM_ID}
-
-// Example fetch call:
-const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
-const data = await response.json();
-
-if (data.success) {
-  const messages = data.messages; // Array of messages sorted by sentAt
-} else {
-  console.error(data.message);
 }
