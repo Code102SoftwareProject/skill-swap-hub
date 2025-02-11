@@ -1,54 +1,72 @@
-'use client';
+"use client";
+import { useState } from "react";
 
-import { useState } from 'react';
+interface MessageInputProps {
+  chatRoomId: string;
+  senderId: string;
+  receiverId: string;
+  onMessageSent?: (newMessage: any) => void;
+}
 
-export default function MessageInput({ chatRoomId, userId }: { chatRoomId: string; userId: string }) {
-  const [message, setMessage] = useState('');
+const MessageInput: React.FC<MessageInputProps> = ({ chatRoomId, senderId, receiverId, onMessageSent }) => {
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function sendMessage() {
+  const sendMessage = async () => {
     if (!message.trim()) return;
+    if (!receiverId || receiverId === "unknown") {
+      console.warn("⚠️ Cannot send message: receiverId is missing!");
+      return;
+    }
 
+    setLoading(true);
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           chatRoomId,
-          senderId: userId,
-          receiverId: 'receiverId', // Replace with actual receiver ID
+          senderId,
+          receiverId,
           content: message,
         }),
       });
 
       const data = await response.json();
       if (data.success) {
-        setMessage('');
+        setMessage(""); // Clear input field
+        onMessageSent?.(data.message); // ✅ Update UI instantly
       } else {
-        console.error(data.message);
+        console.error("Failed to send message:", data.message);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error("Error sending message:", error);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="p-4 bg-gray-50 border-t flex items-center space-x-2">
-      <button className="p-2 bg-gray-200 rounded-full hover:bg-gray-300">
-        📎
-      </button>
+    <div className="flex items-center p-3 border-t bg-white">
       <input
         type="text"
-        placeholder="Type a message"
+        className="flex-grow p-2 border rounded-lg outline-none"
+        placeholder={receiverId === "unknown" ? "Waiting for chat details..." : "Type a message..."}
         value={message}
         onChange={(e) => setMessage(e.target.value)}
-        className="flex-grow p-2 text-sm border rounded-md focus:outline-none"
+        disabled={loading || receiverId === "unknown"}
       />
       <button
-        className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+        className="p-2 bg-blue-600 text-white rounded-lg ml-2 disabled:opacity-50"
         onClick={sendMessage}
+        disabled={loading || receiverId === "unknown"}
       >
-        Send
+        {loading ? "Sending..." : "➤"}
       </button>
     </div>
   );
-}
+};
+
+export default MessageInput;
