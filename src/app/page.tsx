@@ -1,6 +1,5 @@
 // page.tsx
 'use client';
-import ChatInput from "@/components/messageSystem/chatInput";
 import Navbar from "../components/Navbar";
 
 
