@@ -23,7 +23,8 @@ export default function ChatPage() {
 
         if (data.success && data.chatRooms.length > 0) {
           // Find the chat room the user is in
-          const chatRoom = data.chatRooms.find(room => room._id === selectedChatRoomId);
+          const chatRoom = data.chatRooms.find((room: { _id: string }) => room._id === selectedChatRoomId);
+
 
           if (chatRoom) {
             // Find the other participant in the chat
