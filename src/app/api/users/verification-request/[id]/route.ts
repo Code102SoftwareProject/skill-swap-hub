@@ -1,11 +1,21 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import VerificationRequestModel from '@/lib/modals/VerificationRequest';
+import { headers } from 'next/headers';
+
+interface Params {
+  params: {
+    id: string;
+  };
+}
 
 export async function PATCH(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: Params
 ) {
+  const headersInstance = headers();
+  const id = await Promise.resolve(params.id);
+
   try {
     await connect();
 
@@ -20,7 +30,7 @@ export async function PATCH(
     }
 
     const updatedRequest = await VerificationRequestModel.findByIdAndUpdate(
-      params.id,
+      id,
       { status },
       { new: true }
     );
@@ -37,6 +47,34 @@ export async function PATCH(
     console.error('Error updating verification request:', error);
     return NextResponse.json(
       { error: 'Failed to update verification request' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: Params
+) {
+  const id = await Promise.resolve(params.id);
+
+  try {
+    await connect();
+
+    const verificationRequest = await VerificationRequestModel.findById(id);
+
+    if (!verificationRequest) {
+      return NextResponse.json(
+        { error: 'Verification request not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ data: verificationRequest }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching verification request:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch verification request' },
       { status: 500 }
     );
   }
