@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { UploadCloud, CheckCircle } from 'lucide-react';
 import axios, { AxiosError } from 'axios';
 import Swal from 'sweetalert2';
-
+import SkillDetailsModal from '../Popup/Skillrequestpopup';
 interface VerificationRequest {
   _id: string;
   userId: string;
@@ -21,6 +21,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
 
   // Fetch verification requests
   useEffect(() => {
@@ -136,7 +137,9 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
       setIsSubmitting(false);
     }
   };
-
+  const handleRequestClick = (request: VerificationRequest) => {
+    setSelectedRequest(request);
+  };
   if (loading) {
     return <div className="text-center p-8">Loading...</div>;
   }
@@ -223,10 +226,11 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
               requests.map((request) => (
                 <div
                   key={request._id}
-                  className="flex items-center justify-between p-4 rounded-lg"
+                  className="flex items-center justify-between p-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                   style={{
                     backgroundColor: request.status === 'Pending' ? '#0A4D8C' : '#4A7997',
                   }}
+                  onClick={() => handleRequestClick(request)}
                 >
                   <span className="text-white font-medium">{request.skillName}</span>
                   <div className="flex items-center space-x-2">
@@ -243,6 +247,13 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
           </div>
         </div>
       </div>
+      {selectedRequest && (
+        <SkillDetailsModal
+          request={selectedRequest}
+          isOpen={!!selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+        />
+      )}
     </div>
   );
 };
