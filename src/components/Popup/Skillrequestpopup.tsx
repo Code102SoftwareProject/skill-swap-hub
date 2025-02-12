@@ -53,7 +53,7 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
         const downloadUrl = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `document.${fileExtension}`; // You can customize the filename
+        a.download = `document.${fileExtension}`; 
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
