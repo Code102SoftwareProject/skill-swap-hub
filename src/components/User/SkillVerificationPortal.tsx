@@ -22,7 +22,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
-
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   // Fetch verification requests
   useEffect(() => {
     const fetchRequests = async () => {
@@ -52,7 +52,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
       const validFiles = Array.from(files).filter(file => {
         const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
         const maxSize = 10 * 1024 * 1024; // 10MB
-        
+
         if (!validTypes.includes(file.type)) {
           Swal.fire({
             icon: 'error',
@@ -62,7 +62,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
           });
           return false;
         }
-        
+
         if (file.size > maxSize) {
           Swal.fire({
             icon: 'error',
@@ -88,35 +88,70 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
     }
   };
 
+  // Upload single file
+  const uploadFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await axios.post('/api/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      onUploadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          const progress = (progressEvent.loaded / progressEvent.total) * 100;
+          setUploadProgress(Math.round(progress));
+        }
+      },
+    });
+
+    if (!response.data.url) {
+      throw new Error('Failed to upload file');
+    }
+
+    return response.data.url;
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-  
+
     try {
       setIsSubmitting(true);
-  
+      setUploadProgress(0);
+
       if (!skillName.trim()) {
         throw new Error('Skill name is required');
       }
-  
-      const documentUrls = ['placeholder-url'];
-  
+
+      if (documents.length === 0) {
+        throw new Error('Please upload at least one document');
+      }
+
+      // Upload all documents sequentially
+      const documentUrls = [];
+      for (const file of documents) {
+        const url = await uploadFile(file);
+        documentUrls.push(url);
+      }
+
+      // Submit verification request with document URLs
       const response = await axios.post<{ data: VerificationRequest }>('/api/users/verification-request', {
         userId,
         skillName: skillName.trim(),
         documents: documentUrls,
         description: description.trim(),
       });
-  
-     
-      setRequests(prev => [response.data.data, ...prev]); 
-  
+
+      setRequests(prev => [response.data.data, ...prev]);
+
       // Reset form
       setSkillName('');
       setDescription('');
       setDocuments([]);
-  
+      setUploadProgress(0);
+
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -124,7 +159,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
         confirmButtonColor: '#1e3a8a',
         timer: 2000
       });
-  
+
     } catch (err) {
       const error = err as AxiosError;
       Swal.fire({
@@ -193,6 +228,20 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
                 />
               </div>
             </div>
+            {/*upload progress indicator */}
+            {isSubmitting && uploadProgress > 0 && (
+                <div className="w-full mt-4">
+                     <div className="w-full bg-gray-200 rounded-full h-2.5">
+                      <div 
+                       className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                       style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                 </div>
+                 <p className="text-sm text-gray-600 mt-1 text-center">
+                     Uploading: {uploadProgress}%
+                 </p>
+                </div>
+               )}
 
             <div>
               <label className="text-xl font-semibold block mb-2">Additional Description</label>

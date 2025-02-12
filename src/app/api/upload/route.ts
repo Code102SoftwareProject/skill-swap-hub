@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { uploadFileToR2 } from "@/lib/r2";
-import formidable, { IncomingForm, File } from "formidable";
+import formidable, { IncomingForm } from "formidable";
 import { writeFile } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
