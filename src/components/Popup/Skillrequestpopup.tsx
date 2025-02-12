@@ -36,6 +36,7 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: documentUrl }),
+        
       });
 
       if (!response.ok) {
