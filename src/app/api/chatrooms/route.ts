@@ -4,7 +4,6 @@ import ChatRoom from '@/lib/modals/chatRoomShema';
 
 export async function GET(req: Request) {
   await connect();
-
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');  // e.g. /api/chatrooms?userId=abc123

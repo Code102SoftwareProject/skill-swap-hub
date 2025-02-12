@@ -33,7 +33,7 @@ export default function FileUpload() {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage("File uploaded successfully!");
+        setMessage(`File uploaded successfully! URL: ${result.url}`);
         setImageUrl(result.url);
       } else {
         setMessage("Upload failed: " + result.message);
