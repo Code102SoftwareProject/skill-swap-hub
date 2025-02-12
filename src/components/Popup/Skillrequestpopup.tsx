@@ -7,7 +7,7 @@ interface SkillDetailsModalProps {
   request: {
     _id: string;
     skillName: string;
-    status: 'Pending' | 'Verified';
+    status: 'pending' | 'approved' | 'rejected';
     documents: string[];
     description: string;
     createdAt: Date;
@@ -23,6 +23,25 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
+  // Helper function to get status color class
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'bg-orange-500';
+      case 'approved':
+        return 'bg-green-500';
+      case 'rejected':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  // Helper function to get status text
+  const getStatusText = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase();
+  };
+
   // Function to handle document viewing/downloading
   const handleDocumentAction = async (documentUrl: string) => {
     try {
@@ -36,7 +55,6 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: documentUrl }),
-        
       });
 
       if (!response.ok) {
@@ -91,9 +109,9 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Status</h3>
             <span
               className={`px-3 py-1 rounded-full text-white text-sm inline-block
-                ${request.status === 'Pending' ? 'bg-orange-500' : 'bg-green-500'}`}
+                ${getStatusColor(request.status)}`}
             >
-              {request.status}
+              {getStatusText(request.status)}
             </span>
           </div>
 

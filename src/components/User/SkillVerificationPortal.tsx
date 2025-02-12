@@ -8,7 +8,7 @@ interface VerificationRequest {
   _id: string;
   userId: string;
   skillName: string;
-  status: 'Pending' | 'Verified';
+  status: 'pending' | 'approved' | 'rejected';
   documents: string[];
   description: string;
   createdAt: Date;
@@ -46,53 +46,13 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
     fetchRequests();
   }, [userId]);
 
-  // Handle file upload
-  const handleFileUpload = (files: FileList | null) => {
-    if (files) {
-      const validFiles = Array.from(files).filter(file => {
-        const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
-        const maxSize = 10 * 1024 * 1024; // 10MB
-
-        if (!validTypes.includes(file.type)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid File Type',
-            text: 'Only PDF, JPG, and PNG files are allowed.',
-            confirmButtonColor: '#1e3a8a'
-          });
-          return false;
-        }
-
-        if (file.size > maxSize) {
-          Swal.fire({
-            icon: 'error',
-            title: 'File Too Large',
-            text: 'File size exceeds 10MB limit.',
-            confirmButtonColor: '#1e3a8a'
-          });
-          return false;
-        }
-        return true;
-      });
-
-      setDocuments(validFiles);
-      if (validFiles.length > 0) {
-        Swal.fire({
-          icon: 'success',
-          title: 'Files Added',
-          text: `${validFiles.length} file(s) successfully selected`,
-          confirmButtonColor: '#1e3a8a',
-          timer: 1500
-        });
-      }
-    }
-  };
 
   // Upload single file
-  const uploadFile = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
+const uploadFile = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
 
+  try {
     const response = await axios.post('/api/documents/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -103,6 +63,15 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
           setUploadProgress(Math.round(progress));
         }
       },
+      // Add these options for formidable compatibility
+      transformRequest: [
+        (data, headers) => {
+          // Don't convert FormData to JSON
+          return data;
+        },
+      ],
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
     });
 
     if (!response.data.url) {
@@ -110,74 +79,151 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
     }
 
     return response.data.url;
-  };
+  } catch (error) {
+    console.error('File upload error:', error);
+    throw new Error('Failed to upload file');
+  }
+};
 
-  // Handle form submission
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
+// Handle file upload
+const handleFileUpload = (files: FileList | null) => {
+  if (files) {
+    const validFiles = Array.from(files).filter(file => {
+      const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
+      const maxSize = 10 * 1024 * 1024; // 10MB
 
-    try {
-      setIsSubmitting(true);
-      setUploadProgress(0);
-
-      if (!skillName.trim()) {
-        throw new Error('Skill name is required');
+      if (!validTypes.includes(file.type)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid File Type',
+          text: 'Only PDF, JPG, and PNG files are allowed.',
+          confirmButtonColor: '#1e3a8a'
+        });
+        return false;
       }
 
-      if (documents.length === 0) {
-        throw new Error('Please upload at least one document');
+      if (file.size > maxSize) {
+        Swal.fire({
+          icon: 'error',
+          title: 'File Too Large',
+          text: 'File size exceeds 10MB limit.',
+          confirmButtonColor: '#1e3a8a'
+        });
+        return false;
       }
+      return true;
+    });
 
-      // Upload all documents sequentially
-      const documentUrls = [];
-      for (const file of documents) {
-        const url = await uploadFile(file);
-        documentUrls.push(url);
-      }
-
-      // Submit verification request with document URLs
-      const response = await axios.post<{ data: VerificationRequest }>('/api/users/verification-request', {
-        userId,
-        skillName: skillName.trim(),
-        documents: documentUrls,
-        description: description.trim(),
-      });
-
-      setRequests(prev => [response.data.data, ...prev]);
-
-      // Reset form
-      setSkillName('');
-      setDescription('');
-      setDocuments([]);
-      setUploadProgress(0);
-
+    setDocuments(validFiles);
+    if (validFiles.length > 0) {
       Swal.fire({
         icon: 'success',
-        title: 'Success!',
-        text: 'Verification request submitted successfully',
+        title: 'Files Added',
+        text: `${validFiles.length} file(s) successfully selected`,
         confirmButtonColor: '#1e3a8a',
-        timer: 2000
+        timer: 1500
       });
-
-    } catch (err) {
-      const error = err as AxiosError;
-      Swal.fire({
-        icon: 'error',
-        title: 'Submission Failed',
-        text: error.message || 'Failed to submit verification request',
-        confirmButtonColor: '#1e3a8a'
-      });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  }
+};
+
+// Handle form submission
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (isSubmitting) return;
+
+  try {
+    setIsSubmitting(true);
+    setUploadProgress(0);
+
+    if (!skillName.trim()) {
+      throw new Error('Skill name is required');
+    }
+
+    if (documents.length === 0) {
+      throw new Error('Please upload at least one document');
+    }
+
+    // Upload all documents sequentially
+    const documentUrls = [];
+    for (const file of documents) {
+      try {
+        const url = await uploadFile(file);
+        documentUrls.push(url);
+      } catch (error) {
+        throw new Error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    // Submit verification request with document URLs
+    const response = await axios.post<{ data: VerificationRequest }>('/api/users/verification-request', {
+      userId,
+      skillName: skillName.trim(),
+      documents: documentUrls,
+      description: description.trim(),
+    });
+
+    setRequests(prev => [response.data.data, ...prev]);
+
+    // Reset form
+    setSkillName('');
+    setDescription('');
+    setDocuments([]);
+    setUploadProgress(0);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Success!',
+      text: 'Verification request submitted successfully',
+      confirmButtonColor: '#1e3a8a',
+      timer: 2000
+    });
+
+  } catch (err) {
+    const error = err as Error;
+    Swal.fire({
+      icon: 'error',
+      title: 'Submission Failed',
+      text: error.message || 'Failed to submit verification request',
+      confirmButtonColor: '#1e3a8a'
+    });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
   const handleRequestClick = (request: VerificationRequest) => {
     setSelectedRequest(request);
   };
   if (loading) {
     return <div className="text-center p-8">Loading...</div>;
   }
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return 'bg-orange-500';
+      case 'approved':
+        return 'bg-green-500';
+      case 'rejected':
+        return 'bg-red-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  // Helper function to get card background color
+  const getCardBackgroundColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return '#0A4D8C';
+      case 'approved':
+        return '#1B5E20';
+      case 'rejected':
+        return '#B71C1C';
+      default:
+        return '#4A7997';
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto p-6">
@@ -265,7 +311,6 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
           </form>
         </div>
 
-        {/* Verification Requests List */}
         <div className="bg-white p-6 rounded-lg shadow">
           <h2 className="text-xl font-bold mb-4">Your Verification Requests</h2>
           <div className="space-y-3">
@@ -277,17 +322,16 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
                   key={request._id}
                   className="flex items-center justify-between p-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                   style={{
-                    backgroundColor: request.status === 'Pending' ? '#0A4D8C' : '#4A7997',
+                    backgroundColor: getCardBackgroundColor(request.status)
                   }}
                   onClick={() => handleRequestClick(request)}
                 >
                   <span className="text-white font-medium">{request.skillName}</span>
                   <div className="flex items-center space-x-2">
                     <span
-                      className={`px-3 py-1 rounded-full text-white text-sm
-                        ${request.status === 'Pending' ? 'bg-orange-500' : 'bg-green-500'}`}
+                      className={`px-3 py-1 rounded-full text-white text-sm ${getStatusColor(request.status)}`}
                     >
-                      {request.status}
+                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                     </span>
                   </div>
                 </div>

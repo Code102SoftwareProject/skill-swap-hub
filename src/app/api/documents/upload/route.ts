@@ -1,33 +1,26 @@
 import { NextResponse } from "next/server";
 import { uploadFileToR2 } from "@/lib/r2";
-<<<<<<< HEAD:src/app/api/upload/route.ts
-import { File } from "formidable";
-import { readFile } from "fs/promises";
-=======
-import formidable, { IncomingForm } from "formidable";
-import { writeFile } from "fs/promises";
-import path from "path";
-import { promisify } from "util";
->>>>>>> 2d81585638fec69b0128dddcb8f22b7eb50ff19c:src/app/api/documents/upload/route.ts
-
-// Disable automatic body parsing
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+
     if (!file) {
       return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
     }
-    const fileBuffer = await readFile(file.filepath);
-    const fileName = file.originalFilename || "";
-    const mimeType = file.mimetype || "";
-    const uploadResponse = await uploadFileToR2(fileBuffer, fileName, mimeType);
+
+    // Convert File to ArrayBuffer
+    const buffer = await file.arrayBuffer();
+    const fileName = file.name;
+    const mimeType = file.type;
+
+    // Upload to R2
+    const uploadResponse = await uploadFileToR2(
+      Buffer.from(buffer), // Convert ArrayBuffer to Buffer
+      fileName,
+      mimeType
+    );
 
     if (uploadResponse.success) {
       return NextResponse.json({
@@ -42,6 +35,16 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { message: "Server error", error: String(error) },
+      { status: 500 }
+    );
   }
 }
+
+// Configure API route to handle file uploads
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
