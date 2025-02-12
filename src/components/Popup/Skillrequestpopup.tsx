@@ -1,7 +1,7 @@
 "use client"
 
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, Download, Eye } from 'lucide-react';
 
 interface SkillDetailsModalProps {
   request: {
@@ -22,6 +22,48 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
   onClose
 }) => {
   if (!isOpen) return null;
+
+  // Function to handle document viewing/downloading
+  const handleDocumentAction = async (documentUrl: string) => {
+    try {
+      // Get the file extension from the URL
+      const fileExtension = documentUrl.split('.').pop()?.toLowerCase();
+      
+      // Use our API as a proxy to fetch the document
+      const response = await fetch('/api/documents/access', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: documentUrl }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch document');
+      }
+
+      const blob = await response.blob();
+      
+      // If it's an image or PDF, open in new tab
+      if (fileExtension === 'pdf' || fileExtension === 'jpg' || fileExtension === 'jpeg' || fileExtension === 'png') {
+        const objectUrl = URL.createObjectURL(blob);
+        window.open(objectUrl, '_blank');
+      } else {
+        // For other file types, trigger download
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `document.${fileExtension}`; // You can customize the filename
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+      }
+    } catch (error) {
+      console.error('Error handling document:', error);
+      alert('Error accessing document. Please try again.');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -76,17 +118,37 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Uploaded Documents</h3>
             <div className="space-y-2">
               {request.documents.length > 0 ? (
-                request.documents.map((doc, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between bg-gray-50 p-3 rounded"
-                  >
-                    <span className="text-gray-600">Document {index + 1}</span>
-                    <button className="text-blue-600 hover:text-blue-800">
-                      View Document
-                    </button>
-                  </div>
-                ))
+                request.documents.map((doc, index) => {
+                  const fileExtension = doc.split('.').pop()?.toLowerCase();
+                  const isViewable = ['pdf', 'jpg', 'jpeg', 'png'].includes(fileExtension || '');
+                  
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between bg-gray-50 p-3 rounded"
+                    >
+                      <span className="text-gray-600">Document {index + 1}</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleDocumentAction(doc)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-md transition-colors hover:bg-gray-100"
+                        >
+                          {isViewable ? (
+                            <>
+                              <Eye className="h-4 w-4" />
+                              <span>View</span>
+                            </>
+                          ) : (
+                            <>
+                              <Download className="h-4 w-4" />
+                              <span>Download</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-gray-500">No documents uploaded</p>
               )}
