@@ -93,7 +93,7 @@ const SkillVerificationPortal: React.FC<{ userId: string }> = ({ userId }) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await axios.post('/api/upload', formData, {
+    const response = await axios.post('/api/documents/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
