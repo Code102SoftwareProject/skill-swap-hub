@@ -2,6 +2,7 @@
 'use client';
 import ChatInput from "@/components/messageSystem/chatInput";
 import Navbar from "../components/Navbar";
+import Dashboard from "@/components/Dashboard/Dashboard";
 
 
 export default function Home() {
@@ -10,7 +11,7 @@ export default function Home() {
         <div className="p-8">
          <Navbar userName={"Nethmal"} userImage={""} />
         </div>
-        
+        <Dashboard/>
       </>
   );
 }
