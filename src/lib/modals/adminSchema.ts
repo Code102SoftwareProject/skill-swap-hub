@@ -8,6 +8,6 @@ const adminSchema = new Schema({
 },
     { timestamps: true }
 );
-const AdminSchema=models.AdminSchema||model("admin",adminSchema);
+const Admin=models.Admin||model("Admin",adminSchema);
 
 export default { adminSchema };
