@@ -1,9 +1,13 @@
 "use client";
+
+import { io } from "socket.io-client";
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Sidebar from "@/components/messageSystem/Sidebar";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
+
+const socket = io("http://localhost:3001");
 
 export default function ChatPage() {
   const { userId } = useParams() as { userId: string };
@@ -13,6 +17,25 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
+    if (!selectedChatRoomId) return;
+
+    // ✅ Remove previous event listeners to prevent duplicates
+    socket.off("receive_message");
+
+    // ✅ Listen for incoming messages
+    socket.on("receive_message", (message) => {
+      console.log("📩 Received message:", message);
+      setNewMessage(message); // Ensure only one update
+    });
+
+    return () => {
+      socket.off("receive_message"); // ✅ Cleanup on component unmount
+    };
+  }, [selectedChatRoomId]);
+
+  useEffect(() => {
+    socket.emit("client_ready", "Hello from the client!");
+
     const fetchChatDetails = async () => {
       if (!selectedChatRoomId) return;
       setIsLoading(true);
@@ -22,25 +45,17 @@ export default function ChatPage() {
         const data = await response.json();
 
         if (data.success && data.chatRooms.length > 0) {
-          // Find the chat room the user is in
           const chatRoom = data.chatRooms.find((room: { _id: string }) => room._id === selectedChatRoomId);
-
-
           if (chatRoom) {
-            // Find the other participant in the chat
             const otherUserId = chatRoom.participants.find((id: string) => id !== userId);
             setReceiverId(otherUserId || null);
-            console.log("✅ Receiver ID set:", otherUserId);
           } else {
-            console.warn("⚠️ Warning: Chat room not found.");
             setReceiverId(null);
           }
         } else {
-          console.error("❌ Error: No chat rooms found.");
           setReceiverId(null);
         }
       } catch (error) {
-        console.error("❌ Network error fetching chat room details:", error);
         setReceiverId(null);
       } finally {
         setIsLoading(false);
@@ -65,7 +80,6 @@ export default function ChatPage() {
               <MessageBox userId={userId} chatRoomId={selectedChatRoomId} newMessage={newMessage} />
             </div>
 
-            {/* ✅ Fix: Ensure message input always shows, even if receiverId is null */}
             <div className="border-t p-2 bg-white">
               {isLoading ? (
                 <p className="text-gray-500">Loading chat details...</p>
@@ -73,8 +87,11 @@ export default function ChatPage() {
                 <MessageInput
                   chatRoomId={selectedChatRoomId}
                   senderId={userId}
-                  receiverId={receiverId || "unknown"} // Ensure input is always shown
-                  onMessageSent={setNewMessage}
+                  receiverId={receiverId || "unknown"}
+                  onMessageSent={(msg) => {
+                    setNewMessage(msg);
+                    socket.emit("send_message", msg); // Emit message via socket
+                  }}
                 />
               )}
             </div>
