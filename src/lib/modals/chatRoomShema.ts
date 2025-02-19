@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatRoom extends Document {
   participants: string[]; // Array of user IDs (strings)
