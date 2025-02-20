@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
 
 interface IMessage {
@@ -27,6 +27,7 @@ export default function MessageBox({
   newMessage,
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 1) Fetch chat history on mount or when chatRoomId changes
   useEffect(() => {
@@ -53,8 +54,18 @@ export default function MessageBox({
     setMessages((prev) => [...prev, newMessage]);
   }, [newMessage, chatRoomId]);
 
+  // Scroll to the bottom when messages update
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   return (
-    <div className="flex flex-col w-full h-full bg-white overflow-y-auto p-4">
+    <div
+      ref={containerRef}
+      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+    >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
         return (
@@ -65,6 +76,11 @@ export default function MessageBox({
               }`}
             >
               {msg.content}
+              <span
+                className={`text-[10px] ml-2 align-bottom ${isMine ? "text-white" : "text-black"}`}
+              >
+                {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+              </span>
             </span>
           </div>
         );

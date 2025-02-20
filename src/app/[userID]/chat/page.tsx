@@ -57,7 +57,11 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
           <>
-            <ChatHeader chatRoomId={selectedChatRoomId} />
+            <ChatHeader
+              chatRoomId={selectedChatRoomId}
+              socket={socket}
+              otherUserId="67a6ff03cb5c199b45918b92" // or whomever you're chatting with
+            />
 
             <div className="flex-1 overflow-auto">
               <MessageBox
