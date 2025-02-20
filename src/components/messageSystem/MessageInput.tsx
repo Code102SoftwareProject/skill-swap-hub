@@ -69,13 +69,13 @@ export default function MessageInput({
       senderId,
       receiverId: receiverId || "", // if you must pass something; or handle undefined
       content: trimmed,
-      // sentAt is optional, your server sets it too
+      sentAt: Date.now(),
     };
 
     // A) Real-time broadcast to everyone in the room
     socket.emit("send_message", newMsg);
 
-    // B) Persist to DB (POST to your existing /api/messages)
+    // B) Persist to DB (POST to  existing /api/messages)
     try {
       const res = await fetch("/api/messages", {
         method: "POST",
