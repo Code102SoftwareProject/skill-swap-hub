@@ -1,3 +1,4 @@
+// app/[userId]/chat/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -28,7 +29,13 @@ export default function ChatPage() {
     };
   }, []);
 
-  // 2) Join the selected room, listen for "receive_message"
+  // 2) NEW: As soon as the socket is ready, mark user as online
+  useEffect(() => {
+    if (!socket) return;
+    socket.emit("presence_online", { userId });
+  }, [socket, userId]);
+
+  // 3) Join the selected room, listen for "receive_message"
   useEffect(() => {
     if (!socket || !selectedChatRoomId) return;
 
@@ -38,7 +45,6 @@ export default function ChatPage() {
     });
 
     socket.on("receive_message", (message) => {
-      // Only set if the incoming message is for our current room
       if (message.chatRoomId === selectedChatRoomId) {
         setNewMessage(message);
       }
@@ -49,7 +55,7 @@ export default function ChatPage() {
     };
   }, [socket, selectedChatRoomId, userId]);
 
-  // 3) Render the layout
+  // 4) Render the layout
   return (
     <div className="flex h-screen">
       <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />
@@ -60,7 +66,7 @@ export default function ChatPage() {
             <ChatHeader
               chatRoomId={selectedChatRoomId}
               socket={socket}
-              otherUserId="67a6ff03cb5c199b45918b92" // or whomever you're chatting with
+              otherUserId="67a6ff03cb5c199b45918b92"
             />
 
             <div className="flex-1 overflow-auto">
@@ -73,7 +79,6 @@ export default function ChatPage() {
             </div>
 
             <div className="border-t p-2 bg-white">
-              {/* pass in the receiverId if your UI knows it */}
               <MessageInput
                 socket={socket}
                 chatRoomId={selectedChatRoomId}

@@ -1,4 +1,4 @@
- import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatRoom extends Document {
   participants: string[]; // Array of user IDs (strings)
@@ -22,10 +22,10 @@ const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   },
 });
 
-// Create a compound index if needed (unique pairs)
+// Ensure unique chat rooms for the same pair of participants
 ChatRoomSchema.index(
-  { participants: 1 },
-  { unique: true, partialFilterExpression: { "participants.1": { $exists: true } } }
+  { participants: 1, participants: -1 }, 
+  { unique: true }
 );
 
 export default mongoose.models.ChatRoom || mongoose.model<IChatRoom>('ChatRoom', ChatRoomSchema);

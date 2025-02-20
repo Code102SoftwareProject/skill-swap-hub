@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import ChatRoom from '@/lib/modals/chatRoomShema';
+import ChatRoom from '@/lib/modals/chatRoomSchema';
 
 export async function GET(req: Request) {
   await connect();
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { participants } = body;
+    let { participants } = body;
 
     // Must have exactly 2 participants
     if (!participants || participants.length !== 2) {
@@ -40,17 +40,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // Ensure the participants are always stored in a sorted order
+    participants.sort();
+
     // Check if a room with these two participants already exists
     const existingRoom = await ChatRoom.findOne({
-      participants: { $all: participants },
+      participants,
     });
 
     if (existingRoom) {
-      // If it exists, just return it
+      // If it exists, return the existing room instead of creating a new one
       return NextResponse.json({ success: true, chatRoom: existingRoom }, { status: 200 });
     }
 
-    // Otherwise, create a new room
+    // Otherwise, create a new chat room
     const chatRoom = await ChatRoom.create({ participants });
 
     return NextResponse.json({ success: true, chatRoom }, { status: 201 });
