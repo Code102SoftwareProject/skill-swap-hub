@@ -3,11 +3,6 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IChatRoom extends Document {
   participants: string[]; // Array of user IDs (strings)
   createdAt: Date;
-  lastMessage?: {
-    content: string;
-    sentAt: Date;
-    senderId: string;
-  };
 }
 
 const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
@@ -17,11 +12,6 @@ const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
     required: true,
   }],
   createdAt: { type: Date, default: Date.now },
-  lastMessage: {
-    content: { type: String },
-    sentAt: { type: Date },
-    senderId: { type: String, ref: 'User' },
-  },
 });
 
 // Add validation for exactly 2 participants
