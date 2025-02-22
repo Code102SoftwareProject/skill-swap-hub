@@ -5,7 +5,7 @@ import ChatRoom from '@/lib/modals/chatRoomSchema';
 export async function GET(req: Request) {
   await connect();
   try {
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(req.url);// equals to const searchParams= new URL(req.url).searchParams
     const userId = searchParams.get('userId');  // e.g. /api/chatrooms?userId=abc123
 
     let query = {};
@@ -24,6 +24,8 @@ export async function GET(req: Request) {
     );
   }
 }
+
+//post to create a new chat room
 
 export async function POST(req: Request) {
   await connect();
@@ -64,4 +66,27 @@ export async function POST(req: Request) {
       { status: 500 }
     );
   }
+}
+
+
+//delete a chat room
+
+export async function DELETE(req: Request) {  
+  await connect();
+  try{
+    const {searchParams}=new URL(req.url)
+    const roomId=searchParams.get('roomId')
+    
+    if(!roomId){
+      return NextResponse.json({success:false,messsage:"Room ID is Required"},{status:400})
+    }
+
+    const result=await ChatRoom.deleteOne({_id:roomId});
+    if(result.deletedCount===0){
+      return NextResponse.json({success:false,message:"Room not Found"},{status:404})
+    }
+  }catch(error: any){
+
+  }
+
 }

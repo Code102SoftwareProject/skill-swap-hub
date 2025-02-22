@@ -1,4 +1,4 @@
-//@/components/messageSystem/ChatHeader.tsx
+// /components/messageSystem/ChatHeader.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -17,6 +17,7 @@ export default function ChatHeader({
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
 
+  // Fetch chat room info
   useEffect(() => {
     async function fetchChatRoomInfo() {
       try {
@@ -34,24 +35,36 @@ export default function ChatHeader({
     fetchChatRoomInfo();
   }, [chatRoomId]);
 
-  // Listen for user presence changes
+  // Listen for online users and presence events
   useEffect(() => {
     if (!socket) return;
 
-    function handleUserOnline(data: { userId: string }) {
+    // Request the current list of online users on mount
+    socket.emit("get_online_users");
+
+    const handleOnlineUsers = (users: string[]) => {
+      // If the other user's ID is in the list, mark them online
+      setIsOnline(users.includes(otherUserId));
+    };
+
+    // Listen for the snapshot of online users
+    socket.on("online_users", handleOnlineUsers);
+
+    // Listen for individual online/offline events
+    const handleUserOnline = (data: { userId: string }) => {
       if (data.userId === otherUserId) setIsOnline(true);
-    }
-
-    function handleUserOffline(data: { userId: string }) {
+    };
+    const handleUserOffline = (data: { userId: string }) => {
       if (data.userId === otherUserId) setIsOnline(false);
-    }
+    };
 
-    socket.on('user_online', handleUserOnline);
-    socket.on('user_offline', handleUserOffline);
+    socket.on("user_online", handleUserOnline);
+    socket.on("user_offline", handleUserOffline);
 
     return () => {
-      socket.off('user_online', handleUserOnline);
-      socket.off('user_offline', handleUserOffline);
+      socket.off("online_users", handleOnlineUsers);
+      socket.off("user_online", handleUserOnline);
+      socket.off("user_offline", handleUserOffline);
     };
   }, [socket, otherUserId]);
 
@@ -69,12 +82,15 @@ export default function ChatHeader({
         <h1 className="text-lg font-semibold">
           {chatRoomInfo.name || `Chat Room ${chatRoomId}`}
         </h1>
-        {/* Replace response time with Online/Offline */}
         <p className="text-sm text-gray-500">{isOnline ? 'Online' : 'Offline'}</p>
       </div>
       <div className="flex space-x-2">
-        <button className="px-4 py-2 text-sm bg-white border rounded-lg">Back to Dashboard</button>
-        <button className="px-4 py-2 text-sm bg-white border rounded-lg">View Sessions</button>
+        <button className="px-4 py-2 text-sm bg-white border rounded-lg">
+          Back to Dashboard
+        </button>
+        <button className="px-4 py-2 text-sm bg-white border rounded-lg">
+          View Sessions
+        </button>
       </div>
     </header>
   );
