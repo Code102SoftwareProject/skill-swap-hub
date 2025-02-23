@@ -1,8 +1,8 @@
-import { Schema, model, models } from "mongoose";
+import mongoose, { Schema, model, models } from "mongoose";
 
 const sessionSchema = new Schema(
     {
-        sessionId: { type: String, required: true, unique: true },
+        //sessionId 
         user1Id: { type: Schema.Types.ObjectId, ref: "users", required: true },
         skill1Id: { type: Schema.Types.ObjectId, ref: "skill", required: true },
         descriptionOfService1: { type: String, required: true },
