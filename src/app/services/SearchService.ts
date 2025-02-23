@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Forum, IForum } from '@/lib/modals/Forum';
+import { Forum, IForum } from '@/lib/models/Forum';
 
 export class SearchService {
   private static instance: SearchService;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import VerificationRequestModel from '@/lib/modals/VerificationRequest';
+import VerificationRequestModel from '@/lib/models/VerificationRequest';
 import { headers } from 'next/headers';
 
 interface Params {

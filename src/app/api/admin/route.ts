@@ -1,6 +1,6 @@
 import connect from "@/lib/db";
 import { NextResponse } from "next/server";
-import Admin from "@/lib/modals/adminSchema";
+import Admin from "@/lib/models/adminSchema";
 import { NextRequest } from "next/server";
 
 export const GET = async (req: Request) => {

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import Message from '@/lib/modals/messageSchema';
-import ChatRoom from '@/lib/modals/chatRoomSchema';
+import Message from '@/lib/models/messageSchema';
+import ChatRoom from '@/lib/models/chatRoomSchema';
 import mongoose from 'mongoose';
 
 export async function POST(req: Request) {
