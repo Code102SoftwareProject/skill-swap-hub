@@ -10,7 +10,7 @@ interface IMessage {
   receiverId?: string;
   content: string;
   createdAt?: string;
-  sentAt?: number; // optional if you want
+  sentAt?: number;
 }
 
 interface MessageBoxProps {
@@ -20,6 +20,48 @@ interface MessageBoxProps {
   newMessage?: IMessage;
 }
 
+// A small component that shows three bouncing dots
+function TypingIndicator() {
+  return (
+    <div className="typing-indicator flex items-center">
+      <span className="dot"></span>
+      <span className="dot"></span>
+      <span className="dot"></span>
+      <style jsx>{`
+        .typing-indicator {
+          display: flex;
+          gap: 4px;
+          margin: 10px 0;
+        }
+        .dot {
+          width: 8px;
+          height: 8px;
+          background-color: #ccc;
+          border-radius: 50%;
+          animation: bounce 1.4s infinite;
+        }
+        .dot:nth-child(1) {
+          animation-delay: 0s;
+        }
+        .dot:nth-child(2) {
+          animation-delay: 0.2s;
+        }
+        .dot:nth-child(3) {
+          animation-delay: 0.4s;
+        }
+        @keyframes bounce {
+          0%, 80%, 100% {
+            transform: scale(0);
+          }
+          40% {
+            transform: scale(1);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
 export default function MessageBox({
   userId,
   chatRoomId,
@@ -27,6 +69,7 @@ export default function MessageBox({
   newMessage,
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // 1) Fetch chat history on mount or when chatRoomId changes
@@ -45,21 +88,45 @@ export default function MessageBox({
     fetchMessages();
   }, [chatRoomId]);
 
-  // 2) Whenever the parent sets a newMessage, append it
+  // 2) Append new messages coming in real-time
   useEffect(() => {
     if (!newMessage) return;
     if (newMessage.chatRoomId !== chatRoomId) return;
-
-    // Append to local state
     setMessages((prev) => [...prev, newMessage]);
   }, [newMessage, chatRoomId]);
 
-  // Scroll to the bottom when messages update
+  // 3) Listen for typing events from the other user
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUserTyping = (data: { userId: string }) => {
+      // Only set typing if the event is from someone other than the current user.
+      if (data.userId !== userId) {
+        setIsTyping(true);
+      }
+    };
+
+    const handleUserStoppedTyping = (data: { userId: string }) => {
+      if (data.userId !== userId) {
+        setIsTyping(false);
+      }
+    };
+
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stopped_typing", handleUserStoppedTyping);
+
+    return () => {
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stopped_typing", handleUserStoppedTyping);
+    };
+  }, [socket, userId]);
+
+  // 4) Scroll to the bottom when messages or typing indicator update
   useEffect(() => {
     if (containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isTyping]);
 
   return (
     <div
@@ -79,12 +146,24 @@ export default function MessageBox({
               <span
                 className={`text-[10px] ml-2 align-bottom ${isMine ? "text-white" : "text-black"}`}
               >
-                {msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                {msg.sentAt
+                  ? new Date(msg.sentAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : ""}
               </span>
             </span>
           </div>
         );
       })}
+
+      {/* Render the typing indicator if the other user is typing */}
+      {isTyping && (
+        <div className="mb-3 text-left">
+          <TypingIndicator />
+        </div>
+      )}
     </div>
   );
 }

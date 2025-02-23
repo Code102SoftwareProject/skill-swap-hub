@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import User from '@/lib/modals/userSchema';
+import User from '@/lib/models/userSchema';
 
 export async function POST(req: Request) {
   await connect();

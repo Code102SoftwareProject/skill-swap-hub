@@ -1,4 +1,3 @@
-// app/[userId]/chat/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -15,7 +14,6 @@ export default function ChatPage() {
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
-
   // Real-time new message that we pass to <MessageBox />
   const [newMessage, setNewMessage] = useState<any>(null);
 
@@ -29,7 +27,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  // 2) NEW: As soon as the socket is ready, mark user as online
+  // 2) As soon as the socket is ready, mark user as online
   useEffect(() => {
     if (!socket) return;
     socket.emit("presence_online", { userId });
@@ -66,7 +64,7 @@ export default function ChatPage() {
             <ChatHeader
               chatRoomId={selectedChatRoomId}
               socket={socket}
-              otherUserId="67a6ff03cb5c199b45918b92"
+              userId={userId}
             />
 
             <div className="flex-1 overflow-auto">
@@ -83,7 +81,7 @@ export default function ChatPage() {
                 socket={socket}
                 chatRoomId={selectedChatRoomId}
                 senderId={userId}
-                receiverId="67a6ff03cb5c199b45918b92"
+                // You can remove or set receiverId dynamically if needed
               />
             </div>
           </>

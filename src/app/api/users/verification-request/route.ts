@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connect from '../../../../lib/db';
-import VerificationRequestModel from '../../../../lib/modals/VerificationRequest';
+import VerificationRequestModel from '../../../../lib/models/VerificationRequest';
 
 export async function GET(request: Request) {
   try {

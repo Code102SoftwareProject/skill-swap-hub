@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import Message from '@/lib/modals/messageSchema';
+import Message from '@/lib/models/messageSchema';
+import ChatRoom from '@/lib/models/chatRoomSchema';
 import mongoose from 'mongoose';
 
 export async function POST(req: Request) {
@@ -8,29 +9,46 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     console.log('Received body:', body);
-
-    const { chatRoomId, senderId, receiverId, content } = body;
+    
+    // Only expect chatRoomId, senderId, and content from the client
+    const { chatRoomId, senderId, content } = body;
 
     // Validate required fields
-    if (!chatRoomId || !senderId || !receiverId || !content) {
+    if (!chatRoomId || !senderId || !content) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Convert string ID to ObjectId
+    // Convert chatRoomId string to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
 
-    // Create a new message document
+    // Look up the chat room to update its lastMessage
+    const chatRoom = await ChatRoom.findById(chatRoomObjectId);
+    if (!chatRoom) {
+      return NextResponse.json(
+        { success: false, message: 'Chat room not found' },
+        { status: 404 }
+      );
+    }
+
+    // Create a new message document without receiverId.
     const message = await Message.create({
       chatRoomId: chatRoomObjectId,
       senderId,
-      receiverId,
       content,
       sentAt: new Date(),
-      readStatus: false
+      readStatus: false,
     });
+
+    // Update the chat room's lastMessage field for preview purposes.
+    chatRoom.lastMessage = {
+      content,
+      sentAt: new Date(),
+      senderId,
+    };
+    await chatRoom.save();
 
     return NextResponse.json({ success: true, message }, { status: 201 });
   } catch (error: any) {
@@ -46,7 +64,7 @@ export async function GET(req: Request) {
   await connect();
 
   try {
-    // Extract query params from the request URL
+    // Extract query parameters from the request URL
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get('chatRoomId');
     const lastMessageOnly = searchParams.get('lastMessage') === 'true';
@@ -58,11 +76,11 @@ export async function GET(req: Request) {
       );
     }
 
-    // Convert the string ID to ObjectId
+    // Convert chatRoomId string to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
 
     if (lastMessageOnly) {
-      // Return only the last message (by sentAt descending)
+      // Return only the last message (sorted by sentAt descending)
       const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
         .sort({ sentAt: -1 });
 
@@ -83,9 +101,8 @@ export async function GET(req: Request) {
   }
 }
 
-
 export async function DELETE(req: Request) {
   await connect();
-
-  
+  // Implement deletion logic if needed.
+  return NextResponse.json({ success: false, message: 'Not implemented' }, { status: 501 });
 }
