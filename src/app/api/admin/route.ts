@@ -33,18 +33,18 @@ export const POST = async (req: NextRequest) => {
 export const PATCH = async (req: NextRequest) => {
     try {
         const body = await req.json();
-        const { adminId, newAdmin } = body;
+        const { adminId,password } = body;
 
-        if (!adminId || !newAdmin) {
-            return NextResponse.json({ message: "Admin ID or new Admin is not found" }, { status: 400 });
+        if (!adminId || !password) {
+            return NextResponse.json({ message: "AdminId or PAssword is not found" }, { status: 400 });
         }
 
 if(!Types.ObjectId.isValid(adminId)) {
-            return NextResponse.json({ message: "Invalid Admin ID" }, { status: 400 });
+            return NextResponse.json({ message: "Invalid adminId" }, { status: 400 });
         }
 
         await connect();
-        const updatedAdmin = await Admin.findByIdAndUpdate(adminId, newAdmin, { new: true });
+        const updatedAdmin = await Admin.findByIdAndUpdate(adminId, { password: password }, { new: true });
 
         return NextResponse.json({ message: "Admin updated successfully", Admin: updatedAdmin }, { status: 200 });
         } catch (error: any) {
@@ -54,4 +54,28 @@ if(!Types.ObjectId.isValid(adminId)) {
     };
 
 
+    export const DELETE = async (req: NextRequest) => {
+        try{
+            const {searchParams}= new URL(req.url);
+            const adminId=searchParams.get('adminId');
+            if(!adminId){
+                return NextResponse.json({message:"AdminId is not found"},{status:400});
+            }
+            if(!Types.ObjectId.isValid(adminId)){
+                return NextResponse.json({message:"Invalid adminId"},{status:400});
+            }
 
+            await connect();
+            const deletedAdmin=await Admin.findByIdAndDelete(new Types.ObjectId(adminId));
+
+            if(!deletedAdmin){
+                return NextResponse.json({message:"Admin not found in the database"},{status:404});
+            }
+            return NextResponse.json({message:"Admin deleted successfully",Admin:deletedAdmin},{status:200});
+
+        }
+        catch(error:any){
+            return NextResponse.json({message:"Error in deleting admin",error:error.message},{status:500});
+
+    }
+}
