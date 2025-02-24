@@ -6,6 +6,7 @@ export interface IMessage extends Document {
   content: string;
   sentAt: Date;
   readStatus: boolean;
+  replyFor?: mongoose.Types.ObjectId | null;
 }
 
 const messageSchema: Schema<IMessage> = new Schema({
@@ -30,6 +31,11 @@ const messageSchema: Schema<IMessage> = new Schema({
   readStatus: { 
     type: Boolean, 
     default: false 
+  },
+  replyFor: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Message', 
+    default: null
   },
 });
 
