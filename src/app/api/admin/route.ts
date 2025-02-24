@@ -2,7 +2,7 @@ import connect from "@/lib/db";
 import { NextResponse } from "next/server";
 import Admin from "@/lib/models/adminSchema";
 import { NextRequest } from "next/server";
-import {Types} from 'mongoose';
+import { Types } from 'mongoose';
 
 export const GET = async (req: Request) => {
     try {
@@ -47,7 +47,11 @@ if(!Types.ObjectId.isValid(adminId)) {
         const updatedAdmin = await Admin.findByIdAndUpdate(adminId, newAdmin, { new: true });
 
         return NextResponse.json({ message: "Admin updated successfully", Admin: updatedAdmin }, { status: 200 });
-    } catch (error: any) {
-        return NextResponse.json({ message: "Error in updating admin", error: error.message }, { status: 500 });
-    }
-}
+        } catch (error: any) {
+            return NextResponse.json({ message: "Error in updating admin", error: error.message }, { status: 500 });
+        }
+
+    };
+
+
+
