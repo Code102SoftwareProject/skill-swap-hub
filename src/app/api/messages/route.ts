@@ -10,10 +10,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Received body:", body);
 
-    // Only expect chatRoomId, senderId, and content from the client
-    const { chatRoomId, senderId, content } = body;
+    const { chatRoomId, senderId, content, replyFor } = body;
 
-    // Validate required fields
     if (!chatRoomId || !senderId || !content) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
@@ -21,10 +19,19 @@ export async function POST(req: Request) {
       );
     }
 
-    // Convert chatRoomId string to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
+    let replyForObjectId = null;
 
-    // Look up the chat room to update its lastMessage
+    if (replyFor) {
+      if (!mongoose.Types.ObjectId.isValid(replyFor)) {
+        return NextResponse.json(
+          { success: false, message: "Invalid replyFor ID" },
+          { status: 400 }
+        );
+      }
+      replyForObjectId = new mongoose.Types.ObjectId(replyFor);
+    }
+
     const chatRoom = await ChatRoom.findById(chatRoomObjectId);
     if (!chatRoom) {
       return NextResponse.json(
@@ -33,16 +40,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create a new message document without receiverId.
     const message = await Message.create({
       chatRoomId: chatRoomObjectId,
       senderId,
       content,
       sentAt: new Date(),
       readStatus: false,
+      replyFor: replyForObjectId
     });
 
-    // Update the chat room's lastMessage field for preview purposes.
     chatRoom.lastMessage = {
       content,
       sentAt: new Date(),
@@ -62,9 +68,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   await connect();
-
   try {
-    // Extract query parameters from the request URL
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get("chatRoomId");
     const lastMessageOnly = searchParams.get("lastMessage") === "true";
@@ -76,14 +80,12 @@ export async function GET(req: Request) {
       );
     }
 
-    // Convert chatRoomId string to ObjectId
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
 
     if (lastMessageOnly) {
-      // Return only the last message (sorted by sentAt descending)
-      const lastMessage = await Message.findOne({
-        chatRoomId: chatRoomObjectId,
-      }).sort({ sentAt: -1 });
+      const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
+        .sort({ sentAt: -1 })
+        .populate("replyFor", "content senderId sentAt");
 
       return NextResponse.json(
         { success: true, message: lastMessage },
@@ -91,10 +93,9 @@ export async function GET(req: Request) {
       );
     }
 
-    // Otherwise, return all messages sorted by sentAt ascending
-    const messages = await Message.find({ chatRoomId: chatRoomObjectId }).sort({
-      sentAt: 1,
-    });
+    const messages = await Message.find({ chatRoomId: chatRoomObjectId })
+      .sort({ sentAt: 1 })
+      .populate("replyFor", "content senderId sentAt"); 
 
     return NextResponse.json({ success: true, messages }, { status: 200 });
   } catch (error: any) {
@@ -119,7 +120,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // First check if message exists
     const existingMessage = await Message.findById(messageId);
     if (!existingMessage) {
       return NextResponse.json(
@@ -128,7 +128,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // If message is already read, return current message
     if (existingMessage.readStatus) {
       return NextResponse.json(
         { success: true, message: "Message already read", updatedMessage: existingMessage },
@@ -136,7 +135,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Update the message to read
     const updatedMessage = await Message.findByIdAndUpdate(
       messageId,
       { readStatus: true },
@@ -158,9 +156,36 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   await connect();
-  // Implement deletion logic if needed.
-  return NextResponse.json(
-    { success: false, message: "Not implemented" },
-    { status: 501 }
-  );
+  try {
+    const { searchParams } = new URL(req.url);
+    const messageId = searchParams.get("messageId");
+
+    if (!messageId) {
+      return NextResponse.json(
+        { success: false, message: "Message ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const existingMessage = await Message.findById(messageId);
+    if (!existingMessage) {
+      return NextResponse.json(
+        { success: false, message: "Message not found" },
+        { status: 404 }
+      );
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    return NextResponse.json(
+      { success: true, message: "Message deleted successfully" },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
 }
