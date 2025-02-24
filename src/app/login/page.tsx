@@ -63,7 +63,7 @@ const Login = () => {
           {/* Replace img with Next.js Image component */}
           <div className="relative w-full h-48 md:h-full">
             <Image
-              src="/loginpageimage.png" 
+              src="/loginpageimage.jpg" 
               alt="Login Illustration"
               fill
               style={{ objectFit: 'contain' }}
