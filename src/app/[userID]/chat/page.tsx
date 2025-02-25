@@ -22,6 +22,7 @@ export default function ChatPage() {
     const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
+    // Cleanup function to disconnect the socket on unmount
     return () => {
       newSocket.disconnect();
     };
@@ -42,18 +43,20 @@ export default function ChatPage() {
       userId,
     });
 
+    // Listen for incoming messages
     socket.on("receive_message", (message) => {
       if (message.chatRoomId === selectedChatRoomId) {
         setNewMessage(message);
       }
     });
 
+    // Cleanup function to remove the listener
     return () => {
       socket.off("receive_message");
     };
   }, [socket, selectedChatRoomId, userId]);
 
-  // 4) Render the layout
+  // 4) Render
   return (
     <div className="flex h-screen">
       <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />
@@ -81,7 +84,6 @@ export default function ChatPage() {
                 socket={socket}
                 chatRoomId={selectedChatRoomId}
                 senderId={userId}
-                // You can remove or set receiverId dynamically if needed
               />
             </div>
           </>
