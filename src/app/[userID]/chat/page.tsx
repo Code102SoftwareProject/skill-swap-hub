@@ -10,7 +10,7 @@ import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 
 export default function ChatPage() {
-  const { userId } = useParams() as { userId: string };
+  const { userId } = useParams() as { userId: string };//url data extract userId
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);

@@ -13,7 +13,7 @@ export interface IChatRoom extends Document {
 const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   participants: [{
     type: String,
-    ref: 'users',
+    ref: 'User',
     required: true,
   }],
   createdAt: { type: Date, default: Date.now },
