@@ -36,7 +36,7 @@ export const PATCH = async (req: NextRequest) => {
         const { adminId,password } = body;
 
         if (!adminId || !password) {
-            return NextResponse.json({ message: "AdminId or PAssword is not found" }, { status: 400 });
+            return NextResponse.json({ message: "AdminId or Password is not found" }, { status: 400 });
         }
 
 if(!Types.ObjectId.isValid(adminId)) {
