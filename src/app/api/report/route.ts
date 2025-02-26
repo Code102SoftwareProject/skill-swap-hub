@@ -17,3 +17,16 @@ export const GET = async (req: Request) => {
     }
 };
 
+export const POST = async (req: NextRequest) => {
+    try {
+        const body = await req.json();
+        await connect();
+        const newReport = new Report(body);
+        await newReport.save();
+
+        return NextResponse.json({ message: "Report is created", Admin: newReport}, { status: 200 });
+    } catch (error: any) {
+        return NextResponse.json({ message: "Error in creating Report", error: error.message }, { status: 500 });
+    }
+};
+
