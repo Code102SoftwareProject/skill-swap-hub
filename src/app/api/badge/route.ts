@@ -60,4 +60,30 @@ if(!Types.ObjectId.isValid(badgeId)) {
 
     };
 
+    export const DELETE = async (req: NextRequest) => {
+        try{
+            const {searchParams}= new URL(req.url);
+            const adminId=searchParams.get('badgeId');
+            if(!adminId){
+                return NextResponse.json({message:"BadgeId is not found"},{status:400});
+            }
+            if(!Types.ObjectId.isValid(adminId)){
+                return NextResponse.json({message:"Invalid adminId"},{status:400});
+            }
+
+            await connect();
+            const deletedAdmin=await Badge.findByIdAndDelete(new Types.ObjectId(adminId));
+
+            if(!deletedAdmin){
+                return NextResponse.json({message:"Badge not found in the database"},{status:404});
+            }
+            return NextResponse.json({message:"Badge deleted successfully",Admin:deletedAdmin},{status:200});
+
+        }
+        catch(error:any){
+            return NextResponse.json({message:"Error in deleting Badge",error:error.message},{status:500});
+
+    }
+}
+
 
