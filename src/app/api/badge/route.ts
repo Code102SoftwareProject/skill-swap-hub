@@ -47,7 +47,7 @@ export const PATCH = async (req: NextRequest) => {
             return NextResponse.json({ message: "Description is not found" }, { status: 400 });
         }
 if(!Types.ObjectId.isValid(badgeId)) {
-            return NextResponse.json({ message: "Invalid badgeId" }, { status: 400 });
+            return NextResponse.json({ message: "Invalid BadgeId" }, { status: 400 });
         }
 
         await connect();
@@ -68,7 +68,7 @@ if(!Types.ObjectId.isValid(badgeId)) {
                 return NextResponse.json({message:"BadgeId is not found"},{status:400});
             }
             if(!Types.ObjectId.isValid(badgeId)){
-                return NextResponse.json({message:"Invalid adminId"},{status:400});
+                return NextResponse.json({message:"Invalid Badge Id"},{status:400});
             }
 
             await connect();
