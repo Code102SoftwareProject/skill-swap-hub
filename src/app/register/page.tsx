@@ -61,7 +61,7 @@ const Register = () => {
         {/* Left side: Image */}
         <div className="w-full md:w-1/2 p-4 sm:block">
           <img
-            src="/registerpageimage.png" // Path relative to the public folder
+            src="/register.jpg" // Path relative to the public folder
             alt="Register Image"
             className="w-full h-48 md:h-full object-cover rounded-lg shadow-md"
           />

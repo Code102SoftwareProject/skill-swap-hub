@@ -1,0 +1,185 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
+
+const VerifyOTP = () => {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [isLoading, setIsLoading] = useState(false);
+  const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  // Set up refs for OTP inputs
+  useEffect(() => {
+    inputRefs.current = inputRefs.current.slice(0, 6);
+  }, []);
+
+  // Get email from localStorage
+  useEffect(() => {
+    const storedEmail = localStorage.getItem('resetEmail');
+    if (storedEmail) {
+      setEmail(storedEmail);
+    }
+    
+    // Start countdown timer
+    const timer = setInterval(() => {
+      setCountdown(prevCountdown => {
+        if (prevCountdown <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prevCountdown - 1;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+
+  // Handle OTP input change
+  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const value = e.target.value;
+    
+    // Only allow numbers
+    if (!/^\d*$/.test(value)) return;
+    
+    // Update the OTP array with the new value
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(0, 1); // Only take the first character
+    setOtp(newOtp);
+    
+    // If a digit is entered, move to the next input field
+    if (value && index < 5 && inputRefs.current[index + 1]) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  // Handle key down events for backspace
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    // If backspace is pressed and current field is empty, focus on previous field
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  // Handle form submission
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    // Store a dummy token for the reset password page
+    localStorage.setItem('resetToken', 'dummy-token-for-demo');
+    
+    // Simple redirect without backend functionality
+    setTimeout(() => {
+      router.push('/reset-password');
+    }, 1000); // Simulate a short loading time
+  };
+
+  // Handle resend OTP
+  const handleResendOtp = () => {
+    if (countdown > 0) return; // Prevent resending if countdown is still active
+    
+    // Reset countdown for demonstration
+    setCountdown(300);
+  };
+
+  // Format countdown time
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
+      <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
+        {/* Left side: Image */}
+        <div className="w-full md:w-1/2 p-4 bg-white">
+          <div className="relative w-full h-48 md:h-full">
+            <Image
+              src="/verifyotpimage.jpg" 
+              alt="Verify OTP Illustration"
+              fill
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+          </div>
+        </div>
+
+        {/* Right side: Form */}
+        <div className="w-full md:w-1/2 p-6 flex flex-col">
+          {/* Title and Subtitle */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-semibold text-gray-800">Verify OTP</h1>
+            <p className="text-sm text-gray-600 mt-1">Enter the 6-digit code sent to your email</p>
+            {email && <p className="text-xs text-gray-500 mt-1">{email}</p>}
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6 flex-grow">
+            <div>
+              <div className="flex justify-center space-x-2">
+                {otp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(e, idx)}
+                    onKeyDown={(e) => handleKeyDown(e, idx)}
+                    ref={(el) => { inputRefs.current[idx] = el }}
+                    className="w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    required
+                    autoFocus={idx === 0}
+                  />
+                ))}
+              </div>
+              <div className="text-center mt-2">
+                <p className="text-sm text-gray-600">
+                  Time remaining: <span className="font-medium">{formatTime(countdown)}</span>
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center"
+              >
+                {isLoading ? (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : null}
+                Verify OTP
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Didn't receive the code?{" "}
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={countdown > 0 || isLoading}
+                className={`text-blue-600 hover:text-blue-800 focus:outline-none ${countdown > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Resend OTP
+              </button>
+            </p>
+            <p className="text-sm text-gray-600 mt-2"><Link href="/forgot-password" className="text-blue-600 hover:text-blue-800">Change Email</Link></p>
+            <p className="text-sm text-gray-600 mt-1"><Link href="/login" className="text-blue-600 hover:text-blue-800">Back to Login</Link></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default VerifyOTP;
