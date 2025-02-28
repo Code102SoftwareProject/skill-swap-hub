@@ -18,32 +18,35 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
-      <div>
-        <label className="block text-sm font-medium">Title</label>
+    <form onSubmit={handleSubmit} className="space-y-6 bg-card p-6 rounded-lg border">
+      <div className='space-y-2'>
+        <label htmlFor='title'>Title</label>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
+          placeholder='Enter a title'
           className="mt-1 p-2 w-full border rounded"
           required
         />
       </div>
-      <div>
-        <label className="block text-sm font-medium">Description</label>
+      <div className='space-y-2'>
+        <label htmlFor='description'>Description</label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="mt-1 p-2 w-full border rounded"
+          placeholder='Write your description here'
+          className="min-h-[120px] mt-1 p-2 w-full border rounded"
           required
         />
       </div>
-      <div>
+      <div className='space-y-2'>
         <label className="block text-sm font-medium">Category</label>
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="mt-1 p-2 w-full border rounded"
+          className="mt-1 p-2 w-full border rounded text-gray-4800"
+          
           required
         >
           <option value="">Select a category</option>
