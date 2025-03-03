@@ -2,15 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
+import { IMessage } from "@/types/types";
 
-interface IMessage {
-  _id?: string;
-  chatRoomId: string;
-  senderId: string;
-  content: string;
-  sentAt?: number;
-  replyFor?: IMessage | null;
-}
 
 interface MessageBoxProps {
   userId: string;

@@ -13,10 +13,11 @@ export async function POST(req: Request) {
 
     const { chatRoomId, senderId, content, replyFor } = body;
 
-    // Encrypt message
-    const encryptedContent: string = encryptMessage(content);
+    // Check if content is a file link and skip encryption if it is
+    const isFileLink = content.startsWith('File:');
+    const encryptedContent: string = isFileLink ? content : encryptMessage(content);
 
-    if (!chatRoomId || !senderId || !encryptMessage) {
+    if (!chatRoomId || !senderId || !content) {
       return NextResponse.json(
         { success: false, message: "Missing required fields" },
         { status: 400 }
@@ -93,11 +94,15 @@ export async function GET(req: Request) {
       
       // Decrypt message content if exists
       if (lastMessage) {
-        lastMessage.content = decryptMessage(lastMessage.content);
+        lastMessage.content = lastMessage.content.startsWith('File:') 
+          ? lastMessage.content 
+          : decryptMessage(lastMessage.content);
         
         // Decrypt reply content if exists
         if (lastMessage.replyFor && lastMessage.replyFor.content) {
-          lastMessage.replyFor.content = decryptMessage(lastMessage.replyFor.content);
+          lastMessage.replyFor.content = lastMessage.replyFor.content.startsWith('File:')
+            ? lastMessage.replyFor.content
+            : decryptMessage(lastMessage.replyFor.content);
         }
       }
 
@@ -115,11 +120,15 @@ export async function GET(req: Request) {
     const decryptedMessages = messages.map(message => {
       // Create a new object to avoid modifying the database documents directly
       const messageObj = message.toObject();
-      messageObj.content = decryptMessage(messageObj.content);
+      messageObj.content = messageObj.content.startsWith('File:')
+        ? messageObj.content
+        : decryptMessage(messageObj.content);
       
       // Decrypt reply content if exists
       if (messageObj.replyFor && messageObj.replyFor.content) {
-        messageObj.replyFor.content = decryptMessage(messageObj.replyFor.content);
+        messageObj.replyFor.content = messageObj.replyFor.content.startsWith('File:')
+          ? messageObj.replyFor.content
+          : decryptMessage(messageObj.replyFor.content);
       }
       
       return messageObj;
