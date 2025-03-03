@@ -19,7 +19,7 @@ interface MessageBoxProps {
   newMessage?: IMessage;
 }
 
-// Typing Indicator Component
+// Typing Indicator Component dot dot dot
 function TypingIndicator() {
   return (
     <div className="typing-indicator flex items-center">
@@ -66,7 +66,7 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Store refs for each message (to enable scrolling to original message)
+  // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Fetch chat history on mount (keeping the order as received so that the latest message is at the bottom)
@@ -76,8 +76,7 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
         const res = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
         const data = await res.json();
         if (data.success) {
-          // Assuming API returns messages in chronological order,
-          // no need to reverse them here.
+         //show messages
           setMessages(data.messages);
         }
       } catch (err) {
@@ -87,7 +86,7 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
     fetchMessages();
   }, [chatRoomId]);
 
-  // Append new messages if they arrive (and keep view scrolled to bottom)
+  // Append new messages if they arrive eep view scrolled to bottom
   useEffect(() => {
     if (!newMessage) return;
     if (newMessage.chatRoomId !== chatRoomId) return;
