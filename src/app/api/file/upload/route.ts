@@ -1,34 +1,10 @@
 import { NextResponse } from "next/server";
 import { uploadFileToR2 } from "@/lib/r2";
-import formidable, { IncomingForm, File } from "formidable";
-import { readFile, writeFile } from "fs/promises";
-import path from "path";
-import { promisify } from "util";
 
-// Disable automatic body parsing
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
-// Promisify Formidable parsing
-const parseForm = (req: Request): Promise<{ fields: formidable.Fields; files: formidable.Files }> =>
-  new Promise((resolve, reject) => {
-    const form = new IncomingForm({
-      multiples: false,
-      keepExtensions: true,
-    });
-
-    form.parse(req as any, (err, fields, files) => {
-      if (err) reject(err);
-      else resolve({ fields, files });
-    });
-  });
-
+// Next.js already handles FormData parsing
 export async function POST(req: Request) {
   try {
-    // Convert Next.js request body to form data
+    // Get the form data from the request
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
 
@@ -36,10 +12,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "No file uploaded" }, { status: 400 });
     }
 
-    // Read the file buffer
-    const fileBuffer = await readFile(file.filepath);
-    const fileName = file.originalFilename || "unknown";
-    const mimeType = file.mimetype || "application/octet-stream";
+    // Convert File to Buffer directly
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const fileName = file.name;
+    const mimeType = file.type || "application/octet-stream";
+
+    console.log("Uploading file:", fileName, "Type:", mimeType);
 
     // Upload to Cloudflare R2
     const uploadResponse = await uploadFileToR2(fileBuffer, fileName, mimeType);
@@ -51,6 +29,9 @@ export async function POST(req: Request) {
     }
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ message: "Server error" }, { status: 500 });
+    return NextResponse.json({ 
+      message: "Server error", 
+      error: error instanceof Error ? error.message : String(error) 
+    }, { status: 500 });
   }
 }
