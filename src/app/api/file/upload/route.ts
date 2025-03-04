@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { uploadFileToR2 } from "@/lib/r2";
 import formidable, { IncomingForm, File } from "formidable";
-import { writeFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 import path from "path";
 import { promisify } from "util";
 
@@ -37,9 +37,9 @@ export async function POST(req: Request) {
     }
 
     // Read the file buffer
-    const fileBuffer = Buffer.from(await file.arrayBuffer());
-    const fileName = file.name;
-    const mimeType = file.type;
+    const fileBuffer = await readFile(file.filepath);
+    const fileName = file.originalFilename || "unknown";
+    const mimeType = file.mimetype || "application/octet-stream";
 
     // Upload to Cloudflare R2
     const uploadResponse = await uploadFileToR2(fileBuffer, fileName, mimeType);

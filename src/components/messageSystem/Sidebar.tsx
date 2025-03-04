@@ -2,17 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-interface IChatRoom {
-  _id: string;
-  participants: string[];
-  createdAt: string;
-  lastMessage?: {
-    content: string;
-    sentAt: string;
-    senderId: string;
-  };
-}
+import { IChatRoom } from "@/types/types";
 
 interface SidebarProps {
   userId: string;

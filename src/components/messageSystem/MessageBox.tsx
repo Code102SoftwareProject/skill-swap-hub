@@ -2,15 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
-
-interface IMessage {
-  _id?: string;
-  chatRoomId: string;
-  senderId: string;
-  content: string;
-  sentAt?: number;
-  replyFor?: IMessage | null;
-}
+import { IMessage } from "@/types/types";
 
 interface MessageBoxProps {
   userId: string;
@@ -60,6 +52,62 @@ function TypingIndicator() {
     </div>
   );
 }
+
+// File Message Component
+const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
+  // Parse file info (format: "File:filename.ext:fileUrl")
+  const parts = fileInfo.substring(5).split(':');
+  const fileName = parts[0];
+  const fileUrl = parts.length > 1 ? parts[1] : null;
+  const fileExt = fileName.split('.').pop()?.toLowerCase();
+  
+  // Determine file type for appropriate display
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt || '');
+  const isPdf = fileExt === 'pdf';
+  
+  // Use fileUrl if available, otherwise just the filename
+  const apiParam = fileUrl 
+    ? `fileUrl=${encodeURIComponent(fileUrl)}`
+    : `file=${encodeURIComponent(fileName)}`;
+  
+  return (
+    <div className="file-message flex flex-col">
+      {isImage ? (
+        // Display images directly
+        <div className="mb-2">
+          <img 
+            src={`/api/file/retrieve?${apiParam}`}
+            alt={fileName}
+            className="max-w-full rounded-md max-h-64 object-contain"
+            loading="lazy"
+          />
+        </div>
+      ) : (
+        // Display file icon and name for other files
+        <div className="flex items-center gap-2 mb-1">
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+          </svg>
+          <span className="text-sm font-medium">{fileName}</span>
+        </div>
+      )}
+      
+      {/* Download button */}
+      <a 
+        href={`/api/file/retrieve?${apiParam}`}
+        download={fileName}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded self-start mt-1 flex items-center"
+      >
+        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
+        {isPdf ? "View" : "Download"}
+      </a>
+    </div>
+  );
+};
 
 export default function MessageBox({ userId, chatRoomId, socket, newMessage }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
@@ -189,8 +237,12 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
                 </div>
               )}
 
-              {/* Main message content */}
-              <span className="block">{msg.content}</span>
+              {/* Main message content or File */}
+              {msg.content.startsWith("File:") ? (
+                <FileMessage fileInfo={msg.content} />
+              ) : (
+                <span className="block">{msg.content}</span>
+              )}
 
               {/* Timestamp */}
               <div
