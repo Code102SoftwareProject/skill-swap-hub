@@ -6,17 +6,19 @@ export default function FileUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
   };
 
-  const uploadFile = async (e: React.FormEvent) => {
+  const uploadFile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!file) return alert("Please select a file!");
+    if (!file) {
+      setMessage("Please select a file!");
+      return;
+    }
 
     setUploading(true);
     setMessage("");
@@ -25,7 +27,7 @@ export default function FileUpload() {
     formData.append("file", file);
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch("/api/file/upload", {
         method: "POST",
         body: formData,
       });
@@ -33,23 +35,23 @@ export default function FileUpload() {
       const result = await response.json();
 
       if (response.ok) {
-        setMessage(`File uploaded successfully! URL: ${result.url}`);
-        setImageUrl(result.url);
+        setMessage(`File uploaded successfully!`);
+        setImageUrl(result?.url || null);
       } else {
-        setMessage("Upload failed: " + result.message);
+        setMessage("Upload failed: " + (result?.message || "Unknown error"));
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-      setMessage("Upload error");
+      setMessage("Upload error: " + (error instanceof Error ? error.message : "Unknown error"));
+    } finally {
+      setUploading(false);
     }
-
-    setUploading(false);
   };
 
   return (
     <div>
       <form onSubmit={uploadFile}>
-        <input type="file" onChange={handleFileChange} />
+        <input type="file" onChange={handleFileChange} accept="image/*" />
         <button type="submit" disabled={uploading}>
           {uploading ? "Uploading..." : "Upload"}
         </button>

@@ -1,5 +1,6 @@
 "use client"
-import SuggestionForm from '@/components/SuggestionFrom';
+import { SideNav } from '@/components/Layout/sideNav';
+import SuggestionForm from '@/components/Suggestion/SuggestionForm';
 import { useEffect, useState } from 'react';
 
 type Suggestion = {
@@ -48,11 +49,19 @@ export default function UserDashboard() {
   }, []);
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold mb-4">My Suggestions</h1>
-      <SuggestionForm onSubmit={handleSubmit} />
-      <div className="mt-8 space-y-4">
-        {suggestions.map((suggestion) => (
+    <div className="flex-1 flex">
+            <SideNav/>
+
+    
+            <main className="flex-1 p-6">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+              <h1 className="text-2xl font-semibold mb-6">Add your suggestions.</h1>
+              <SuggestionForm onSubmit={handleSubmit} />
+            </div>
+            <div>
+<h2 className="text-2xl font-semibold">History</h2>
+                      {suggestions.map((suggestion) => (
           <div key={suggestion._id} className="p-4 border rounded">
             <h2 className="text-xl font-semibold">{suggestion.title}</h2>
             <p className="text-gray-600">{suggestion.description}</p>
@@ -61,7 +70,11 @@ export default function UserDashboard() {
             </p>
           </div>
         ))}
+            </div>
+          </div>
+            </main>
       </div>
-    </div>
+
+    
   );
 }
