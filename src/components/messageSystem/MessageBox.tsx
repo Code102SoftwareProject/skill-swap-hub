@@ -3,16 +3,21 @@
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/types";
-import { Download } from "lucide-react";
+import { Download, CornerUpLeft } from "lucide-react";
 
 interface MessageBoxProps {
   userId: string;
   chatRoomId: string;
   socket: Socket | null;
   newMessage?: IMessage;
+  onReplySelect?: (message: IMessage) => void; // Add this new prop
 }
 
-// Typing Indicator Component dot dot dot
+/**
+ * ! TypingIndicator component
+ * @returns TypingIndicator component
+ * @description A simple typing indicator component with 3 dots that bounce
+ */
 function TypingIndicator() {
   return (
     <div className="typing-indicator flex items-center">
@@ -54,7 +59,11 @@ function TypingIndicator() {
   );
 }
 
-// File Message Component 
+/**
+ * ! FileMessage component
+ * @param fileInfo
+ * @@description A component to display file info and download button`
+ */
 const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
   // Parse file info (format: "File:filename.ext:fileUrl")
   const parts = fileInfo.substring(5).split(":");
@@ -62,9 +71,12 @@ const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
   const fileUrl = parts.length > 1 ? parts[1] : null;
   const fileExt = fileName.split(".").pop()?.toLowerCase();
 
-  
-
-  // Use fileUrl if available, otherwise just the filename
+  useEffect(()=>{
+    console.log("File Name:"+fileName);
+  },[])
+ /**
+  * @param apiParam
+  */
   const apiParam = fileUrl
     ? `fileUrl=${encodeURIComponent(fileUrl)}`
     : `file=${encodeURIComponent(fileName)}`;
@@ -98,11 +110,21 @@ const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
   );
 };
 
+/**
+ * ! MessageBox component
+ * @param userId
+ * @param chatRoomId
+ * @param socket
+ * @param newMessage
+ * @@description A component to display chat messages in a chat room
+ */
+
 export default function MessageBox({
   userId,
   chatRoomId,
   socket,
   newMessage,
+  onReplySelect, // Add this new prop
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -193,7 +215,7 @@ export default function MessageBox({
             className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"}`}
+              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} relative group`}
               style={{
                 maxWidth: "75%",
                 minWidth: "50px",
@@ -204,6 +226,15 @@ export default function MessageBox({
                 paddingBottom: "4px",
               }}
             >
+              {/* Reply button - show on hover */}
+              <button 
+                onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
+                className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Reply"
+              >
+                <CornerUpLeft className="w-3 h-3" />
+              </button>
+
               {/* Reply box (if applicable) */}
               {msg.replyFor && (
                 <div
