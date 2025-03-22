@@ -58,18 +58,18 @@ const Register = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-6xl mx-auto bg-white rounded-xl shadow-lg w-full">
-        {/* Left side: Image */}
+       
         <div className="w-full md:w-1/2 p-4 sm:block">
           <img
-            src="/register.jpg" // Path relative to the public folder
+            src="/register.jpg"
             alt="Register Image"
             className="w-full h-48 md:h-full object-cover rounded-lg shadow-md"
           />
         </div>
 
-        {/* Right side: Form */}
+       
         <div className="w-full md:w-1/2 p-6">
-          {/* Title and Subtitle */}
+         
           <div className="text-center mb-4">
             <h1 className="text-2xl font-semibold text-gray-800">Join SkillSwap Hub</h1>
             <p className="text-lg text-gray-600 mt-2">Connect, Learn, and Share Your Skills</p>

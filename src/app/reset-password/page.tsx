@@ -18,7 +18,7 @@ const ResetPassword = () => {
   const [passwordFeedback, setPasswordFeedback] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Get email from localStorage
+  
   useEffect(() => {
     const storedEmail = localStorage.getItem('resetEmail');
     if (storedEmail) {
@@ -30,18 +30,18 @@ const ResetPassword = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
-    // Check password strength if password field is changed
+    
     if (name === 'password') {
       checkPasswordStrength(value);
     }
   };
   
-  // Function to check password strength
+  
   const checkPasswordStrength = (password: string) => {
     let strength = 0;
     let feedback = '';
     
-    // Check length
+   
     if (password.length >= 8) {
       strength += 1;
     } else {
@@ -51,27 +51,26 @@ const ResetPassword = () => {
       return;
     }
     
-    // Check for uppercase letters
+    
     if (/[A-Z]/.test(password)) {
       strength += 1;
     }
     
-    // Check for lowercase letters
+   
     if (/[a-z]/.test(password)) {
       strength += 1;
     }
     
-    // Check for numbers
+    
     if (/\d/.test(password)) {
       strength += 1;
     }
     
-    // Check for special characters
+    
     if (/[^A-Za-z0-9]/.test(password)) {
       strength += 1;
     }
     
-    // Set feedback based on strength
     if (strength === 1) {
       feedback = 'Weak: Add uppercase, lowercase, numbers, and special characters';
     } else if (strength === 2) {
@@ -93,28 +92,28 @@ const ResetPassword = () => {
     setIsLoading(true);
     setErrorMessage('');
     
-    // Validate passwords match
+   
     if (formData.password !== formData.confirmPassword) {
       setErrorMessage('Passwords do not match');
       setIsLoading(false);
       return;
     }
     
-    // Validate password strength
+   
     if (passwordStrength < 3) {
       setErrorMessage('Please use a stronger password');
       setIsLoading(false);
       return;
     }
 
-    // Show success message
+    
     setSuccessMessage('Password has been reset successfully! Redirecting to login...');
     
-    // Clear localStorage
+    
     localStorage.removeItem('resetEmail');
     localStorage.removeItem('resetToken');
     
-    // Redirect to login after a short delay
+    
     setTimeout(() => {
       router.push('/login');
     }, 2000);
@@ -123,7 +122,7 @@ const ResetPassword = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side: Image */}
+       
         <div className="w-full md:w-1/2 p-4 bg-white">
           <div className="relative w-full h-48 md:h-full">
             <Image
@@ -136,9 +135,9 @@ const ResetPassword = () => {
           </div>
         </div>
 
-        {/* Right side: Form */}
+        
         <div className="w-full md:w-1/2 p-6 flex flex-col">
-          {/* Title and Subtitle */}
+          
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">Reset Password</h1>
             <p className="text-sm text-gray-600 mt-1">Create a new password for your account</p>
