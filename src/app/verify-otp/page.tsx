@@ -10,22 +10,22 @@ const VerifyOTP = () => {
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
-  const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
+  const [countdown, setCountdown] = useState(300); 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   
-  // Set up refs for OTP inputs
+
   useEffect(() => {
     inputRefs.current = inputRefs.current.slice(0, 6);
   }, []);
 
-  // Get email from localStorage
+ 
   useEffect(() => {
     const storedEmail = localStorage.getItem('resetEmail');
     if (storedEmail) {
       setEmail(storedEmail);
     }
     
-    // Start countdown timer
+    
     const timer = setInterval(() => {
       setCountdown(prevCountdown => {
         if (prevCountdown <= 1) {
@@ -39,55 +39,54 @@ const VerifyOTP = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // Handle OTP input change
+  
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const value = e.target.value;
     
-    // Only allow numbers
+
     if (!/^\d*$/.test(value)) return;
     
-    // Update the OTP array with the new value
+    
     const newOtp = [...otp];
-    newOtp[index] = value.slice(0, 1); // Only take the first character
+    newOtp[index] = value.slice(0, 1);
     setOtp(newOtp);
     
-    // If a digit is entered, move to the next input field
+   
     if (value && index < 5 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
-  // Handle key down events for backspace
+  
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    // If backspace is pressed and current field is empty, focus on previous field
+    
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
   };
 
-  // Handle form submission
+  
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Store a dummy token for the reset password page
+    
     localStorage.setItem('resetToken', 'dummy-token-for-demo');
     
-    // Simple redirect without backend functionality
+    
     setTimeout(() => {
       router.push('/reset-password');
-    }, 1000); // Simulate a short loading time
+    }, 1000);
   };
 
-  // Handle resend OTP
+
   const handleResendOtp = () => {
-    if (countdown > 0) return; // Prevent resending if countdown is still active
+    if (countdown > 0) return;
     
-    // Reset countdown for demonstration
+    
     setCountdown(300);
   };
 
-  // Format countdown time
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -97,7 +96,7 @@ const VerifyOTP = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side: Image */}
+       
         <div className="w-full md:w-1/2 p-4 bg-white">
           <div className="relative w-full h-48 md:h-full">
             <Image
@@ -110,9 +109,8 @@ const VerifyOTP = () => {
           </div>
         </div>
 
-        {/* Right side: Form */}
         <div className="w-full md:w-1/2 p-6 flex flex-col">
-          {/* Title and Subtitle */}
+         
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">Verify OTP</h1>
             <p className="text-sm text-gray-600 mt-1">Enter the 6-digit code sent to your email</p>

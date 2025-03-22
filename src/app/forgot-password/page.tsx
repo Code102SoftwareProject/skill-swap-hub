@@ -14,19 +14,19 @@ const ForgotPassword = () => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Store email in localStorage for the OTP verification page
+    
     localStorage.setItem('resetEmail', email);
     
-    // Simple redirect without backend functionality
+    
     setTimeout(() => {
       router.push('/verify-otp');
-    }, 1000); // Simulate a short loading time
+    }, 1000); 
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side: Image */}
+       
         <div className="w-full md:w-1/2 p-4 bg-white">
           <div className="relative w-full h-48 md:h-full">
             <Image
@@ -39,9 +39,9 @@ const ForgotPassword = () => {
           </div>
         </div>
 
-        {/* Right side: Form */}
+       
         <div className="w-full md:w-1/2 p-6 flex flex-col">
-          {/* Title and Subtitle */}
+          
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">Forgot Password</h1>
             <p className="text-sm text-gray-600 mt-1">Enter your email to receive a password reset code</p>
