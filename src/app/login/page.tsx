@@ -57,7 +57,7 @@ const Login = () => {
         <div className="w-full md:w-1/2 p-4 bg-white">
           <div className="relative w-full h-48 md:h-full">
             <Image
-              src="/loginpageimage.png" 
+              src="/login.jpg" 
               alt="Login Illustration"
               fill
               style={{ objectFit: 'contain' }}
