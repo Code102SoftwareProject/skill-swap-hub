@@ -4,16 +4,20 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/lib/context/ToastContext';
 
 const Login = () => {
   const router = useRouter();
+  const { login } = useAuth();
+  const { showToast } = useToast();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     rememberMe: false
   });
 
-  const [errorMessage, setErrorMessage] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,31 +28,22 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMessage('');
 
     try {
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          rememberMe: formData.rememberMe
-        }),
-      });
+      const result = await login(
+        formData.email,
+        formData.password,
+        formData.rememberMe
+      );
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Redirect to dashboard or home page after successful login
+      if (result.success) {
+        showToast('Login successful! Redirecting...', 'success');
         router.push('/');
       } else {
-        setErrorMessage(data.message || 'Invalid email or password');
+        showToast(result.message || 'Login failed', 'error');
       }
     } catch (error) {
-      setErrorMessage('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
@@ -58,12 +53,11 @@ const Login = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side: Image */}
+        
         <div className="w-full md:w-1/2 p-4 bg-white">
-          {/* Replace img with Next.js Image component */}
           <div className="relative w-full h-48 md:h-full">
             <Image
-              src="/loginpageimage.jpg" 
+              src="/login.jpg" 
               alt="Login Illustration"
               fill
               style={{ objectFit: 'contain' }}
@@ -72,19 +66,11 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Right side: Form */}
         <div className="w-full md:w-1/2 p-6 flex flex-col">
-          {/* Title and Subtitle */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">SkillSwap Hub Login</h1>
             <p className="text-sm text-gray-600 mt-1">Connect, Learn, and Share Your Skills</p>
           </div>
-
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {errorMessage}
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-4 flex-grow">
             <div>

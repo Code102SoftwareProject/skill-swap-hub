@@ -3,6 +3,7 @@ import connect from "@/lib/db";
 import Message from "@/lib/models/messageSchema";
 import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
+import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encryption";
 
 export async function POST(req: Request) {
   await connect();
@@ -11,6 +12,10 @@ export async function POST(req: Request) {
     console.log("Received body:", body);
 
     const { chatRoomId, senderId, content, replyFor } = body;
+
+    // Check if content is a file link and skip encryption if it is
+    const isFileLink = content.startsWith('File:');
+    const encryptedContent: string = isFileLink ? content : encryptMessage(content);
 
     if (!chatRoomId || !senderId || !content) {
       return NextResponse.json(
@@ -43,14 +48,14 @@ export async function POST(req: Request) {
     const message = await Message.create({
       chatRoomId: chatRoomObjectId,
       senderId,
-      content,
+      content: encryptedContent,
       sentAt: new Date(),
       readStatus: false,
       replyFor: replyForObjectId
     });
 
     chatRoom.lastMessage = {
-      content,
+      content: encryptedContent,
       sentAt: new Date(),
       senderId,
     };
@@ -86,6 +91,20 @@ export async function GET(req: Request) {
       const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
         .sort({ sentAt: -1 })
         .populate("replyFor", "content senderId sentAt");
+      
+      // Decrypt message content if exists
+      if (lastMessage) {
+        lastMessage.content = lastMessage.content.startsWith('File:') 
+          ? lastMessage.content 
+          : decryptMessage(lastMessage.content);
+        
+        // Decrypt reply content if exists
+        if (lastMessage.replyFor && lastMessage.replyFor.content) {
+          lastMessage.replyFor.content = lastMessage.replyFor.content.startsWith('File:')
+            ? lastMessage.replyFor.content
+            : decryptMessage(lastMessage.replyFor.content);
+        }
+      }
 
       return NextResponse.json(
         { success: true, message: lastMessage },
@@ -96,8 +115,26 @@ export async function GET(req: Request) {
     const messages = await Message.find({ chatRoomId: chatRoomObjectId })
       .sort({ sentAt: 1 })
       .populate("replyFor", "content senderId sentAt"); 
+    
+    // Decrypt all message contents
+    const decryptedMessages = messages.map(message => {
+      // Create a new object to avoid modifying the database documents directly
+      const messageObj = message.toObject();
+      messageObj.content = messageObj.content.startsWith('File:')
+        ? messageObj.content
+        : decryptMessage(messageObj.content);
+      
+      // Decrypt reply content if exists
+      if (messageObj.replyFor && messageObj.replyFor.content) {
+        messageObj.replyFor.content = messageObj.replyFor.content.startsWith('File:')
+          ? messageObj.replyFor.content
+          : decryptMessage(messageObj.replyFor.content);
+      }
+      
+      return messageObj;
+    });
 
-    return NextResponse.json({ success: true, messages }, { status: 200 });
+    return NextResponse.json({ success: true, messages: decryptedMessages }, { status: 200 });
   } catch (error: any) {
     console.error(error);
     return NextResponse.json(

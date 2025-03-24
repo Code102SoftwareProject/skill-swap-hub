@@ -10,14 +10,14 @@ import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 
 export default function ChatPage() {
-  const { userId } = useParams() as { userId: string };
+  const { userId } = useParams() as { userId: string };//url data extract userId
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   // Real-time new message that we pass to <MessageBox />
   const [newMessage, setNewMessage] = useState<any>(null);
 
-  // 1) Create the Socket.IO connection on mount
+  //Create the Socket.IO connection on mount
   useEffect(() => {
     const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
@@ -26,7 +26,7 @@ export default function ChatPage() {
     return () => {
       newSocket.disconnect();
     };
-  }, []);
+  }, []);//will run only once
 
   // 2) As soon as the socket is ready, mark user as online
   useEffect(() => {
@@ -42,6 +42,8 @@ export default function ChatPage() {
       chatRoomId: selectedChatRoomId,
       userId,
     });
+
+    
 
     // Listen for incoming messages
     socket.on("receive_message", (message) => {

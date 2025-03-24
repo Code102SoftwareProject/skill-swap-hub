@@ -2,15 +2,8 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
-
-interface IMessage {
-  _id?: string;
-  chatRoomId: string;
-  senderId: string;
-  content: string;
-  sentAt?: number;
-  replyFor?: IMessage | null;
-}
+import { IMessage } from "@/types/types";
+import { Download } from "lucide-react";
 
 interface MessageBoxProps {
   userId: string;
@@ -19,7 +12,7 @@ interface MessageBoxProps {
   newMessage?: IMessage;
 }
 
-// Typing Indicator Component
+// Typing Indicator Component dot dot dot
 function TypingIndicator() {
   return (
     <div className="typing-indicator flex items-center">
@@ -61,12 +54,61 @@ function TypingIndicator() {
   );
 }
 
-export default function MessageBox({ userId, chatRoomId, socket, newMessage }: MessageBoxProps) {
+// File Message Component 
+const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
+  // Parse file info (format: "File:filename.ext:fileUrl")
+  const parts = fileInfo.substring(5).split(":");
+  const fileName = parts[0];
+  const fileUrl = parts.length > 1 ? parts[1] : null;
+  const fileExt = fileName.split(".").pop()?.toLowerCase();
+
+  
+
+  // Use fileUrl if available, otherwise just the filename
+  const apiParam = fileUrl
+    ? `fileUrl=${encodeURIComponent(fileUrl)}`
+    : `file=${encodeURIComponent(fileName)}`;
+
+  return (
+    <div className="file-message flex flex-col w-64">
+      <div className="file-info flex items-center gap-2 mb-1">
+        {/* File icon */}
+        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+          <path
+            fillRule="evenodd"
+            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span className="text-sm font-medium w-full">{fileName}</span>
+      </div>
+
+      {/* Download / View button */}
+      <a
+        href={`/api/file/retrieve?${apiParam}`}
+        download={fileName}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-s py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded self-start flex  w-full justify-center"
+      >
+        <Download className="w-5 h-5 mr-2" />
+        Download
+      </a>
+    </div>
+  );
+};
+
+export default function MessageBox({
+  userId,
+  chatRoomId,
+  socket,
+  newMessage,
+}: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Store refs for each message (to enable scrolling to original message)
+  // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Fetch chat history on mount (keeping the order as received so that the latest message is at the bottom)
@@ -76,8 +118,6 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
         const res = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
         const data = await res.json();
         if (data.success) {
-          // Assuming API returns messages in chronological order,
-          // no need to reverse them here.
           setMessages(data.messages);
         }
       } catch (err) {
@@ -87,7 +127,7 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
     fetchMessages();
   }, [chatRoomId]);
 
-  // Append new messages if they arrive (and keep view scrolled to bottom)
+  // Append new messages if they arrive and keep view scrolled to bottom
   useEffect(() => {
     if (!newMessage) return;
     if (newMessage.chatRoomId !== chatRoomId) return;
@@ -106,10 +146,9 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
-
       // Brief highlight effect
       messageElement.style.transition = "background 0.3s";
-      messageElement.style.background = "rgba(255, 255, 0, 0.3)"; // Light yellow
+      messageElement.style.background = "rgba(255, 255, 0, 0.3)";
       setTimeout(() => {
         messageElement.style.background = "transparent";
       }, 800);
@@ -154,7 +193,7 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
             className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`p-2 rounded-lg ${isMine ? "bg-blue-500 text-white" : "bg-gray-200 text-black"}`}
+              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"}`}
               style={{
                 maxWidth: "75%",
                 minWidth: "50px",
@@ -190,8 +229,12 @@ export default function MessageBox({ userId, chatRoomId, socket, newMessage }: M
                 </div>
               )}
 
-              {/* Main message content */}
-              <span className="block">{msg.content}</span>
+              {/* Main message content or File */}
+              {msg.content.startsWith("File:") ? (
+                <FileMessage fileInfo={msg.content} />
+              ) : (
+                <span className="block">{msg.content}</span>
+              )}
 
               {/* Timestamp */}
               <div

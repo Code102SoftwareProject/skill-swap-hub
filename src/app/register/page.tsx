@@ -1,8 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/lib/context/ToastContext';
 
 const Register = () => {
+  const router = useRouter();
+  const { register } = useAuth();
+  const { showToast } = useToast();
+  
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -13,34 +22,46 @@ const Register = () => {
     confirmPassword: '',
   });
 
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [successMessage, setSuccessMessage] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [agreeToTerms, setAgreeToTerms] = useState<boolean>(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'terms') {
+      setAgreeToTerms(e.target.checked);
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ // Updated handleSubmit function for the Register component
 
-    if (formData.password !== formData.confirmPassword) {
-      setErrorMessage('Passwords do not match');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
 
-    const response = await fetch('/api/register', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(formData),
-    });
+  // Validate passwords match
+  if (formData.password !== formData.confirmPassword) {
+    showToast('Passwords do not match', 'error');
+    setIsLoading(false);
+    return;
+  }
 
-    const data = await response.json();
+  // Validate terms acceptance
+  if (!agreeToTerms) {
+    showToast('You must agree to the Terms and Privacy Policy', 'error');
+    setIsLoading(false);
+    return;
+  }
 
-    if (data.success) {
-      setSuccessMessage('Registration successful!');
-      setErrorMessage('');
+  try {
+    console.log('Submitting registration data...');
+    const result = await register(formData);
+    console.log('Registration result:', result);
+
+    if (result.success) {
+      showToast('Registration successful! Redirecting to login...', 'success');
+      
+      // Reset form
       setFormData({
         firstName: '',
         lastName: '',
@@ -50,33 +71,49 @@ const Register = () => {
         password: '',
         confirmPassword: '',
       });
+      setAgreeToTerms(false);
+      
+      // Use a more immediate approach for redirection
+      console.log('About to redirect to login page');
+      
+      // Add a small delay to ensure the toast is visible
+      setTimeout(() => {
+        console.log('Executing redirect now');
+        window.location.href = '/login'; // Use direct browser navigation instead of router
+      }, 1500);
     } else {
-      setErrorMessage(data.message || 'Registration failed');
+      showToast(result.message || 'Registration failed', 'error');
+      console.error('Registration failed with message:', result.message);
     }
-  };
-
+  } catch (error) {
+    showToast('An error occurred during registration', 'error');
+    console.error('Registration error:', error);
+  } finally {
+    setIsLoading(false);
+  }
+};
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-6xl mx-auto bg-white rounded-xl shadow-lg w-full">
-        {/* Left side: Image */}
+        
         <div className="w-full md:w-1/2 p-4 sm:block">
-          <img
-            src="/register.jpg" // Path relative to the public folder
-            alt="Register Image"
-            className="w-full h-48 md:h-full object-cover rounded-lg shadow-md"
-          />
+          <div className="relative w-full h-48 md:h-full">
+            <Image
+              src="/register.jpg"
+              alt="Register Image"
+              fill
+              style={{ objectFit: 'cover' }}
+              className="rounded-lg shadow-md"
+              priority
+            />
+          </div>
         </div>
 
-        {/* Right side: Form */}
         <div className="w-full md:w-1/2 p-6">
-          {/* Title and Subtitle */}
           <div className="text-center mb-4">
             <h1 className="text-2xl font-semibold text-gray-800">Join SkillSwap Hub</h1>
             <p className="text-lg text-gray-600 mt-2">Connect, Learn, and Share Your Skills</p>
           </div>
-
-          {errorMessage && <p className="text-red-500 text-center mb-4">{errorMessage}</p>}
-          {successMessage && <p className="text-green-500 text-center mb-4">{successMessage}</p>}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -184,27 +221,36 @@ const Register = () => {
                 type="checkbox"
                 id="terms"
                 name="terms"
+                checked={agreeToTerms}
+                onChange={handleChange}
                 required
                 className="h-4 w-4 text-blue-600"
               />
               <label htmlFor="terms" className="text-sm text-gray-700">
-                I agree to the <a href="/terms" className="text-blue-600">Terms</a> and <a href="/privacy" className="text-blue-600">Privacy Policy</a>
+                I agree to the <Link href="/terms" className="text-blue-600">Terms</Link> and <Link href="/privacy" className="text-blue-600">Privacy Policy</Link>
               </label>
             </div>
 
             <div className="mt-4">
               <button
                 type="submit"
-                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300"
+                disabled={isLoading}
+                className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center items-center"
               >
-                Create Acount
+                {isLoading && (
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                )}
+                Create Account
               </button>
             </div>
           </form>
 
           <div className="mt-4 text-center">
-            <p className="text-sm text-gray-600">Already have an account? <a href="/login" className="text-blue-600">Login</a></p>
-            <p className="text-sm text-gray-600 mt-2"><a href="/" className="text-blue-600">Back to Homepage</a></p>
+            <p className="text-sm text-gray-600">Already have an account? <Link href="/login" className="text-blue-600">Login</Link></p>
+            <p className="text-sm text-gray-600 mt-2"><Link href="/" className="text-blue-600">Back to Homepage</Link></p>
           </div>
         </div>
       </div>
