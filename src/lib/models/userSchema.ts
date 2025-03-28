@@ -44,8 +44,20 @@ UserSchema.pre<IUser>('save', async function(next) {
 });
 
 // Method to compare password for login
+// In userSchema.ts
 UserSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
+  try {
+    console.log('Comparing passwords...');
+    console.log('Candidate password length:', candidatePassword.length);
+    console.log('Stored password hash length:', this.password.length);
+    
+    const isMatch = await bcrypt.compare(candidatePassword, this.password);
+    console.log('Password match result:', isMatch);
+    return isMatch;
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 };
 
 // Helper method to return user without password
