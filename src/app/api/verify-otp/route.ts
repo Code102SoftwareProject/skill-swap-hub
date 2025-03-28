@@ -1,64 +1,56 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
 import jwt from 'jsonwebtoken';
-
-// MongoDB Configuration
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
-
-// JWT Configuration
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is not defined');
-}
-
-const client = new MongoClient(process.env.MONGODB_URI);
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/userSchema';
+import OtpVerification from '@/lib/models/otpVerificationSchema';
 
 export async function POST(req: Request) {
-  const { email, otp } = await req.json();
-
-  // Validate inputs
-  if (!email || !otp) {
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Email and OTP are required' 
-    }, { status: 400 });
-  }
-
   try {
-    await client.connect();
-    const db = client.db('skillSwapHub');
-    const collection = db.collection('users');
+    const body = await req.json();
+    const { email, otp } = body;
 
+    console.log("Received verify OTP request:", { email, otp });
+    
+    // Validate inputs
+    if (!email || !otp) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Email and OTP are required' 
+      }, { status: 400 });
+    }
+
+    // Connect to database
+    await dbConnect();
+    
     // Find user by email
-    const user = await collection.findOne({ email });
+    const user = await User.findOne({ email });
     
     if (!user) {
+      // For security reasons, provide a generic error message
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid email or OTP' 
       }, { status: 401 });
     }
 
-    // Check if OTP exists and is not used
-    if (!user.resetOtp || user.resetOtpUsed) {
+    // Find OTP verification record
+    const otpRecord = await OtpVerification.findOne({
+      userId: user._id,
+      otp: otp,
+      used: false
+    });
+    
+    // Check if OTP exists
+    if (!otpRecord) {
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid or expired OTP' 
       }, { status: 401 });
     }
 
-    // Check if OTP matches
-    if (user.resetOtp !== otp) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Invalid OTP' 
-      }, { status: 401 });
-    }
-
     // Check if OTP is expired
     const now = new Date();
-    if (now > new Date(user.resetOtpExpiry)) {
+    if (now > new Date(otpRecord.expiresAt)) {
       return NextResponse.json({ 
         success: false, 
         message: 'OTP has expired' 
@@ -66,10 +58,8 @@ export async function POST(req: Request) {
     }
 
     // Mark OTP as used
-    await collection.updateOne(
-      { email },
-      { $set: { resetOtpUsed: true } }
-    );
+    otpRecord.used = true;
+    await otpRecord.save();
 
     // Generate a reset token
     const resetToken = jwt.sign(
@@ -77,6 +67,8 @@ export async function POST(req: Request) {
       process.env.JWT_SECRET as string,
       { expiresIn: '15m' } // Token expires in 15 minutes
     );
+
+    console.log("OTP verification successful for:", email);
 
     return NextResponse.json({ 
       success: true, 
@@ -88,8 +80,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ 
       success: false, 
       message: 'An error occurred while verifying OTP' 
-    }, { status: 500 });
-  } finally {
-    await client.close();
+      }, { status: 500 });
   }
 }

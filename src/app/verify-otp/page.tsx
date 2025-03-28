@@ -4,15 +4,15 @@ import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useToast } from '@/lib/context/ToastContext';
 
 const VerifyOTP = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
@@ -23,6 +23,7 @@ const VerifyOTP = () => {
     const storedEmail = localStorage.getItem('resetEmail');
     if (!storedEmail) {
       // Redirect to forgot password if no email is stored
+      showToast('Please enter your email first', 'info');
       router.push('/forgot-password');
       return;
     }
@@ -40,7 +41,7 @@ const VerifyOTP = () => {
     }, 1000);
     
     return () => clearInterval(timer);
-  }, [router]);
+  }, [router, showToast]);
 
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
     const value = e.target.value;
@@ -69,8 +70,6 @@ const VerifyOTP = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     const otpString = otp.join('');
     
@@ -89,7 +88,9 @@ const VerifyOTP = () => {
       const data = await response.json();
 
       if (data.success) {
-        setSuccessMessage('OTP verified successfully! Redirecting...');
+        // Show success toast
+        showToast('OTP verified successfully! Redirecting...', 'success');
+        
         // Store the reset token in localStorage
         localStorage.setItem('resetToken', data.resetToken);
         
@@ -98,11 +99,11 @@ const VerifyOTP = () => {
           router.push('/reset-password');
         }, 1500);
       } else {
-        setErrorMessage(data.message || 'Invalid OTP');
+        showToast(data.message || 'Invalid OTP', 'error');
       }
     } catch (error) {
       console.error('Error verifying OTP:', error);
-      setErrorMessage('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +113,6 @@ const VerifyOTP = () => {
     if (countdown > 0) return;
     
     setIsLoading(true);
-    setErrorMessage('');
     
     try {
       const response = await fetch('/api/forgot-password', {
@@ -128,12 +128,13 @@ const VerifyOTP = () => {
       if (data.success) {
         // Reset countdown
         setCountdown(300);
+        showToast('A new OTP has been sent to your email', 'success');
       } else {
-        setErrorMessage(data.message || 'Failed to resend OTP');
+        showToast(data.message || 'Failed to resend OTP', 'error');
       }
     } catch (error) {
       console.error('Error resending OTP:', error);
-      setErrorMessage('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -169,20 +170,6 @@ const VerifyOTP = () => {
             {email && <p className="text-xs text-gray-500 mt-1">{email}</p>}
           </div>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {errorMessage}
-            </div>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {successMessage}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6 flex-grow">
             <div>
               <div className="flex justify-center space-x-2">
@@ -198,7 +185,7 @@ const VerifyOTP = () => {
                     className="w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                     required
                     autoFocus={idx === 0}
-                    disabled={isLoading || !!successMessage}
+                    disabled={isLoading}
                   />
                 ))}
               </div>
@@ -212,9 +199,9 @@ const VerifyOTP = () => {
             <div>
               <button
                 type="submit"
-                disabled={isLoading || !!successMessage || otp.some(digit => !digit)}
+                disabled={isLoading || otp.some(digit => !digit)}
                 className={`w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center ${
-                  isLoading || !!successMessage || otp.some(digit => !digit) ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                  isLoading || otp.some(digit => !digit) ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
                 }`}
               >
                 {isLoading ? (
@@ -234,8 +221,8 @@ const VerifyOTP = () => {
               <button
                 type="button"
                 onClick={handleResendOtp}
-                disabled={countdown > 0 || isLoading || !!successMessage}
-                className={`text-blue-600 hover:text-blue-800 focus:outline-none ${(countdown > 0 || isLoading || !!successMessage) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={countdown > 0 || isLoading}
+                className={`text-blue-600 hover:text-blue-800 focus:outline-none ${(countdown > 0 || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Resend OTP
               </button>

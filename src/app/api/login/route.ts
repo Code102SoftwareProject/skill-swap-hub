@@ -15,22 +15,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
   }
 
-  try {
-    // Connect to database
-    await dbConnect();
-    
-    // Find user by email
-    const user = await User.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-    }
+  // In your login route.ts
 
-    // Verify password
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-    }
+try {
+  // Connect to database
+  await dbConnect();
+  
+  // Find user by email - add some logging
+  console.log(`Looking for user with email: ${email}`);
+  const user = await User.findOne({ email });
+  
+  if (!user) {
+    console.log('User not found');
+    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
+  }
 
+  // Verify password - add more logging
+  console.log('User found, verifying password...');
+  const isPasswordValid = await user.comparePassword(password);
+  console.log(`Password valid: ${isPasswordValid}`);
+  
+  if (!isPasswordValid) {
+    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
+  }
+
+  // Rest of your login code...
     // Generate JWT token
     const token = jwt.sign(
       {

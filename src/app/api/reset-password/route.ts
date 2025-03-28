@@ -1,19 +1,13 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-// MongoDB Configuration
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/userSchema';
+import OtpVerification from '@/lib/models/otpVerificationSchema';
 
 // JWT Configuration
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined');
 }
-
-const client = new MongoClient(process.env.MONGODB_URI);
 
 export async function POST(req: Request) {
   const { resetToken, password } = await req.json();
@@ -33,13 +27,11 @@ export async function POST(req: Request) {
       email: string;
     };
 
-    // Connect to MongoDB
-    await client.connect();
-    const db = client.db('skillSwapHub');
-    const collection = db.collection('users');
-
+    // Connect to database
+    await dbConnect();
+    
     // Find user by email from token
-    const user = await collection.findOne({ email: decoded.email });
+    const user = await User.findOne({ email: decoded.email });
     
     if (!user) {
       return NextResponse.json({ 
@@ -48,23 +40,13 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    // Hash the new password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Update user's password
-    await collection.updateOne(
-      { email: decoded.email },
-      { 
-        $set: { 
-          password: hashedPassword,
-          // Clear reset fields
-          resetOtp: null,
-          resetOtpExpiry: null,
-          resetOtpUsed: null
-        } 
-      }
-    );
+    // Update user's password - let the schema handle hashing
+    user.password = password;
+    await user.save();
+    console.log('User password updated in database');
+    
+    // Clean up by deleting all OTP verification records for this user
+    await OtpVerification.deleteMany({ userId: user._id });
 
     return NextResponse.json({ 
       success: true, 
@@ -85,7 +67,5 @@ export async function POST(req: Request) {
       success: false, 
       message: 'An error occurred while resetting password' 
     }, { status: 500 });
-  } finally {
-    await client.close();
   }
 }

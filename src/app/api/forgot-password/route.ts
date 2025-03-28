@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/userSchema';
+import OtpVerification from '@/lib/models/otpVerificationSchema';
 import sgMail from '@sendgrid/mail';
-import crypto from 'crypto';
 
 // Configure SendGrid
 if (!process.env.SENDGRID_API_KEY) {
@@ -9,13 +10,6 @@ if (!process.env.SENDGRID_API_KEY) {
 }
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
-// MongoDB Configuration
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
-
-const client = new MongoClient(process.env.MONGODB_URI);
 
 // Generate a 6-digit OTP
 function generateOTP() {
@@ -36,12 +30,11 @@ export async function POST(req: Request) {
   }
 
   try {
-    await client.connect();
-    const db = client.db('skillSwapHub');
-    const collection = db.collection('users');
-
+    // Connect to database
+    await dbConnect();
+    
     // Find user by email
-    const user = await collection.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) {
       // For security reasons, we still return success even if the email doesn't exist
       // This prevents email enumeration attacks
@@ -52,17 +45,17 @@ export async function POST(req: Request) {
     const otp = generateOTP();
     const otpExpiry = calculateExpiryTime();
 
-    // Store OTP in user record
-    await collection.updateOne(
-      { email },
-      { 
-        $set: { 
-          resetOtp: otp, 
-          resetOtpExpiry: otpExpiry,
-          resetOtpUsed: false
-        } 
-      }
-    );
+    // First delete any existing OTP for this user
+    await OtpVerification.deleteMany({ userId: user._id });
+
+    // Create new OTP record in separate collection
+    await OtpVerification.create({
+      userId: user._id,
+      email: user.email,
+      otp: otp,
+      expiresAt: otpExpiry,
+      used: false
+    });
 
     // Send email with OTP
     const msg = {
@@ -100,7 +93,5 @@ export async function POST(req: Request) {
       success: false, 
       message: 'An error occurred while processing your request' 
     }, { status: 500 });
-  } finally {
-    await client.close();
   }
 }
