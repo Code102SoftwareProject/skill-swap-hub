@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState, ReactNode } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useToast } from '@/lib/context/ToastContext';
 
 // Define public routes that don't require authentication
 const PUBLIC_ROUTES = ['/login', '/register', '/forgot-password', '/reset-password', '/'];
@@ -13,26 +14,40 @@ interface ProtectRouteProps {
 
 const ProtectRoute = ({ children }: ProtectRouteProps) => {
   const { user, token, isLoading } = useAuth();
+  const { showToast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [isRouteLoading, setIsRouteLoading] = useState(true);
 
   useEffect(() => {
     if (!isLoading) {
       const isPublicRoute = PUBLIC_ROUTES.includes(pathname || '') || 
-                           pathname?.startsWith('/reset-password/');
-                           
+                           pathname?.startsWith('/reset-password/') ||
+                           pathname?.startsWith('/verify-otp/');
+      
+      // Get redirect path from URL if available
+      const redirectPath = searchParams?.get('redirect');
+      
       if (!token && !isPublicRoute) {
-        // Redirect to login if no token and route requires auth
-        router.push('/login');
+        // Show a message about the redirection
+        showToast('Please log in to access this page', 'info');
+        
+        // Redirect to login with the current path as redirect parameter
+        router.push(`/login${redirectPath ? `?redirect=${encodeURIComponent(redirectPath)}` : 
+          pathname ? `?redirect=${encodeURIComponent(pathname)}` : ''}`);
       } else if (token && (pathname === '/login' || pathname === '/register')) {
-        // Redirect to home if logged in and trying to access login/register
-        router.push('/');
+        // If logged in and trying to access login/register, redirect to home or previous page
+        if (redirectPath) {
+          router.push(redirectPath);
+        } else {
+          router.push('/');
+        }
       } else {
         setIsRouteLoading(false);
       }
     }
-  }, [isLoading, token, pathname, router]);
+  }, [isLoading, token, pathname, router, searchParams, showToast]);
 
   // Show loading state while checking auth
   if (isLoading || isRouteLoading) {

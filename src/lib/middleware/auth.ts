@@ -33,7 +33,9 @@ export async function middleware(request: NextRequest) {
     pathname === '/register' ||
     pathname.startsWith('/forgot-password') ||
     pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/verify-otp')
+    pathname.startsWith('/verify-otp') ||
+    pathname === '/api/login' ||
+    pathname === '/api/register'
   ) {
     return NextResponse.next();
   }
@@ -65,10 +67,24 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     // Custom header for token from localStorage
     token = request.headers.get('x-auth-token');
+    
+    // If running in a browser context, we can also check cookies
+    const cookies = request.cookies;
+    if (!token && cookies.has('auth_token')) {
+      token = cookies.get('auth_token')?.value || null;
+    }
   }
 
   if (!token) {
-    // Redirect to login if no token is found
+    // For API requests, return 401 Unauthorized
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, message: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+    
+    // For page requests, redirect to login
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(redirectUrl);
@@ -82,12 +98,41 @@ export async function middleware(request: NextRequest) {
 
     jwt.verify(token, process.env.JWT_SECRET as string);
     
+    // Add auth header to the request for downstream handlers
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('Authorization', `Bearer ${token}`);
+    
+    // Clone the request with the new headers
+    const newRequest = new NextRequest(request.url, {
+      headers: requestHeaders,
+      method: request.method,
+      body: request.body,
+      cache: request.cache,
+      credentials: request.credentials,
+      integrity: request.integrity,
+      keepalive: request.keepalive,
+      mode: request.mode,
+      redirect: request.redirect,
+      referrer: request.referrer,
+      referrerPolicy: request.referrerPolicy,
+    });
+    
     // Token is valid, proceed to the route
-    return NextResponse.next();
+    return NextResponse.next({
+      request: newRequest,
+    });
   } catch (error) {
     console.error('Auth middleware error:', error);
     
-    // Token is invalid, redirect to login
+    // For API requests, return 401 Unauthorized
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+    
+    // For page requests, redirect to login
     const redirectUrl = new URL('/login', request.url);
     redirectUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(redirectUrl);

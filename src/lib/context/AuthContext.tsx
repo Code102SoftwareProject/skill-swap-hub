@@ -91,7 +91,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Register function
+  // Register function - Updated to handle JWT token
   const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
     setIsLoading(true);
     
@@ -105,6 +105,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       const data = await response.json();
+      
+      if (data.success) {
+        // Store token and user in localStorage if auto-login is desired
+        // Uncomment the following lines to auto-login after registration
+        /*
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Update state
+        setToken(data.token);
+        setUser(data.user);
+        */
+      }
+      
       setIsLoading(false);
       
       return { 
@@ -119,17 +133,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Logout function
-  const logout = () => {
-    // Clear local storage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-    
-    // Reset state
-    setToken(null);
-    setUser(null);
-    
-    // Redirect to login
-    router.push('/login');
+  const logout = async () => {
+    try {
+      // Call logout API with the token
+      await fetch('/api/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+      
+      // Reset state
+      setToken(null);
+      setUser(null);
+      
+      // Redirect to login
+      router.push('/login');
+    }
   };
 
   // Context value
