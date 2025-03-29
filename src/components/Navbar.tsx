@@ -44,7 +44,7 @@ const Navbar: React.FC = () => {
 
   const handleProfileClick = () => {
     setIsDropdownOpen(false);
-    router.push('/profile');
+    router.push('/dashboard');
   };
 
   const isLoggedIn = !!user;
@@ -124,7 +124,7 @@ const Navbar: React.FC = () => {
                       onClick={handleProfileClick}
                     >
                       <User className="w-4 h-4 mr-2" />
-                      Profile
+                      Dashboard
                     </button>
                     <button 
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
