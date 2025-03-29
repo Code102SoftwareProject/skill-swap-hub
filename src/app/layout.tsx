@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { ToastProvider } from '@/lib/context/ToastContext';
-import ProtectRoute from '@/lib/middleware/ProtectRoute';
+//import ProtectRoute from '@/lib/middleware/ProtectRoute';
 import "./globals.css";
 
 const geistSans = Geist({
@@ -32,9 +32,9 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ToastProvider>
-            <ProtectRoute >
+            
               {children}
-           </ProtectRoute>
+           
           </ToastProvider>
         </AuthProvider>
       </body>
