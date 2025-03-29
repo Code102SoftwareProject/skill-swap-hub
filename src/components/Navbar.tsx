@@ -1,79 +1,144 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { Bell, MessageSquare, ChevronDown, Search } from 'lucide-react';
-import SearchPopup from './SearchPopup';
-import { useAuth } from '@/lib/context/AuthContext';
+import { Bell, MessageSquare, ChevronDown, Search, LogOut, User } from 'lucide-react';
+import SearchPopup from './SerarchPopup';
+import { useRouter } from 'next/navigation';
 
-const Navbar = () => {
-  const { user, logout } = useAuth();
+const Navbar: React.FC = () => {
+  const [userName, setUserName] = useState('User');
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userImage, setUserImage] = useState('/user-avatar.png'); // Default image
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  
-  const categoriesRef = useRef<HTMLDivElement | null>(null);
-  const profileRef = useRef<HTMLDivElement | null>(null);
-  
-  const isLoggedIn = !!user;
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (categoriesRef.current && !categoriesRef.current.contains(event.target as Node)) {
-        setIsCategoriesOpen(false);
-      }
-      
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
-        setIsProfileOpen(false);
-      }
+  // Function to decode JWT token
+  const decodeJWT = (token: string) => {
+    try {
+      // Extract the payload part of the JWT (the second part)
+      const base64Url = token.split('.')[1];
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const jsonPayload = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      return JSON.parse(jsonPayload);
+    } catch (error) {
+      console.error('Error decoding JWT:', error);
+      return null;
     }
+  };
 
-    document.addEventListener("mousedown", handleClickOutside);
+  const handleLogin = () => {
+    router.push('/login');
+  };
+
+  const handleLogout = () => {
+    // Remove token and user data from localStorage
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    
+    // Update state
+    setIsLoggedIn(false);
+    setUserName('User');
+    setUserId(null);
+    setUserImage('/user-avatar.png');
+    setIsDropdownOpen(false);
+    
+  };
+
+  const handleProfileClick = () => {
+    setIsDropdownOpen(false);
+    router.push('/profile');
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    // Get user data and token from localStorage on component mount
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('auth_token');
+    
+    if (storedToken) {
+      setIsLoggedIn(true);
+      
+      try {
+        const decodedToken = decodeJWT(storedToken);
+        if (decodedToken && decodedToken.userId) {
+          setUserId(decodedToken.userId);
+        }
+      } catch (error) {
+        console.error('Error decoding auth token:', error);
+      }
+    } else {
+      setIsLoggedIn(false);
+    }
+
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser);
+        if (userData.firstName) {
+          setUserName(userData.firstName);
+        }
+      } catch (error) {
+        console.error('Error parsing user data from localStorage:', error);
+      }
+    }
+  }, []);
+
+  // Fetch user image when userId is available
+  useEffect(() => {
+    if (userId) {
+      // Attempt to fetch user image using userId
+      fetch(`/api/users/${userId}/image`)
+        .then(response => {
+          if (response.ok) {
+            return response.url;
+          }
+          throw new Error('Failed to fetch user image');
+        })
+        .then(imageUrl => {
+          setUserImage(imageUrl);
+        })
+        .catch(error => {
+          console.error('Error fetching user image:', error);
+          // Keep the default image on error
+        });
+    }
+  }, [userId]);
 
   return (
     <>
       <nav className="bg-[#006699] px-4 py-3 flex items-center justify-between">
-        {/* Left section with logo - increased logo size */}
-        <Link href="/" className="flex items-center">
-          <div className="w-10 h-10 relative -my-3"> {/* Increased size but negative margin to maintain navbar height */}
+        <div className="flex items-center">
+          <div className="w-8 h-8">
             <Image
               src="/logo.png"
-              alt="SkillSwap Hub"
-              width={40}
-              height={40}
-              className="text-white"
+              alt="Logo"
+              width={32}
+              height={32}
+              className="text-black"
             />
           </div>
-        </Link>
-
-        {/* Center section with categories and search */}
-        <div className="flex flex-1 items-center justify-center gap-1 max-w-3xl">
-          <div className="relative" ref={categoriesRef}>
-            <button 
-              className="flex items-center gap-2 text-white px-3 py-2 rounded-md border border-white/20"
-              onClick={() => setIsCategoriesOpen(!isCategoriesOpen)}
-            >
-              Categories
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            
-            {isCategoriesOpen && (
-              <div className="absolute left-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-10">
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Coding & Programmingt</button>
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Creative Arts & Entertainment</button>
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Home Improvement & DIY</button>
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Education & Tutoring</button>
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Culinary & Food Services</button>
-                <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Lifestyle & Personal Services</button>
-              </div>
-            )}
-          </div>
+        </div>
 
           <div className="w-full max-w-xl">
             <div className="relative">
@@ -89,66 +154,61 @@ const Navbar = () => {
           </div>
         </div>
 
-        {isLoggedIn ? (
-          // After login - User is authenticated
-          <div className="flex items-center gap-4">
-            <button className="text-white">
-              <MessageSquare className="w-6 h-6" />
-            </button>
-            <button className="text-white">
-              <Bell className="w-6 h-6" />
-            </button>
-            
-            <div className="relative" ref={profileRef}>
+        <div className="flex items-center gap-4">
+          <button className="text-white">
+            <MessageSquare className="w-6 h-6" />
+          </button>
+          <button className="text-white">
+            <Bell className="w-6 h-6" />
+          </button>
+          
+          {isLoggedIn ? (
+            <div className="relative" ref={dropdownRef}>
               <button 
                 className="flex items-center gap-2 text-white"
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               >
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-300">
+                <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200">
                   <Image
-                    src={user?.avatar || "/Avatar.png"}
-                    alt={`${user?.firstName || ''} ${user?.lastName || ''}`}
+                    src={userImage}
+                    alt={userName}
                     width={32}
                     height={32}
                     className="object-cover"
                   />
                 </div>
-                <span className="font-medium">{user?.firstName || 'User'}</span>
+                <span className="font-medium">{userName}</span>
                 <ChevronDown className="w-4 h-4" />
               </button>
               
-              {isProfileOpen && (
+              {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10">
-                  <Link href="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</Link>
-                  <Link href="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</Link>
                   <button 
-                    onClick={() => {
-                      logout();
-                      setIsProfileOpen(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleProfileClick}
                   >
-                    Sign out
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </button>
+                  <button 
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={handleLogout}
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Logout
                   </button>
                 </div>
               )}
             </div>
-          </div>
-        ) : (
-          // Before login - User is not authenticated
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <button className="bg-transparent text-white border border-white px-4 py-1.5 rounded hover:bg-white/10 transition">
-                Login
-              </button>
-            </Link>
-            <Link href="/register">
-              <button className="bg-white text-[#006699] px-4 py-1.5 rounded hover:bg-gray-100 transition">
-                Sign Up
-              </button>
-            </Link>
-          </div>
-        )}
+          ) : (
+            <button 
+              className="bg-white text-[#006699] px-4 py-2 rounded-md font-medium"
+              onClick={handleLogin}
+            >
+              Log In
+            </button>
+          )}
+        </div>
       </nav>
 
       <SearchPopup 
