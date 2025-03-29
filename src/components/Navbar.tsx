@@ -140,16 +140,17 @@ const Navbar: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 max-w-2xl mx-8">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search for skills"
-              className="w-full px-4 py-2 rounded-md pl-4 pr-10"
-              onClick={() => setIsSearchOpen(true)}
-              readOnly
-            />
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <div className="w-full max-w-xl">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search for skills"
+                className="w-full px-4 py-2 rounded-md pl-4 pr-10"
+                onClick={() => setIsSearchOpen(true)}
+                readOnly
+              />
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            </div>
           </div>
         </div>
 
