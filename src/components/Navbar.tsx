@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { Bell, MessageSquare, ChevronDown, Search, LogOut, User } from 'lucide-react';
-import SearchPopup from './SerarchPopup';
+import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 
 const Navbar: React.FC = () => {
@@ -151,8 +151,11 @@ const Navbar: React.FC = () => {
               />
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             </div>
+            
           </div>
-        </div>
+         
+        
+       
 
         <div className="flex items-center gap-4">
           <button className="text-white">
