@@ -1,12 +1,15 @@
 // File: src/app/api/myskills/[id]/route.ts
-import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
 import mongoose from 'mongoose';
 
 // Helper function to get user ID from the token
-function getUserIdFromToken(req: Request): string | null {
+function getUserIdFromToken(req: NextRequest): string | null {
   try {
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -23,183 +26,148 @@ function getUserIdFromToken(req: Request): string | null {
   }
 }
 
-// GET - Fetch a specific user skill
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const userId = getUserIdFromToken(req);
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Unauthorized' 
-      }, { status: 401 });
-    }
-    
-    const skillId = params.id;
-    
-    if (!mongoose.Types.ObjectId.isValid(skillId)) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Invalid skill ID' 
-      }, { status: 400 });
-    }
-    
-    await dbConnect();
-    
-    const skill = await UserSkill.findOne({
-      _id: skillId,
-      userId
-    });
-    
-    if (!skill) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Skill not found' 
-      }, { status: 404 });
-    }
-    
-    return NextResponse.json({ 
-      success: true, 
-      data: skill 
-    });
-  } catch (error) {
-    console.error('Error fetching skill:', error);
+// Utility function to handle skill operations without directly using params.id
+async function handleSkillOperation(request: NextRequest, id: string, operation: 'get' | 'update' | 'delete') {
+  // Validate ID
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) {
     return NextResponse.json({ 
       success: false, 
-      message: 'Failed to fetch skill' 
+      message: 'Invalid skill ID' 
+    }, { status: 400 });
+  }
+  
+  // Auth check
+  const userId = getUserIdFromToken(request);
+  if (!userId) {
+    return NextResponse.json({ 
+      success: false, 
+      message: 'Unauthorized' 
+    }, { status: 401 });
+  }
+  
+  try {
+    await dbConnect();
+    
+    // GET operation
+    if (operation === 'get') {
+      const skill = await UserSkill.findOne({ _id: id, userId });
+      
+      if (!skill) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Skill not found' 
+        }, { status: 404 });
+      }
+      
+      return NextResponse.json({ 
+        success: true, 
+        data: skill 
+      });
+    }
+    
+    // DELETE operation
+    if (operation === 'delete') {
+      const result = await UserSkill.findOneAndDelete({ _id: id, userId });
+      
+      if (!result) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Skill not found' 
+        }, { status: 404 });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Skill deleted successfully'
+      });
+    }
+    
+    // UPDATE operation
+    if (operation === 'update') {
+      const data = await request.json();
+      
+      // Validate required fields
+      const { proficiencyLevel, description } = data;
+      
+      if (!proficiencyLevel || !description) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Missing required fields' 
+        }, { status: 400 });
+      }
+      
+      // Validate description length
+      if (description.length < 10) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Description must be at least 10 characters' 
+        }, { status: 400 });
+      }
+      
+      const result = await UserSkill.findOneAndUpdate(
+        { _id: id, userId },
+        { 
+          $set: {
+            proficiencyLevel,
+            description,
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+      
+      if (!result) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Skill not found' 
+        }, { status: 404 });
+      }
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Skill updated successfully',
+        data: result
+      });
+    }
+    
+    // Should never reach here
+    return NextResponse.json({ 
+      success: false, 
+      message: 'Invalid operation' 
+    }, { status: 400 });
+    
+  } catch (error) {
+    console.error(`Error in ${operation} operation:`, error);
+    return NextResponse.json({ 
+      success: false, 
+      message: `Failed to ${operation} skill` 
     }, { status: 500 });
   }
+}
+
+// GET - Fetch a specific user skill
+export async function GET(request: NextRequest) {
+  // Get ID from URL path segment
+  const segments = request.nextUrl.pathname.split('/');
+  const id = segments[segments.length - 1];
+  
+  return handleSkillOperation(request, id, 'get');
 }
 
 // PUT - Update a user skill
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const userId = getUserIdFromToken(req);
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Unauthorized' 
-      }, { status: 401 });
-    }
-    
-    const skillId = params.id;
-    
-    if (!mongoose.Types.ObjectId.isValid(skillId)) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Invalid skill ID' 
-      }, { status: 400 });
-    }
-    
-    const data = await req.json();
-    
-    // Validate required fields
-    const { proficiencyLevel, description } = data;
-    
-    if (!proficiencyLevel || !description) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Missing required fields' 
-      }, { status: 400 });
-    }
-    
-    // Validate description length
-    if (description.length < 10) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Description must be at least 10 characters' 
-      }, { status: 400 });
-    }
-    
-    await dbConnect();
-    
-    // Update the skill
-    const result = await UserSkill.updateOne(
-      { _id: skillId, userId },
-      { 
-        $set: {
-          proficiencyLevel,
-          description,
-          updatedAt: new Date()
-        }
-      }
-    );
-    
-    if (result.matchedCount === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Skill not found' 
-      }, { status: 404 });
-    }
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Skill updated successfully'
-    });
-  } catch (error) {
-    console.error('Error updating skill:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Failed to update skill' 
-    }, { status: 500 });
-  }
+export async function PUT(request: NextRequest) {
+  // Get ID from URL path segment
+  const segments = request.nextUrl.pathname.split('/');
+  const id = segments[segments.length - 1];
+  
+  return handleSkillOperation(request, id, 'update');
 }
 
 // DELETE - Delete a user skill
-export async function DELETE(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const userId = getUserIdFromToken(req);
-    
-    if (!userId) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Unauthorized' 
-      }, { status: 401 });
-    }
-    
-    const skillId = params.id;
-    
-    if (!mongoose.Types.ObjectId.isValid(skillId)) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Invalid skill ID' 
-      }, { status: 400 });
-    }
-    
-    await dbConnect();
-    
-    // Delete the skill
-    const result = await UserSkill.deleteOne({
-      _id: skillId,
-      userId
-    });
-    
-    if (result.deletedCount === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Skill not found' 
-      }, { status: 404 });
-    }
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Skill deleted successfully'
-    });
-  } catch (error) {
-    console.error('Error deleting skill:', error);
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Failed to delete skill' 
-    }, { status: 500 });
-  }
+export async function DELETE(request: NextRequest) {
+  // Get ID from URL path segment
+  const segments = request.nextUrl.pathname.split('/');
+  const id = segments[segments.length - 1];
+  
+  return handleSkillOperation(request, id, 'delete');
 }

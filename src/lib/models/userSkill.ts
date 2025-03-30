@@ -48,7 +48,19 @@ const UserSkillSchema: Schema = new Schema({
     type: Date
   }
 }, {
-  timestamps: true // Automatically manage createdAt and updatedAt
+  timestamps: true, // Automatically manage createdAt and updatedAt
+  toJSON: { 
+    virtuals: true,
+    transform: function(doc, ret) {
+      ret.id = ret._id;
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    }
+  },
+  toObject: {
+    virtuals: true
+  }
 });
 
 // Compound index to ensure a user doesn't have duplicate skills
