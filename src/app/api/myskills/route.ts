@@ -1,3 +1,6 @@
+// File: src/app/api/myskills/route.ts
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
@@ -104,8 +107,7 @@ export async function POST(req: Request) {
       categoryName,
       skillTitle,
       proficiencyLevel,
-      description,
-      createdAt: new Date()
+      description
     });
     
     await newSkill.save();
@@ -113,12 +115,19 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       message: 'Skill added successfully',
-      data: {
-        skillId: newSkill._id
-      }
+      data: newSkill
     }, { status: 201 });
   } catch (error) {
     console.error('Error adding skill:', error);
+    
+    // Check for duplicate key error
+    if (error instanceof Error && error.name === 'MongoServerError' && (error as any).code === 11000) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'You already have this skill added' 
+      }, { status: 409 });
+    }
+    
     return NextResponse.json({ 
       success: false, 
       message: 'Failed to add skill' 
