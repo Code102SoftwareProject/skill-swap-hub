@@ -105,6 +105,29 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
           }, { status: 400 });
         }
         
+        // Log what's being updated
+        console.log('Updating listing:', id);
+        console.log('Update data:', JSON.stringify(data, null, 2));
+        
+        // Validate offering and seeking if provided
+        if (data.offering) {
+          if (!data.offering.skillTitle || !data.offering.proficiencyLevel || !data.offering.description) {
+            return NextResponse.json({ 
+              success: false, 
+              message: 'Missing required offering fields' 
+            }, { status: 400 });
+          }
+        }
+        
+        if (data.seeking) {
+          if (!data.seeking.categoryId || !data.seeking.categoryName || !data.seeking.skillTitle) {
+            return NextResponse.json({ 
+              success: false, 
+              message: 'Missing required seeking fields' 
+            }, { status: 400 });
+          }
+        }
+        
         // Process tags if provided
         if (data.additionalInfo?.tags && typeof data.additionalInfo.tags === 'string') {
           data.additionalInfo.tags = data.additionalInfo.tags
