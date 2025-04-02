@@ -30,6 +30,7 @@
     "formidable": "^3.5.2",
     "framer-motion": "^11.15.0",
     "jsonwebtoken": "^9.0.2",
+    "kunuharupa": "^1.2.0",
     "lucide-react": "^0.469.0",
     "mongodb": "^6.13.0",
     "mongoose": "^8.10.1",
@@ -66,5 +67,5 @@
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   },
-  "type": "module" 
+  "type": "module"
 }

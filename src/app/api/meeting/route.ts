@@ -6,12 +6,15 @@ import base64 from "base-64";
 
 
 
-// Zoom OAuth details (you can store them in environment variables as discussed earlier)
+// Zoom OAuth details
 const zoomClientId = process.env.ZOOM_CLIENT_ID;
 const zoomClientSecret = process.env.ZOOM_CLIENT_SECRET;
 const zoomAccountId = process.env.ZOOM_ACCOUNT_ID;
 
-// Get authentication headers for Zoom API
+/**
+ * * Get authentication headers for Zoom API
+ * @returns {Object} - Authentication headers
+**/
 const getAuthHeaders = () => {
   return {
     Authorization: `Basic ${base64.encode(`${zoomClientId}:${zoomClientSecret}`)}`,
@@ -19,12 +22,11 @@ const getAuthHeaders = () => {
   };
 };
 
-// Interface for Zoom OAuth response
-interface ZoomOAuthResponse {
-  access_token: string;
-}
 
-// Function to generate Zoom Access Token
+/**
+ * *Function to generate Zoom Access Token
+ * @returns {string} - Zoom Access Token  @as ZoomOAuthResponse
+*/
 const generateZoomAccessToken = async () => {
   const response = await fetch(
     `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${zoomAccountId}`,
@@ -33,15 +35,16 @@ const generateZoomAccessToken = async () => {
       headers: getAuthHeaders(),
     }
   );
-  const jsonResponse = await response.json() as ZoomOAuthResponse;
+  const jsonResponse:any = await response.json() ;
   return jsonResponse.access_token;
 };
 
 
-// Function to create a Zoom meeting
-interface ZoomMeetingResponse {
-  join_url: string;
-}
+/**
+ * *Function to create a Zoom Meeting
+ * @param {string} zoomAccessToken - Zoom Access Token
+ * @returns {string} - Zoom Meeting Link
+ */
 
 const createZoomMeeting = async (zoomAccessToken: string) => {
   const response = await fetch(
@@ -69,7 +72,7 @@ const createZoomMeeting = async (zoomAccessToken: string) => {
       }),
     }
   );
-  const meetingData = await response.json() as ZoomMeetingResponse;
+  const meetingData :any= await response.json() ;
   return meetingData.join_url;
 };
 
