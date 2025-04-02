@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
-import Suggestion from '@/lib/modals/Suggestion';
+import Suggestion from '@/lib/models/Suggestion';
 
 export async function PUT(
   request: Request,

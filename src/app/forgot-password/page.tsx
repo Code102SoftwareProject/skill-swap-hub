@@ -1,32 +1,114 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useToast } from '@/lib/context/ToastContext';
 
 const ForgotPassword = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  // Add initialLoading state to prevent redirect loops
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Check if user already has a valid reset token
+  useEffect(() => {
+    const checkResetStatus = async () => {
+      const resetToken = localStorage.getItem('resetToken');
+      const resetEmail = localStorage.getItem('resetEmail');
+      
+      if (resetToken && resetEmail) {
+        try {
+          // Validate token before redirecting
+          const response = await fetch('/api/validate-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ resetToken }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // If token is valid, redirect to reset password page
+            router.push('/reset-password');
+            return;
+          } else {
+            // If token is invalid, clear localStorage
+            localStorage.removeItem('resetToken');
+            localStorage.removeItem('resetEmail');
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          // On error, clear localStorage
+          localStorage.removeItem('resetToken');
+          localStorage.removeItem('resetEmail');
+        }
+      }
+      
+      setInitialLoading(false);
+    };
+    
+    checkResetStatus();
+  }, [router]);
+
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Store email in localStorage for the OTP verification page
-    localStorage.setItem('resetEmail', email);
-    
-    // Simple redirect without backend functionality
-    setTimeout(() => {
-      router.push('/verify-otp');
-    }, 1000); // Simulate a short loading time
+    try {
+      const response = await fetch('/api/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store email in localStorage for the next steps
+        localStorage.setItem('resetEmail', email);
+        
+        // Show success toast
+        showToast(data.message || 'If your email is registered, you will receive a reset code shortly', 'success');
+        
+        // Wait 2 seconds before redirecting to show the success message
+        setTimeout(() => {
+          router.push('/verify-otp');
+        }, 2000);
+      } else {
+        showToast(data.message || 'Failed to send reset code', 'error');
+      }
+    } catch (error) {
+      console.error('Error sending reset email:', error);
+      showToast('An error occurred. Please try again.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  // Show loading state during initial check
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side: Image */}
+        {/* Left side - Image */}
         <div className="w-full md:w-1/2 p-4 bg-white">
           <div className="relative w-full h-48 md:h-full">
             <Image
@@ -39,9 +121,9 @@ const ForgotPassword = () => {
           </div>
         </div>
 
-        {/* Right side: Form */}
+        {/* Right side - Form */}
         <div className="w-full md:w-1/2 p-6 flex flex-col">
-          {/* Title and Subtitle */}
+          {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">Forgot Password</h1>
             <p className="text-sm text-gray-600 mt-1">Enter your email to receive a password reset code</p>
@@ -64,6 +146,7 @@ const ForgotPassword = () => {
                   placeholder="johndoe@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -73,7 +156,9 @@ const ForgotPassword = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center"
+                className={`w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center ${
+                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                }`}
               >
                 {isLoading ? (
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

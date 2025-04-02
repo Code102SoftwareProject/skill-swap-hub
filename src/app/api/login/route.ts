@@ -1,18 +1,11 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs';
-import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
-
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
-}
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/userSchema';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined');
 }
-
-const client = new MongoClient(process.env.MONGODB_URI);
 
 export async function POST(req: Request) {
   const { email, password, rememberMe } = await req.json();
@@ -22,27 +15,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
   }
 
-  try {
-    await client.connect();
-    const db = client.db('skillSwapHub');
-    const collection = db.collection('users');
+  // In your login route.ts
 
-    // Find user by email
-    const user = await collection.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-    }
+try {
+  // Connect to database
+  await dbConnect();
+  
+  // Find user by email - add some logging
+  console.log(`Looking for user with email: ${email}`);
+  const user = await User.findOne({ email });
+  
+  if (!user) {
+    console.log('User not found');
+    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
+  }
 
-    // Compare provided password with stored hash
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-    }
+  // Verify password - add more logging
+  console.log('User found, verifying password...');
+  const isPasswordValid = await user.comparePassword(password);
+  console.log(`Password valid: ${isPasswordValid}`);
+  
+  if (!isPasswordValid) {
+    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
+  }
 
+  // Rest of your login code...
     // Generate JWT token
     const token = jwt.sign(
       {
-        userId: user._id.toString(),
+        userId: user._id,
         email: user.email,
         name: `${user.firstName} ${user.lastName}`
       },
@@ -50,36 +51,15 @@ export async function POST(req: Request) {
       { expiresIn: rememberMe ? '30d' : '24h' }
     );
 
-    // Set token in cookies - await the cookies operation
-    const cookieStore = cookies();
-    
-    // Return user info (excluding password)
-    const { password: _, ...userWithoutPassword } = user;
-    
-    // Create the response
-    const response = NextResponse.json({ 
+    // Return success response with token and user info (password is automatically excluded by toJSON method)
+    return NextResponse.json({ 
       success: true, 
       message: 'Login successful',
-      user: userWithoutPassword
+      token,
+      user: user
     });
-    
-    // Set the cookie on the response object instead
-    response.cookies.set({
-      name: 'auth_token',
-      value: token,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      path: '/',
-      // Set expiration based on rememberMe preference
-      maxAge: rememberMe ? 30 * 24 * 60 * 60 : 24 * 60 * 60, // 30 days or 24 hours
-    });
-    
-    return response;
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ success: false, message: 'An error occurred during login' }, { status: 500 });
-  } finally {
-    await client.close();
   }
 }
