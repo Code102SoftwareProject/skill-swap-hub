@@ -25,10 +25,27 @@ export async function GET(req: Request) {
       // If a direct filename is provided, use it
       key = fileName;
     } else if (fileUrl) {
-      // If a full URL is provided, extract the filename from it
-      // This handles URLs like: https://bucket.r2.cloudflarestorage.com/bucket-name/filename.ext
-      const urlParts = fileUrl.split('/');
-      key = urlParts[urlParts.length - 1];
+      try {
+        // More robust URL parsing
+        const url = new URL(fileUrl);
+        // Get the pathname and extract the last segment after '/'
+        const pathSegments = url.pathname.split('/').filter(Boolean);
+        key = pathSegments.length > 0 ? pathSegments[pathSegments.length - 1] : null;
+        
+        if (!key) {
+          console.error("Could not extract filename from URL:", fileUrl);
+          return NextResponse.json(
+            { message: "Invalid file URL format" },
+            { status: 400 }
+          );
+        }
+      } catch (urlError) {
+        console.error("Error parsing file URL:", urlError);
+        return NextResponse.json(
+          { message: "Invalid file URL format" },
+          { status: 400 }
+        );
+      }
     } else {
       return NextResponse.json(
         { message: "Missing required parameter: file or fileUrl" },
@@ -64,20 +81,26 @@ export async function GET(req: Request) {
         headers: {
           "Content-Type": response.ContentType || "application/octet-stream",
           "Content-Length": response.ContentLength?.toString() || buffer.length.toString(),
-          "Content-Disposition": `inline; filename="${encodeURIComponent(key)}"`,
+          "Content-Disposition": `attachment; filename="${encodeURIComponent(key)}"`,
         },
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error retrieving file from R2:", error);
       return NextResponse.json(
-        { message: "Error retrieving file", error: JSON.stringify(error) },
+        { 
+          message: "Error retrieving file",
+          errorDetails: error.name ? `${error.name}: ${error.message}` : "Unknown error"
+        },
         { status: 500 }
       );
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error processing request:", error);
     return NextResponse.json(
-      { message: "Server error", error: JSON.stringify(error) },
+      { 
+        message: "Server error", 
+        errorDetails: error.message || "Unknown error"
+      },
       { status: 500 }
     );
   }
