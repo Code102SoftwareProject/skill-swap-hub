@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import User from '@/lib/models/userSchema';
-import OtpVerification from '@/lib/models/otpVerificationSchema';
 
 // JWT Configuration
 if (!process.env.JWT_SECRET) {
@@ -10,13 +9,13 @@ if (!process.env.JWT_SECRET) {
 }
 
 export async function POST(req: Request) {
-  const { resetToken, password } = await req.json();
+  const { resetToken } = await req.json();
 
-  // Validate inputs
-  if (!resetToken || !password) {
+  // Validate input
+  if (!resetToken) {
     return NextResponse.json({ 
       success: false, 
-      message: 'Reset token and new password are required' 
+      message: 'Reset token is required' 
     }, { status: 400 });
   }
 
@@ -40,20 +39,14 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    // Update user's password - let the schema handle hashing
-    user.password = password;
-    await user.save();
-    console.log('User password updated in database');
-    
-    // Clean up by deleting all OTP verification records for this user
-    await OtpVerification.deleteMany({ userId: user._id });
-
+    // If we got here, the token is valid
     return NextResponse.json({ 
       success: true, 
-      message: 'Password updated successfully' 
+      message: 'Token is valid',
+      email: decoded.email
     });
   } catch (error) {
-    console.error('Reset password error:', error);
+    console.error('Validate token error:', error);
     
     // Check if it's a token verification error
     if (error instanceof jwt.JsonWebTokenError) {
@@ -65,7 +58,7 @@ export async function POST(req: Request) {
     
     return NextResponse.json({ 
       success: false, 
-      message: 'An error occurred while resetting password' 
+      message: 'An error occurred while validating token' 
     }, { status: 500 });
   }
 }

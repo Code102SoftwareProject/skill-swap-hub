@@ -38,7 +38,7 @@ const Login = () => {
 
       if (result.success) {
         showToast('Login successful! Redirecting...', 'success');
-        router.push('/');
+        router.push('/dashboard');
       } else {
         showToast(result.message || 'Login failed', 'error');
       }

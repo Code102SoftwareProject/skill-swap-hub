@@ -1,22 +1,64 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useToast } from '@/lib/context/ToastContext';
 
 const ForgotPassword = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  // Add initialLoading state to prevent redirect loops
+  const [initialLoading, setInitialLoading] = useState(true);
+
+  // Check if user already has a valid reset token
+  useEffect(() => {
+    const checkResetStatus = async () => {
+      const resetToken = localStorage.getItem('resetToken');
+      const resetEmail = localStorage.getItem('resetEmail');
+      
+      if (resetToken && resetEmail) {
+        try {
+          // Validate token before redirecting
+          const response = await fetch('/api/validate-token', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ resetToken }),
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            // If token is valid, redirect to reset password page
+            router.push('/reset-password');
+            return;
+          } else {
+            // If token is invalid, clear localStorage
+            localStorage.removeItem('resetToken');
+            localStorage.removeItem('resetEmail');
+          }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          // On error, clear localStorage
+          localStorage.removeItem('resetToken');
+          localStorage.removeItem('resetEmail');
+        }
+      }
+      
+      setInitialLoading(false);
+    };
+    
+    checkResetStatus();
+  }, [router]);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     try {
       const response = await fetch('/api/forgot-password', {
@@ -32,22 +74,36 @@ const ForgotPassword = () => {
       if (data.success) {
         // Store email in localStorage for the next steps
         localStorage.setItem('resetEmail', email);
-        setSuccessMessage(data.message || 'If your email is registered, you will receive a reset code shortly');
+        
+        // Show success toast
+        showToast(data.message || 'If your email is registered, you will receive a reset code shortly', 'success');
         
         // Wait 2 seconds before redirecting to show the success message
         setTimeout(() => {
           router.push('/verify-otp');
         }, 2000);
       } else {
-        setErrorMessage(data.message || 'Failed to send reset code');
+        showToast(data.message || 'Failed to send reset code', 'error');
       }
     } catch (error) {
       console.error('Error sending reset email:', error);
-      setErrorMessage('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading state during initial check
+  if (initialLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
@@ -73,20 +129,6 @@ const ForgotPassword = () => {
             <p className="text-sm text-gray-600 mt-1">Enter your email to receive a password reset code</p>
           </div>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {errorMessage}
-            </div>
-          )}
-
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {successMessage}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6 flex-grow">
             <div>
               <label className="block text-sm font-medium text-gray-700" htmlFor="email">Email Address</label>
@@ -104,7 +146,7 @@ const ForgotPassword = () => {
                   placeholder="johndoe@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || !!successMessage}
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -113,9 +155,9 @@ const ForgotPassword = () => {
             <div>
               <button
                 type="submit"
-                disabled={isLoading || !!successMessage}
+                disabled={isLoading}
                 className={`w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center ${
-                  isLoading || !!successMessage ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
                 }`}
               >
                 {isLoading ? (

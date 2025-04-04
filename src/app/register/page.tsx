@@ -33,65 +33,60 @@ const Register = () => {
     }
   };
 
- // Updated handleSubmit function for the Register component
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setIsLoading(true);
-
-  // Validate passwords match
-  if (formData.password !== formData.confirmPassword) {
-    showToast('Passwords do not match', 'error');
-    setIsLoading(false);
-    return;
-  }
-
-  // Validate terms acceptance
-  if (!agreeToTerms) {
-    showToast('You must agree to the Terms and Privacy Policy', 'error');
-    setIsLoading(false);
-    return;
-  }
-
-  try {
-    console.log('Submitting registration data...');
-    const result = await register(formData);
-    console.log('Registration result:', result);
-
-    if (result.success) {
-      showToast('Registration successful! Redirecting to login...', 'success');
-      
-      // Reset form
-      setFormData({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        title: '',
-        password: '',
-        confirmPassword: '',
-      });
-      setAgreeToTerms(false);
-      
-      // Use a more immediate approach for redirection
-      console.log('About to redirect to login page');
-      
-      // Add a small delay to ensure the toast is visible
-      setTimeout(() => {
-        console.log('Executing redirect now');
-        window.location.href = '/login'; // Use direct browser navigation instead of router
-      }, 1500);
-    } else {
-      showToast(result.message || 'Registration failed', 'error');
-      console.error('Registration failed with message:', result.message);
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      showToast('Passwords do not match', 'error');
+      setIsLoading(false);
+      return;
     }
-  } catch (error) {
-    showToast('An error occurred during registration', 'error');
-    console.error('Registration error:', error);
-  } finally {
-    setIsLoading(false);
-  }
-};
+
+    // Validate terms acceptance
+    if (!agreeToTerms) {
+      showToast('You must agree to the Terms and Privacy Policy', 'error');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      console.log('Submitting registration data...');
+      const result = await register(formData);
+      console.log('Registration result:', result);
+
+      if (result.success) {
+        showToast('Registration successful! Redirecting to login...', 'success');
+        
+        // Reset form
+        setFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          phone: '',
+          title: '',
+          password: '',
+          confirmPassword: '',
+        });
+        setAgreeToTerms(false);
+        
+        // Add a small delay to ensure the toast is visible
+        setTimeout(() => {
+          router.push('/login');
+        }, 1500);
+      } else {
+        showToast(result.message || 'Registration failed', 'error');
+        console.error('Registration failed with message:', result.message);
+      }
+    } catch (error) {
+      showToast('An error occurred during registration', 'error');
+      console.error('Registration error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
       <div className="flex flex-col md:flex-row max-w-6xl mx-auto bg-white rounded-xl shadow-lg w-full">

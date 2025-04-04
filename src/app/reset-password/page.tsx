@@ -4,35 +4,76 @@ import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useToast } from '@/lib/context/ToastContext';
 
 const ResetPassword = () => {
   const router = useRouter();
+  const { showToast } = useToast();
   const [formData, setFormData] = useState({
     password: '',
     confirmPassword: '',
   });
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [redirected, setRedirected] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [passwordFeedback, setPasswordFeedback] = useState('');
 
   // Check for email and resetToken in localStorage on component mount
   useEffect(() => {
+    // Add this flag to prevent multiple redirects
+    if (redirected) return;
+    
     const storedEmail = localStorage.getItem('resetEmail');
     const storedToken = localStorage.getItem('resetToken');
     
     if (!storedEmail || !storedToken) {
-      // Redirect to forgot password if missing data
+      setRedirected(true); // Set flag to prevent loop
+      showToast('Please complete the verification process first', 'info');
       router.push('/forgot-password');
       return;
     }
     
-    setEmail(storedEmail);
-    setResetToken(storedToken);
-  }, [router]);
+    // Validate token with backend
+    const validateToken = async () => {
+      try {
+        const response = await fetch('/api/validate-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ resetToken: storedToken }),
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          setRedirected(true); // Set flag to prevent loop
+          showToast('Reset token has expired. Please restart the process.', 'error');
+          localStorage.removeItem('resetEmail');
+          localStorage.removeItem('resetToken');
+          router.push('/forgot-password');
+          return;
+        }
+      } catch (error) {
+        console.error('Error validating token:', error);
+        setRedirected(true); // Set flag to prevent loop
+        showToast('An error occurred validating your session', 'error');
+        router.push('/forgot-password');
+        return;
+      }
+    };
+
+    // Only validate if we have both email and token
+    if (storedEmail && storedToken) {
+      setEmail(storedEmail);
+      setResetToken(storedToken);
+      validateToken();
+    }
+    
+    setIsLoading(false);
+  }, [router, showToast, redirected]);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -99,19 +140,17 @@ const ResetPassword = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-    setErrorMessage('');
-    setSuccessMessage('');
     
     // Check if passwords match
     if (formData.password !== formData.confirmPassword) {
-      setErrorMessage('Passwords do not match');
+      showToast('Passwords do not match', 'error');
       setIsLoading(false);
       return;
     }
     
     // Check password strength
     if (passwordStrength < 3) {
-      setErrorMessage('Please use a stronger password');
+      showToast('Please use a stronger password', 'error');
       setIsLoading(false);
       return;
     }
@@ -131,26 +170,41 @@ const ResetPassword = () => {
       const data = await response.json();
 
       if (data.success) {
-        setSuccessMessage('Password has been reset successfully! Redirecting to login...');
+        showToast('Password has been reset successfully!', 'success');
         
         // Clear localStorage data
         localStorage.removeItem('resetEmail');
         localStorage.removeItem('resetToken');
+        
+        // Set redirected flag to prevent loop
+        setRedirected(true);
         
         // Wait 2 seconds before redirecting
         setTimeout(() => {
           router.push('/login');
         }, 2000);
       } else {
-        setErrorMessage(data.message || 'Failed to reset password');
+        showToast(data.message || 'Failed to reset password', 'error');
       }
     } catch (error) {
       console.error('Error resetting password:', error);
-      setErrorMessage('An error occurred. Please try again.');
+      showToast('An error occurred. Please try again.', 'error');
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Validating your session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
@@ -177,20 +231,6 @@ const ResetPassword = () => {
             {email && <p className="text-xs text-gray-500 mt-1">{email}</p>}
           </div>
 
-          {/* Error Message */}
-          {errorMessage && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {errorMessage}
-            </div>
-          )}
-          
-          {/* Success Message */}
-          {successMessage && (
-            <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-2 rounded-lg mb-4 text-sm">
-              {successMessage}
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-6 flex-grow">
             <div>
               <label className="block text-sm font-medium text-gray-700" htmlFor="password">New Password</label>
@@ -211,7 +251,6 @@ const ResetPassword = () => {
                   required
                   minLength={8}
                   autoFocus
-                  disabled={isLoading || !!successMessage}
                 />
               </div>
               
@@ -259,7 +298,6 @@ const ResetPassword = () => {
                   onChange={handleChange}
                   required
                   minLength={8}
-                  disabled={isLoading || !!successMessage}
                 />
               </div>
               {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
@@ -270,9 +308,9 @@ const ResetPassword = () => {
             <div>
               <button
                 type="submit"
-                disabled={isLoading || !!successMessage}
+                disabled={isLoading}
                 className={`w-full bg-blue-600 text-white py-2.5 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-300 flex justify-center ${
-                  isLoading || !!successMessage ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
+                  isLoading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'
                 }`}
               >
                 {isLoading ? (
