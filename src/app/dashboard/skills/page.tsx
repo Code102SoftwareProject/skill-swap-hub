@@ -6,6 +6,7 @@ import { UserSkill } from '@/types/userSkill';
 import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
+import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
 
 const SkillsPage = () => {
   const { showToast } = useToast();
@@ -13,6 +14,10 @@ const SkillsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingSkill, setEditingSkill] = useState<UserSkill | null>(null);
+  
+  // Delete confirmation state
+  const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
   // Fetch user skills on component mount
   useEffect(() => {
@@ -39,17 +44,23 @@ const SkillsPage = () => {
     }
   };
 
+  // Handle skill deletion confirmation
+  const confirmDeleteSkill = (skillId: string) => {
+    setDeletingSkillId(skillId);
+    setShowDeleteConfirmation(true);
+  };
+
   // Handle skill deletion
-  const handleDeleteSkill = async (skillId: string) => {
-    if (!skillId) {
-      showToast('Invalid skill ID', 'error');
+  const handleDeleteSkill = async () => {
+    if (!deletingSkillId) {
+      setShowDeleteConfirmation(false);
       return;
     }
     
     try {
-      console.log('Deleting skill with ID:', skillId);
+      console.log('Deleting skill with ID:', deletingSkillId);
       
-      const response = await deleteUserSkill(skillId);
+      const response = await deleteUserSkill(deletingSkillId);
       console.log('Delete response:', response);
       
       if (response.success) {
@@ -62,6 +73,10 @@ const SkillsPage = () => {
     } catch (error) {
       console.error('Error in handleDeleteSkill:', error);
       showToast('Error deleting skill', 'error');
+    } finally {
+      // Reset deletion state
+      setDeletingSkillId(null);
+      setShowDeleteConfirmation(false);
     }
   };
 
@@ -125,7 +140,7 @@ const SkillsPage = () => {
             <button
               onClick={() => {
                 console.log('Delete button clicked for skill:', skill.id);
-                handleDeleteSkill(skill.id);
+                confirmDeleteSkill(skill.id);
               }}
               className="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
             >
@@ -223,6 +238,20 @@ const SkillsPage = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showDeleteConfirmation}
+        title="Delete Skill"
+        message="Are you sure you want to delete this skill? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        onConfirm={handleDeleteSkill}
+        onCancel={() => {
+          setDeletingSkillId(null);
+          setShowDeleteConfirmation(false);
+        }}
+      />
     </div>
   );
 };
