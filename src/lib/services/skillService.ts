@@ -141,7 +141,7 @@ export const addUserSkill = async (skillData: NewSkillData): Promise<ApiResponse
   }
 };
 
-// Function to update a user skill
+// Function to update a user skill - now supports updating all fields
 export const updateUserSkill = async (
   skillId: string, 
   updateData: UpdateSkillData
