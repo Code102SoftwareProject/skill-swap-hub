@@ -1,4 +1,4 @@
-import AdminSidebar from "@/components/Admin/adminSidebar";
+import AdminSidebar from "@/components/Admin/AdminSidebar";
 
 export default function AdminDashboard() {
     return (
