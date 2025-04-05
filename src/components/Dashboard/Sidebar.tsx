@@ -29,7 +29,7 @@ const Sidebar = () => {
     { icon: Calendar, label: 'Meetings', path: '/dashboard/meetings' },
     { icon: Clock, label: 'Sessions', path: '/dashboard/sessions' },
     { icon: CheckSquare, label: 'Skill Verify', path: '/dashboard/skill-verify' },
-    { icon: Lightbulb, label: 'Suggestions', path: '/dashboard/suggestions' },
+    { icon: Lightbulb, label: 'Suggestions', path: '/dashboard/suggestion' },
     { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
   ];
 
