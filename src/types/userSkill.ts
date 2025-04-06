@@ -29,11 +29,11 @@ export interface NewSkillData {
   description: string;
 }
 
-// Interface for skill update data - now includes all possible fields
+// Interface for skill update data - now includes all fields as required
 export interface UpdateSkillData {
-  categoryId?: number;
-  categoryName?: string;
-  skillTitle?: string;
+  categoryId: number;      // Now required
+  categoryName: string;    // Now required
+  skillTitle: string;      // Now required
   proficiencyLevel: string;
   description: string;
 }
