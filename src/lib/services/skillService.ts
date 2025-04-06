@@ -253,3 +253,26 @@ export const deleteUserSkill = async (skillId: string): Promise<ApiResponse> => 
     return { success: false, message: 'Failed to delete skill' };
   }
 };
+
+// Function to check which skills are used in listings
+export const getSkillsUsedInListings = async (): Promise<ApiResponse<string[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    const response = await fetch('/api/myskills/used-in-listings', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching skills used in listings:', error);
+    return { success: false, message: 'Failed to check skills used in listings' };
+  }
+};

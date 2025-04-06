@@ -125,42 +125,45 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
   }, [seekingCategoryId, showToast]);
 
   // Handle user skill selection
-  const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const skillId = e.target.value;
-    setSelectedUserSkill(skillId);
-    
-    if (skillId) {
-      const skill = userSkills.find(s => s.id === skillId);
-      if (skill) {
-        setOfferingData({
-          skillId: skill.id,
-          categoryId: skill.categoryId,
-          categoryName: skill.categoryName,
-          skillTitle: skill.skillTitle,
-          proficiencyLevel: skill.proficiencyLevel,
-          description: skill.description
-        });
-      }
-    } else {
+ // Update to the handleUserSkillChange function in NewListingForm.tsx
+
+// Handle user skill selection
+const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const skillId = e.target.value;
+  setSelectedUserSkill(skillId);
+  
+  if (skillId) {
+    const skill = userSkills.find(s => s.id === skillId);
+    if (skill) {
       setOfferingData({
-        skillId: '',
-        categoryId: -1,
-        categoryName: '',
-        skillTitle: '',
-        proficiencyLevel: '',
-        description: ''
+        skillId: skill.id,  // Make sure to store the skillId explicitly
+        categoryId: skill.categoryId,
+        categoryName: skill.categoryName,
+        skillTitle: skill.skillTitle,
+        proficiencyLevel: skill.proficiencyLevel,
+        description: skill.description
       });
     }
-    
-    // Clear errors
-    setErrors(prev => ({
-      ...prev,
-      offering: {
-        ...prev.offering,
-        userSkill: ''
-      }
-    }));
-  };
+  } else {
+    setOfferingData({
+      skillId: '',
+      categoryId: -1,
+      categoryName: '',
+      skillTitle: '',
+      proficiencyLevel: '',
+      description: ''
+    });
+  }
+  
+  // Clear errors
+  setErrors(prev => ({
+    ...prev,
+    offering: {
+      ...prev.offering,
+      userSkill: ''
+    }
+  }));
+};
 
   // Handle seeking category change
   const handleSeekingCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {

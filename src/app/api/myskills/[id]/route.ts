@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
+import SkillListing from '@/lib/models/skillListing';
 import mongoose from 'mongoose';
 
 // Helper function to get user ID from the token
@@ -59,14 +60,34 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         }, { status: 404 });
       }
       
+      // Check if this skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
       return NextResponse.json({ 
         success: true, 
-        data: skill 
+        data: skill,
+        isUsedInListing: listings.length > 0
       });
     }
     
     // DELETE operation
     if (operation === 'delete') {
+      // First check if the skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
+      if (listings.length > 0) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'This skill cannot be deleted because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+      
       const result = await UserSkill.findOneAndDelete({ _id: id, userId });
       
       if (!result) {
@@ -84,6 +105,19 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
     
     // UPDATE operation
     if (operation === 'update') {
+      // First check if the skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
+      if (listings.length > 0) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'This skill cannot be updated because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+      
       const data = await request.json();
       
       // Validate required fields - now including all fields
