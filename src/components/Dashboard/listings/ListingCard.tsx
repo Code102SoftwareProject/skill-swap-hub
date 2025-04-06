@@ -66,21 +66,26 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             <div className="flex items-center mt-2">
               <span className="text-blue-600 text-sm">❤ Proficiency Level: {listing.offering.proficiencyLevel}</span>
             </div>
-            <div className="mt-4 text-sm">
+            <div className="mt-4 text-sm text-gray-700">
               <p>• {listing.offering.description.length > 60 
                   ? `${listing.offering.description.substring(0, 60)}...` 
                   : listing.offering.description}</p>
-              <p>• Available dates</p>
+              {listing.additionalInfo.availability && (
+                <p>• {listing.additionalInfo.availability}</p>
+              )}
             </div>
           </div>
 
           {/* Seeking Section */}
-          <div className="bg-gray-100 p-4 rounded-md">
-            <div className="text-orange-500 font-medium mb-2">
+          <div className="bg-purple-50 p-4 rounded-md">
+            <div className="text-purple-600 font-medium mb-2">
               Seeking
             </div>
             <div className="font-semibold text-gray-800">
               {listing.seeking.skillTitle}
+            </div>
+            <div className="text-sm text-gray-600 mt-2">
+              {listing.seeking.categoryName}
             </div>
           </div>
         </div>

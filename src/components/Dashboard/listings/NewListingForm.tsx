@@ -333,14 +333,15 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
             </label>
             <select
               id="userSkill"
-              className={`w-full p-3 border rounded-md ${errors.offering.userSkill ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.offering.userSkill ? 'border-red-500' : 'border-gray-300'} 
+                        bg-white text-gray-800 appearance-none`}
               value={selectedUserSkill}
               onChange={handleUserSkillChange}
               disabled={submitting || userSkills.length === 0}
             >
-              <option value="">Select your skill</option>
+              <option value="" className="text-gray-800">Select your skill</option>
               {userSkills.map(skill => (
-                <option key={skill.id} value={skill.id}>
+                <option key={skill.id} value={skill.id} className="text-gray-800">
                   {skill.skillTitle} ({skill.proficiencyLevel})
                 </option>
               ))}
@@ -361,7 +362,7 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
           
           {/* Selected Skill Preview */}
           {selectedUserSkill && (
-            <div className="mt-4 p-4 bg-white rounded-md">
+            <div className="mt-4 p-4 bg-white rounded-md border border-gray-200">
               <h4 className="font-medium text-gray-800 mb-2">{offeringData.skillTitle}</h4>
               <p className="text-sm text-gray-600 mb-2">Category: {offeringData.categoryName}</p>
               <p className="text-sm text-gray-600 mb-2">Level: {offeringData.proficiencyLevel}</p>
@@ -381,14 +382,15 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
             </label>
             <select
               id="seekingCategory"
-              className={`w-full p-3 border rounded-md ${errors.seeking.category ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.seeking.category ? 'border-red-500' : 'border-gray-300'} 
+                        bg-white text-gray-800 appearance-none`}
               value={seekingCategoryId === '' ? '' : seekingCategoryId.toString()}
               onChange={handleSeekingCategoryChange}
               disabled={submitting}
             >
-              <option value="">Select a Category</option>
+              <option value="" className="text-gray-800">Select a Category</option>
               {categories.map(category => (
-                <option key={category.categoryId} value={category.categoryId}>
+                <option key={category.categoryId} value={category.categoryId} className="text-gray-800">
                   {category.categoryName}
                 </option>
               ))}
@@ -405,14 +407,15 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
             </label>
             <select
               id="seekingSkill"
-              className={`w-full p-3 border rounded-md ${errors.seeking.skill ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.seeking.skill ? 'border-red-500' : 'border-gray-300'} 
+                        bg-white text-gray-800 appearance-none`}
               value={seekingSkillTitle}
               onChange={handleSeekingSkillChange}
               disabled={submitting || seekingCategoryId === ''}
             >
-              <option value="">Select a Title</option>
+              <option value="" className="text-gray-800">Select a Title</option>
               {skills.map(skill => (
-                <option key={skill} value={skill}>
+                <option key={skill} value={skill} className="text-gray-800">
                   {skill}
                 </option>
               ))}
@@ -436,7 +439,8 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
           <textarea
             id="description"
             rows={4}
-            className={`w-full p-3 border rounded-md ${errors.additionalInfo.description ? 'border-red-500' : 'border-gray-300'}`}
+            className={`w-full p-3 border rounded-md ${errors.additionalInfo.description ? 'border-red-500' : 'border-gray-300'} 
+                       bg-white text-gray-800`}
             placeholder="Describe your experience and what you are looking to exchange"
             value={description}
             onChange={handleDescriptionChange}
@@ -447,9 +451,9 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
             {errors.additionalInfo.description ? (
               <p className="text-sm text-red-600">{errors.additionalInfo.description}</p>
             ) : (
-              <p className="text-sm text-gray-500">Description must be at least 10 characters</p>
+              <p className="text-sm text-gray-600">Description must be at least 10 characters</p>
             )}
-            <p className="text-sm text-gray-500">{description.length}/500</p>
+            <p className="text-sm text-gray-600">{description.length}/500</p>
           </div>
         </div>
         
@@ -461,7 +465,7 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
           <input
             id="availability"
             type="text"
-            className="w-full p-3 border border-gray-300 rounded-md"
+            className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
             placeholder="e.g., Weekdays after 6pm, Weekends"
             value={availability}
             onChange={(e) => setAvailability(e.target.value)}
@@ -477,13 +481,13 @@ const NewListingForm: React.FC<NewListingFormProps> = ({ onSuccess, onCancel }) 
           <input
             id="tags"
             type="text"
-            className="w-full p-3 border border-gray-300 rounded-md"
+            className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
             placeholder="Enter tags (comma separated)"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             disabled={submitting}
           />
-          <p className="text-sm text-gray-500 mt-1">Separate tags with commas (e.g., online, flexible, beginner-friendly)</p>
+          <p className="text-sm text-gray-600 mt-1">Separate tags with commas (e.g., online, flexible, beginner-friendly)</p>
         </div>
       </div>
       

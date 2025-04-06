@@ -374,14 +374,15 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
             </label>
             <select
               id="userSkill"
-              className={`w-full p-3 border rounded-md ${errors.offering.userSkill ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.offering.userSkill ? 'border-red-500' : 'border-gray-300'} 
+                      bg-white text-gray-800 appearance-none`}
               value={selectedUserSkill}
               onChange={handleUserSkillChange}
               disabled={submitting || userSkills.length === 0}
             >
-              <option value="">Select from your skills (optional)</option>
+              <option value="" className="text-gray-800">Select from your skills (optional)</option>
               {userSkills.map(skill => (
-                <option key={skill.id} value={skill.id}>
+                <option key={skill.id} value={skill.id} className="text-gray-800">
                   {skill.skillTitle} ({skill.proficiencyLevel})
                 </option>
               ))}
@@ -407,7 +408,7 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
                 <input
                   id="offeringTitle"
                   type="text"
-                  className="w-full p-3 border border-gray-300 rounded-md"
+                  className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
                   value={offeringData.skillTitle}
                   onChange={(e) => setOfferingData({...offeringData, skillTitle: e.target.value})}
                   placeholder="Enter the skill you're offering"
@@ -421,14 +422,14 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
                 </label>
                 <select
                   id="offeringProficiency"
-                  className="w-full p-3 border border-gray-300 rounded-md"
+                  className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800 appearance-none"
                   value={offeringData.proficiencyLevel}
                   onChange={(e) => setOfferingData({...offeringData, proficiencyLevel: e.target.value as any})}
                   disabled={submitting || !!selectedUserSkill}
                 >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Expert">Expert</option>
+                  <option value="Beginner" className="text-gray-800">Beginner</option>
+                  <option value="Intermediate" className="text-gray-800">Intermediate</option>
+                  <option value="Expert" className="text-gray-800">Expert</option>
                 </select>
               </div>
               
@@ -439,7 +440,7 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
                 <textarea
                   id="offeringDescription"
                   rows={3}
-                  className="w-full p-3 border border-gray-300 rounded-md"
+                  className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
                   value={offeringData.description}
                   onChange={(e) => setOfferingData({...offeringData, description: e.target.value})}
                   placeholder="Describe your experience with this skill"
@@ -451,7 +452,7 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
           
           {/* Selected Skill Preview */}
           {selectedUserSkill && (
-            <div className="mt-4 p-4 bg-white rounded-md">
+            <div className="mt-4 p-4 bg-white rounded-md border border-gray-200">
               <h4 className="font-medium text-gray-800 mb-2">{offeringData.skillTitle}</h4>
               <p className="text-sm text-gray-600 mb-2">Category: {offeringData.categoryName}</p>
               <p className="text-sm text-gray-600 mb-2">Level: {offeringData.proficiencyLevel}</p>
@@ -471,14 +472,15 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
             </label>
             <select
               id="seekingCategory"
-              className={`w-full p-3 border rounded-md ${errors.seeking.category ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.seeking.category ? 'border-red-500' : 'border-gray-300'} 
+                      bg-white text-gray-800 appearance-none`}
               value={seekingCategoryId}
               onChange={handleSeekingCategoryChange}
               disabled={submitting}
             >
-              <option value={0}>Select a Category</option>
+              <option value={0} className="text-gray-800">Select a Category</option>
               {categories.map(category => (
-                <option key={category.categoryId} value={category.categoryId}>
+                <option key={category.categoryId} value={category.categoryId} className="text-gray-800">
                   {category.categoryName}
                 </option>
               ))}
@@ -495,14 +497,15 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
             </label>
             <select
               id="seekingSkill"
-              className={`w-full p-3 border rounded-md ${errors.seeking.skill ? 'border-red-500' : 'border-gray-300'}`}
+              className={`w-full p-3 border rounded-md ${errors.seeking.skill ? 'border-red-500' : 'border-gray-300'} 
+                      bg-white text-gray-800 appearance-none`}
               value={seekingSkillTitle}
               onChange={handleSeekingSkillChange}
               disabled={submitting || seekingCategoryId === 0}
             >
-              <option value="">Select a Title</option>
+              <option value="" className="text-gray-800">Select a Title</option>
               {seekingSkills.map(skill => (
-                <option key={skill} value={skill}>
+                <option key={skill} value={skill} className="text-gray-800">
                   {skill}
                 </option>
               ))}
@@ -526,7 +529,8 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
           <textarea
             id="description"
             rows={4}
-            className={`w-full p-3 border rounded-md ${errors.additionalInfo.description ? 'border-red-500' : 'border-gray-300'}`}
+            className={`w-full p-3 border rounded-md ${errors.additionalInfo.description ? 'border-red-500' : 'border-gray-300'} 
+                     bg-white text-gray-800`}
             placeholder="Describe your experience and what you are looking to exchange"
             value={description}
             onChange={handleDescriptionChange}
@@ -537,9 +541,9 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
             {errors.additionalInfo.description ? (
               <p className="text-sm text-red-600">{errors.additionalInfo.description}</p>
             ) : (
-              <p className="text-sm text-gray-500">Description must be at least 10 characters</p>
+              <p className="text-sm text-gray-600">Description must be at least 10 characters</p>
             )}
-            <p className="text-sm text-gray-500">{description.length}/500</p>
+            <p className="text-sm text-gray-600">{description.length}/500</p>
           </div>
         </div>
         
@@ -551,7 +555,7 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
           <input
             id="availability"
             type="text"
-            className="w-full p-3 border border-gray-300 rounded-md"
+            className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
             placeholder="e.g., Weekdays after 6pm, Weekends"
             value={availability}
             onChange={(e) => setAvailability(e.target.value)}
@@ -567,13 +571,13 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
           <input
             id="tags"
             type="text"
-            className="w-full p-3 border border-gray-300 rounded-md"
+            className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800"
             placeholder="Enter tags (comma separated)"
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             disabled={submitting}
           />
-          <p className="text-sm text-gray-500 mt-1">Separate tags with commas (e.g., online, flexible, beginner-friendly)</p>
+          <p className="text-sm text-gray-600 mt-1">Separate tags with commas (e.g., online, flexible, beginner-friendly)</p>
         </div>
         
         {/* Status */}
@@ -583,15 +587,15 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
           </label>
           <select
             id="status"
-            className="w-full p-3 border border-gray-300 rounded-md"
+            className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800 appearance-none"
             value={status}
             onChange={(e) => setStatus(e.target.value as 'active' | 'matched' | 'completed' | 'cancelled')}
             disabled={submitting}
           >
-            <option value="active">Active</option>
-            <option value="matched">Matched</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
+            <option value="active" className="text-gray-800">Active</option>
+            <option value="matched" className="text-gray-800">Matched</option>
+            <option value="completed" className="text-gray-800">Completed</option>
+            <option value="cancelled" className="text-gray-800">Cancelled</option>
           </select>
         </div>
       </div>
