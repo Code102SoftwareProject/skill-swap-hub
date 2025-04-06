@@ -195,14 +195,14 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onSuccess, onCancel }) => {
         <select
           id="category"
           className={`w-full p-3 border rounded-md ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={categoryId === '' ? '' : categoryId.toString()}
           onChange={handleCategoryChange}
           disabled={loading || submitting}
         >
-          <option value="">Select a Category</option>
+          <option value="" className="text-gray-800">Select a Category</option>
           {categories.map(category => (
-            <option key={category.categoryId} value={category.categoryId}>
+            <option key={category.categoryId} value={category.categoryId} className="text-gray-800">
               {category.categoryName}
             </option>
           ))}
@@ -218,14 +218,14 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onSuccess, onCancel }) => {
         <select
           id="skill"
           className={`w-full p-3 border rounded-md ${errors.skillTitle ? 'border-red-500' : 'border-gray-300'} 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={skillTitle}
           onChange={handleSkillChange}
           disabled={loading || submitting || categoryId === ''}
         >
-          <option value="">Select a Skill</option>
+          <option value="" className="text-gray-800">Select a Skill</option>
           {skills.map(skill => (
-            <option key={skill} value={skill}>
+            <option key={skill} value={skill} className="text-gray-800">
               {skill}
             </option>
           ))}
@@ -244,15 +244,15 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onSuccess, onCancel }) => {
         <select
           id="proficiency"
           className={`w-full p-3 border rounded-md ${errors.proficiencyLevel ? 'border-red-500' : 'border-gray-300'} 
-                    focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={proficiencyLevel}
           onChange={handleProficiencyChange}
           disabled={submitting}
         >
-          <option value="">Select Your Proficiency Level</option>
-          <option value="Beginner">Beginner - Basic knowledge and limited experience</option>
-          <option value="Intermediate">Intermediate - Good working knowledge and experience</option>
-          <option value="Expert">Expert - Advanced knowledge and extensive experience</option>
+          <option value="" className="text-gray-800">Select Your Proficiency Level</option>
+          <option value="Beginner" className="text-gray-800">Beginner - Basic knowledge and limited experience</option>
+          <option value="Intermediate" className="text-gray-800">Intermediate - Good working knowledge and experience</option>
+          <option value="Expert" className="text-gray-800">Expert - Advanced knowledge and extensive experience</option>
         </select>
         {errors.proficiencyLevel && <p className="mt-1 text-sm text-red-600">{errors.proficiencyLevel}</p>}
       </div>
@@ -266,7 +266,7 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onSuccess, onCancel }) => {
           id="description"
           rows={4}
           className={`w-full p-3 border rounded-md ${errors.description ? 'border-red-500' : 'border-gray-300'} 
-                     focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           placeholder="Describe your experience with this skill (minimum 10 characters)..."
           value={description}
           onChange={handleDescriptionChange}
@@ -277,9 +277,9 @@ const AddSkillForm: React.FC<AddSkillFormProps> = ({ onSuccess, onCancel }) => {
           {errors.description ? (
             <p className="text-sm text-red-600">{errors.description}</p>
           ) : (
-            <p className="text-sm text-gray-500">Describe your experience, projects, and level of expertise (minimum 10 characters)</p>
+            <p className="text-sm text-gray-600">Describe your experience, projects, and level of expertise (minimum 10 characters)</p>
           )}
-          <p className="text-sm text-gray-500">{description.length}/500</p>
+          <p className="text-sm text-gray-600">{description.length}/500</p>
         </div>
       </div>
 

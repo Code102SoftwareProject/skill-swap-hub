@@ -215,14 +215,14 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="category"
           className={`w-full p-3 border rounded-md ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} 
-                     focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={categoryId}
           onChange={handleCategoryChange}
           disabled={submitting}
         >
-          <option value={0}>Select a Category</option>
+          <option value={0} className="text-gray-800">Select a Category</option>
           {categories.map(category => (
-            <option key={category.categoryId} value={category.categoryId}>
+            <option key={category.categoryId} value={category.categoryId} className="text-gray-800">
               {category.categoryName}
             </option>
           ))}
@@ -238,14 +238,14 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="skillTitle"
           className={`w-full p-3 border rounded-md ${errors.skillTitle ? 'border-red-500' : 'border-gray-300'}
-                     focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={skillTitle}
           onChange={handleSkillChange}
           disabled={submitting || categoryId === 0}
         >
-          <option value="">Select a Skill</option>
+          <option value="" className="text-gray-800">Select a Skill</option>
           {availableSkills.map(skill => (
-            <option key={skill} value={skill}>
+            <option key={skill} value={skill} className="text-gray-800">
               {skill}
             </option>
           ))}
@@ -261,15 +261,15 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="proficiency"
           className={`w-full p-3 border rounded-md ${errors.proficiencyLevel ? 'border-red-500' : 'border-gray-300'}
-                     focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           value={proficiencyLevel}
           onChange={handleProficiencyChange}
           disabled={submitting}
         >
-          <option value="">Select Your Proficiency Level</option>
-          <option value="Beginner">Beginner</option>
-          <option value="Intermediate">Intermediate</option>
-          <option value="Expert">Expert</option>
+          <option value="" className="text-gray-800">Select Your Proficiency Level</option>
+          <option value="Beginner" className="text-gray-800">Beginner</option>
+          <option value="Intermediate" className="text-gray-800">Intermediate</option>
+          <option value="Expert" className="text-gray-800">Expert</option>
         </select>
         {errors.proficiencyLevel && <p className="mt-1 text-sm text-red-600">{errors.proficiencyLevel}</p>}
       </div>
@@ -283,7 +283,7 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
           id="description"
           rows={4}
           className={`w-full p-3 border rounded-md ${errors.description ? 'border-red-500' : 'border-gray-300'}
-                     focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
           placeholder="Describe your experience with this skill (minimum 10 characters)..."
           value={description}
           onChange={handleDescriptionChange}
@@ -294,9 +294,9 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
           {errors.description ? (
             <p className="text-sm text-red-600">{errors.description}</p>
           ) : (
-            <p className="text-sm text-gray-500">Minimum 10 characters required</p>
+            <p className="text-sm text-gray-600">Minimum 10 characters required</p>
           )}
-          <p className="text-sm text-gray-500">{description.length}/500</p>
+          <p className="text-sm text-gray-600">{description.length}/500</p>
         </div>
       </div>
 
