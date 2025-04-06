@@ -78,7 +78,7 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
           setAvailableSkills(response.data);
           
           // If the current skill title is not in the new category, reset it
-          if (!response.data.includes(skillTitle)) {
+          if (response.data.length > 0 && !response.data.includes(skillTitle)) {
             setSkillTitle('');
           }
         } else {
@@ -215,7 +215,7 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="category"
           className={`w-full p-3 border rounded-md ${errors.categoryId ? 'border-red-500' : 'border-gray-300'} 
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 appearance-none`}
           value={categoryId}
           onChange={handleCategoryChange}
           disabled={submitting}
@@ -238,7 +238,7 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="skillTitle"
           className={`w-full p-3 border rounded-md ${errors.skillTitle ? 'border-red-500' : 'border-gray-300'}
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 appearance-none`}
           value={skillTitle}
           onChange={handleSkillChange}
           disabled={submitting || categoryId === 0}
@@ -261,7 +261,7 @@ const EditSkillForm: React.FC<EditSkillFormProps> = ({ skill, onSuccess, onCance
         <select
           id="proficiency"
           className={`w-full p-3 border rounded-md ${errors.proficiencyLevel ? 'border-red-500' : 'border-gray-300'}
-                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800`}
+                     focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-800 appearance-none`}
           value={proficiencyLevel}
           onChange={handleProficiencyChange}
           disabled={submitting}
