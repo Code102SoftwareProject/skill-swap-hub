@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getUserSkills, deleteUserSkill } from '@/lib/services/skillService';
+import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/lib/services/skillService';
 import { UserSkill } from '@/types/userSkill';
 import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
 import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
+import { Badge } from 'lucide-react';
 
 const SkillsPage = () => {
   const { showToast } = useToast();
@@ -19,33 +20,54 @@ const SkillsPage = () => {
   const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
-  // Fetch user skills on component mount
+  // Skills used in listings
+  const [usedSkillIds, setUsedSkillIds] = useState<string[]>([]);
+
+  // Fetch user skills and used skill IDs on component mount
   useEffect(() => {
-    fetchUserSkills();
+    fetchUserData();
   }, []);
 
-  // Function to fetch user skills
-  const fetchUserSkills = async () => {
+  // Function to fetch user skills and used skill IDs
+  const fetchUserData = async () => {
     setLoading(true);
     try {
-      const response = await getUserSkills();
-      console.log('Fetched skills:', response);
+      // Fetch skills
+      const skillsResponse = await getUserSkills();
       
-      if (response.success && response.data) {
-        setSkills(response.data as UserSkill[]);
+      // Fetch skills used in listings
+      const usedSkillsResponse = await getSkillsUsedInListings();
+      
+      if (skillsResponse.success && skillsResponse.data) {
+        setSkills(skillsResponse.data as UserSkill[]);
       } else {
-        showToast(response.message || 'Failed to load skills', 'error');
+        showToast(skillsResponse.message || 'Failed to load skills', 'error');
+      }
+      
+      if (usedSkillsResponse.success && usedSkillsResponse.data) {
+        setUsedSkillIds(usedSkillsResponse.data as string[]);
       }
     } catch (error) {
-      console.error('Error in fetchUserSkills:', error);
+      console.error('Error in fetchUserData:', error);
       showToast('Error loading skills', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  // Check if a skill is used in a listing
+  const isSkillUsedInListing = (skillId: string) => {
+    return usedSkillIds.includes(skillId);
+  };
+
   // Handle skill deletion confirmation
   const confirmDeleteSkill = (skillId: string) => {
+    // Check if skill can be deleted
+    if (isSkillUsedInListing(skillId)) {
+      showToast('This skill cannot be deleted because it is used in a listing', 'error');
+      return;
+    }
+    
     setDeletingSkillId(skillId);
     setShowDeleteConfirmation(true);
   };
@@ -66,7 +88,7 @@ const SkillsPage = () => {
       if (response.success) {
         showToast('Skill deleted successfully', 'success');
         // Refresh the skills list
-        fetchUserSkills();
+        fetchUserData();
       } else {
         showToast(response.message || 'Failed to delete skill', 'error');
       }
@@ -91,19 +113,32 @@ const SkillsPage = () => {
 
   // Handle form submission success
   const handleFormSuccess = () => {
-    fetchUserSkills();
+    fetchUserData();
     setShowAddForm(false);
     setEditingSkill(null);
+  };
+
+  // Attempt to edit a skill
+  const attemptToEditSkill = (skill: UserSkill) => {
+    // Check if skill can be edited
+    if (isSkillUsedInListing(skill.id)) {
+      showToast('This skill cannot be edited because it is used in a listing', 'error');
+      return;
+    }
+    
+    console.log('Edit button clicked for skill:', skill.id);
+    setEditingSkill(skill);
   };
 
   // Render skill card
   const renderSkillCard = (skill: UserSkill) => {
     console.log('Rendering skill card:', skill);
+    const isUsed = isSkillUsedInListing(skill.id);
     
     return (
       <div 
         key={skill.id} 
-        className="bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg"
+        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg ${isUsed ? 'border-l-4 border-blue-500' : ''}`}
       >
         <div className="p-6">
           <div className="flex justify-between items-start mb-2">
@@ -116,6 +151,13 @@ const SkillsPage = () => {
               }`}>
                 {skill.proficiencyLevel}
               </span>
+              
+              {isUsed && (
+                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex items-center">
+                  <Badge className="w-3 h-3 mr-1" />
+                  Used in Listing
+                </span>
+              )}
             </div>
           </div>
           
@@ -127,26 +169,22 @@ const SkillsPage = () => {
             {skill.description}
           </p>
           
-          <div className="flex justify-end space-x-2">
-            <button
-              onClick={() => {
-                console.log('Edit button clicked for skill:', skill.id);
-                setEditingSkill(skill);
-              }}
-              className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => {
-                console.log('Delete button clicked for skill:', skill.id);
-                confirmDeleteSkill(skill.id);
-              }}
-              className="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
+          {!isUsed && (
+            <div className="flex justify-end space-x-2">
+              <button
+                onClick={() => attemptToEditSkill(skill)}
+                className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => confirmDeleteSkill(skill.id)}
+                className="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
