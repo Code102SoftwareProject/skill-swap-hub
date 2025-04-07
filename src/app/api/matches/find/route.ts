@@ -26,6 +26,28 @@ function getUserIdFromToken(req: NextRequest): string | null {
   }
 }
 
+// Helper function to extract user ID properly
+function extractUserId(user: any): string {
+  if (!user) return '';
+  
+  // If it's already a string, return it
+  if (typeof user === 'string') return user;
+  
+  // If it's a mongoose object with _id
+  if (user._id) {
+    // Convert ObjectId to string if needed
+    return user._id.toString ? user._id.toString() : user._id;
+  }
+  
+  // If it's a populated document with id
+  if (user.id) {
+    return user.id.toString();
+  }
+  
+  console.error('Unable to extract user ID from:', user);
+  return '';
+}
+
 // POST - Find matches for all user's listings
 export async function POST(request: NextRequest) {
   try {
@@ -93,6 +115,9 @@ export async function POST(request: NextRequest) {
       
       // Process exact matches
       for (const match of exactMatches) {
+        // Extract the user ID properly
+        const matchUserId = extractUserId(match.userId);
+        
         // Check if this match already exists in the database
         const existingMatch = await SkillMatch.findOne({
           $or: [
@@ -107,7 +132,7 @@ export async function POST(request: NextRequest) {
             listingOneId: userListing.id,
             listingTwoId: match.id,
             userOneId: userId,
-            userTwoId: match.userId,
+            userTwoId: matchUserId, // Fixed: Use the extracted ID
             matchPercentage: 100,
             matchType: 'exact',
             status: 'pending',
@@ -136,6 +161,9 @@ export async function POST(request: NextRequest) {
       
       // Process partial matches
       for (const match of partialMatches) {
+        // Extract the user ID properly
+        const matchUserId = extractUserId(match.userId);
+        
         // Check if this match already exists in the database
         const existingMatch = await SkillMatch.findOne({
           $or: [
@@ -150,7 +178,7 @@ export async function POST(request: NextRequest) {
             listingOneId: userListing.id,
             listingTwoId: match.id,
             userOneId: userId,
-            userTwoId: match.userId,
+            userTwoId: matchUserId, // Fixed: Use the extracted ID
             matchPercentage: 50,
             matchType: 'partial',
             status: 'pending',
