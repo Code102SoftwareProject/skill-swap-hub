@@ -7,6 +7,7 @@ import dbConnect from '@/lib/db';
 import SkillListing from '@/lib/models/skillListing';
 import User from '@/lib/models/userSchema';
 import SkillMatch from '@/lib/models/skillMatch';
+import UserSkill from '@/lib/models/userSkill';
 
 // Helper function to get user ID from the token
 function getUserIdFromToken(req: NextRequest): string | null {
@@ -76,6 +77,10 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    // Get my skills (for partial matching)
+    const mySkills = await UserSkill.find({ userId });
+    const mySkillTitles = mySkills.map(skill => skill.skillTitle);
+    
     const matches = [];
     
     // For each of user's listings, find potential matches
@@ -92,8 +97,10 @@ export async function POST(request: NextRequest) {
         select: 'firstName lastName avatar'
       });
       
-      // Partial matches: Either my offering matches their seeking OR my seeking matches their offering
-      const partialMatches = await SkillListing.find({
+      // Partial matches: 
+      // My offering matches their seeking OR my seeking matches their offering
+      // but not both (otherwise it would be an exact match)
+      const potentialPartialMatches = await SkillListing.find({
         userId: { $ne: userId },  // Not my own listings
         status: 'active',         // Only active listings
         $or: [
@@ -112,6 +119,37 @@ export async function POST(request: NextRequest) {
         model: User,
         select: 'firstName lastName avatar'
       });
+      
+      // Filter partial matches based on skill list
+      const partialMatches = [];
+      
+      // For each potential partial match, verify the missing skill criteria
+      for (const match of potentialPartialMatches) {
+        const matchUserId = extractUserId(match.userId);
+        
+        // Case 1: They're offering what I seek, but not seeking what I offer
+        if (match.offering.skillTitle === userListing.seeking.skillTitle &&
+            match.seeking.skillTitle !== userListing.offering.skillTitle) {
+          
+          // I need to have the skill they're seeking in my skill list
+          if (mySkillTitles.includes(match.seeking.skillTitle)) {
+            partialMatches.push(match);
+          }
+        }
+        
+        // Case 2: They're seeking what I offer, but not offering what I seek
+        else if (match.seeking.skillTitle === userListing.offering.skillTitle &&
+                 match.offering.skillTitle !== userListing.seeking.skillTitle) {
+          
+          // They need to have the skill I'm seeking in their skill list
+          const theirSkills = await UserSkill.find({ userId: matchUserId });
+          const theirSkillTitles = theirSkills.map(skill => skill.skillTitle);
+          
+          if (theirSkillTitles.includes(userListing.seeking.skillTitle)) {
+            partialMatches.push(match);
+          }
+        }
+      }
       
       // Process exact matches
       for (const match of exactMatches) {
@@ -132,7 +170,7 @@ export async function POST(request: NextRequest) {
             listingOneId: userListing.id,
             listingTwoId: match.id,
             userOneId: userId,
-            userTwoId: matchUserId, // Fixed: Use the extracted ID
+            userTwoId: matchUserId, 
             matchPercentage: 100,
             matchType: 'exact',
             status: 'pending',
@@ -178,7 +216,7 @@ export async function POST(request: NextRequest) {
             listingOneId: userListing.id,
             listingTwoId: match.id,
             userOneId: userId,
-            userTwoId: matchUserId, // Fixed: Use the extracted ID
+            userTwoId: matchUserId,
             matchPercentage: 50,
             matchType: 'partial',
             status: 'pending',
