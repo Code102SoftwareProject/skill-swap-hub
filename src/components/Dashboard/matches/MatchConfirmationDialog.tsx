@@ -112,7 +112,7 @@ const MatchConfirmationDialog: React.FC<MatchConfirmationDialogProps> = ({
             You have a {match.matchPercentage}% match with {match.otherUser.firstName}!
             {match.matchPercentage === 100 
               ? " This is a perfect match where both users can help each other learn their desired skills."
-              : " This is a partial match. One of you can offer what the other is seeking, but not vice versa."}
+              : " This is a partial match. Although not a perfect two-way match, the skill you're seeking is in their skill set."}
           </p>
           
           <div className="flex justify-center gap-4">

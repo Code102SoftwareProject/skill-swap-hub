@@ -175,7 +175,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, onClose })
             <p className="text-sm text-gray-600">
               {match.matchPercentage === 100 
                 ? "Perfect match! You're looking for exactly what each other is offering. This is an ideal skill swap opportunity." 
-                : "Partial match. One of you is offering what the other is seeking, but not vice versa. You might need to negotiate additional terms for a fair exchange."}
+                : "Partial match! Although not a perfect two-way match, the skill you're seeking is in their skill set. You can still have a valuable exchange."}
             </p>
           </div>
           

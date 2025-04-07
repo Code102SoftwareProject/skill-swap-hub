@@ -127,7 +127,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
           <p className="text-sm text-gray-600 mt-1">
             {match.matchPercentage === 100 
               ? "Perfect match! You're seeking exactly what they're offering."
-              : "Partial match. You might need to negotiate on skills."}
+              : "Partial match! They have the skill you're seeking in their skill set."}
           </p>
         </div>
       </div>
