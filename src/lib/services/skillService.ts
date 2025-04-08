@@ -141,7 +141,7 @@ export const addUserSkill = async (skillData: NewSkillData): Promise<ApiResponse
   }
 };
 
-// Function to update a user skill
+// Function to update a user skill - supports updating all fields
 export const updateUserSkill = async (
   skillId: string, 
   updateData: UpdateSkillData
@@ -251,5 +251,28 @@ export const deleteUserSkill = async (skillId: string): Promise<ApiResponse> => 
   } catch (error) {
     console.error(`Error deleting skill ${skillId}:`, error);
     return { success: false, message: 'Failed to delete skill' };
+  }
+};
+
+// Function to check which skills are used in listings
+export const getSkillsUsedInListings = async (): Promise<ApiResponse<string[]>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    const response = await fetch('/api/myskills/used-in-listings', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching skills used in listings:', error);
+    return { success: false, message: 'Failed to check skills used in listings' };
   }
 };
