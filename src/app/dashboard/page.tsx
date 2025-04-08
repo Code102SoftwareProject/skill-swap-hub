@@ -3,13 +3,20 @@
 import React from 'react';
 import { Edit2 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import SkillCard from "@/components/Dashboard/SkillCard";
+import SkillsProgress from "@/components/Dashboard/SkillsProgress";
+import RecentActivity from "@/components/Dashboard/RecentActivity";
+import StatsChart from "@/components/Dashboard/StatsChart";
+import ProfileCard from "@/components/Dashboard/ProfileCard";
+
+
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const fullName = user ? `${user.firstName} ${user.lastName}` : 'User';
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto text-gray-700">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold text-gray-800">Hi {fullName}, Welcome back!</h1>
       </div>
@@ -63,6 +70,28 @@ export default function DashboardPage() {
       </div>
 
       {/* Additional content would go here */}
+      <div className="grid grid-cols-3 gap-6 text-gray-600">
+      {/* Left Column */}
+      <div className="col-span-2">
+        
+        
+        <div className="mt-6">
+          <SkillsProgress />
+        </div>
+        <div className="mt-6">
+          <RecentActivity />
+        </div>
+      </div>
+
+      {/* Right Column */}
+      <div className="col-span-1 space-y-6">
+        <ProfileCard />
+        <StatsChart />
+        
+        
+      </div>
+    </div>
+
     </div>
   );
 }
