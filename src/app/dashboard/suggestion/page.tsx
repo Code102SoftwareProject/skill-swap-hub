@@ -1,5 +1,5 @@
 "use client"
-import { SideNav } from '@/components/Layout/sideNav';
+//import { SideNav } from '@/components/Layout/sideNav';
 import SuggestionForm from '@/components/Suggestion/SuggestionForm';
 import { useEffect, useState } from 'react';
 
@@ -49,8 +49,8 @@ export default function UserDashboard() {
   }, []);
 
   return (
-    <div className="flex-1 flex">
-            <SideNav/>
+    <div className="flex-1 flex text-gray-700">
+            
 
     
             <main className="flex-1 p-6">

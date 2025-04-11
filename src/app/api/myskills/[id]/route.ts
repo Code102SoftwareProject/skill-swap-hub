@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
+import SkillListing from '@/lib/models/skillListing';
 import mongoose from 'mongoose';
 
 // Helper function to get user ID from the token
@@ -59,14 +60,34 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         }, { status: 404 });
       }
       
+      // Check if this skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
       return NextResponse.json({ 
         success: true, 
-        data: skill 
+        data: skill,
+        isUsedInListing: listings.length > 0
       });
     }
     
     // DELETE operation
     if (operation === 'delete') {
+      // First check if the skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
+      if (listings.length > 0) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'This skill cannot be deleted because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+      
       const result = await UserSkill.findOneAndDelete({ _id: id, userId });
       
       if (!result) {
@@ -84,12 +105,25 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
     
     // UPDATE operation
     if (operation === 'update') {
+      // First check if the skill is used in any listings
+      const listings = await SkillListing.find({ 
+        userId, 
+        'offering.skillId': id 
+      });
+      
+      if (listings.length > 0) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'This skill cannot be updated because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+      
       const data = await request.json();
       
-      // Validate required fields
-      const { proficiencyLevel, description } = data;
+      // Validate required fields - now including all fields
+      const { categoryId, categoryName, skillTitle, proficiencyLevel, description } = data;
       
-      if (!proficiencyLevel || !description) {
+      if (!categoryId || !categoryName || !skillTitle || !proficiencyLevel || !description) {
         return NextResponse.json({ 
           success: false, 
           message: 'Missing required fields' 
@@ -104,10 +138,30 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         }, { status: 400 });
       }
       
+      // Check if the skill title is already used by the user (only if title has changed)
+      const existingSkill = await UserSkill.findOne(
+        { 
+          userId, 
+          skillTitle,
+          _id: { $ne: id } // Exclude the current skill being updated
+        }
+      );
+      
+      if (existingSkill) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'You already have a skill with this title' 
+        }, { status: 409 });
+      }
+      
+      // Update all fields of the skill
       const result = await UserSkill.findOneAndUpdate(
         { _id: id, userId },
         { 
           $set: {
+            categoryId,
+            categoryName,
+            skillTitle,
             proficiencyLevel,
             description,
             updatedAt: new Date()
@@ -138,6 +192,15 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
     
   } catch (error) {
     console.error(`Error in ${operation} operation:`, error);
+    
+    // Check for duplicate key error
+    if (error instanceof Error && error.name === 'MongoServerError' && (error as any).code === 11000) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'You already have a skill with this title' 
+      }, { status: 409 });
+    }
+    
     return NextResponse.json({ 
       success: false, 
       message: `Failed to ${operation} skill` 

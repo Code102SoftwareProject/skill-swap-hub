@@ -7,7 +7,8 @@ export default function Login() {
                 {/* Image Container */}
                 <div className="w-1/2">
                     <img
-                        src="/registerpageimage.png"
+              src="/loginpageimage.jpg" 
+            
                         alt="Login Image"
                         className="w-full h-full object-cover rounded-l-xl shadow-md"
                     />

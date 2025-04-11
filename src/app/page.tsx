@@ -1,7 +1,6 @@
 // page.tsx (home page)
 'use client';
 import Navbar from "@/components/Navbar";
-import Dashboard from "@/components/Dashboard/Dashboard";
 
 export default function Home() {
   return (
@@ -9,7 +8,7 @@ export default function Home() {
       <div>
         <Navbar />
       </div>
-      <Dashboard />
+    
     </>
   );
 }
