@@ -1,4 +1,3 @@
-
 'use client'
 
 import { FC } from 'react'
@@ -30,19 +29,21 @@ const AdminSidebar: FC = () => {
   const pathname = usePathname()
 
   return (
-    <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200">
+    <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200 pt-28">
       <div className="flex flex-col w-full">
         {navItems.map((item) => {
-          const isActive = pathname === item.href
           const Icon = item.icon
+          const pathname = usePathname().replace(/^\/admin/, '')
+          const isActive = pathname.startsWith(item.href)
+
           return (
             <Link
               key={item.href}
               href={item.href}
               className={clsx(
-                'flex items-center px-4 py-3 border-l-4',
-                isActive 
-                  ? 'bg-blue-600 text-white border-blue-600' 
+                'flex items-center px-4 py-3 border-l-4 transition-all duration-200',
+                isActive
+                  ? 'bg-primary text-white border-blue-600'
                   : 'text-gray-500 hover:bg-gray-100 border-transparent'
               )}
             >
