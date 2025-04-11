@@ -4,7 +4,7 @@
 import { FC } from 'react'
 import { HiOutlineChatAlt2 } from 'react-icons/hi'
 import AdminNavbar from '@/components/Admin/AdminNavbar'
-{/*import AdminSidebar from '@/components/Admin/AdminSidebar'*/}
+import AdminSidebar from '@/components/Admin/AdminSidebar'
 
 interface Report {
   id: number
@@ -24,10 +24,11 @@ const reports: Report[] = [
 const ReportingPage: FC = () => {
   return (
     <div className="flex h-screen">
-      {/*<AdminSidebar />*/}
+     <AdminSidebar />
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
+       
 
         <main className="p-6 overflow-auto">
           <h2 className="text-xl font-semibold mb-4">Reporting Table</h2>
