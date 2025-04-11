@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import  connect  from "@/lib/db";
-import  User  from "@/lib/modals/user";
 import { Types } from "mongoose";
+import User from "@/lib/models/userSchema";
 
 // 🟩Fetch all users
 export const GET = async () => {

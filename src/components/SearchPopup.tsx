@@ -123,7 +123,7 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
           >
             <div className="p-4 relative">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Search Forums</h2>
+                <h2 className="text-xl text-black font-semibold">Search Forums</h2>
                 <button
                   onClick={handleClose}
                   className="hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"
@@ -141,7 +141,7 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Search forums..."
-                  className="w-full px-4 py-3 pr-20 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 py-3 text-black pr-20 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                 />
                 {searchTerm && (
                   <button
@@ -170,13 +170,13 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                     key={result._id}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    className="bg-sky-800 border-2 border-sky-900 rounded-lg p-4 hover:shadow-md transition-all duration-200 cursor-pointer"
                     onClick={() => handleResultClick(result)}
                   >
                     <div className="flex gap-4">
                       <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
                         <Image
-                          src={result.image}
+                          src={'/app-development.png'}
                           alt={result.title}
                           width={96}
                           height={96}
@@ -186,16 +186,16 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                       
                       <div className="flex-1 space-y-2">
                         <h3 
-                          className="text-lg font-semibold text-gray-900"
+                          className="text-lg font-semibold text-white line-clamp-1"
                           dangerouslySetInnerHTML={renderHighlightedText(result.title)}
                         />
                         <p 
-                          className="text-sm text-gray-600 line-clamp-2"
+                          className="text-sm text-gray-400 line-clamp-2"
                           dangerouslySetInnerHTML={renderHighlightedText(result.description)}
                         />
                         
                         <div className="flex items-center justify-between pt-2">
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <div className="flex items-center gap-4 text-sm text-gray-400">
                             <div className="flex items-center gap-1">
                               <FileText className="w-4 h-4" />
                               <span>{result.posts}</span>

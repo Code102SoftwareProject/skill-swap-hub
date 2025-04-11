@@ -1,19 +1,14 @@
-// page.tsx
+// page.tsx (home page)
 'use client';
-import Navbar from "../components/Navbar";
-import Dashboard from "@/components/Dashboard/Dashboard";
-
+import Navbar from "@/components/Navbar";
 
 export default function Home() {
   return (
-      <>
-        <div className="p-8">
-         <Navbar userName={"Nethmal"} userImage={""} />
-        </div>
-        <Dashboard/>
-      </>
+    <>
+      <div>
+        <Navbar />
+      </div>
+    
+    </>
   );
 }
-
-
-     

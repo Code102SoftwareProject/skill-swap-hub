@@ -1,45 +1,75 @@
 import { NextResponse } from 'next/server';
-import { MongoClient } from 'mongodb';
-import bcrypt from 'bcryptjs'; // Import bcryptjs instead of bcrypt
+import jwt from 'jsonwebtoken';
+import dbConnect from '@/lib/db';
+import User from '@/lib/models/userSchema';
 
-if (!process.env.MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined');
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET is not defined');
 }
 
-const client = new MongoClient(process.env.MONGODB_URI);
-
 export async function POST(req: Request) {
-  const { firstName, lastName, email, phone, title, password } = await req.json();
-
-  // Validate inputs
-  if (!firstName || !lastName || !email || !phone || !title || !password) {
-    return NextResponse.json({ success: false, message: 'All fields are required' }, { status: 400 });
-  }
-
   try {
-    await client.connect();
-    const db = client.db('skillSwapHub');
-    const collection = db.collection('users');
-
-    // Check if user already exists
-    const existingUser = await collection.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ success: false, message: 'Email already exists' }, { status: 400 });
+    const userData = await req.json();
+    
+    // Validate required fields
+    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'title', 'password'];
+    for (const field of requiredFields) {
+      if (!userData[field]) {
+        return NextResponse.json({ 
+          success: false, 
+          message: `${field.charAt(0).toUpperCase() + field.slice(1)} is required` 
+        }, { status: 400 });
+      }
     }
 
-    // Hash the password with bcryptjs
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Insert new user with hashed password into the database
-    const newUser = { firstName, lastName, email, phone, title, password: hashedPassword };
-    await collection.insertOne(newUser);
-
-    return NextResponse.json({ success: true, message: 'User registered successfully' });
+    // Connect to database
+    await dbConnect();
+    
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: userData.email });
+    if (existingUser) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Email already in use' 
+      }, { status: 409 });
+    }
+    
+    // Create new user
+    const newUser = new User({
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      phone: userData.phone,
+      title: userData.title,
+      password: userData.password,
+    });
+    
+    // Save the user to database
+    await newUser.save();
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        userId: newUser._id,
+        email: newUser.email,
+        name: `${newUser.firstName} ${newUser.lastName}`
+      },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '24h' }
+    );
+    
+    // Return success with token and user info
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Registration successful',
+      token,
+      user: newUser
+    });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ success: false, message: 'Registration failed' }, { status: 500 });
-  } finally {
-    await client.close();
+    console.error('Registration error:', error);
+    return NextResponse.json({ 
+      success: false, 
+      message: 'An error occurred during registration' 
+    }, { status: 500 });
   }
 }
