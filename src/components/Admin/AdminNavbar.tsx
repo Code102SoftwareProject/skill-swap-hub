@@ -46,7 +46,7 @@ const AdminNavbar = () => {
           {/* Admin Profile */}
           <div className="flex items-center gap-2 bg-white px-3 py-1 rounded-full shadow-sm hover:bg-gray-100 cursor-pointer">
           <img width="30" height="30" src="https://img.icons8.com/ios-filled/30/1A1A1A/gender-neutral-user.png" alt="gender-neutral-user"/>
-            <span className="text-sm font-medium text-black">Admin 0121</span>
+            <span className="text-sm font-semibold text-black">Admin 0121</span>
             <svg
               className="w-4 h-4 text-gray-600"
               fill="none"
