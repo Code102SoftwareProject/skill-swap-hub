@@ -16,7 +16,6 @@ export default function ChatPage() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
-  // Add state for reply functionality
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
 
   // Handle selecting message for reply
@@ -31,7 +30,7 @@ export default function ChatPage() {
 
   //Create the Socket.IO connection on mount
   useEffect(() => {
-    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
+    const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
     setSocket(newSocket);
 
     // Cleanup function to disconnect the socket on unmount
