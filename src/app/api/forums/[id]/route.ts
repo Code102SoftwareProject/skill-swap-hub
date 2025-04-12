@@ -8,7 +8,8 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
+    
 
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {

@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db';
 import Post from '@/lib/models/postSchema';
-import {Forum} from '@/lib/models/Forum';
+import { Forum } from '@/lib/models/Forum';
 import mongoose from 'mongoose';
 
-// GET handler for fetching posts (already provided in previous code)
+// GET handler for fetching posts
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const forumId = params.id;
+    const { id } = await params;
+    const forumId = id;
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -88,41 +89,37 @@ export async function POST(
       );
     }
     
-    if (!data.author || !data.author._id || !data.author.name) {
-      return NextResponse.json(
-        { error: 'Author information is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Create new post
+    // Create new post with optional image URL
     const newPost = new Post({
       forumId,
       title: data.title,
       content: data.content,
+      imageUrl: data.imageUrl || null, // Include image URL if provided
       author: {
-        _id: data.author._id,
-        name: data.author.name,
-        avatar: data.author.avatar || '/default-avatar.png',
+        // Generate a valid ObjectId instead of using the string
+        _id: new mongoose.Types.ObjectId(),
+        name: data.author?.name || 'Anonymous User',
+        avatar: data.author?.avatar || '/default-avatar.png',
       },
+      likes: 0,
+      dislikes: 0,
+      likedBy: [],
+      dislikedBy: [],
+      replies: 0
     });
     
     await newPost.save();
-    
-    // Update forum statistics
-    await Forum.findByIdAndUpdate(forumId, {
-      $inc: { posts: 1 },
-      lastActive: new Date(),
-    });
-    
+      
     return NextResponse.json({ 
       success: true,
       post: newPost 
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating post:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error creating post:', errorMessage, errorStack);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: 'Internal server error', details: errorMessage },
       { status: 500 }
     );
   }

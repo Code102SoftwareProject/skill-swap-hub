@@ -5,12 +5,16 @@ export interface IPost extends Document {
   forumId: mongoose.Types.ObjectId | string;
   title: string;
   content: string;
+  imageUrl?: string | null;
   author: {
-    _id: mongoose.Types.ObjectId | string;
+    _id: mongoose.Types.ObjectId;
     name: string;
     avatar: string;
   };
   likes: number;
+  dislikes: number;
+  likedBy: string[];
+  dislikedBy: string[];
   replies: number;
   createdAt: Date;
   updatedAt: Date;
@@ -32,10 +36,14 @@ const PostSchema = new Schema(
       type: String,
       required: true,
     },
+    imageUrl: {
+      type: String,
+      default: null,
+    },
     author: {
       _id: {
         type: Schema.Types.ObjectId,
-        required: true,
+        default: () => new mongoose.Types.ObjectId(),
       },
       name: {
         type: String,
@@ -50,6 +58,18 @@ const PostSchema = new Schema(
       type: Number,
       default: 0,
     },
+    dislikes: {
+      type: Number,
+      default: 0,
+    },
+    likedBy: {
+      type: [String],
+      default: [],
+    },
+    dislikedBy: {
+      type: [String],
+      default: [],
+    },
     replies: {
       type: Number,
       default: 0,
@@ -60,4 +80,7 @@ const PostSchema = new Schema(
   }
 );
 
-export default mongoose.models.Post || mongoose.model<IPost>('Post', PostSchema);
+// Check if model exists before creating a new one (for Next.js hot reloading)
+const Post = mongoose.models.Post || mongoose.model<IPost>('Post', PostSchema);
+
+export default Post;

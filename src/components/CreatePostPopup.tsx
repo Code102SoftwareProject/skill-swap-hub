@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2, ImagePlus, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+import Swal from 'sweetalert2';
 
 interface CreatePostPopupProps {
   forumId: string;
@@ -19,11 +21,14 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ title?: string; content?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; content?: string; image?: string }>({});
   
   const titleInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Focus the title input when the modal opens
   useEffect(() => {
@@ -34,8 +39,17 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
     }
   }, [isOpen]);
 
+  // Clean up image preview URL when component unmounts
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
   const validateForm = (): boolean => {
-    const newErrors: { title?: string; content?: string } = {};
+    const newErrors: { title?: string; content?: string; image?: string } = {};
     
     if (!title.trim()) {
       newErrors.title = 'Title is required';
@@ -49,8 +63,76 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       newErrors.content = 'Content must be at least 10 characters';
     }
     
+    if (image && image.size > 5 * 1024 * 1024) {
+      newErrors.image = 'Image size must be less than 5MB';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const file = files[0];
+    
+    // Check file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Invalid File Type',
+        text: 'Only JPG, PNG, GIF, and WebP images are allowed.',
+        confirmButtonColor: '#3b82f6'
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+    
+    // Check file size (5MB limit)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      Swal.fire({
+        icon: 'error',
+        title: 'File Too Large',
+        text: 'Image size must be less than 5MB.',
+        confirmButtonColor: '#3b82f6'
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+    
+    // If validation passes, set the image and create preview
+    setImage(file);
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+    setErrors(prev => ({ ...prev, image: undefined }));
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'Image Added',
+      text: 'Image successfully selected',
+      confirmButtonColor: '#3b82f6',
+      timer: 1500
+    });
+  };
+
+  const handleRemoveImage = () => {
+    setImage(null);
+    if (imagePreview) {
+      URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,34 +145,96 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
     setIsSubmitting(true);
     
     try {
+      // First, upload the image if one exists
+      let imageUrl = null;
+      if (image) {
+        const imageFormData = new FormData();
+        imageFormData.append('file', image);
+        imageFormData.append('forumId', forumId);
+        
+        try {
+          const uploadResponse = await fetch('/api/file/upload', {
+            method: 'POST',
+            body: imageFormData,
+          });
+          
+          if (!uploadResponse.ok) {
+            throw new Error('Failed to upload image');
+          }
+          
+          const uploadData = await uploadResponse.json();
+          imageUrl = uploadData.url || uploadData.imageUrl;
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError);
+          // Continue without image if upload fails
+          Swal.fire({
+            icon: 'warning',
+            title: 'Image Upload Failed',
+            text: 'Continuing to create post without image',
+            confirmButtonColor: '#3b82f6',
+            timer: 2000
+          });
+        }
+      }
+      
       // Mock user data - in a real app, you'd get this from authentication
       const currentUser = {
-        _id: '1234567890',
+        _id: 'temp-user-id',
         name: 'Current User',
         avatar: '/default-avatar.png'
       };
       
+      // Now create the post with JSON data
+      const postData = {
+        title,
+        content,
+        imageUrl, // Will be null if no image or upload failed
+        author: currentUser
+      };
+      
+      // Post creation request with JSON data
       const response = await fetch(`/api/forums/${forumId}/posts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          content,
-          author: currentUser
-        }),
+        body: JSON.stringify(postData),
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create post');
+        const errorText = await response.text();
+        let errorMessage;
+        
+        try {
+          // Try to parse as JSON
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorData.details || 'Failed to create post';
+        } catch (e) {
+          // If not JSON, use the text
+          errorMessage = errorText || 'Failed to create post';
+        }
+        
+        throw new Error(errorMessage);
       }
       
       // Reset form
       setTitle('');
       setContent('');
+      setImage(null);
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+        setImagePreview(null);
+      }
       setErrors({});
+      
+      // Show success notification
+      Swal.fire({
+        icon: 'success',
+        title: 'Post Created',
+        text: 'Your post has been published successfully!',
+        confirmButtonColor: '#3b82f6',
+        timer: 2000
+      });
       
       // Notify parent component
       onPostCreated();
@@ -99,7 +243,14 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       onClose();
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post. Please try again later.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Create Post',
+        text: errorMessage,
+        confirmButtonColor: '#3b82f6'
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +283,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 20, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-white rounded-lg w-full max-w-2xl mx-4"
+            className="bg-white rounded-lg w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
             onKeyDown={handleKeyDown}
           >
@@ -167,7 +318,10 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
                     placeholder="Enter post title"
                   />
                   {errors.title && (
-                    <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {errors.title}
+                    </p>
                   )}
                 </div>
                 
@@ -187,8 +341,62 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
                     placeholder="Write your post content here..."
                   />
                   {errors.content && (
-                    <p className="mt-1 text-sm text-red-600">{errors.content}</p>
+                    <p className="mt-1 text-sm text-red-600 flex items-center">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      {errors.content}
+                    </p>
                   )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Image (Optional)
+                  </label>
+                  
+                  <div className="space-y-3">
+                    {!imagePreview ? (
+                      <div className="flex items-center">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/jpeg, image/png, image/gif, image/webp"
+                          id="post-image"
+                          onChange={handleImageChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="post-image"
+                          className="flex items-center justify-center px-4 py-2 bg-blue-50 border border-blue-100 text-blue-600 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
+                        >
+                          <ImagePlus className="w-4 h-4 mr-2" />
+                          <span>Add Image</span>
+                        </label>
+                        
+                        <div className="ml-3 text-gray-500 text-sm">
+                          JPG, PNG, GIF, WebP (max 5MB)
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative">
+                        <div className="border border-blue-100 rounded-lg overflow-hidden relative w-full h-48">
+                          <Image
+                            src={imagePreview}
+                            alt={`Preview of ${title || 'post image'}`}
+                            fill
+                            className="object-contain"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600 transition-colors shadow-sm"
+                          aria-label="Remove image"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-3 pt-4">
