@@ -6,6 +6,7 @@ import { Loader2, MessageSquare, Flag, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
+import { useAuth } from '@/lib/context/AuthContext';
 
 interface Post {
   _id: string;
@@ -30,13 +31,14 @@ interface ForumPostsProps {
 }
 
 const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   
   // Mock user ID - in a real app, get this from authentication
-  const currentUserId = 'current-user-id';
+  const currentUserId = user? user._id:'current-user-id';
 
   const fetchPosts = async () => {
     try {
@@ -191,8 +193,9 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                 <div className="p-6">
                   <div className="flex items-center space-x-4 mb-5">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-blue-100 shadow-sm">
+                     {/* src={post.author.avatar ? getImageUrl(post.author.avatar) : '/user-avatar.png'} */}
                       <Image 
-                        src={post.author.avatar ? getImageUrl(post.author.avatar) : '/default-avatar.png'} 
+                        src={'/user-avatar.png'} 
                         alt={post.author.name}
                         fill
                         className="object-cover"

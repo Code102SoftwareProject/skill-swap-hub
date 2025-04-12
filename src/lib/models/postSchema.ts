@@ -51,7 +51,7 @@ const PostSchema = new Schema(
       },
       avatar: {
         type: String,
-        default: '/default-avatar.png',
+        default: '/user-avatar.png',
       },
     },
     likes: {

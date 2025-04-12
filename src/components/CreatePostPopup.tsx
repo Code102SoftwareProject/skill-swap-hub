@@ -5,7 +5,7 @@ import { X, Loader2, ImagePlus, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
-
+import { useAuth } from '@/lib/context/AuthContext';
 interface CreatePostPopupProps {
   forumId: string;
   isOpen: boolean;
@@ -19,6 +19,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
   onClose, 
   onPostCreated 
 }) => {
+  const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [image, setImage] = useState<File | null>(null);
@@ -179,9 +180,9 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       
       // Mock user data - in a real app, you'd get this from authentication
       const currentUser = {
-        _id: 'temp-user-id',
-        name: 'Current User',
-        avatar: '/default-avatar.png'
+        _id: user ? user._id : 'temp-user-id',
+        name: user ? user.firstName+ " "+ user.lastName: 'Current User',
+        avatar: 'user-avatar.png'
       };
       
       // Now create the post with JSON data
