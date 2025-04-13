@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { Loader2, MessageSquare, Flag, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
@@ -31,6 +32,7 @@ interface ForumPostsProps {
 }
 
 const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
+  const router = useRouter();
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   
   // Mock user ID - in a real app, get this from authentication
-  const currentUserId = user? user._id:'current-user-id';
+  const currentUserId = user ? user._id : 'current-user-id';
 
   const fetchPosts = async () => {
     try {
@@ -117,6 +119,11 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
     }
   };
 
+  // Add this function to handle post click navigation
+  const handlePostClick = (postId: string) => {
+    router.push(`/forum/${forumId}/posts/${postId}`);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-20">
@@ -154,15 +161,18 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
         >
           Discussion
         </motion.h2>
-        <motion.button 
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleCreatePost}
-          className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span>Create Post</span>
-        </motion.button>
+
+        {user && (
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCreatePost}
+            className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all duration-300 shadow-md hover:shadow-lg"
+          >
+            <PlusCircle className="w-5 h-5" />
+            <span>Create Post</span>
+          </motion.button>
+        )}
       </div>
       
       {posts.length === 0 ? (
@@ -184,7 +194,8 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1, duration: 0.4 }}
                 whileHover={{ y: -3 }}
-                className="border border-blue-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 bg-white"
+                className="border border-blue-100 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 bg-white cursor-pointer"
+                onClick={() => handlePostClick(post._id)}
               >
                 <div className="bg-blue-50 p-5 border-b border-blue-100">
                   <h3 className="text-xl font-medium text-blue-800">{post.title}</h3>
@@ -193,7 +204,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                 <div className="p-6">
                   <div className="flex items-center space-x-4 mb-5">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-blue-100 shadow-sm">
-                     {/* src={post.author.avatar ? getImageUrl(post.author.avatar) : '/user-avatar.png'} */}
                       <Image 
                         src={'/user-avatar.png'} 
                         alt={post.author.name}
@@ -206,8 +216,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                       <p className="text-sm text-blue-500">{formatDate(post.createdAt)}</p>
                     </div>
                   </div>
-                  
-               
                   
                   {/* Display post image if available */}
                   {post.imageUrl && (
@@ -222,13 +230,17 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                       </div>
                     </div>
                   )}
-                     <div className="prose max-w-none mt-5">
+                  
+                  <div className="prose max-w-none mt-5">
                     <p className="whitespace-pre-line text-gray-700 leading-relaxed">{post.content}</p>
                   </div>
                   
                   <div className="flex items-center justify-between mt-8 pt-5 border-t border-blue-50">
                     <div className="flex items-center space-x-6">
-                      <motion.div whileHover={{ scale: 1.05 }}>
+                      <motion.div 
+                        whileHover={{ scale: 1.05 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <LikeDislikeButtons 
                           postId={post._id}
                           initialLikes={post.likes || 0}
@@ -243,6 +255,10 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                       <motion.button 
                         whileHover={{ scale: 1.1 }}
                         className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePostClick(post._id);
+                        }}
                       >
                         <MessageSquare className="w-5 h-5" />
                         <span className="font-medium">{post.replies}</span>
@@ -252,6 +268,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                     <motion.button 
                       whileHover={{ scale: 1.1 }}
                       className="text-blue-400 hover:text-red-500 transition-colors"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Flag className="w-5 h-5" />
                     </motion.button>
