@@ -51,7 +51,10 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
       <ul className="space-y-2">
         {chatRooms.map((chat) => {
           // The other participant is the ID that doesn't match the current user
-          const otherParticipant = chat.participants.find((id) => id !== userId);
+          const otherParticipant = chat.participants.find(
+            (id) => id !== userId
+          );
+          const lastMessage = chat.lastMessage?.content || "No messages yet";
           return (
             <li
               key={chat._id}
@@ -59,8 +62,10 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
               onClick={() => onChatSelect(chat._id)}
             >
               <div className="flex items-center space-x-2">
-                <div className="w-10 h-10 bg-gray-600 rounded-full" />
-                <span>Chat with user {otherParticipant}</span>
+                <div className="flex flex-col">
+                  <span>{otherParticipant}</span>
+                  <span className="text-sm text-gray-400">{lastMessage}</span>
+                </div>
               </div>
             </li>
           );
