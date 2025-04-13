@@ -31,6 +31,7 @@ export default function ChatPage() {
   //Create the Socket.IO connection on mount
   useEffect(() => {
     const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    // const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
     // Cleanup function to disconnect the socket on unmount
