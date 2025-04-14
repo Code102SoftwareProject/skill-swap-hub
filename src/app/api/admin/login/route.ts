@@ -1,42 +1,57 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import Admin from '@/lib/models/adminSchema';
-import dbConnect from '@/lib/db';
+import connect from '@/lib/db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'mySuperSecretJWTKey'; // move this to .env in production
 
-export async function POST(request: Request) {
-  const { username, password } = await request.json();
+export const POST = async (req: NextRequest) => {
+  try {
+    const { username, password } = await req.json();
 
-  await dbConnect();
+    if (!username || !password) {
+      return NextResponse.json({ message: 'Username and password required' }, { status: 400 });
+    }
 
-  // 🔍 Find admin by username
-  const admin = await Admin.findOne({ username });
+    await connect();
 
-  if (!admin) {
-    return NextResponse.json({ message: 'Admin not found' }, { status: 404 });
+    const admin = await Admin.findOne({ username });
+
+    if (!admin) {
+      return NextResponse.json({ message: 'Admin not found' }, { status: 404 });
+    }
+
+    const isMatch = await bcrypt.compare(password, admin.password);
+    if (!isMatch) {
+      return NextResponse.json({ message: 'Invalid password' }, { status: 401 });
+    }
+
+    const token = jwt.sign(
+      { id: admin._id, username: admin.username, email: admin.email },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+
+    const response = NextResponse.json({
+      message: 'Login successful',
+      admin: {
+        username: admin.username,
+        email: admin.email
+      }
+    });
+
+    // 🍪 Set token as HTTP-only cookie (optional)
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 3600, // 1 hour
+      path: '/'
+    });
+
+    return response;
+
+  } catch (error: any) {
+    return NextResponse.json({ message: 'Login error', error: error.message }, { status: 500 });
   }
-
-  // 🔐 Compare hashed password
-  const isMatch = await bcrypt.compare(password, admin.password);
-  if (!isMatch) {
-    return NextResponse.json({ message: 'Incorrect password' }, { status: 401 });
-  }
-
-  // 🪪 Generate JWT
-  const token = jwt.sign({ id: admin._id, username: admin.username, role: admin.role }, JWT_SECRET, {
-    expiresIn: '1h',
-  });
-
-  // 🍪 Set token in secure cookie
-  const response = NextResponse.json({ success: true });
-  response.cookies.set('token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60,
-    path: '/',
-  });
-
-  return response;
-}
+};

@@ -23,6 +23,11 @@ export default function AdminLoginPage() {
     }
 
     // 📡 Call our custom API route
+       const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
     try {
       const res = await fetch('/api/admin/login', {
         method: 'POST',
