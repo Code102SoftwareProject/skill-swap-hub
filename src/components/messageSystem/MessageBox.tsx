@@ -3,16 +3,24 @@
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/types";
-import { Download } from "lucide-react";
+import { CornerUpLeft } from "lucide-react";
+// Import the extracted FileMessage and TextMessage components
+import FileMessage from "./Box/FileMessage";
+import TextMessage from "./Box/TextMessage";
 
 interface MessageBoxProps {
   userId: string;
   chatRoomId: string;
   socket: Socket | null;
   newMessage?: IMessage;
+  onReplySelect?: (message: IMessage) => void;
 }
 
-// Typing Indicator Component dot dot dot
+/**
+ * ! TypingIndicator component
+ * @returns TypingIndicator component
+ * @description A simple typing indicator component with 3 dots that bounce
+ */
 function TypingIndicator() {
   return (
     <div className="typing-indicator flex items-center">
@@ -54,55 +62,21 @@ function TypingIndicator() {
   );
 }
 
-// File Message Component 
-const FileMessage = ({ fileInfo }: { fileInfo: string }) => {
-  // Parse file info (format: "File:filename.ext:fileUrl")
-  const parts = fileInfo.substring(5).split(":");
-  const fileName = parts[0];
-  const fileUrl = parts.length > 1 ? parts[1] : null;
-  const fileExt = fileName.split(".").pop()?.toLowerCase();
-
-  
-
-  // Use fileUrl if available, otherwise just the filename
-  const apiParam = fileUrl
-    ? `fileUrl=${encodeURIComponent(fileUrl)}`
-    : `file=${encodeURIComponent(fileName)}`;
-
-  return (
-    <div className="file-message flex flex-col w-64">
-      <div className="file-info flex items-center gap-2 mb-1">
-        {/* File icon */}
-        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-          <path
-            fillRule="evenodd"
-            d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z"
-            clipRule="evenodd"
-          />
-        </svg>
-        <span className="text-sm font-medium w-full">{fileName}</span>
-      </div>
-
-      {/* Download / View button */}
-      <a
-        href={`/api/file/retrieve?${apiParam}`}
-        download={fileName}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="text-s py-1 px-2 bg-gray-100 hover:bg-gray-200 rounded self-start flex  w-full justify-center"
-      >
-        <Download className="w-5 h-5 mr-2" />
-        Download
-      </a>
-    </div>
-  );
-};
+/**
+ * ! MessageBox component
+ * @param userId
+ * @param chatRoomId
+ * @param socket
+ * @param newMessage
+ * @@description A component to display chat messages in a chat room
+ */
 
 export default function MessageBox({
   userId,
   chatRoomId,
   socket,
   newMessage,
+  onReplySelect,
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -193,7 +167,7 @@ export default function MessageBox({
             className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"}`}
+              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} relative group`}
               style={{
                 maxWidth: "75%",
                 minWidth: "50px",
@@ -204,6 +178,15 @@ export default function MessageBox({
                 paddingBottom: "4px",
               }}
             >
+              {/* Reply button - show on hover */}
+              <button 
+                onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
+                className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Reply"
+              >
+                <CornerUpLeft className="w-3 h-3" />
+              </button>
+
               {/* Reply box (if applicable) */}
               {msg.replyFor && (
                 <div
@@ -233,7 +216,7 @@ export default function MessageBox({
               {msg.content.startsWith("File:") ? (
                 <FileMessage fileInfo={msg.content} />
               ) : (
-                <span className="block">{msg.content}</span>
+                <TextMessage content={msg.content} />
               )}
 
               {/* Timestamp */}
@@ -241,7 +224,7 @@ export default function MessageBox({
                 className="flex justify-end text-xs"
                 style={{
                   fontSize: "10px",
-                  color: isMine ? "#cce5ff" : "#777",
+                  color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777", 
                   marginTop: "2px",
                   textAlign: "right",
                   alignSelf: "flex-end",

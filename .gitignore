@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+
+# Exclude the test API route folder
+src/app/api/test/
+
+# Exclude specific test route file
+src/app/api/test/route.ts

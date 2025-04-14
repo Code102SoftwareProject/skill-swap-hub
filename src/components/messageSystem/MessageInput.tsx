@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
-import { Paperclip, X } from "lucide-react";
+import { Paperclip, X, CornerUpLeft } from "lucide-react";
+import { IMessage } from "@/types/types";
 
 interface MessageInputProps {
   socket: Socket | null;
   chatRoomId: string;
   senderId: string;
   receiverId?: string;
+  replyingTo?: IMessage | null; // Add this new prop
+  onCancelReply?: () => void;    // Add this new prop
 }
 
 export default function MessageInput({
@@ -16,6 +19,8 @@ export default function MessageInput({
   chatRoomId,
   senderId,
   receiverId,
+  replyingTo,
+  onCancelReply,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,6 +31,14 @@ export default function MessageInput({
 
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Focus on input when replying to a message
+  useEffect(() => {
+    if (replyingTo && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [replyingTo]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -95,8 +108,9 @@ export default function MessageInput({
       chatRoomId,
       senderId,
       receiverId: receiverId || "",
-      content: fileUrl ? `File: ${fileUrl}` : message.trim(),
+      content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
+      replyFor: replyingTo || undefined, // Include reply reference
     };
 
     socket.emit("send_message", newMsg);
@@ -114,10 +128,40 @@ export default function MessageInput({
     setMessage("");
     setFile(null);
     setLoading(false);
+    
+    // Reset reply if onCancelReply exists
+    if (onCancelReply) {
+      onCancelReply();
+    }
   };
 
   return (
     <div className="p-3 border-t bg-white">
+      {/* Reply Preview */}
+      {replyingTo && (
+        <div className="mb-2 p-2 bg-gray-100 rounded flex items-start">
+          <div className="flex-1">
+            <div className="flex items-center mb-1">
+              <CornerUpLeft className="w-3 h-3 mr-1" />
+              <span className="text-xs font-semibold text-blue-600">
+                Replying to {replyingTo.senderId === senderId ? "yourself" : replyingTo.senderId}
+              </span>
+            </div>
+            <p className="text-sm text-gray-700 truncate">
+              {replyingTo.content.startsWith("File:") 
+                ? "📎 File attachment" 
+                : replyingTo.content}
+            </p>
+          </div>
+          <button 
+            onClick={onCancelReply} 
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+      
       <div className="flex items-center space-x-2">
         {file ? (
           <div className="flex items-center border p-2 rounded bg-gray-100">
@@ -128,9 +172,10 @@ export default function MessageInput({
           </div>
         ) : (
           <input
+            ref={inputRef}
             className="flex-grow border p-2 rounded"
             type="text"
-            placeholder="Type a message..."
+            placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
             value={message}
             onChange={(e) => {
               setMessage(e.target.value);
