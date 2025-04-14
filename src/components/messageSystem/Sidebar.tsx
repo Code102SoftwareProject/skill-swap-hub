@@ -38,7 +38,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
 
   if (loading) {
     return (
-      <div className="w-64 bg-gray-900 text-white p-4">
+      <div className="w-64 bg-primary text-white p-4">
         <h2 className="text-xl font-bold mb-4">Chats</h2>
         <p>Loading chats...</p>
       </div>
@@ -46,7 +46,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   }
 
   return (
-    <div className="w-64 bg-gray-900 text-white h-screen p-4">
+    <div className="w-64 bg-primary text-white h-screen p-4">
       <h2 className="text-xl font-bold mb-4">Chats</h2>
       <ul className="space-y-2">
         {chatRooms.map((chat) => {

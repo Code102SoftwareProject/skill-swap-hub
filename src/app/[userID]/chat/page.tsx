@@ -6,9 +6,10 @@ import { useParams } from "next/navigation";
 import { IMessage } from "@/types/types";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
-import ChatHeader from "@/components/messageSystem/ChatHeader";
-import MessageBox from "@/components/messageSystem/MessageBox";
-import MessageInput from "@/components/messageSystem/MessageInput";
+import Try from "@/components/messageSystem/Try";
+// import ChatHeader from "@/components/messageSystem/ChatHeader";
+// import MessageBox from "@/components/messageSystem/MessageBox";
+// import MessageInput from "@/components/messageSystem/MessageInput";
 
 export default function ChatPage() {
   const { userId } = useParams() as { userId: string };
@@ -69,7 +70,11 @@ export default function ChatPage() {
       socket.off("receive_message");
     };
   }, [socket, selectedChatRoomId, userId]);
+  
 
+  const onDelete=()=>{
+    alert("Hi");
+  }
   // 4) Render
   return (
     <div className="flex h-screen">
@@ -78,13 +83,16 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
           <>
+            {/* ChatHeader component commented out
             <ChatHeader
               chatRoomId={selectedChatRoomId}
               socket={socket}
               userId={userId}
             />
+            */}
 
             <div className="flex-1 overflow-auto">
+              {/* MessageBox component commented out
               <MessageBox
                 chatRoomId={selectedChatRoomId}
                 userId={userId}
@@ -92,9 +100,11 @@ export default function ChatPage() {
                 newMessage={newMessage}
                 onReplySelect={handleReplySelect}
               />
+              */}
             </div>
 
             <div className="border-t p-2 bg-white">
+              {/* MessageInput component commented out
               <MessageInput
                 socket={socket}
                 chatRoomId={selectedChatRoomId}
@@ -102,6 +112,7 @@ export default function ChatPage() {
                 replyingTo={replyingTo}
                 onCancelReply={handleCancelReply}
               />
+              */}
             </div>
           </>
         ) : (
