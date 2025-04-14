@@ -11,4 +11,3 @@ const AdminSchema = models.admin || model("admin", adminSchema);
  
 
 export default AdminSchema;
-
