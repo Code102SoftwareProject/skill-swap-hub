@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { useParams } from "next/navigation";
+import { IMessage } from "@/types/types";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
@@ -10,16 +11,27 @@ import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 
 export default function ChatPage() {
-  const { userId } = useParams() as { userId: string };//url data extract userId
+  const { userId } = useParams() as { userId: string };
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
-  // Real-time new message that we pass to <MessageBox />
   const [newMessage, setNewMessage] = useState<any>(null);
+  const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
+
+  // Handle selecting message for reply
+  const handleReplySelect = (message: IMessage) => {
+    setReplyingTo(message);
+  };
+
+  // Cancel reply
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
 
   //Create the Socket.IO connection on mount
   useEffect(() => {
-    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
+    const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    // const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
     // Cleanup function to disconnect the socket on unmount
@@ -78,6 +90,7 @@ export default function ChatPage() {
                 userId={userId}
                 socket={socket}
                 newMessage={newMessage}
+                onReplySelect={handleReplySelect}
               />
             </div>
 
@@ -86,6 +99,8 @@ export default function ChatPage() {
                 socket={socket}
                 chatRoomId={selectedChatRoomId}
                 senderId={userId}
+                replyingTo={replyingTo}
+                onCancelReply={handleCancelReply}
               />
             </div>
           </>

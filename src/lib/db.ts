@@ -6,8 +6,7 @@ if (!MONGODB_URI) {
   throw new Error('MONGODB_URI is not defined in environment variables');
 }
 
-// Keep track of connection state for development mode to prevent multiple connections
-let isConnected = false;
+
 
 const connect = async () => {
   const connectionState = mongoose.connection.readyState;
@@ -31,7 +30,6 @@ const connect = async () => {
         dbName: "skillSwapHub",
         bufferCommands: true
       });
-      isConnected = true;
       console.log("DB connected");
     } catch (error: any) {
       console.error("Error connecting to the database:", error);

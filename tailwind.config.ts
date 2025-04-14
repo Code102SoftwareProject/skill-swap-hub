@@ -12,7 +12,8 @@ module.exports = {
 		  primary: "var(--primary)",
 		  secondary: "var(--secondary)",
 		  grayfill: "var(--grayfill)",
-		  textcolor: "var(--textcolor)", // Added border color definition
+		  textcolor: "var(--textcolor)",
+		  bgcolor:"var(--bgcolor)" // Added border color definition
 		},
 		fontFamily: {
 		  heading: ["Manrope", "sans-serif"],
