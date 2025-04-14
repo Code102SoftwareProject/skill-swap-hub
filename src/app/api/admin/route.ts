@@ -1,69 +1,73 @@
-import { NextRequest, NextResponse } from "next/server";
-import { Types } from "mongoose";
-import bcrypt from "bcryptjs";
 import connect from "@/lib/db";
+import { NextResponse } from "next/server";
 import Admin from "@/lib/models/adminSchema";
+import { NextRequest } from "next/server";
+import { Types } from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 /**
- * GET /api/admin
- * 🔍 Fetch all admin users
+ * GET: Fetch all admins (excluding passwords)
  */
-export const GET = async (req: Request) => {
+export const GET = async () => {
   try {
     await connect();
-    const admins = await Admin.find().select("-password"); // ❌ Do not return password
+    const admins = await Admin.find().select("-password"); // 🚫 Hide sensitive data
     return NextResponse.json(admins, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
-      { message: "Error in fetching admins", error: error.message },
+      { message: "Error in fetching admin", error: error.message },
       { status: 500 }
     );
   }
 };
 
 /**
- * POST /api/admin
- * ➕ Create a new admin with hashed password
+ * POST: Create a new admin with hashed password and auto-generated adminId
  */
 export const POST = async (req: NextRequest) => {
   try {
     const body = await req.json();
-    const { username, password } = body;
+    const { username, email, password } = body;
 
-    // 🚫 Check for missing fields
-    if (!username || !password) {
+    // ✅ Validate required fields
+    if (!username || !email || !password) {
       return NextResponse.json(
-        { message: "Username and password are required" },
+        { message: "All fields (username, email, password) are required" },
         { status: 400 }
       );
     }
 
     await connect();
 
-    // 🚫 Prevent duplicate admins
-    const existing = await Admin.findOne({ username });
+    // 🔎 Check if user already exists
+    const existing = await Admin.findOne({ $or: [{ username }, { email }] });
     if (existing) {
       return NextResponse.json(
-        { message: "Admin already exists" },
+        { message: "Username or email already exists" },
         { status: 409 }
       );
     }
 
-    // 🔐 Hash the password before saving
+    // 🔐 Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newAdmin = new Admin({ username, password: hashedPassword });
+    const newAdmin = new Admin({
+      username,
+      email,
+      password: hashedPassword,
+    });
+
     await newAdmin.save();
 
-    // ✅ Return created admin (excluding password)
     const responseAdmin = {
       _id: newAdmin._id,
+      adminId: newAdmin.adminId,
       username: newAdmin.username,
-      role: newAdmin.role,
+      email: newAdmin.email,
     };
 
     return NextResponse.json(
-      { message: "Admin created successfully", admin: responseAdmin },
+      { message: "Admin created", admin: responseAdmin },
       { status: 201 }
     );
   } catch (error: any) {
@@ -75,49 +79,40 @@ export const POST = async (req: NextRequest) => {
 };
 
 /**
- * PATCH /api/admin
- * ✏️ Update an admin's password
+ * PATCH: Update an admin's password securely by adminId
  */
 export const PATCH = async (req: NextRequest) => {
   try {
     const body = await req.json();
     const { adminId, password } = body;
 
-    // 🚫 Validate input
     if (!adminId || !password) {
       return NextResponse.json(
-        { message: "Admin ID and new password are required" },
+        { message: "adminId and password are required" },
         { status: 400 }
       );
     }
 
     if (!Types.ObjectId.isValid(adminId)) {
-      return NextResponse.json(
-        { message: "Invalid admin ID format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid adminId" }, { status: 400 });
     }
 
     await connect();
 
-    // 🔐 Hash the new password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const updatedAdmin = await Admin.findByIdAndUpdate(
       adminId,
       { password: hashedPassword },
       { new: true }
-    ).select("-password"); // ❌ Don't return password
+    ).select("-password");
 
     if (!updatedAdmin) {
-      return NextResponse.json(
-        { message: "Admin not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ message: "Admin not found" }, { status: 404 });
     }
 
     return NextResponse.json(
-      { message: "Admin updated successfully", admin: updatedAdmin },
+      { message: "Password updated", admin: updatedAdmin },
       { status: 200 }
     );
   } catch (error: any) {
@@ -129,27 +124,22 @@ export const PATCH = async (req: NextRequest) => {
 };
 
 /**
- * DELETE /api/admin?adminId=xyz
- * 🗑 Delete an admin by ID
+ * DELETE: Remove admin by ID
  */
 export const DELETE = async (req: NextRequest) => {
   try {
     const { searchParams } = new URL(req.url);
     const adminId = searchParams.get("adminId");
 
-    // 🚫 Check adminId
     if (!adminId) {
       return NextResponse.json(
-        { message: "Admin ID is required" },
+        { message: "adminId is required" },
         { status: 400 }
       );
     }
 
     if (!Types.ObjectId.isValid(adminId)) {
-      return NextResponse.json(
-        { message: "Invalid admin ID format" },
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid adminId" }, { status: 400 });
     }
 
     await connect();
@@ -158,13 +148,13 @@ export const DELETE = async (req: NextRequest) => {
 
     if (!deletedAdmin) {
       return NextResponse.json(
-        { message: "Admin not found in the database" },
+        { message: "Admin not found" },
         { status: 404 }
       );
     }
 
     return NextResponse.json(
-      { message: "Admin deleted successfully", admin: deletedAdmin },
+      { message: "Admin deleted", admin: deletedAdmin },
       { status: 200 }
     );
   } catch (error: any) {
