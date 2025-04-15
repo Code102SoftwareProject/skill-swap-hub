@@ -1,11 +1,12 @@
-import mongoose, { Schema, model, models } from 'mongoose';
+import mongoose from "mongoose";
 
-const KycSchema = new Schema({
-  NIC: { type: String, required: true, unique: true },
+const KYCSchema = new mongoose.Schema({
+  nic: String,
+  recipient: String,
+  dateSubmitted: String,
+  status: String,
+  reviewed: String,
+});
 
-}, { timestamps: true });
-
-const AdminSchema = models.kyc || model("admin", KycSchema);
- 
-
-export default AdminSchema;
+const KYC = mongoose.models.KYC || mongoose.model("KYC", KYCSchema);
+export default KYC;
