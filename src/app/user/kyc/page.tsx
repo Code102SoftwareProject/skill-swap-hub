@@ -3,64 +3,104 @@
 import { useState } from 'react';
 
 export default function KYCForm() {
+  // 🔹 State for NIC number input
   const [nic, setNic] = useState('');
-  const [nicFront, setNicFront] = useState<File | null>(null);
-  const [nicBack, setNicBack] = useState<File | null>(null);
 
+  // 🔹 File upload state
+  const [file, setFile] = useState<File | null>(null);
+
+  // 🔹 Loading indicator during file upload
+  const [uploading, setUploading] = useState(false);
+
+  // 🔹 Store uploaded file URL to show on screen
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+
+  // 🔸 Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!nicFront || !nicBack) {
-      return alert('Please upload both NIC documents');
+    if (!nic.trim()) {
+      alert('Please enter your NIC number');
+      return;
     }
 
+    if (!file) {
+      alert('Please select a NIC file');
+      return;
+    }
+
+    setUploading(true);
+
+    // 🔸 Step 1: Upload file to R2 bucket via /api/file/upload
     const formData = new FormData();
-    formData.append('nic', nic);
-    formData.append('nicFront', nicFront);
-    formData.append('nicBack', nicBack);
+    formData.append('file', file); // Must match backend key: "file"
 
     try {
-      const res = await fetch('/api/kyc-upload', {
+      const res = await fetch('/api/file/upload', {
         method: 'POST',
         body: formData,
       });
 
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Upload failed');
+      const data = await res.json(); // Expecting JSON response from backend
 
-      alert('Uploaded successfully!');
-      console.log(result);
-    } catch (err) {
-      console.error(err);
-      alert('Something went wrong');
+      if (!res.ok) {
+        throw new Error(data.error || data.message || 'Upload failed');
+      }
+
+      setUploadedUrl(data.url); // Save the uploaded file URL for display
+      alert('File uploaded successfully!');
+
+      // 🔸 You can now send `nic` and `data.url` to MongoDB backend if needed
+
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      alert(err.message || 'Something went wrong. Please try again.');
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-md mx-auto mt-10 space-y-4 bg-white p-6 shadow rounded">
-      <h2 className="text-xl font-bold">NIC Upload</h2>
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-md mx-auto mt-10 space-y-4 bg-white p-6 shadow rounded"
+    >
+      <h2 className="text-xl font-bold text-gray-800">NIC Document Upload</h2>
 
+      {/* NIC number input field */}
       <input
         type="text"
         value={nic}
         onChange={(e) => setNic(e.target.value)}
-        placeholder="NIC Number"
-        className="w-full border px-4 py-2"
+        placeholder="Enter NIC Number"
+        className="w-full border px-4 py-2 rounded"
         required
       />
 
+      {/* File input for NIC document */}
       <input
         type="file"
-        onChange={(e) => setNicFront(e.target.files?.[0] || null)}
+        accept=".pdf,.jpg,.jpeg,.png"
+        onChange={(e) => setFile(e.target.files?.[0] || null)}
         className="w-full"
-        accept=".jpg,.png,.pdf"
         required
       />
-    
 
-      <button type="submit" className="bg-blue-600 text-white py-2 px-4 rounded">
-        Submit
+      {/* Submit button */}
+      <button
+        type="submit"
+        className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
+        disabled={uploading}
+      >
+        {uploading ? 'Uploading...' : 'Submit'}
       </button>
+
+      {/* Show uploaded URL if successful */}
+      {uploadedUrl && (
+        <p className="text-green-600 text-sm break-words">
+          File uploaded to: <a href={uploadedUrl} target="_blank" className="underline">{uploadedUrl}</a>
+        </p>
+      )}
     </form>
   );
 }
