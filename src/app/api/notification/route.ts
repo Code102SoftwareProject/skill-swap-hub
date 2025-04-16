@@ -7,7 +7,7 @@ export async function POST(req: Request) {
   await connect();
   try {
     const body = await req.json();
-    console.log('Received body:', body);
+    //console.log('Received body:', body);
 
     const { userId, type, description, targetDestination } = body;
 
@@ -48,3 +48,6 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
+

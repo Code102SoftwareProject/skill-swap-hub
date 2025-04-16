@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+package-lock.json
 
 # testing
 /coverage
@@ -46,3 +47,5 @@ src/app/api/test/
 
 # Exclude specific test route file
 src/app/api/test/route.ts
+
+
