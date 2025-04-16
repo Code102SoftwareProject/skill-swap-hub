@@ -1,6 +1,7 @@
 import React from 'react';
 import PostDetail from '@/components/postDetail';
 import Navbar from '@/components/Navbar';
+import Chatbot from "@/components/chatassistant/chatbot";
 
 export default function PostDetailPage() {
     return (
@@ -10,6 +11,7 @@ export default function PostDetailPage() {
             </div>
             <div>
                 <PostDetail />
+                <Chatbot />
             </div>
         </div>
     );

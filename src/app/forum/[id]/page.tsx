@@ -7,6 +7,7 @@ import { MessageSquare, Clock, User, Loader2 } from 'lucide-react';
 import { IForum } from '@/lib/models/Forum';
 import ForumPosts from '../../../components/ForumPosts';
 import Navbar from '@/components/Navbar';
+import Chatbot from "@/components/chatassistant/chatbot";
 
 export default function ForumDetailsPage() {
   const { id } = useParams();
@@ -201,6 +202,7 @@ export default function ForumDetailsPage() {
               </div>
             </div>
           </div>
+          <Chatbot />
         </div>
       </div>
     </div>
