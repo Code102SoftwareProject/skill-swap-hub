@@ -10,7 +10,8 @@
   "description": "",
   "dependencies": {
     "base-64": "^1.0.0",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "scripts": "file:"
   },
   "type": "module"
 }
