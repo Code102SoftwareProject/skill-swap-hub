@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ChatHeaderProps {
   chatRoomId: string;
@@ -14,10 +15,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [lastOnline,setLastOnline]= useState<Date | null>(null);
-
-
-  
+  const [lastOnline, setLastOnline] = useState<Date | null>(null);
 
   // Fetch chat room info (e.g., room name, participants, etc.)
   useEffect(() => {
@@ -37,7 +35,40 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     fetchChatRoomInfo();
   }, [chatRoomId]);
 
-  // Listen for online users and presence events
+  // Move fetchLastOnline outside useEffect so it can be reused
+  const fetchLastOnline = async () => {
+    if (!chatRoomInfo?.participants) {
+      console.log('No participants found');
+      return;
+    }
+
+    const otherUserId = chatRoomInfo.participants.find((id: string) => id !== userId);
+    if (!otherUserId) {
+      console.log('Could not find other user');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/onlinelog?userId=${otherUserId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Last online response:', data);
+
+      if (data.success && data.data?.lastOnline) {
+        setLastOnline(new Date(data.data.lastOnline));
+      } else {
+        setLastOnline(null);
+      }
+    } catch (error: any) {
+      console.error('error fetching last online:', error);
+      setLastOnline(null);
+    }
+  };
+
+  // Modify the useEffect for online status
   useEffect(() => {
     if (!socket) return;
 
@@ -45,20 +76,30 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     socket.emit("get_online_users");
 
     const handleOnlineUsers = (users: string[]) => {
-      // For one-to-one chat, assume any online user that isn’t you is your partner.
       const otherUserOnline = users.find((id) => id !== userId);
       setIsOnline(!!otherUserOnline);
+      // If user goes offline, fetch their last seen time
+      if (!otherUserOnline && chatRoomInfo?.participants) {
+        fetchLastOnline();
+      }
+    };
+
+    const handleUserOnline = (data: { userId: string }) => {
+      if (data.userId !== userId) {
+        setIsOnline(true);
+        setLastOnline(null); // Clear last seen when user comes online
+      }
+    };
+
+    const handleUserOffline = async (data: { userId: string }) => {
+      if (data.userId !== userId) {
+        setIsOnline(false);
+        // Fetch last seen immediately when user goes offline
+        await fetchLastOnline();
+      }
     };
 
     socket.on("online_users", handleOnlineUsers);
-
-    const handleUserOnline = (data: { userId: string }) => {
-      if (data.userId !== userId) setIsOnline(true);
-    };
-    const handleUserOffline = (data: { userId: string }) => {
-      if (data.userId !== userId) setIsOnline(false);
-    };
-
     socket.on("user_online", handleUserOnline);
     socket.on("user_offline", handleUserOffline);
 
@@ -67,7 +108,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
     };
-  }, [socket, userId]);
+  }, [socket, userId, chatRoomInfo]);
 
   // Listen for typing events from any user other than the current user
   useEffect(() => {
@@ -94,34 +135,12 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     };
   }, [socket, userId]);
 
-
-
-  //take last online status
-  useEffect(()=>{
-    async function fetchLastOnline() {
-      if(!chatRoomInfo?.participants) return;
-
-      const otherUserId = chatRoomInfo.participants.find((id:string)=>id !==userId);
-      if(!otherUserId) return;
-
-      try{
-        const response = await fetch(`/api/onlinelog?userId=${otherUserId}`);
-        const data = await response.json();
-
-        if(data.success){
-          setLastOnline(new Date(data.data.lastOnline));
-        }else{
-          console.error("Online Log Api Failed to fetch");
-        }
-
-      }catch(error:any){
-        console.error('error fetching last online:',error);
-      }
+  // Modified useEffect for initial fetch of last online status
+  useEffect(() => {
+    if (chatRoomInfo?.participants && !isOnline) {
+      fetchLastOnline();
     }
-
-    fetchLastOnline();
-
-  },[chatRoomInfo,userId]);
+  }, [chatRoomInfo, isOnline]);
 
   if (loading) {
     return <div className="p-4">Loading chat header...</div>;
@@ -138,7 +157,11 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
           {chatRoomInfo.name || `Chat Room ${chatRoomId}`}
         </h1>
         <p className="text-sm text-gray-500">
-          {isTyping ? 'Typing...' : (isOnline ? 'Online' : (lastOnline ? `Last seen ${lastOnline}` : 'Offline'))}
+          {isTyping ? 'Typing...' : (
+            isOnline ? 'Online' : (
+              lastOnline ? `Last seen ${formatDistanceToNow(lastOnline, { addSuffix: true })}` : 'Offline'
+            )
+          )}
         </p>
       </div>
       <div className="flex space-x-2">
