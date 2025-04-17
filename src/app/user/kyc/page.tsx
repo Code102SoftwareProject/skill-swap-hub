@@ -61,46 +61,63 @@ export default function KYCForm() {
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="max-w-md mx-auto mt-10 space-y-4 bg-white p-6 shadow rounded"
-    >
-      <h2 className="text-xl font-bold text-gray-800">NIC Document Upload</h2>
+    <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
+      <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
+        {/* 📷 Left side image */}
+        <div className="md:w-1/2 hidden md:block">
+          <img
+            src="/kyc.png"
+            alt="NIC Upload KYC illustration"
+            className="w-full h-full object-cover"
+          />
+        </div>
 
-      {/* NIC number input field */}
-      <input
-        type="text"
-        value={nic}
-        onChange={(e) => setNic(e.target.value)}
-        placeholder="Enter NIC Number"
-        className="w-full border px-4 py-2 rounded"
-        required
-      />
+        {/* 📝 Right side form */}
+        <div className="bg-white shadow-lg rounded-xl p-4 max-w-md w-full py-16">
+          <form
+            onSubmit={handleSubmit}
+            className="max-w-md mx-auto mt-10 space-y-4 bg-white p-6 shadow rounded mx-auto space-y-4"
+          >
+            <h2 className="text-xl font-bold text-gray-800 text-center mb-6">NIC Document Upload</h2>
 
-      {/* File input for NIC document */}
-      <input
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png"
-        onChange={(e) => setFile(e.target.files?.[0] || null)}
-        className="w-full"
-        required
-      />
+            {/* NIC number input field */}
+            <input
+              type="text"
+              value={nic}
+              onChange={(e) => setNic(e.target.value)}
+              placeholder="Enter NIC Number"
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            />
 
-      {/* Submit button */}
-      <button
-        type="submit"
-        className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-        disabled={uploading}
-      >
-        {uploading ? 'Uploading...' : 'Submit'}
-      </button>
+            {/* File input for NIC document */}
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-md file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              required
+            />
 
-      {/* Show uploaded URL if successful */}
-      {uploadedUrl && (
-        <p className="text-green-600 text-sm break-words">
-          File uploaded to: <a href={uploadedUrl} target="_blank" className="underline">{uploadedUrl}</a>
-        </p>
-      )}
-    </form>
+            {/* Submit button */}
+            <button
+              type="submit"
+              className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 "
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : 'Submit'}
+            </button>
+
+            {/* Show uploaded URL if successful */}
+            {uploadedUrl && (
+              <p className="text-green-600 text-sm break-words mt-2">
+                File uploaded to: <a href={uploadedUrl} target="_blank" className="underline">{uploadedUrl}</a>
+              </p>
+            )}
+          </form>
+        </div>
+
+      </div>
+    </main>
   );
 }
