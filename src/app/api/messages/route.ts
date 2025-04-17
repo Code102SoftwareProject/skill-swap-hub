@@ -54,8 +54,25 @@ export async function POST(req: Request) {
       replyFor: replyForObjectId
     });
 
+    // For chat room's lastMessage, use unencrypted content, limited to 18 chars
+    let lastMessageContent;
+    if (isFileLink) {
+      // For files, keep the "File:" prefix but truncate if needed
+      const parts = content.split(':');
+      if (parts.length >= 2) {
+        // Truncate the file name if needed
+        const fileName = parts[1].length > 15 ? parts[1].substring(0, 15) + '...' : parts[1];
+        lastMessageContent = `File:${fileName}`;
+      } else {
+        lastMessageContent = "File";
+      }
+    } else {
+      // For regular messages, truncate to 18 chars
+      lastMessageContent = content.length > 18 ? content.substring(0, 18) + '...' : content;
+    }
+
     chatRoom.lastMessage = {
-      content: encryptedContent,
+      content: lastMessageContent,
       sentAt: new Date(),
       senderId,
     };
