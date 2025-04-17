@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import Admin from '@/lib/models/adminSchema';
 import connect from '@/lib/db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mySuperSecretJWTKey'; // move this to .env in production
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'mySuperSecretJWTKey'; // move this to .env in production
 
 export const POST = async (req: NextRequest) => {
   try {
@@ -29,7 +29,7 @@ export const POST = async (req: NextRequest) => {
 
     const token = jwt.sign(
       { id: admin._id, username: admin.username, email: admin.email },
-      JWT_SECRET,
+      ADMIN_JWT_SECRET,
       { expiresIn: '1h' }
     );
 
