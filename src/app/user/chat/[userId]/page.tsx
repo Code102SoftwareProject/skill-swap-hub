@@ -11,7 +11,8 @@ import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 
 export default function ChatPage() {
-  const userId:string = "67a6ff03cb5c199b45918b92";
+  const params = useParams();
+  const userId = params.userId as string;
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
