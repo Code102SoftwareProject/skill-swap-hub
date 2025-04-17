@@ -39,4 +39,9 @@ const messageSchema: Schema<IMessage> = new Schema({
   },
 });
 
+// indexes for better query performance
+messageSchema.index({ chatRoomId: 1, sentAt: -1 }); // Messages by chat room, sorted by time
+messageSchema.index({ senderId: 1 }); // Messages by sender
+messageSchema.index({ replyFor: 1 }); // Messages that are replies
+
 export default mongoose.models.Message || mongoose.model<IMessage>('Message', messageSchema);
