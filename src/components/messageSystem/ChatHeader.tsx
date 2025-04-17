@@ -14,6 +14,10 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [lastOnline,setLastOnline]= useState<Date | null>(null);
+
+
+  
 
   // Fetch chat room info (e.g., room name, participants, etc.)
   useEffect(() => {
@@ -90,6 +94,35 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     };
   }, [socket, userId]);
 
+
+
+  //take last online status
+  useEffect(()=>{
+    async function fetchLastOnline() {
+      if(!chatRoomInfo?.participants) return;
+
+      const otherUserId = chatRoomInfo.participants.find((id:string)=>id !==userId);
+      if(!otherUserId) return;
+
+      try{
+        const response = await fetch(`/api/onlinelog?userId=${otherUserId}`);
+        const data = await response.json();
+
+        if(data.success){
+          setLastOnline(new Date(data.data.lastOnline));
+        }else{
+          console.error("Online Log Api Failed to fetch");
+        }
+
+      }catch(error:any){
+        console.error('error fetching last online:',error);
+      }
+    }
+
+    fetchLastOnline();
+
+  },[chatRoomInfo,userId]);
+
   if (loading) {
     return <div className="p-4">Loading chat header...</div>;
   }
@@ -105,7 +138,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
           {chatRoomInfo.name || `Chat Room ${chatRoomId}`}
         </h1>
         <p className="text-sm text-gray-500">
-          {isTyping ? 'Typing...' : (isOnline ? 'Online' : 'Offline')}
+          {isTyping ? 'Typing...' : (isOnline ? 'Online' : (lastOnline ? `Last seen ${lastOnline}` : 'Offline'))}
         </p>
       </div>
       <div className="flex space-x-2">

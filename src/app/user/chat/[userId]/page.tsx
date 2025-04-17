@@ -29,6 +29,28 @@ export default function ChatPage() {
     setReplyingTo(null);
   };
 
+  const updateLastSeen =async (userId :string)=>{
+    try{
+      const response = await  fetch('/api/onlinelog',{
+        method: 'POST',
+        headers:{
+          'Content-Type':'application/json',
+        },
+        body: JSON.stringify({userId}),
+      });
+      const data= await response.json();
+      if(!data.success){
+        throw new Error(data.message);
+      }
+      
+      return data.data;
+
+    }catch(error:any){
+      console.error('Error updating online status');
+      throw error;
+    }
+  }
+
   //Create the Socket.IO connection on mount
   useEffect(() => {
     const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
@@ -38,6 +60,7 @@ export default function ChatPage() {
     // Cleanup function to disconnect the socket on unmount
     return () => {
       newSocket.disconnect();
+      updateLastSeen(userId);
     };
   }, []);//will run only once
 

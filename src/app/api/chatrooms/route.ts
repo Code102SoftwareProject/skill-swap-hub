@@ -1,23 +1,29 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import ChatRoom from '@/lib/models/chatRoomSchema';
+import mongoose from 'mongoose';
 
 export async function GET(req: Request) {
   await connect();
   try {
-    const { searchParams } = new URL(req.url);// equals to const searchParams= new URL(req.url).searchParams
-    const userId = searchParams.get('userId');  // e.g. /api/chatrooms?userId=abc123
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+    
+    console.log('Received userId:', userId); // Debug log
 
     let query = {};
     if (userId) {
-      // Find all chat rooms where userId is in the participants array
-      query = { participants: userId };
+      // Convert string to ObjectId
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      query = { participants: userObjectId };
     }
 
     const chatRooms = await ChatRoom.find(query);
+    console.log('Found chat rooms:', chatRooms); // Debug log
+    
     return NextResponse.json({ success: true, chatRooms }, { status: 200 });
   } catch (error: any) {
-    console.error(error);
+    console.error('Error in GET chatrooms:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }
@@ -90,4 +96,3 @@ export async function DELETE(req: Request) {
   }
 
 }
-
