@@ -30,10 +30,12 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
         setLoading(true);
         const res = await fetch(`/api/chatrooms?userId=${userId}`);
         const data = await res.json();
+        console.log('Chat rooms response:', data); // Debug log
         if (data.success) {
           setChatRooms(data.chatRooms);
         }
       } catch (err) {
+        console.error('Error fetching chat rooms:', err); // Add error logging
       } finally {
         setLoading(false);
       }
