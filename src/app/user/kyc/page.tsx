@@ -1,39 +1,60 @@
-'use client';
+'use client'; // Ensures this component runs on the client side
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { jwtDecode } from 'jwt-decode'; // Named import for decoding JWT
+
+// Define a type to represent the decoded JWT payload
+type DecodedToken = {
+  username?: string;
+  email?: string;
+  sub?: string;
+  [key: string]: any;
+};
 
 export default function KYCForm() {
-  // 🔹 State for NIC number input
+  // State for autofilled username from JWT
+  const [username, setUsername] = useState('');
+
+  // State for NIC number entered by the user
   const [nic, setNic] = useState('');
 
-  // 🔹 File upload state
+  // File state to hold selected NIC document
   const [file, setFile] = useState<File | null>(null);
 
-  // 🔹 Loading indicator during file upload
+  // Loading state for upload feedback
   const [uploading, setUploading] = useState(false);
 
-  // 🔹 Store uploaded file URL to show on screen
+  // Stores the uploaded file URL (returned from backend)
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
-  // 🔸 Handle form submission
+  // Automatically extract and set the username from the JWT (stored in localStorage)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decoded = jwtDecode<DecodedToken>(token);
+        const name = decoded.username || decoded.email || decoded.sub || '';
+        setUsername(name);
+      } catch (err) {
+        console.error('Invalid JWT', err);
+      }
+    }
+  }, []);
+
+  // Handles the form submission logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!nic.trim()) {
-      alert('Please enter your NIC number');
-      return;
-    }
-
-    if (!file) {
-      alert('Please select a NIC file');
+    // Basic form validation
+    if (!username.trim() || !nic.trim() || !file) {
+      alert('Please fill all fields');
       return;
     }
 
     setUploading(true);
 
-    // 🔸 Step 1: Upload file to R2 bucket via /api/file/upload
     const formData = new FormData();
-    formData.append('file', file); // Must match backend key: "file"
+    formData.append('file', file); // Must match the backend's expected "file" key
 
     try {
       const res = await fetch('/api/file/upload', {
@@ -41,16 +62,16 @@ export default function KYCForm() {
         body: formData,
       });
 
-      const data = await res.json(); // Expecting JSON response from backend
+      const data = await res.json();
 
       if (!res.ok) {
         throw new Error(data.error || data.message || 'Upload failed');
       }
 
-      setUploadedUrl(data.url); // Save the uploaded file URL for display
+      setUploadedUrl(data.url);
       alert('File uploaded successfully!');
 
-      // 🔸 You can now send `nic` and `data.url` to MongoDB backend if needed
+      // You can also send { username, nic, documentURL: data.url } to your MongoDB backend here
 
     } catch (err: any) {
       console.error('Upload error:', err);
@@ -63,34 +84,38 @@ export default function KYCForm() {
   return (
     <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* 📷 Left side image */}
+        
+        {/* Left side image */}
         <div className="md:w-1/2 hidden md:block">
-          <img
-            src="/kyc.png"
-            alt="NIC Upload KYC illustration"
-            className="w-full h-full object-cover"
-          />
+          <img src="/kyc.png" alt="NIC Upload" className="w-full h-full object-cover" />
         </div>
 
-        {/* 📝 Right side form */}
-        <div className="bg-white shadow-lg rounded-xl p-4 max-w-md w-full py-16">
-          <form
-            onSubmit={handleSubmit}
-            className="max-w-md mx-auto mt-10 space-y-4 bg-white p-6 shadow rounded mx-auto space-y-4"
-          >
-            <h2 className="text-xl font-bold text-gray-800 text-center mb-6">NIC Document Upload</h2>
+        {/* Right side form */}
+        <div className="bg-white p-4 max-w-md w-full py-16">
+          <form onSubmit={handleSubmit} className="space-y-4 p-6 bg-white shadow rounded">
+            <h2 className="text-xl font-bold text-center">NIC Document Upload</h2>
 
-            {/* NIC number input field */}
+            {/* Username field (autofilled from JWT) */}
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username or Email"
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+              required
+            />
+
+            {/* NIC number input */}
             <input
               type="text"
               value={nic}
               onChange={(e) => setNic(e.target.value)}
-              placeholder="Enter NIC Number"
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="NIC Number"
+              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
               required
             />
 
-            {/* File input for NIC document */}
+            {/* File upload input */}
             <input
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
@@ -102,13 +127,13 @@ export default function KYCForm() {
             {/* Submit button */}
             <button
               type="submit"
-              className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 "
+              className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
               disabled={uploading}
             >
               {uploading ? 'Uploading...' : 'Submit'}
             </button>
 
-            {/* Show uploaded URL if successful */}
+            {/* Display uploaded URL if available */}
             {uploadedUrl && (
               <p className="text-green-600 text-sm break-words mt-2">
                 File uploaded to: <a href={uploadedUrl} target="_blank" className="underline">{uploadedUrl}</a>
@@ -116,7 +141,6 @@ export default function KYCForm() {
             )}
           </form>
         </div>
-
       </div>
     </main>
   );
