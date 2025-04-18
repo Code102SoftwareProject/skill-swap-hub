@@ -1,12 +1,10 @@
-// Import data-fetching function and download icon
+// Import required components and utilities
 import { fetchKYCRecords } from "../../../lib/actions";
 import { FaDownload } from "react-icons/fa";
 import AdminNavbar from "@/components/Admin/AdminNavbar";
 import AdminSidebar from "@/components/Admin/AdminSidebar";
 
-// Async server component for the KYC page
 export default async function AdminKYCPage() {
-  // Fetch KYC records from MongoDB using a server action
   const records = await fetchKYCRecords();
 
   return (
@@ -21,15 +19,13 @@ export default async function AdminKYCPage() {
 
         {/* Page Content */}
         <main className="p-6 bg-gray-100 min-h-screen">
-          {/* Page heading */}
           <h1 className="text-2xl font-semibold text-[#0077b6] mb-6">
             Admin Dashboard - KYC
           </h1>
 
-          {/* Table container with shadow and rounded borders */}
+          {/* Table */}
           <div className="bg-white rounded-lg shadow-md overflow-x-auto">
             <table className="w-full text-sm table-auto border border-gray-300">
-              {/* Table header */}
               <thead className="bg-gray-200 text-gray-700">
                 <tr>
                   <th className="p-3 text-left">NIC No</th>
@@ -37,11 +33,9 @@ export default async function AdminKYCPage() {
                   <th className="p-3 text-left">Date Submitted</th>
                   <th className="p-3 text-left">Status</th>
                   <th className="p-3 text-left">Reviewed</th>
-                  <th className="p-3 text-left">Action</th>
+                  <th className="p-3 text-left">Document</th>
                 </tr>
               </thead>
-
-              {/* Table body with dynamic rows */}
               <tbody>
                 {records.length === 0 ? (
                   <tr>
@@ -52,54 +46,46 @@ export default async function AdminKYCPage() {
                 ) : (
                   records.map((rec: any) => (
                     <tr key={rec._id} className="border-t hover:bg-gray-50">
-                      {/* NIC No */}
                       <td className="p-3">{rec.nic}</td>
-
-                      {/* Recipient name */}
                       <td className="p-3">{rec.recipient}</td>
-
-                      {/* Submission date */}
                       <td className="p-3">{rec.dateSubmitted}</td>
 
-                      {/* Status with colored dot */}
+                      {/* Editable Status */}
                       <td className="p-3">
-                        <span
-                          className={`inline-flex items-center gap-1 ${
-                            rec.status === "Accepted"
-                              ? "text-green-600"
-                              : rec.status === "Rejected"
-                              ? "text-red-600"
-                              : rec.status === "Signed"
-                              ? "text-blue-600"
-                              : "text-gray-800"
-                          }`}
+                        <form
+                          action="/api/kyc/update-status"
+                          method="POST"
+                          className="flex items-center gap-2"
                         >
-                          {/* Colored circle based on status */}
-                          <span
-                            className={`w-2 h-2 rounded-full ${
-                              rec.status === "Accepted"
-                                ? "bg-green-500"
-                                : rec.status === "Rejected"
-                                ? "bg-red-500"
-                                : rec.status === "Signed"
-                                ? "bg-blue-500"
-                                : "bg-black"
-                            }`}
-                          ></span>
-                          {rec.status}
-                        </span>
+                          <input type="hidden" name="id" value={rec._id} />
+                          <select
+                            name="status"
+                            defaultValue={rec.status}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm"
+                          >
+                            <option value="Not Reviewed">Not Reviewed</option>
+                            <option value="Accepted">Accepted</option>
+                            <option value="Rejected">Rejected</option>
+                          </select>
+                          <button
+                            type="submit"
+                            className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
+                          >
+                            Save
+                          </button>
+                        </form>
                       </td>
 
-                      {/* Reviewed time */}
                       <td className="p-3">{rec.reviewed}</td>
 
-                      {/* Download icon - optional: wrap in <a> if you store file URLs */}
+                      {/* Download icon */}
                       <td className="p-3">
                         {rec.documentURL ? (
                           <a
-                            href={rec.documentURL}
+                            href={`/api/file/retreive?fileUrl=${encodeURIComponent(rec.documentURL)}`}
                             target="_blank"
                             rel="noopener noreferrer"
+                            title="Download KYC Document"
                           >
                             <FaDownload className="cursor-pointer hover:text-blue-500" />
                           </a>
@@ -114,7 +100,6 @@ export default async function AdminKYCPage() {
             </table>
           </div>
 
-          {/* Record count */}
           <div className="mt-4 text-sm text-gray-600">
             Showing {records.length} of {records.length} users
           </div>
