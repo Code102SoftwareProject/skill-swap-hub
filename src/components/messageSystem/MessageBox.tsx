@@ -79,6 +79,8 @@ export default function MessageBox({
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Add this state to track if we're currently hovering
+  const [isHovering, setIsHovering] = useState(false);
 
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -128,9 +130,29 @@ export default function MessageBox({
    */
   useEffect(() => {
     if (!newMessage) return;
+    
+    // Make sure we're handling the correct message type
     if (newMessage.chatRoomId !== chatRoomId) return;
-    setMessages((prev) => [...prev, newMessage]);
-  }, [newMessage, chatRoomId]);
+    
+    // Handle read receipts differently than actual messages
+    if (newMessage.type === "read_receipt") {
+      // Update read status of existing messages
+      setMessages(prevMessages => 
+        prevMessages.map(msg => {
+          if (msg.senderId === userId && newMessage.userId !== userId) {
+            return { ...msg, readStatus: true };
+          }
+          return msg;
+        })
+      );
+    } else {
+      // It's a regular message, add it to the list
+      const isNewMessage = !messages.some(m => m._id === newMessage._id);
+      if (isNewMessage) {
+        setMessages((prev) => [...prev, newMessage]);
+      }
+    }
+  }, [newMessage, chatRoomId, userId, messages]);
 
   // Auto-scroll to the bottom when messages update
   useEffect(() => {
@@ -149,16 +171,21 @@ export default function MessageBox({
 
     const handleUserTyping = (data: { userId: string }) => {
       if (data.userId !== userId) {
+        console.log(`User ${data.userId} is typing...`);
         setIsTyping(true);
       }
     };
 
     const handleUserStoppedTyping = (data: { userId: string }) => {
       if (data.userId !== userId) {
+        console.log(`User ${data.userId} stopped typing`);
         setIsTyping(false);
       }
     };
 
+    // Re-register these handlers to make sure they're active
+    socket.off("user_typing");
+    socket.off("user_stopped_typing");
     socket.on("user_typing", handleUserTyping);
     socket.on("user_stopped_typing", handleUserStoppedTyping);
 
@@ -171,12 +198,17 @@ export default function MessageBox({
   // Update the message read status function
   const updateMessageReadStatus = async (messageId: string) => {
     try {
+      // Emit socket event immediately for real-time notification
+      if (socket) {
+        socket.emit("message_seen", { chatRoomId, userId, messageId });
+      }
+
       // Update local state first for immediate feedback
       setMessages(prev => prev.map(msg => 
         msg._id === messageId ? { ...msg, readStatus: true } : msg
       ));
 
-      // Then update backend
+      // Then update backend (no need to wait before emitting socket event)
       const response = await fetch('/api/messages', {
         method: 'PATCH',
         headers: {
@@ -188,11 +220,6 @@ export default function MessageBox({
       if (!response.ok) {
         throw new Error('Failed to update message status');
       }
-
-      // Emit socket event after successful backend update
-      if (socket) {
-        socket.emit("message_seen", chatRoomId, userId);
-      }
     } catch (error) {
       console.error('Error updating message status:', error);
       // Revert local state if backend update fails
@@ -202,51 +229,71 @@ export default function MessageBox({
     }
   };
 
-  // Update the Intersection Observer effect
+  // Modify the Intersection Observer to handle batches of messages
   useEffect(() => {
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          const messageId = entry.target.getAttribute('data-message-id');
-          if (messageId) {
-            const message = messages.find(m => m._id === messageId);
-            if (message && !message.readStatus && message.senderId !== userId) {
-              updateMessageReadStatus(messageId);
-            }
+    const unreadMessages = messages
+      .filter(m => !m.readStatus && m.senderId !== userId && m._id)
+      .map(m => m._id);
+    
+    if (unreadMessages.length > 0 && containerRef.current) {
+      // Check if any unread messages are visible in the viewport
+      const observer = new IntersectionObserver((entries) => {
+        const visibleMessages = entries
+          .filter(entry => entry.isIntersecting)
+          .map(entry => entry.target.getAttribute('data-message-id'))
+          .filter(Boolean) as string[];
+        
+        if (visibleMessages.length > 0) {
+          // Batch update visible messages
+          visibleMessages.forEach(messageId => {
+            updateMessageReadStatus(messageId);
+          });
+        }
+      }, { threshold: 0.1 }); // Lower threshold to mark as read sooner
+
+      // Observe unread messages from other users
+      unreadMessages.forEach(messageId => {
+        if (messageId) {
+          const element = messageRefs.current[messageId];
+          if (element) {
+            observer.observe(element);
           }
         }
       });
-    });
 
-    // Observe unread messages from other users
-    messages.forEach(msg => {
-      if (!msg.readStatus && msg.senderId !== userId && msg._id) {
-        const element = messageRefs.current[msg._id];
-        if (element) {
-          observer.observe(element);
-        }
-      }
-    });
-
-    return () => observer.disconnect();
+      return () => observer.disconnect();
+    }
   }, [messages, userId, socket, chatRoomId]);
 
   // Update the socket effect for handling seen messages
   useEffect(() => {
     if (!socket) return;
 
-    const handleMessageSeen = ({ userId: seenByUserId }: { userId: string }) => {
-      setMessages(prevMessages => prevMessages.map(msg => {
-        // If message is from current user and seen by other user
-        if (msg.senderId === userId && seenByUserId !== userId) {
-          return { ...msg, readStatus: true };
-        }
-        // If message is from other user and seen by current user
-        if (msg.senderId === seenByUserId && seenByUserId !== userId) {
-          return { ...msg, readStatus: true };
-        }
-        return msg;
-      }));
+    // Define an interface for the message seen event data
+    interface MessageSeenData {
+      userId: string;
+      chatRoomId: string;
+    }
+
+    const handleMessageSeen = (data: MessageSeenData) => {
+      const { userId: seenByUserId, chatRoomId: roomId } = data;
+      
+      // Add debugging
+      console.log(`Received read receipt: User ${seenByUserId} saw messages in room ${roomId}`);
+      
+      // Only process events for the current chat room
+      if (roomId !== chatRoomId) return;
+      
+      // Mark all messages from the current user as read when viewed by another user
+      setMessages(prevMessages => 
+        prevMessages.map(msg => {
+          if (msg.senderId === userId && seenByUserId !== userId) {
+            console.log(`Marking message ${msg._id} as read`);
+            return { ...msg, readStatus: true };
+          }
+          return msg;
+        })
+      );
     };
 
     socket.on("user_see_message", handleMessageSeen);
@@ -256,8 +303,54 @@ export default function MessageBox({
     };
   }, [socket, userId]);
 
+  // Function to mark all unread messages as read
+  const markAllMessagesAsRead = () => {
+    if (!socket) return;
+    
+    const unreadMessages = messages
+      .filter(m => !m.readStatus && m.senderId !== userId && m._id);
+    
+    if (unreadMessages.length > 0) {
+      console.log(`Marking ${unreadMessages.length} messages as read on hover`);
+      
+      // Update local state first for immediate UI feedback
+      setMessages(prev => prev.map(msg => 
+        (!msg.readStatus && msg.senderId !== userId) ? { ...msg, readStatus: true } : msg
+      ));
+      
+      // Emit a single socket event for the whole batch instead of many
+      socket.emit("message_seen", { 
+        chatRoomId, 
+        userId,
+        // Include all message IDs that were marked as read
+        messageIds: unreadMessages.map(msg => msg._id).filter(Boolean)
+      });
+      
+      // Then batch the backend updates
+      fetch('/api/messages/batch-update', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          messageIds: unreadMessages.map(msg => msg._id).filter(Boolean) 
+        }),
+      }).catch(err => console.error('Error updating message status:', err));
+    }
+  };
+
+  // Handle mouse enter/leave events
+  const handleMouseEnter = () => {
+    setIsHovering(true);
+    markAllMessagesAsRead();
+  };
+
   return (
-    <div ref={containerRef} className="flex flex-col w-full h-full bg-white overflow-y-auto p-4">
+    <div 
+      ref={containerRef} 
+      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+      onMouseEnter={handleMouseEnter}
+    >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
         return (
@@ -294,36 +387,9 @@ export default function MessageBox({
                     max-w-full text-left
                     ${isMine 
                       ? "border-l-4 border-[#25D366] bg-[#e9ecef]" 
-                      : "border-l-4 border-gray-300 bg-[#e9ecef]"
-                    }
-                  `}
-                  onClick={() => msg.replyFor?._id && scrollToMessage(msg.replyFor._id)}
-                >
-                  <span className="text-xs font-semibold" style={{ color: isMine ? "#25D366" : "#888" }}>
-                    {msg.replyFor.senderId === userId ? "You" : msg.replyFor.senderId}
-                  </span>
-                  <span
-                    className="text-sm text-gray-700 truncate block"
-                    style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
-                  >
-                    {msg.replyFor.content}
-                  </span>
-                </div>
-              )}
-
-              {/* Main message content or File */}
-              {msg.content.startsWith("File:") ? (
-                <FileMessage fileInfo={msg.content} />
-              ) : (
-                <TextMessage content={msg.content} />
-              )}
-
               {/* Timestamp and Status */}
-              <div className={`
-                flex items-center justify-end text-[10px] mt-0.5 self-end gap-1
-                ${isMine ? "text-black/80" : "text-gray-500"}
-              `}>
-                <span>
+              <div className="flex items-end justify-end text-xs mt-1">
+                <span className="text-gray-500">
                   {msg.sentAt
                     ? new Date(msg.sentAt).toLocaleTimeString([], {
                         hour: "2-digit",

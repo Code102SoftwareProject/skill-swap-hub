@@ -12,6 +12,7 @@ interface MessageInputProps {
   receiverId?: string;
   replyingTo?: IMessage | null; // Add this new prop
   onCancelReply?: () => void;    // Add this new prop
+  chatParticipants: string[];   // Add this new prop
 }
 
 export default function MessageInput({
@@ -21,6 +22,7 @@ export default function MessageInput({
   receiverId,
   replyingTo,
   onCancelReply,
+  chatParticipants,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -107,7 +109,7 @@ export default function MessageInput({
     const newMsg = {
       chatRoomId,
       senderId,
-      receiverId: receiverId || "",
+      receiverId: chatParticipants.find(id => id !== senderId), // Determine the other user in the chat
       content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
       replyFor: replyingTo || undefined, // Include reply reference
