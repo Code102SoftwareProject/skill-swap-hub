@@ -47,6 +47,10 @@ const Navbar: React.FC = () => {
     router.push('/dashboard');
   };
 
+  const handleNotificationsClick = () => {
+    router.push('/user/notification');
+  };
+
   const isLoggedIn = !!user;
   const displayName = user ? user.firstName : 'User';
   const userImage = '/Avatar.png';
@@ -95,7 +99,7 @@ const Navbar: React.FC = () => {
               <button className="text-white">
                 <MessageSquare className="w-6 h-6" />
               </button>
-              <button className="text-white ">
+              <button onClick={handleNotificationsClick} className="text-white ">
                 <Bell className="w-6 h-6" />
               </button>
               
