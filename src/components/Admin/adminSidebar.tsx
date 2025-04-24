@@ -11,35 +11,32 @@ import {
   Flag,
   LogOut,
 } from 'lucide-react'; // Lucide icons
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 
 // Define props for conditional rendering
 interface AdminSidebarProps {
-  showNavItems?: boolean;
-  showLogout?: boolean;
+  onNavigate: (component: string) => void;
+  activeComponent: string;
 }
 
 // Navigation items config
 const navItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: Home },
-  { label: 'KYC', href: '/kyc', icon: IdCard },
-  { label: 'Users', href: '/users', icon: Users },
-  { label: 'Suggestions', href: '/suggestions', icon: Lightbulb },
-  { label: 'System', href: '/system', icon: Settings },
-  { label: 'Verify Documents', href: '/verify-documents', icon: FileText },
-  { label: 'Reporting', href: '/reporting', icon: Flag },
+  { id: 'dashboard', label: 'Dashboard', icon: Home },
+  { id: 'kyc', label: 'KYC', icon: IdCard },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'suggestions', label: 'Suggestions', icon: Lightbulb },
+  { id: 'system', label: 'System', icon: Settings },
+  { id: 'verify-documents', label: 'Verify Documents', icon: FileText },
+  { id: 'reporting', label: 'Reporting', icon: Flag },
 ];
 
 // Component
 const AdminSidebar: FC<AdminSidebarProps> = ({
-  showNavItems = true, // default = show all
-  showLogout = true,
+  onNavigate,
+  activeComponent,
 }) => {
   const router = useRouter();
-  const rawPathname = usePathname();
-  const pathname = rawPathname.replace(/^\/admin/, '');
 
   // Sign out logic
   const handleLogout = () => {
@@ -50,48 +47,44 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
     <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200 pt-28">
       
       {/* Navigation Section (conditionally rendered) */}
-      {showNavItems && (
-        <div className="flex flex-col w-full">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname.startsWith(item.href);
+      <div className="flex flex-col w-full">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeComponent === item.id;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              className={clsx(
+                'flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200',
+                isActive
+                  ? 'bg-primary text-white border-blue-600'
+                  : 'text-gray-500 hover:bg-gray-100 border-transparent'
+              )}
+            >
+              <Icon
                 className={clsx(
-                  'flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200',
-                  isActive
-                    ? 'bg-primary text-white border-blue-600'
-                    : 'text-gray-500 hover:bg-gray-100 border-transparent'
+                  'w-5 h-5 mr-3',
+                  isActive ? 'text-white' : 'text-gray-400'
                 )}
-              >
-                <Icon
-                  className={clsx(
-                    'w-5 h-5 mr-3',
-                    isActive ? 'text-white' : 'text-gray-400'
-                  )}
-                />
-                <span className="text-sm font-medium">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+              />
+              <span className="text-sm font-medium">{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* Logout Button (conditionally rendered) */}
-      {showLogout && (
-        <div className="mt-auto border-t border-gray-200">
-          <button
-            onClick={handleLogout}
-            className="flex items-center w-full px-4 py-3 text-red-500 hover:bg-gray-100"
-          >
-            <LogOut className="w-5 h-5 mr-3" />
-            <span className="text-sm font-medium">Sign Out</span>
-          </button>
-        </div>
-      )}
+      <div className="mt-auto border-t border-gray-200">
+        <button
+          onClick={handleLogout}
+          className="flex items-center w-full px-4 py-3 text-red-500 hover:bg-gray-100"
+        >
+          <LogOut className="w-5 h-5 mr-3" />
+          <span className="text-sm font-medium">Sign Out</span>
+        </button>
+      </div>
     </aside>
   );
 };
