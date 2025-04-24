@@ -18,6 +18,7 @@ export default function ChatPage() {
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
+  const [chatParticipants, setChatParticipants] = useState<string[]>([]);
 
   // Handle selecting message for reply
   const handleReplySelect = (message: IMessage) => {
@@ -63,7 +64,8 @@ export default function ChatPage() {
     // Initial online status update
     updateLastSeen(userId).catch(console.error);
 
-    const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    // const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
     // Cleanup function
@@ -83,7 +85,26 @@ export default function ChatPage() {
     socket.emit("presence_online", { userId });
   }, [socket, userId]);
 
-  // 3) Join the selected room, listen for "receive_message"
+  // Fetch chat participants when selecting a chat room
+  useEffect(() => {
+    if (!selectedChatRoomId) return;
+    
+    async function fetchChatRoom() {
+      try {
+        const response = await fetch(`/api/chat-rooms/${selectedChatRoomId}`);
+        const data = await response.json();
+        if (data.success && data.chatRoom) {
+          setChatParticipants(data.chatRoom.participants || []);
+        }
+      } catch (error) {
+        console.error("Error fetching chat room:", error);
+      }
+    }
+    
+    fetchChatRoom();
+  }, [selectedChatRoomId]);
+
+  // Improved socket listener for message read updates
   useEffect(() => {
     if (!socket || !selectedChatRoomId) return;
 
@@ -93,15 +114,51 @@ export default function ChatPage() {
     });
 
     // Listen for incoming messages
-    socket.on("receive_message", (message) => {
-      if (message.chatRoomId === selectedChatRoomId) {
-        setNewMessage(message);
-      }
-    });
+    interface IReceivedMessage {
+      chatRoomId: string;
+      [key: string]: any;
+    }
 
-    // Cleanup function to remove the listener
+    const handleReceiveMessage = (message: IReceivedMessage): void => {
+      if (message.chatRoomId === selectedChatRoomId) {
+        // Guarantee uniqueness with timestamp to force re-renders
+        setNewMessage({
+          ...message, 
+          timestamp: Date.now(),
+          id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        });
+      }
+    };
+
+    // Handle read receipts more efficiently
+    interface IReadReceiptData {
+      chatRoomId: string;
+      userId: string;
+      messageId?: string;
+      timestamp?: number;
+      [key: string]: any;
+    }
+
+    const handleMessageRead = (data: IReadReceiptData): void => {
+      if (data.chatRoomId === selectedChatRoomId) {
+        console.log("Received read receipt:", data);
+        // Guarantee uniqueness to force re-render
+        setNewMessage({
+          ...data,
+          type: "read_receipt",
+          timestamp: data.timestamp || Date.now(),
+          id: `read-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
+        });
+      }
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("user_see_message", handleMessageRead);
+
+    // Cleanup function
     return () => {
-      socket.off("receive_message");
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("user_see_message", handleMessageRead);
     };
   }, [socket, selectedChatRoomId, userId]);
 
@@ -128,7 +185,6 @@ export default function ChatPage() {
                 onReplySelect={handleReplySelect}
               />
             </div>
-
             <div className="border-t p-2 bg-white">
               <MessageInput
                 socket={socket}
@@ -136,6 +192,7 @@ export default function ChatPage() {
                 senderId={userId}
                 replyingTo={replyingTo}
                 onCancelReply={handleCancelReply}
+                chatParticipants={chatParticipants}
               />
             </div>
           </>

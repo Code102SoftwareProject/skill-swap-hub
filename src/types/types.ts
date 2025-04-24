@@ -6,6 +6,7 @@ export interface IMessage{
     content: string;
     sentAt?: number;
     replyFor?: IMessage | null;
+    readStatus: boolean;
 }
 
 export interface IChatRoom {
