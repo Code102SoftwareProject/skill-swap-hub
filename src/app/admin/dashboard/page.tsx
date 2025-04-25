@@ -1,94 +1,57 @@
-'use client';
+'use client'; // Required for client-side rendering
 
-import { useEffect, useState } from 'react';
-import AdminNavbar from "@/components/Admin/AdminNavbar";
-import AdminSidebar from "@/components/Admin/AdminSidebar";
-import { CardWithBar } from "@/components/Dashboard/SkillsRequested";
-import { CardWithChart } from "@/components/Dashboard/TimeSpentChart";
-import KYCContent from "@/components/Admin/dashboardContent/KYCContent";
+import { useState } from 'react';
+import AdminSidebar from '@/components/Admin/AdminSidebar';
+import AdminNavbar from '@/components/Admin/AdminNavbar';
 
-type DashboardData = {
-  activeUsers: number;
-  totalSessions: number;
-  popularSkill: string;
-  totalSkillsOffered: number;
-  totalSkillsRequested: number;
-  matches: number;
-};
-
-type AdminSidebarProps = {
-  // Existing properties
-  onNavigate: (component: string) => void;
-};
+import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
+import KYCContent from '@/components/Admin/dashboardContent/KYCContent';
+import UsersContent from '@/components/Admin/dashboardContent/UsersContent';
+import SuggestionsContent from '@/components/Admin/dashboardContent/SuggestionsContent';
+import SystemContent from '@/components/Admin/dashboardContent/SystemContent';
+import VerifyDocumentsContent from '@/components/Admin/dashboardContent/VerifyDocumentsContent';
+import ReportingContent from '@/components/Admin/dashboardContent/ReportingContent';
 
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
   const [activeComponent, setActiveComponent] = useState('dashboard');
 
-  useEffect(() => {
-    fetch("/api/analytics")
-      .then((res) => res.json())
-      .then(setData)
-      .catch((err) => console.error("Failed to fetch dashboard data", err));
-  }, []);
-
-  const renderComponent = () => {
+  // Function to return the right component based on selected tab
+  const renderContent = () => {
     switch (activeComponent) {
       case 'dashboard':
-        return (
-          <div className="p-6 space-y-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <StatCard title="Active Users" value={data?.activeUsers || 0} />
-              <StatCard title="No of Sessions" value={data?.totalSessions || 0} />
-              <StatCard title="Popular Skill" value={data?.popularSkill || ''} />
-              <StatCard title="Skills Offered" value={data?.totalSkillsOffered || 0} />
-              <StatCard title="Skills Requested" value={data?.totalSkillsRequested || 0} />
-              <StatCard title="Total Matches" value={data?.matches || 0} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <CardWithChart />
-              <CardWithBar />
-            </div>
-          </div>
-        );
+        return <DashboardContent />;
       case 'kyc':
         return <KYCContent />;
       case 'users':
-        return <div className="p-6">Users Management Component</div>;
+        return <UsersContent />;
       case 'suggestions':
-        return <div className="p-6">Suggestions Component</div>;
+        return <SuggestionsContent />;
       case 'system':
-        return <div className="p-6">System Settings Component</div>;
+        return <SystemContent />;
       case 'verify-documents':
-        return <div className="p-6">Document Verification Component</div>;
+        return <VerifyDocumentsContent />;
       case 'reporting':
-        return <div className="p-6">Reporting Component</div>;
+        return <ReportingContent />;
       default:
-        return <div className="p-6">Select a component from the sidebar</div>;
+        return <DashboardContent />;
     }
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <AdminSidebar 
-        onNavigate={setActiveComponent} 
+    <div className="flex h-screen">
+      {/* Sidebar with navigation */}
+      <AdminSidebar
+        onNavigate={setActiveComponent}
         activeComponent={activeComponent}
       />
+
+      {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
-        <main className="flex-1 overflow-y-auto">
-          {renderComponent()}
+        <main className="p-6 overflow-y-auto bg-gray-50">
+          {renderContent()}
         </main>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value }: { title: string; value: any }) {
-  return (
-    <div className="bg-white p-6 rounded-lg shadow-sm">
-      <h3 className="text-sm font-medium text-gray-500">{title}</h3>
-      <p className="mt-2 text-3xl font-semibold text-gray-900">{value}</p>
     </div>
   );
 }
