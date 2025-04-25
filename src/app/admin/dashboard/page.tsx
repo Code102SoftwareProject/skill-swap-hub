@@ -1,88 +1,61 @@
-'use client';
+'use client'; // Required for client-side rendering
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import AdminSidebar from '@/components/Admin/AdminSidebar';
+import AdminNavbar from '@/components/Admin/AdminNavbar';
 
-import AdminNavbar from "@/components/Admin/AdminNavbar";
-import AdminSidebar from "@/components/Admin/AdminSidebar";
-
-type DashboardData = {
-  activeUsers: number;
-  totalSessions: number;
-  popularSkill: string;
-  totalSkillsOffered: number;
-  totalSkillsRequested: number;
-  matches: number;
-};
+import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
+import KYCContent from '@/components/Admin/dashboardContent/KYCContent';
+import UsersContent from '@/components/Admin/dashboardContent/UsersContent';
+import SuggestionsContent from '@/components/Admin/dashboardContent/SuggestionsContent';
+import SystemContent from '@/components/Admin/dashboardContent/SystemContent';
+import VerifyDocumentsContent from '@/components/Admin/dashboardContent/VerifyDocumentsContent';
+import ReportingContent from '@/components/Admin/dashboardContent/ReportingContent';
 
 export default function AdminDashboardPage() {
-  const [data, setData] = useState<DashboardData | null>(null);
+  const [activeComponent, setActiveComponent] = useState('dashboard');
 
-  useEffect(() => {
-    fetch("/api/analytics")
-      .then((res) => res.json())
-      .then(setData)
-      .catch((err) => console.error("Failed to fetch dashboard data", err));
-  }, []);
-
-  if (!data) {
-    return <div className="p-6">Loading...</div>;
-  }
+  // Function to return the right component based on selected tab
+  const renderContent = () => {
+    console.log('Rendering:', activeComponent);
+    switch (activeComponent) {
+      case 'dashboard':
+        return <DashboardContent key={activeComponent} />;
+      case 'kyc':
+        return <KYCContent key={activeComponent} />;
+      case 'users':
+        return <UsersContent key={activeComponent} />;
+      case 'suggestions':
+        return <SuggestionsContent key={activeComponent} />;
+      case 'system':
+        return <SystemContent key={activeComponent} />;
+      case 'verify-documents':
+        return <VerifyDocumentsContent key={activeComponent} />;
+      case 'reporting':
+        return <ReportingContent key={activeComponent} />;
+      default:
+        return <DashboardContent key={activeComponent} />;
+    }
+  };
+  
+  
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
-      <AdminSidebar />
+    <div className="flex h-screen">
+      {/* Sidebar with navigation */}
+      <AdminSidebar
+        onNavigate={setActiveComponent} // ✅ This is required
+        activeComponent={activeComponent}
+      />
 
-      {/* Main Content */}
-      <div className="flex flex-col flex-1 overflow-y-auto">
-        {/* Navbar */}
+
+      {/* Main content area */}
+      <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
-
-        <div className="p-6 space-y-6">
-          {/* Stat Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <StatCard title="Active Users" value={`${data.activeUsers}/80`} />
-            <StatCard title="No of Sessions" value={data.totalSessions} />
-            <StatCard title="Popular Skill" value={data.popularSkill} />
-            <StatCard title="No of Skills Offered" value={data.totalSkillsOffered} />
-            <StatCard title="No of Skills Requested" value={data.totalSkillsRequested} />
-            <StatCard title="No of Match" value={data.matches} />
-          </div>
-
-          {/* Placeholder for chart components */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-white rounded-lg shadow">
-              <h2 className="text-md font-semibold mb-2">No of Active Users over time</h2>
-              <div className="h-48 bg-gradient-to-b from-blue-300 to-blue-100 rounded-md shadow-inner flex items-center justify-center">
-                <p className="text-gray-600 italic">Line Chart Placeholder</p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white rounded-lg shadow">
-              <h2 className="text-md font-semibold mb-2">Skills Requested</h2>
-              <div className="h-48 bg-blue-50 rounded-md flex items-center justify-center">
-                <p className="text-gray-600 italic">Bar Chart Placeholder</p>
-              </div>
-            </div>
-
-            <div className="p-4 bg-white rounded-lg shadow">
-              <h2 className="text-md font-semibold mb-2">Skills Offered</h2>
-              <div className="h-48 bg-blue-50 rounded-md flex items-center justify-center">
-                <p className="text-gray-600 italic">Bar Chart Placeholder</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <main className="p-6 overflow-y-auto bg-gray-50">
+          {renderContent()}
+        </main>
       </div>
-    </div>
-  );
-}
-
-function StatCard({ title, value }: { title: string; value: any }) {
-  return (
-    <div className="p-4 bg-blue-100 rounded shadow-md">
-      <h3 className="text-sm font-medium text-gray-700">{title}</h3>
-      <p className="text-xl font-semibold text-blue-900">{value}</p>
     </div>
   );
 }

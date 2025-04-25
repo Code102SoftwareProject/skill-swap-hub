@@ -1,55 +1,61 @@
-'use client'; // ✅ Required because we're using client-side hooks
+'use client'; // Required for using client-side hooks
 
 import { FC } from 'react';
 import {
-  HiOutlineHome,
-  HiOutlineIdentification,
-  HiOutlineUser,
-  HiOutlineLightBulb,
-  HiOutlineCog,
-  HiOutlineDocumentText,
-  HiOutlineFlag,
-  HiOutlineLogout,
-} from 'react-icons/hi';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation'; // 🧭 Include useRouter
+  Home,
+  IdCard,
+  Users,
+  Lightbulb,
+  Settings,
+  FileText,
+  Flag,
+  LogOut,
+} from 'lucide-react'; // Lucide icons
+import { useRouter } from 'next/navigation';
 import clsx from 'clsx';
 
+// Define props for conditional rendering
+interface AdminSidebarProps {
+  onNavigate: (component: string) => void;
+  activeComponent: string;
+}
+
+// Navigation items config
 const navItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: HiOutlineHome },
-  { label: 'KYC', href: '/kyc', icon: HiOutlineIdentification },
-  { label: 'Users', href: '/users', icon: HiOutlineUser },
-  { label: 'Suggestions', href: '/suggestions', icon: HiOutlineLightBulb },
-  { label: 'System', href: '/system', icon: HiOutlineCog },
-  { label: 'Verify Documents', href: '/verify-documents', icon: HiOutlineDocumentText },
-  { label: 'Reporting', href: '/reporting', icon: HiOutlineFlag },
+  { id: 'dashboard', label: 'Dashboard', icon: Home },
+  { id: 'kyc', label: 'KYC', icon: IdCard },
+  { id: 'users', label: 'Users', icon: Users },
+  { id: 'suggestions', label: 'Suggestions', icon: Lightbulb },
+  { id: 'system', label: 'System', icon: Settings },
+  { id: 'verify-documents', label: 'Verify Documents', icon: FileText },
+  { id: 'reporting', label: 'Reporting', icon: Flag },
 ];
 
-const AdminSidebar: FC = () => {
-  const router = useRouter(); // 🧭 For navigating after sign out
-  const rawPathname = usePathname();
-  const pathname = rawPathname.replace(/^\/admin/, '');
+// Component
+const AdminSidebar: FC<AdminSidebarProps> = ({
+  onNavigate,
+  activeComponent,
+}) => {
+  const router = useRouter();
 
-  // ✅ Handle logout logic
+  // Sign out logic
   const handleLogout = () => {
-    // 🚫 Optionally: Clear token cookie/client state here
-
-    // 🔁 Redirect to login page
-    router.push('/admin/login');
+    onNavigate('logout')
   };
 
   return (
     <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200 pt-28">
       
+      {/* Navigation Section (conditionally rendered) */}
       <div className="flex flex-col w-full">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname.startsWith(item.href);
+          const isActive = activeComponent === item.id;
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
               className={clsx(
                 'flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200',
                 isActive
@@ -57,20 +63,25 @@ const AdminSidebar: FC = () => {
                   : 'text-gray-500 hover:bg-gray-100 border-transparent'
               )}
             >
-              <Icon className={clsx('w-5 h-5 mr-3', isActive ? 'text-white' : 'text-gray-400')} />
+              <Icon
+                className={clsx(
+                  'w-5 h-5 mr-3',
+                  isActive ? 'text-white' : 'text-gray-400'
+                )}
+              />
               <span className="text-sm font-medium">{item.label}</span>
-            </Link>
+            </button>
           );
         })}
       </div>
 
-      {/* 🔚 Sign out button with redirection */}
+      {/* Logout Button (conditionally rendered) */}
       <div className="mt-auto border-t border-gray-200">
         <button
           onClick={handleLogout}
           className="flex items-center w-full px-4 py-3 text-red-500 hover:bg-gray-100"
         >
-          <HiOutlineLogout className="w-5 h-5 mr-3" />
+          <LogOut className="w-5 h-5 mr-3" />
           <span className="text-sm font-medium">Sign Out</span>
         </button>
       </div>
