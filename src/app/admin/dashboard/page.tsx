@@ -17,33 +17,37 @@ export default function AdminDashboardPage() {
 
   // Function to return the right component based on selected tab
   const renderContent = () => {
+    console.log('Rendering:', activeComponent);
     switch (activeComponent) {
       case 'dashboard':
-        return <DashboardContent />;
+        return <DashboardContent key={activeComponent} />;
       case 'kyc':
-        return <KYCContent />;
+        return <KYCContent key={activeComponent} />;
       case 'users':
-        return <UsersContent />;
+        return <UsersContent key={activeComponent} />;
       case 'suggestions':
-        return <SuggestionsContent />;
+        return <SuggestionsContent key={activeComponent} />;
       case 'system':
-        return <SystemContent />;
+        return <SystemContent key={activeComponent} />;
       case 'verify-documents':
-        return <VerifyDocumentsContent />;
+        return <VerifyDocumentsContent key={activeComponent} />;
       case 'reporting':
-        return <ReportingContent />;
+        return <ReportingContent key={activeComponent} />;
       default:
-        return <DashboardContent />;
+        return <DashboardContent key={activeComponent} />;
     }
   };
+  
+  
 
   return (
     <div className="flex h-screen">
       {/* Sidebar with navigation */}
       <AdminSidebar
-        onNavigate={setActiveComponent}
+        onNavigate={setActiveComponent} // ✅ This is required
         activeComponent={activeComponent}
       />
+
 
       {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">

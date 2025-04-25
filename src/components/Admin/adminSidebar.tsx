@@ -40,7 +40,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
 
   // Sign out logic
   const handleLogout = () => {
-    router.push('/admin/login');
+    onNavigate('logout')
   };
 
   return (
