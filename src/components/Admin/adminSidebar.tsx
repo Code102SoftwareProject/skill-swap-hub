@@ -1,6 +1,10 @@
-'use client'; // Required for using client-side hooks
+'use client'; // Required for using client-side hooks (e.g., useState, useRouter)
 
+// Importing React & Next modules
 import { FC } from 'react';
+import { useRouter } from 'next/navigation'; // Next.js router for navigation
+
+//Importing Lucide icons
 import {
   Home,
   IdCard,
@@ -10,14 +14,14 @@ import {
   FileText,
   Flag,
   LogOut,
-} from 'lucide-react'; // Lucide icons
-import { useRouter } from 'next/navigation';
-import clsx from 'clsx';
+} from 'lucide-react'; 
+
+import clsx from 'clsx'; // Utility for conditional class names
 
 // Define props for conditional rendering
 interface AdminSidebarProps {
-  onNavigate: (component: string) => void;
-  activeComponent: string;
+  onNavigate: (component: string) => void;  // Function passed from parent to switch the view
+  activeComponent: string; // Current active component ID
 }
 
 // Navigation items config
@@ -36,7 +40,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
   onNavigate,
   activeComponent,
 }) => {
-  const router = useRouter();
+  const router = useRouter(); // Currently not used for navigation, but imported if needed later
 
   // Sign out logic
   const handleLogout = () => {
@@ -55,7 +59,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}
+              onClick={() => onNavigate(item.id)}  //  Trigger component switch
               className={clsx(
                 'flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200',
                 isActive
