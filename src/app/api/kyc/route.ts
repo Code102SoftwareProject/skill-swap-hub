@@ -11,15 +11,23 @@ export async function POST(req: NextRequest) {
     const newRecord = new KYC({
       nic: body.nic,
       recipient: body.recipient,
-      dateSubmitted: new Date().toISOString().split("T")[0],
-      status: "Unread",
-      reviewed: "-",
+      dateSubmitted: new Date(),
+      status: "Not Reviewed",
+      nicUrl: body.nicUrl // Store the nicUrl from R2
     });
 
     await newRecord.save();
-    return NextResponse.json({ success: true, data: newRecord });
+    return NextResponse.json({ 
+      success: true, 
+      message: "KYC record created successfully",
+      data: newRecord 
+    });
   } catch (err) {
     console.error("Error saving KYC record:", err);
-    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      message: "Server error", 
+      error: err instanceof Error ? err.message : String(err)
+    }, { status: 500 });
   }
 }

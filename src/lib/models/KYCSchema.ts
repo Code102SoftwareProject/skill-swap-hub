@@ -13,6 +13,7 @@ const KYCSchema = new mongoose.Schema({
     default: "Not Reviewed",
   },
   reviewed: { type: Date },
+  nicUrl: { type: String } // Uncommented nicUrl field
 });
 
 // Export the compiled model (avoids recompilation issues in dev)
