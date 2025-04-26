@@ -24,8 +24,8 @@ export default function KYCForm() {
   // Loading state for upload feedback
   const [uploading, setUploading] = useState(false);
 
-  // Stores the uploaded file URL (returned from backend)
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  // Status message for feedback
+  const [status, setStatus] = useState<{message: string, isError: boolean} | null>(null);
 
   // Automatically extract and set the username from the JWT (stored in localStorage)
   useEffect(() => {
@@ -47,35 +47,66 @@ export default function KYCForm() {
 
     // Basic form validation
     if (!username.trim() || !nic.trim() || !file) {
-      alert('Please fill all fields');
+      setStatus({message: 'Please fill all fields', isError: true});
       return;
     }
 
     setUploading(true);
-
-    const formData = new FormData();
-    formData.append('file', file); // Must match the backend's expected "file" key
+    setStatus(null);
 
     try {
-      const res = await fetch('/api/file/upload', {
+      // Step 1: Upload the file to R2 storage
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const uploadRes = await fetch('/api/file/upload', {
         method: 'POST',
         body: formData,
       });
 
-      const data = await res.json();
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error || errorData.message || 'File upload failed');
+      }
+      
+      const uploadData = await uploadRes.json();
+      
+      // Step 2: Save the KYC record with the file URL
+      const kycResponse = await fetch('/api/kyc', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nic: nic,
+          recipient: username,
+          nicUrl: uploadData.url // Save the URL returned from the upload API
+        }),
+      });
 
-      if (!res.ok) {
-        throw new Error(data.error || data.message || 'Upload failed');
+      if (!kycResponse.ok) {
+        const errorData = await kycResponse.json();
+        throw new Error(errorData.error || errorData.message || 'KYC submission failed');
       }
 
-      setUploadedUrl(data.url);
-      alert('File uploaded successfully!');
-
-      // You can also send { username, nic, documentURL: data.url } to your MongoDB backend here
-
+      const kycData = await kycResponse.json();
+      
+      // Success message
+      setStatus({
+        message: 'KYC information submitted successfully!',
+        isError: false
+      });
+      
+      // Clear form
+      setNic('');
+      setFile(null);
+      
     } catch (err: any) {
-      console.error('Upload error:', err);
-      alert(err.message || 'Something went wrong. Please try again.');
+      console.error('Submission error:', err);
+      setStatus({
+        message: err.message || 'Something went wrong. Please try again.',
+        isError: true
+      });
     } finally {
       setUploading(false);
     }
@@ -133,11 +164,11 @@ export default function KYCForm() {
               {uploading ? 'Uploading...' : 'Submit'}
             </button>
 
-            {/* Display uploaded URL if available */}
-            {uploadedUrl && (
-              <p className="text-green-600 text-sm break-words mt-2">
-                File uploaded to: <a href={uploadedUrl} target="_blank" className="underline">{uploadedUrl}</a>
-              </p>
+            {/* Status message */}
+            {status && (
+              <div className={`mt-4 p-3 rounded ${status.isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                {status.message}
+              </div>
             )}
           </form>
         </div>
