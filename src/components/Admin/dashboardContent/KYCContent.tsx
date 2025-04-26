@@ -1,9 +1,8 @@
 "use client";
 
-// Import icons for UI elements, React hooks for state management, and toast notifications
-import { FaDownload } from "react-icons/fa";
+// Replace React Icons with Lucide React icons
+import { Download, Check, X, Circle } from "lucide-react";
 import { useState, useEffect } from "react";
-import { BsCircleFill } from "react-icons/bs";
 import toast from "react-hot-toast";
 
 // Type definition for KYC verification record structure
@@ -246,10 +245,10 @@ export default function KYCContent() {
             <td className="px-4 py-3 border-b">{record.recipient}</td>
             <td className="px-4 py-3 border-b">{formatDate(record.dateSubmitted)}</td>
             <td className="px-4 py-3 border-b">
-            {/* Status indicator with color-coded dot for visual status identification */}
+            {/* Status indicator with color-coded Circle icon for visual status identification */}
             <div className="flex items-center gap-2">
-              <BsCircleFill 
-              className={`h-2 w-2 ${dotColorMap[record.status] || "bg-gray-500"}`} 
+              <Circle 
+                className={`h-2 w-2 fill-current ${dotColorMap[record.status] || "bg-gray-500"}`} 
               />
               <span className={statusColorMap[record.status] || "text-gray-500"}>
               {record.status}
@@ -270,7 +269,7 @@ export default function KYCContent() {
                 className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center"
                 title="Download NIC document"
               >
-                <FaDownload className="h-4 w-4" />
+                <Download className="h-4 w-4" />
               </button>
               )}
               
@@ -280,18 +279,18 @@ export default function KYCContent() {
                 {/* Approve button - Changes status to "Accepted" */}
                 <button 
                 onClick={() => updateStatus(record._id, "Accepted")}
-                className="p-2 bg-green-500 text-white rounded hover:bg-green-600"
+                className="p-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center justify-center"
                 title="Approve KYC"
                 >
-                ✓
+                <Check className="h-4 w-4" />
                 </button>
                 {/* Reject button - Changes status to "Rejected" */}
                 <button 
                 onClick={() => updateStatus(record._id, "Rejected")}
-                className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
+                className="p-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
                 title="Reject KYC"
                 >
-                ✗
+                <X className="h-4 w-4" />
                 </button>
               </>
               )}
