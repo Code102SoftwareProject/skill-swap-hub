@@ -1,12 +1,20 @@
+// lib/models/KYCSchema.ts
+
 import mongoose from "mongoose";
 
+// Define the schema structure for KYC records
 const KYCSchema = new mongoose.Schema({
-  nic: String,
-  recipient: String,
-  dateSubmitted: String,
-  status: String,
-  reviewed: String,
+  nic: { type: String, required: true },
+  recipient: { type: String, required: true },
+  dateSubmitted: { type: Date, default: Date.now },
+  status: {
+    type: String,
+    enum: ["Not Reviewed", "Accepted", "Rejected"],
+    default: "Not Reviewed",
+  },
+  reviewed: { type: Date },
 });
 
+// Export the compiled model (avoids recompilation issues in dev)
 const KYC = mongoose.models.KYC || mongoose.model("KYC", KYCSchema);
 export default KYC;

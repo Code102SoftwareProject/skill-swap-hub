@@ -12,6 +12,7 @@ interface MessageInputProps {
   receiverId?: string;
   replyingTo?: IMessage | null; // Add this new prop
   onCancelReply?: () => void;    // Add this new prop
+  chatParticipants: string[];   // Add this new prop
 }
 
 export default function MessageInput({
@@ -21,6 +22,7 @@ export default function MessageInput({
   receiverId,
   replyingTo,
   onCancelReply,
+  chatParticipants,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -107,7 +109,7 @@ export default function MessageInput({
     const newMsg = {
       chatRoomId,
       senderId,
-      receiverId: receiverId || "",
+      receiverId: chatParticipants.find(id => id !== senderId), // Determine the other user in the chat
       content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
       replyFor: replyingTo || undefined, // Include reply reference
@@ -155,6 +157,7 @@ export default function MessageInput({
           </div>
           <button 
             onClick={onCancelReply} 
+            aria-label="To remove reply select"
             className="text-gray-500 hover:text-gray-700"
           >
             <X className="w-4 h-4" />
@@ -166,7 +169,7 @@ export default function MessageInput({
         {file ? (
           <div className="flex items-center border p-2 rounded bg-gray-100">
             <span className="mr-2">{file.name}</span>
-            <button onClick={removeFile} className="p-1 text-red-500 hover:text-red-700">
+            <button onClick={removeFile} className="p-1 text-red-500 hover:text-red-700" aria-label="Delete File Selected">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -190,11 +193,13 @@ export default function MessageInput({
           onChange={handleFileChange}
           className="hidden"
           accept="image/*"
+          aria-label="File Input"
         />
         <button
           className="p-2 bg-gray-200 rounded-full hover:bg-gray-300"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || file !== null}
+          aria-label="File Upload Paper Clip"
         >
           <Paperclip className="w-5 h-5 text-gray-600" />
         </button>

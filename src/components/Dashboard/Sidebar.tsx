@@ -28,7 +28,7 @@ const Sidebar = () => {
     { icon: Users, label: 'Matches', path: '/dashboard/matches' },
     { icon: Calendar, label: 'Meetings', path: '/dashboard/meetings' },
     { icon: Clock, label: 'Sessions', path: '/dashboard/sessions' },
-    { icon: CheckSquare, label: 'Skill Verify', path: '/dashboard/skill-verify' },
+    { icon: CheckSquare, label: 'Skill Verify', path: '/user/skillverification' },
     { icon: Lightbulb, label: 'Suggestions', path: '/dashboard/suggestion' },
     { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
   ];

@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatRoom extends Document {
-  participants: string[]; // Array of user IDs (strings)
+  participants: mongoose.Types.ObjectId[]; // Array of user IDs (strings)
   createdAt: Date;
   lastMessage?: {
     content: string;
@@ -12,7 +12,7 @@ export interface IChatRoom extends Document {
 
 const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   participants: [{
-    type: String,
+    type: mongoose.Types.ObjectId,
     ref: 'User',
     required: true,
   }],
