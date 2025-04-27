@@ -17,7 +17,7 @@ interface Badge {
 const categories = [
   "All",
   "Achievement Milestone Badges",
-  "Category-Specific Badges",
+  "Specific Badges",
   "Engagement and Activity Badges",
   "Exclusive Recognition Badges",
 ];
