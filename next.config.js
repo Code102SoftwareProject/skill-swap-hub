@@ -7,13 +7,9 @@ const nextConfig = {
         hostname: '*.r2.cloudflarestorage.com',
         pathname: '/**',
       },
-      {
-        protocol: 'https',
-        hostname: 'skillswaphub.pages.dev',
-        pathname: '/**',
-      }
+      // Add any other domains where your images might be stored
     ],
-  }
-};
+  },
+}
 
 export default nextConfig;
