@@ -34,54 +34,80 @@ export const POST = async (req: NextRequest) => {
 export const PATCH = async (req: NextRequest) => {
     try {
         const body = await req.json();
-        const { badgeId,badgeImage, description } = body;
+        const { badgeId, badgeImage, criteria, description } = body;
 
-        if (!badgeId ) {
+        if (!badgeId) {
             return NextResponse.json({ message: "BadgeId is not found" }, { status: 400 });
         }
-        if(!badgeImage){
-            return NextResponse.json({ message: "Badge Image is not found" }, { status: 400 });
+        
+        // Check for fields to update
+        const updateData: any = {};
+        
+        if (badgeImage) {
+            updateData.badgeImage = badgeImage;
         }
         
-        if(!description){
-            return NextResponse.json({ message: "Description is not found" }, { status: 400 });
+        if (criteria) {
+            updateData.criteria = criteria;
         }
-if(!Types.ObjectId.isValid(badgeId)) {
+        
+        if (description) {
+            updateData.description = description;
+        }
+        
+        if (Object.keys(updateData).length === 0) {
+            return NextResponse.json({ message: "No fields provided for update" }, { status: 400 });
+        }
+
+        if(!Types.ObjectId.isValid(badgeId)) {
             return NextResponse.json({ message: "Invalid BadgeId" }, { status: 400 });
         }
 
         await connect();
-        const updatedAdmin = await Badge.findByIdAndUpdate(badgeId, { badgeImage: badgeImage, description: description }, { new: true });
+        const updatedBadge = await Badge.findByIdAndUpdate(
+            badgeId, 
+            updateData,
+            { new: true }
+        );
 
-        return NextResponse.json({ message: "Badge updated successfully", Admin: updatedAdmin }, { status: 200 });
-        } catch (error: any) {
-            return NextResponse.json({ message: "Error in updating Badge", error: error.message }, { status: 500 });
+        if (!updatedBadge) {
+            return NextResponse.json({ message: "Badge not found" }, { status: 404 });
         }
 
-    };
+        return NextResponse.json({ 
+            message: "Badge updated successfully", 
+            badge: updatedBadge 
+        }, { status: 200 });
+    } catch (error: any) {
+        return NextResponse.json({ 
+            message: "Error in updating Badge", 
+            error: error.message 
+        }, { status: 500 });
+    }
+};
 
-    export const DELETE = async (req: NextRequest) => {
-        try{
-            const {searchParams}= new URL(req.url);
-            const badgeId=searchParams.get('badgeId');
-            if(!badgeId){
-                return NextResponse.json({message:"BadgeId is not found"},{status:400});
-            }
-            if(!Types.ObjectId.isValid(badgeId)){
-                return NextResponse.json({message:"Invalid Badge Id"},{status:400});
-            }
-
-            await connect();
-            const deletedBadge=await Badge.findByIdAndDelete(new Types.ObjectId(badgeId));
-
-            if(!deletedBadge){
-                return NextResponse.json({message:"Badge not found in the database"},{status:404});
-            }
-            return NextResponse.json({message:"Badge deleted successfully",Badge:deletedBadge},{status:200});
-
+export const DELETE = async (req: NextRequest) => {
+    try{
+        const {searchParams}= new URL(req.url);
+        const badgeId=searchParams.get('badgeId');
+        if(!badgeId){
+            return NextResponse.json({message:"BadgeId is not found"},{status:400});
         }
-        catch(error:any){
-            return NextResponse.json({message:"Error in deleting Badge",error:error.message},{status:500});
+        if(!Types.ObjectId.isValid(badgeId)){
+            return NextResponse.json({message:"Invalid Badge Id"},{status:400});
+        }
+
+        await connect();
+        const deletedBadge=await Badge.findByIdAndDelete(new Types.ObjectId(badgeId));
+
+        if(!deletedBadge){
+            return NextResponse.json({message:"Badge not found in the database"},{status:404});
+        }
+        return NextResponse.json({message:"Badge deleted successfully",Badge:deletedBadge},{status:200});
+
+    }
+    catch(error:any){
+        return NextResponse.json({message:"Error in deleting Badge",error:error.message},{status:500});
 
     }
 }
