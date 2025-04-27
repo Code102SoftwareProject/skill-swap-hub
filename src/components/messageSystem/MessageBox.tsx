@@ -167,12 +167,16 @@ export default function MessageBox({
             className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`
-                p-2 rounded-lg relative group
-                max-w-[75%] min-w-[50px] min-h-[30px]
-                flex flex-col break-words pb-1
-                ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"}
-              `}
+              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} relative group`}
+              style={{
+                maxWidth: "75%",
+                minWidth: "50px",
+                minHeight: "30px",
+                display: "flex",
+                flexDirection: "column",
+                wordBreak: "break-word",
+                paddingBottom: "4px",
+              }}
             >
               {/* Reply button - show on hover */}
               <button 
@@ -186,24 +190,32 @@ export default function MessageBox({
               {/* Reply box (if applicable) */}
               {msg.replyFor && (
                 <div
-                  className={`
-                    reply-box rounded-md p-2 mb-1 cursor-pointer
-                    max-w-full text-left
-                    ${isMine 
-                      ? "border-l-4 border-[#25D366] bg-[#e9ecef]" 
-                      : "border-l-4 border-gray-300 bg-[#e9ecef]"
+                  className="reply-box rounded-md p-2 mb-1 cursor-pointer"
+                  style={{
+                    backgroundColor: "#e9ecef",
+                    borderLeft: isMine ? "4px solid #25D366" : "4px solid #ccc",
+                    maxWidth: "100%",
+                    textAlign: "left",
+                    borderRadius: "6px",
+                  }}
+                  onClick={() => {
+                    if (msg.replyFor && typeof msg.replyFor === 'object' && '_id' in msg.replyFor) {
+                      scrollToMessage((msg.replyFor as { _id: string })._id);
                     }
-                  `}
-                  onClick={() => msg.replyFor?._id && scrollToMessage(msg.replyFor._id)}
+                  }}
                 >
                   <span className="text-xs font-semibold" style={{ color: isMine ? "#25D366" : "#888" }}>
-                    {msg.replyFor.senderId === userId ? "You" : msg.replyFor.senderId}
+                    {typeof msg.replyFor === 'object' && 'senderId' in msg.replyFor 
+                      ? ((msg.replyFor as { senderId: string }).senderId === userId ? "You" : (msg.replyFor as { senderId: string }).senderId) 
+                      : "Unknown"}
                   </span>
                   <span
                     className="text-sm text-gray-700 truncate block"
                     style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
-                    {msg.replyFor.content}
+                    {typeof msg.replyFor === 'object' && 'content' in msg.replyFor 
+                      ? (msg.replyFor as { content: string }).content 
+                      : String(msg.replyFor)}
                   </span>
                 </div>
               )}
@@ -216,10 +228,16 @@ export default function MessageBox({
               )}
 
               {/* Timestamp */}
-              <div className={`
-                flex justify-end text-[10px] mt-0.5 self-end
-                ${isMine ? "text-black/80" : "text-gray-500"}
-              `}>
+              <div
+                className="flex justify-end text-xs"
+                style={{
+                  fontSize: "10px",
+                  color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777", 
+                  marginTop: "2px",
+                  textAlign: "right",
+                  alignSelf: "flex-end",
+                }}
+              >
                 {msg.sentAt
                   ? new Date(msg.sentAt).toLocaleTimeString([], {
                       hour: "2-digit",
