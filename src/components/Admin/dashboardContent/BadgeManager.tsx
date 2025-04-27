@@ -19,6 +19,19 @@ const criteriaOptions = [
   "Exclusive Recognition Badges",
 ];
 
+// Create a helper function at the top of your component
+const getFullImageUrl = (url: string) => {
+  // If already a full URL, return it
+  if (url.startsWith('http')) return url;
+  
+  // If it's a local path starting with / (like /placeholder-badge.png), leave it
+  if (url.startsWith('/')) return url;
+  
+  // Otherwise it's likely a Cloudflare R2 object key - prepend your domain
+  // Replace this with your actual Cloudflare R2 public URL
+  return `https://pub-your-account.r2.dev/${url}`;
+};
+
 export default function BadgeManager() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,6 +52,9 @@ export default function BadgeManager() {
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   
+  // Add this to your component's state declarations
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  
   // Fetch badges
   useEffect(() => {
     async function fetchBadges() {
@@ -47,11 +63,13 @@ export default function BadgeManager() {
         const response = await fetch("/api/badge");
         if (response.ok) {
           const data = await response.json();
-          console.log("Fetched badges with images:", data.map((b: Badge) => ({ 
-            id: b._id, 
-            name: b.badgeName, 
-            imageUrl: b.badgeImage 
-          })));
+          console.log("Fetched badges:", data);
+          
+          // Log each badge URL for debugging
+          data.forEach((badge: Badge) => {
+            console.log(`Badge ${badge.badgeName} image URL:`, badge.badgeImage);
+          });
+          
           setBadges(data);
         } else {
           console.error("Failed to fetch badges:", await response.text());
@@ -65,6 +83,16 @@ export default function BadgeManager() {
 
     fetchBadges();
   }, [refreshTrigger]);
+
+  useEffect(() => {
+    // Debug log for image URLs
+    if (badges.length > 0) {
+      console.log("Current badge image URLs:");
+      badges.forEach(badge => {
+        console.log(`${badge.badgeName}: ${badge.badgeImage}`);
+      });
+    }
+  }, [badges]);
 
   // Handle file change for new badge
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,24 +122,28 @@ export default function BadgeManager() {
     setIsLoading(true);
     
     try {
-      // Step 1: Upload the image to R2
+      // Create a properly prefixed filename for the badge
       const fileExt = badgeImage.name.split('.').pop();
       const safeFileName = `badges/badge_${badgeName.replace(/\s+/g, '_').toLowerCase()}.${fileExt}`;
       
-      const uploadFormData = new FormData();
+      // Create a new File object with the prefixed path
       const renamedFile = new File([badgeImage], safeFileName, { type: badgeImage.type });
+      
+      // Use the renamed file in your form data
+      const uploadFormData = new FormData();
       uploadFormData.append("file", renamedFile);
-
-      const uploadRes = await fetch("/api/file/upload", {
+      
+      // Upload the file
+      const uploadResponse = await fetch("/api/file/upload", {
         method: "POST",
         body: uploadFormData,
       });
-
-      if (!uploadRes.ok) {
+      
+      if (!uploadResponse.ok) {
         throw new Error("Failed to upload image");
       }
 
-      const uploadData = await uploadRes.json();
+      const uploadData = await uploadResponse.json();
       
       // Step 2: Create badge with the image URL
       const badgeData = {
@@ -173,31 +205,29 @@ export default function BadgeManager() {
     setIsLoading(true);
     
     try {
-      let updatedImageUrl = null;
+      let badgeImageUrl = null;
       
-      // Upload new image if changed
       if (editImage) {
+        // Create a properly prefixed filename for the badge
         const fileExt = editImage.name.split('.').pop();
-        const badge = badges.find(b => b._id === badgeId);
-        if (!badge) throw new Error("Badge not found");
+        const safeFileName = `badges/badge_update_${Date.now()}.${fileExt}`;
         
-        const safeFileName = `badges/badge_${badge.badgeName.replace(/\s+/g, '_').toLowerCase()}_updated.${fileExt}`;
-        
-        const uploadFormData = new FormData();
+        // Create a new File object with the prefixed path
         const renamedFile = new File([editImage], safeFileName, { type: editImage.type });
+        
+        // Use the renamed file in your form data
+        const uploadFormData = new FormData();
         uploadFormData.append("file", renamedFile);
-
-        const uploadRes = await fetch("/api/file/upload", {
+        
+        // Upload the file
+        const uploadResponse = await fetch("/api/file/upload", {
           method: "POST",
           body: uploadFormData,
         });
-
-        if (!uploadRes.ok) {
-          throw new Error("Failed to upload image");
-        }
-
-        const uploadData = await uploadRes.json();
-        updatedImageUrl = uploadData.url;
+        
+        // Get the URL from the response
+        const uploadData = await uploadResponse.json();
+        badgeImageUrl = uploadData.url;
       }
       
       // Update badge data
@@ -207,8 +237,8 @@ export default function BadgeManager() {
         description: editDescription
       };
       
-      if (updatedImageUrl) {
-        updateData.badgeImage = updatedImageUrl;
+      if (badgeImageUrl) {
+        updateData.badgeImage = badgeImageUrl;
       }
 
       const updateRes = await fetch("/api/badge", {
@@ -260,6 +290,18 @@ export default function BadgeManager() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add this right before the return statement
+  const debugBadges = () => {
+    return (
+      <div className="mt-8 p-4 bg-gray-100 rounded">
+        <h3 className="font-bold mb-2">Debug Badge Data</h3>
+        <pre className="whitespace-pre-wrap text-xs overflow-auto">
+          {JSON.stringify(badges, null, 2)}
+        </pre>
+      </div>
+    );
   };
 
   return (
@@ -337,17 +379,32 @@ export default function BadgeManager() {
               <div key={badge._id} className="border rounded-lg overflow-hidden">
                 <div className="flex items-start p-4">
                   <div className="w-16 h-16 relative mr-4 flex-shrink-0">
-                    {/* Image component */}
-                    <img 
-                      src={editMode === badge._id && editImagePreview ? editImagePreview : badge.badgeImage}
-                      alt={badge.badgeName}
-                      className="rounded object-cover w-full h-full"
-                      onError={(e) => {
-                        console.error(`Failed to load image for badge ${badge.badgeName}:`, 
-                          (e.target as HTMLImageElement).src);
-                        (e.target as HTMLImageElement).src = "/placeholder-badge.png";
-                      }}
-                    />
+                    {imageErrors[badge._id] ? (
+                      // Fallback when image fails to load
+                      <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded">
+                        <span className="text-xs text-gray-500">No image</span>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Regular img tag for testing */}
+                        <Image 
+                          src={editMode === badge._id && editImagePreview 
+                            ? editImagePreview 
+                            : getFullImageUrl(badge.badgeImage) || '/placeholder-badge.png'}
+                          alt={badge.badgeName}
+                          className="rounded object-cover"
+                          fill
+                          sizes="64px"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement;
+                            console.error(`Failed to load image for badge ${badge.badgeName}`);
+                            console.error(`URL attempted: ${target.src}`);
+                            console.error(`Original badge URL: ${badge.badgeImage}`);
+                            setImageErrors(prev => ({ ...prev, [badge._id]: true }));
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                   
                   <div className="flex-1">
@@ -430,6 +487,7 @@ export default function BadgeManager() {
           </div>
         )}
       </div>
+      {process.env.NODE_ENV !== 'production' && debugBadges()}
     </div>
   );
 }
