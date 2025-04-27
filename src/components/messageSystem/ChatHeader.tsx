@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
-import { formatDistanceToNow } from 'date-fns';
+// Import parseISO along with formatDistanceToNow
+import { formatDistanceToNow, parseISO } from 'date-fns';
 
 interface ChatHeaderProps {
   chatRoomId: string;
@@ -42,7 +43,16 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
       return;
     }
 
+    // Log the current user ID passed to the component
+    console.log('Current User ID (prop):', userId);
+    // Log the participants list
+    console.log('Chat Room Participants:', chatRoomInfo.participants);
+
     const otherUserId = chatRoomInfo.participants.find((id: string) => id !== userId);
+
+    // Log the calculated other user ID
+    console.log('Calculated Other User ID:', otherUserId);
+
     if (!otherUserId) {
       console.log('Could not find other user');
       return;
@@ -55,10 +65,26 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
       }
 
       const data = await response.json();
-      console.log('Last online response:', data);
+      console.log('Last online response:', data); // Keep for debugging
+      console.log('Raw lastOnline string:', data.data?.lastOnline); // Log raw string
 
       if (data.success && data.data?.lastOnline) {
-        setLastOnline(new Date(data.data.lastOnline));
+        try {
+          // Use parseISO for robust parsing
+          const parsedDate = parseISO(data.data.lastOnline);
+          console.log('Parsed Date object:', parsedDate); // Log parsed date
+
+          // Check if the parsed date is valid before setting state
+          if (!isNaN(parsedDate.getTime())) {
+            setLastOnline(parsedDate);
+          } else {
+            console.error('Failed to parse date:', data.data.lastOnline);
+            setLastOnline(null); // Set to null if parsing failed
+          }
+        } catch (parseError) {
+          console.error('Error parsing date with parseISO:', parseError);
+          setLastOnline(null); // Set to null on parsing error
+        }
       } else {
         setLastOnline(null);
       }
@@ -149,6 +175,9 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   if (!chatRoomInfo) {
     return <div className="p-4">Chat room not found.</div>;
   }
+
+  // Add log here to see the value just before rendering
+  console.log('Rendering ChatHeader - isOnline:', isOnline, 'lastOnline state:', lastOnline);
 
   return (
     <header className="flex items-center justify-between p-4 bg-gray-50 border-b">
