@@ -73,8 +73,18 @@ export default function ChatPage() {
     // const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
+    // Add beforeunload event listener for browser close
+    const handleBeforeUnload = () => {
+      navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     // Cleanup function
     return () => {
+      // Remove event listener
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
       // Update last seen before disconnecting
       updateLastSeen(userId)
         .then(() => {
@@ -166,6 +176,21 @@ export default function ChatPage() {
       socket.off("user_see_message", handleMessageRead);
     };
   }, [socket, selectedChatRoomId, userId]);
+
+  useEffect(() => {
+    // This will run once when component mounts
+    if (!userId) return;
+    
+    console.log('Setting up component-level presence tracking');
+    
+    // Cleanup function that runs once when component unmounts
+    return () => {
+      if (userId) {
+        console.log('Component unmounting, updating last seen status');
+        updateLastSeen(userId).catch(console.error);
+      }
+    };
+  }, []); // Empty dependency array = run only on mount/unmount
 
   // 4) Render
   if (authLoading) {
