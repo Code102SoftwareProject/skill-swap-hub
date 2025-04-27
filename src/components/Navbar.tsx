@@ -51,6 +51,9 @@ const Navbar: React.FC = () => {
     router.push('/user/notification');
   };
 
+  const handleChatClick= ()=>{
+    router.push('/user/chat');
+  }
   const isLoggedIn = !!user;
   const displayName = user ? user.firstName : 'User';
   const userImage = '/Avatar.png';
@@ -96,7 +99,7 @@ const Navbar: React.FC = () => {
             <div className="animate-pulse bg-white/20 h-10 w-20 rounded-md"></div>
           ) : isLoggedIn ? (
             <div className="flex items-center gap-4">
-              <button className="text-white">
+              <button className="text-white" onClick={handleChatClick}>
                 <MessageSquare className="w-6 h-6" />
               </button>
               <button onClick={handleNotificationsClick} className="text-white ">
