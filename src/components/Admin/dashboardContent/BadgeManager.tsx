@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Pencil, Trash2, X, Check, RefreshCcw } from "lucide-react";
 
+// Define the Badge interface for type safety
 interface Badge {
   _id: string;
   badgeName: string;
@@ -12,6 +13,7 @@ interface Badge {
   description: string;
 }
 
+// Available criteria options for badge categorization
 const criteriaOptions = [
   "Achievement Milestone Badges",
   "Specific Badges",
@@ -19,25 +21,20 @@ const criteriaOptions = [
   "Exclusive Recognition Badges",
 ];
 
-// Create a helper function at the top of your component
+// Helper function to ensure image URLs are properly formatted
 const getFullImageUrl = (url: string) => {
-  // If already a full URL, return it
   if (url.startsWith('http')) return url;
-  
-  // If it's a local path starting with / (like /placeholder-badge.png), leave it
   if (url.startsWith('/')) return url;
-  
-  // Otherwise it's likely a Cloudflare R2 object key - prepend your domain
-  // Replace this with your actual Cloudflare R2 public URL
   return `https://pub-your-account.r2.dev/${url}`;
 };
 
 export default function BadgeManager() {
+  // State for badge list and loading status
   const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-  // Form states
+  // States for new badge form
   const [badgeName, setBadgeName] = useState("");
   const [badgeImage, setBadgeImage] = useState<File | null>(null);
   const [badgeImagePreview, setBadgeImagePreview] = useState<string | null>(null);
@@ -45,27 +42,28 @@ export default function BadgeManager() {
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Edit states
+  // States for badge editing
   const [editMode, setEditMode] = useState<string | null>(null);
   const [editCriteria, setEditCriteria] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editImage, setEditImage] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   
-  // Add this to your component's state declarations
+  // Tracks which images failed to load
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   
-  // Fetch badges
+  // Fetch badges when component loads or refresh is triggered
   useEffect(() => {
     async function fetchBadges() {
       setLoading(true);
       try {
+        // Get badge data from API
         const response = await fetch("/api/badge");
         if (response.ok) {
           const data = await response.json();
           console.log("Fetched badges:", data);
           
-          // Log each badge URL for debugging
+          // Debug logging for image URLs
           data.forEach((badge: Badge) => {
             console.log(`Badge ${badge.badgeName} image URL:`, badge.badgeImage);
           });
@@ -84,8 +82,8 @@ export default function BadgeManager() {
     fetchBadges();
   }, [refreshTrigger]);
 
+  // Additional debugging for badge images
   useEffect(() => {
-    // Debug log for image URLs
     if (badges.length > 0) {
       console.log("Current badge image URLs:");
       badges.forEach(badge => {
@@ -94,7 +92,7 @@ export default function BadgeManager() {
     }
   }, [badges]);
 
-  // Handle file change for new badge
+  // Handle file selection for new badge
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -103,7 +101,7 @@ export default function BadgeManager() {
     }
   };
 
-  // Handle file change for edit mode
+  // Handle file selection for badge editing
   const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -112,7 +110,7 @@ export default function BadgeManager() {
     }
   };
 
-  // Handle creating a new badge
+  // Create new badge
   const handleSubmit = async () => {
     if (!badgeName || !badgeImage || !description) {
       alert("Please fill all fields!");
@@ -122,18 +120,14 @@ export default function BadgeManager() {
     setIsLoading(true);
     
     try {
-      // Create a properly prefixed filename for the badge
+      // Prepare filename with proper path prefix
       const fileExt = badgeImage.name.split('.').pop();
       const safeFileName = `badges/badge_${badgeName.replace(/\s+/g, '_').toLowerCase()}.${fileExt}`;
-      
-      // Create a new File object with the prefixed path
       const renamedFile = new File([badgeImage], safeFileName, { type: badgeImage.type });
       
-      // Use the renamed file in your form data
+      // Upload the badge image file
       const uploadFormData = new FormData();
       uploadFormData.append("file", renamedFile);
-      
-      // Upload the file
       const uploadResponse = await fetch("/api/file/upload", {
         method: "POST",
         body: uploadFormData,
@@ -145,7 +139,7 @@ export default function BadgeManager() {
 
       const uploadData = await uploadResponse.json();
       
-      // Step 2: Create badge with the image URL
+      // Create badge with the uploaded image URL
       const badgeData = {
         badgeName,
         badgeImage: uploadData.url,
@@ -166,14 +160,12 @@ export default function BadgeManager() {
         throw new Error(`Failed to create badge: ${errorText}`);
       }
 
-      // Reset form
+      // Reset form and refresh badge list
       setBadgeName("");
       setBadgeImage(null);
       setBadgeImagePreview(null);
       setDescription("");
       setCriteria(criteriaOptions[0]);
-      
-      // Refresh badge list
       setRefreshTrigger(prev => prev + 1);
       alert("Badge added successfully!");
     } catch (error) {
@@ -184,7 +176,7 @@ export default function BadgeManager() {
     }
   };
 
-  // Enter edit mode for a badge
+  // Initialize edit mode for a badge
   const startEditMode = (badge: Badge) => {
     setEditMode(badge._id);
     setEditCriteria(badge.criteria);
@@ -193,44 +185,38 @@ export default function BadgeManager() {
     setEditImage(null);
   };
 
-  // Cancel edit mode
+  // Exit edit mode
   const cancelEditMode = () => {
     setEditMode(null);
     setEditImage(null);
     setEditImagePreview(null);
   };
 
-  // Handle updating a badge
+  // Update existing badge
   const handleUpdate = async (badgeId: string) => {
     setIsLoading(true);
     
     try {
       let badgeImageUrl = null;
       
+      // Upload new image if selected
       if (editImage) {
-        // Create a properly prefixed filename for the badge
         const fileExt = editImage.name.split('.').pop();
         const safeFileName = `badges/badge_update_${Date.now()}.${fileExt}`;
-        
-        // Create a new File object with the prefixed path
         const renamedFile = new File([editImage], safeFileName, { type: editImage.type });
         
-        // Use the renamed file in your form data
         const uploadFormData = new FormData();
         uploadFormData.append("file", renamedFile);
-        
-        // Upload the file
         const uploadResponse = await fetch("/api/file/upload", {
           method: "POST",
           body: uploadFormData,
         });
         
-        // Get the URL from the response
         const uploadData = await uploadResponse.json();
         badgeImageUrl = uploadData.url;
       }
       
-      // Update badge data
+      // Prepare update data
       const updateData: any = {
         badgeId,
         criteria: editCriteria,
@@ -241,11 +227,10 @@ export default function BadgeManager() {
         updateData.badgeImage = badgeImageUrl;
       }
 
+      // Send update request
       const updateRes = await fetch("/api/badge", {
         method: "PATCH",
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
       });
 
@@ -253,7 +238,7 @@ export default function BadgeManager() {
         throw new Error("Failed to update badge");
       }
 
-      // Reset and refresh
+      // Reset edit state and refresh badges
       setEditMode(null);
       setEditImage(null);
       setEditImagePreview(null);
@@ -267,13 +252,14 @@ export default function BadgeManager() {
     }
   };
 
-  // Handle deleting a badge
+  // Delete a badge
   const handleDelete = async (badgeId: string) => {
     if (!confirm("Are you sure you want to delete this badge?")) return;
     
     setIsLoading(true);
     
     try {
+      // Send delete request to API
       const deleteRes = await fetch(`/api/badge?badgeId=${badgeId}`, {
         method: "DELETE",
       });
@@ -282,6 +268,7 @@ export default function BadgeManager() {
         throw new Error("Failed to delete badge");
       }
 
+      // Refresh badge list after deletion
       setRefreshTrigger(prev => prev + 1);
       alert("Badge deleted successfully!");
     } catch (error) {
@@ -292,7 +279,7 @@ export default function BadgeManager() {
     }
   };
 
-  // Add this right before the return statement
+  // Debug display for badge data (shown only in non-production)
   const debugBadges = () => {
     return (
       <div className="mt-8 p-4 bg-gray-100 rounded">
@@ -306,11 +293,12 @@ export default function BadgeManager() {
 
   return (
     <div className="space-y-10">
-      {/* Add New Badge Section */}
+      {/* Form for adding new badges */}
       <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
         <h2 className="text-2xl font-bold mb-4">Add New Badge</h2>
 
         <div className="space-y-2">
+          {/* Badge name input */}
           <input
             type="text"
             placeholder="Badge Name"
@@ -319,6 +307,7 @@ export default function BadgeManager() {
             className="w-full border p-2 rounded"
           />
 
+          {/* Badge criteria selection */}
           <select
             value={criteria}
             onChange={(e) => setCriteria(e.target.value)}
@@ -329,6 +318,7 @@ export default function BadgeManager() {
             ))}
           </select>
 
+          {/* Badge description */}
           <textarea
             placeholder="Badge Description"
             value={description}
@@ -337,6 +327,7 @@ export default function BadgeManager() {
             rows={3}
           />
 
+          {/* Image upload with preview */}
           <div className="space-y-2">
             <label className="block">Badge Image</label>
             <input type="file" accept="image/*" onChange={handleImageChange} />
@@ -347,6 +338,7 @@ export default function BadgeManager() {
             )}
           </div>
 
+          {/* Submit button */}
           <button
             onClick={handleSubmit}
             disabled={isLoading}
@@ -357,7 +349,7 @@ export default function BadgeManager() {
         </div>
       </div>
 
-      {/* Manage Existing Badges Section */}
+      {/* Section for managing existing badges */}
       <div className="bg-white p-6 rounded-lg shadow-lg">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Manage Badges</h2>
@@ -369,28 +361,31 @@ export default function BadgeManager() {
           </button>
         </div>
 
+        {/* Show loading state or empty message if needed */}
         {loading ? (
           <div className="text-center py-8">Loading badges...</div>
         ) : badges.length === 0 ? (
           <div className="text-center py-8 text-gray-500">No badges available</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Map through badges and render each one */}
             {badges.map(badge => (
               <div key={badge._id} className="border rounded-lg overflow-hidden">
                 <div className="flex items-start p-4">
+                  {/* Badge image container */}
                   <div className="w-16 h-16 relative mr-4 flex-shrink-0">
                     {imageErrors[badge._id] ? (
-                      // Fallback when image fails to load
+                      // Fallback for failed images
                       <div className="w-full h-full flex items-center justify-center bg-gray-200 rounded">
                         <span className="text-xs text-gray-500">No image</span>
                       </div>
                     ) : (
                       <>
-                        {/* Regular img tag for testing */}
+                        {/* Badge image with error handling */}
                         <Image 
                           src={editMode === badge._id && editImagePreview 
                             ? editImagePreview 
-                            : getFullImageUrl(badge.badgeImage) || '/placeholder-badge.png'}
+                            : getFullImageUrl(badge.badgeImage) || '/placeholder-badge.png'} 
                           alt={badge.badgeName}
                           className="rounded object-cover"
                           fill
@@ -407,12 +402,15 @@ export default function BadgeManager() {
                     )}
                   </div>
                   
+                  {/* Badge details and actions */}
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{badge.badgeName}</h3>
                     
                     {editMode === badge._id ? (
+                      // Edit form for badge
                       <>
                         <div className="space-y-2 mt-2">
+                          {/* Criteria selection */}
                           <select
                             value={editCriteria}
                             onChange={(e) => setEditCriteria(e.target.value)}
@@ -423,6 +421,7 @@ export default function BadgeManager() {
                             ))}
                           </select>
                           
+                          {/* Description editing */}
                           <textarea
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
@@ -430,6 +429,7 @@ export default function BadgeManager() {
                             rows={3}
                           />
                           
+                          {/* Image upload */}
                           <input 
                             type="file" 
                             accept="image/*" 
@@ -437,6 +437,7 @@ export default function BadgeManager() {
                             className="text-sm"
                           />
                           
+                          {/* Action buttons */}
                           <div className="flex space-x-2 mt-2">
                             <button
                               onClick={() => handleUpdate(badge._id)}
@@ -458,10 +459,12 @@ export default function BadgeManager() {
                         </div>
                       </>
                     ) : (
+                      // Badge details view
                       <>
                         <div className="text-sm text-blue-600 mb-1">{badge.criteria}</div>
                         <p className="text-gray-600 text-sm">{badge.description}</p>
                         
+                        {/* Action buttons */}
                         <div className="flex space-x-2 mt-3">
                           <button
                             onClick={() => startEditMode(badge)}
@@ -487,6 +490,7 @@ export default function BadgeManager() {
           </div>
         )}
       </div>
+      {/* Debug section shown only in development */}
       {process.env.NODE_ENV !== 'production' && debugBadges()}
     </div>
   );
