@@ -17,6 +17,9 @@ export default function KYCForm() {
 
   // State for NIC number entered by the user
   const [nic, setNic] = useState('');
+  
+  // State for NIC validation error
+  const [nicError, setNicError] = useState<string | null>(null);
 
   // File state to hold selected NIC document
   const [file, setFile] = useState<File | null>(null);
@@ -41,6 +44,29 @@ export default function KYCForm() {
     }
   }, []);
 
+  // Validate NIC format
+  const validateNIC = (nicNumber: string): boolean => {
+    // Old NIC format: 9 digits followed by V or X
+    const oldNICPattern = /^[0-9]{9}[VvXx]$/;
+    
+    // New NIC format: 12 digits only
+    const newNICPattern = /^[0-9]{12}$/;
+    
+    return oldNICPattern.test(nicNumber) || newNICPattern.test(nicNumber);
+  };
+
+  // Handle NIC input change with validation
+  const handleNicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const nicValue = e.target.value;
+    setNic(nicValue);
+    
+    if (nicValue && !validateNIC(nicValue)) {
+      setNicError('Invalid NIC format. Please enter either 9 digits followed by V/X or 12 digits');
+    } else {
+      setNicError(null);
+    }
+  };
+
   // Handles the form submission logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +74,12 @@ export default function KYCForm() {
     // Basic form validation
     if (!username.trim() || !nic.trim() || !file) {
       setStatus({message: 'Please fill all fields', isError: true});
+      return;
+    }
+
+    // Validate NIC format before submission
+    if (!validateNIC(nic)) {
+      setStatus({message: 'Please enter a valid NIC number', isError: true});
       return;
     }
 
@@ -136,15 +168,23 @@ export default function KYCForm() {
               required
             />
 
-            {/* NIC number input */}
-            <input
-              type="text"
-              value={nic}
-              onChange={(e) => setNic(e.target.value)}
-              placeholder="NIC Number"
-              className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
-              required
-            />
+            {/* NIC number input with validation */}
+            <div>
+              <input
+                type="text"
+                value={nic}
+                onChange={handleNicChange}
+                placeholder="NIC Number"
+                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${nicError ? 'border-red-500' : ''}`}
+                required
+              />
+              {nicError && (
+                <p className="mt-1 text-sm text-red-600">{nicError}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                Enter either Old NIC (9 digits + V/X) or New NIC (12 digits)
+              </p>
+            </div>
 
             {/* File upload input */}
             <input
@@ -159,7 +199,7 @@ export default function KYCForm() {
             <button
               type="submit"
               className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-              disabled={uploading}
+              disabled={uploading || !!nicError}
             >
               {uploading ? 'Uploading...' : 'Submit'}
             </button>
