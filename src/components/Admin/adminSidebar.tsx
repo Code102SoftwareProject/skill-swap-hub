@@ -40,11 +40,12 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
   onNavigate,
   activeComponent,
 }) => {
-  const router = useRouter(); // Currently not used for navigation, but imported if needed later
+  const router = useRouter(); // Now we'll use this for navigation
 
-  // Sign out logic
+  // Sign out logic - updated to redirect to login page
   const handleLogout = () => {
-    onNavigate('logout')
+    // You might want to add logout API call here before redirecting
+    router.push('/admin/login');
   };
 
   return (
