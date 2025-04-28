@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
-import { Paperclip, X, CornerUpLeft } from "lucide-react";
+import { Paperclip, X, CornerUpLeft, MessageCirclePlus } from "lucide-react";
 import { IMessage } from "@/types/types";
 
 interface MessageInputProps {
@@ -10,9 +10,10 @@ interface MessageInputProps {
   chatRoomId: string;
   senderId: string;
   receiverId?: string;
-  replyingTo?: IMessage | null; // Add this new prop
-  onCancelReply?: () => void;    // Add this new prop
-  chatParticipants: string[];   // Add this new prop
+  replyingTo?: IMessage | null;
+  onCancelReply?: () => void;
+  chatParticipants: string[];
+  onOpenMeetingOverlay?: () => void; // Add this new prop
 }
 
 export default function MessageInput({
@@ -23,6 +24,7 @@ export default function MessageInput({
   replyingTo,
   onCancelReply,
   chatParticipants,
+  onOpenMeetingOverlay,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,6 +32,8 @@ export default function MessageInput({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -57,7 +61,7 @@ export default function MessageInput({
     if (!file) return;
 
     setUploading(true);
-    
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", "chat"); // Add folder parameter
@@ -110,7 +114,7 @@ export default function MessageInput({
     const newMsg = {
       chatRoomId,
       senderId,
-      receiverId: chatParticipants.find(id => id !== senderId), // Determine the other user in the chat
+      receiverId: chatParticipants.find((id) => id !== senderId), // Determine the other user in the chat
       content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
       replyFor: replyingTo || undefined, // Include reply reference
@@ -131,7 +135,7 @@ export default function MessageInput({
     setMessage("");
     setFile(null);
     setLoading(false);
-    
+
     // Reset reply if onCancelReply exists
     if (onCancelReply) {
       onCancelReply();
@@ -147,17 +151,18 @@ export default function MessageInput({
             <div className="flex items-center mb-1">
               <CornerUpLeft className="w-3 h-3 mr-1" />
               <span className="text-xs font-semibold text-blue-600">
-                Replying to {replyingTo.senderId === senderId ? "yourself" : replyingTo.senderId}
+                Replying to{" "}
+                {replyingTo.senderId === senderId ? "yourself" : replyingTo.senderId}
               </span>
             </div>
             <p className="text-sm text-gray-700 truncate">
-              {replyingTo.content.startsWith("File:") 
-                ? "📎 File attachment" 
+              {replyingTo.content.startsWith("File:")
+                ? "📎 File attachment"
                 : replyingTo.content}
             </p>
           </div>
-          <button 
-            onClick={onCancelReply} 
+          <button
+            onClick={onCancelReply}
             aria-label="To remove reply select"
             className="text-gray-500 hover:text-gray-700"
           >
@@ -165,12 +170,48 @@ export default function MessageInput({
           </button>
         </div>
       )}
-      
+
       <div className="flex items-center space-x-2">
+        <div className="relative">
+          <button
+            onClick={() => setShowDropdown(!showDropdown)}
+            className="p-2 bg-primary text-white rounded-full"
+          >
+            <MessageCirclePlus className="w-5 h-5" />
+          </button>
+
+          {showDropdown && (
+            <div className="absolute bottom-full mb-2 left-0 bg-white shadow-lg rounded-md border p-2 w-40 z-10">
+              <button
+                className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
+                onClick={() => {
+                  setShowDropdown(false);
+                  // Handle Request Session action
+                }}
+              >
+                Request Session
+              </button>
+              <button
+                className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
+                onClick={() => {
+                  setShowDropdown(false);
+                  if (onOpenMeetingOverlay) onOpenMeetingOverlay();
+                }}
+              >
+                Request Meeting
+              </button>
+            </div>
+          )}
+        </div>
+
         {file ? (
           <div className="flex items-center border p-2 rounded bg-gray-100">
             <span className="mr-2">{file.name}</span>
-            <button onClick={removeFile} className="p-1 text-red-500 hover:text-red-700" aria-label="Delete File Selected">
+            <button
+              onClick={removeFile}
+              className="p-1 text-red-500 hover:text-red-700"
+              aria-label="Delete File Selected"
+            >
               <X className="w-5 h-5" />
             </button>
           </div>
