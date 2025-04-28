@@ -48,3 +48,48 @@ export async function POST(req: Request) {
     );
   }
 }
+
+
+export async function GET(req: Request){
+    await connect();
+    try{
+      const {searchParams} = new URL(req.url);
+      const userId =searchParams.get("userId");
+
+      if(!userId){
+        return NextResponse.json(
+          {success: false, message: "User ID is required"},
+          {status: 400}
+        )
+      }
+
+
+      // Validate userId format
+      if(!mongoose.Types.ObjectId.isValid(userId)){
+        return NextResponse.json(
+          {success: false, message: "Invalid userId format"},
+          {status: 400}
+        )
+      }
+
+      // Convert userId string to ObjectId
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+
+      // Fetch notifications for the user, sorting by creation date (newest first)
+      const notifications = await Notification.find({ userId: userObjectId })
+        .sort({ createdAt: -1 })
+        .lean();
+
+      return NextResponse.json(
+        { success: true, notifications },
+        { status: 200 }
+      );
+
+    }catch(error:any){
+      console.error("Error fetching notifications:", error);
+      return NextResponse.json(
+        {success: false, message: error.message},
+        {status: 500}
+      )
+    }
+}

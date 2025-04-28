@@ -9,10 +9,11 @@ import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
+import { useAuth } from "@/lib/context/AuthContext";
 
 export default function ChatPage() {
-  const params = useParams();
-  const userId = params.userId as string;
+  const { user, token, isLoading: authLoading } = useAuth();
+  const userId = user?._id; // Extract user ID from auth context
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
@@ -31,6 +32,8 @@ export default function ChatPage() {
   };
 
   const updateLastSeen = async (userId: string) => {
+    if (!userId) return; // Skip if no user ID available
+    
     try {
       console.log('Updating last seen for user:', userId);
       const response = await fetch('/api/onlinelog', {
@@ -61,15 +64,27 @@ export default function ChatPage() {
 
   //Create the Socket.IO connection on mount
   useEffect(() => {
+    if (!userId || authLoading) return; // Don't connect if user isn't loaded yet
+    
     // Initial online status update
     updateLastSeen(userId).catch(console.error);
 
-    // const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
-    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
+    const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    // const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
+
+    // Add beforeunload event listener for browser close
+    const handleBeforeUnload = () => {
+      navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
     // Cleanup function
     return () => {
+      // Remove event listener
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      
       // Update last seen before disconnecting
       updateLastSeen(userId)
         .then(() => {
@@ -77,11 +92,11 @@ export default function ChatPage() {
         })
         .catch(console.error);
     };
-  }, [userId]);
+  }, [userId, authLoading]);
 
   // 2) As soon as the socket is ready, mark user as online
   useEffect(() => {
-    if (!socket) return;
+    if (!socket || !userId) return;
     socket.emit("presence_online", { userId });
   }, [socket, userId]);
 
@@ -106,7 +121,7 @@ export default function ChatPage() {
 
   // Improved socket listener for message read updates
   useEffect(() => {
-    if (!socket || !selectedChatRoomId) return;
+    if (!socket || !selectedChatRoomId || !userId) return;
 
     socket.emit("join_room", {
       chatRoomId: selectedChatRoomId,
@@ -162,7 +177,30 @@ export default function ChatPage() {
     };
   }, [socket, selectedChatRoomId, userId]);
 
+  useEffect(() => {
+    // This will run once when component mounts
+    if (!userId) return;
+    
+    console.log('Setting up component-level presence tracking');
+    
+    // Cleanup function that runs once when component unmounts
+    return () => {
+      if (userId) {
+        console.log('Component unmounting, updating last seen status');
+        updateLastSeen(userId).catch(console.error);
+      }
+    };
+  }, []); // Empty dependency array = run only on mount/unmount
+
   // 4) Render
+  if (authLoading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!user || !userId) {
+    return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
+  }
+
   return (
     <div className="flex h-screen">
       <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />

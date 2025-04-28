@@ -60,6 +60,7 @@ export default function MessageInput({
     
     const formData = new FormData();
     formData.append("file", file);
+    formData.append("folder", "chat"); // Add folder parameter
 
     try {
       const response = await fetch("/api/file/upload", {
