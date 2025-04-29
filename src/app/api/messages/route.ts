@@ -5,11 +5,12 @@ import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
 import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encryption";
 
+
 export async function POST(req: Request) {
   await connect();
   try {
     const body = await req.json();
-    console.log("Received body:", body);
+    //console.log("Received body:", body);
 
     const { chatRoomId, senderId, content, replyFor } = body;
 
@@ -24,6 +25,10 @@ export async function POST(req: Request) {
       );
     }
 
+    // This constructor usage is deprecated but still works
+    // Consider using one of these alternatives:
+    // Option 1: mongoose.Types.ObjectId.createFromHexString(chatRoomId)
+    // Option 2: Import ObjectId directly and use new ObjectId(chatRoomId)
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
     let replyForObjectId = null;
 
@@ -43,6 +48,7 @@ export async function POST(req: Request) {
         { success: false, message: "Chat room not found" },
         { status: 404 }
       );
+      
     }
 
     const message = await Message.create({
@@ -54,8 +60,25 @@ export async function POST(req: Request) {
       replyFor: replyForObjectId
     });
 
+    // For chat room's lastMessage, use unencrypted content, limited to 18 chars
+    let lastMessageContent;
+    if (isFileLink) {
+      // For files, keep the "File:" prefix but truncate if needed
+      const parts = content.split(':');
+      if (parts.length >= 2) {
+        // Truncate the file name if needed
+        const fileName = parts[1].length > 15 ? parts[1].substring(0, 15) + '...' : parts[1];
+        lastMessageContent = `File:${fileName}`;
+      } else {
+        lastMessageContent = "File";
+      }
+    } else {
+      // For regular messages, truncate to 18 chars
+      lastMessageContent = content.length > 18 ? content.substring(0, 18) + '...' : content;
+    }
+
     chatRoom.lastMessage = {
-      content: encryptedContent,
+      content: lastMessageContent,
       sentAt: new Date(),
       senderId,
     };

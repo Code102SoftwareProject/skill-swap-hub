@@ -12,7 +12,7 @@ export interface IChatRoom extends Document {
 
 const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   participants: [{
-    type: String,
+    type: mongoose.Types.ObjectId,
     ref: 'User',
     required: true,
   }],

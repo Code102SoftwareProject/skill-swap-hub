@@ -5,8 +5,8 @@ import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/types";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
-import FileMessage from "./Box/FileMessage";
-import TextMessage from "./Box/TextMessage";
+import FileMessage from "./box/FileMessage";
+import TextMessage from "./box/TextMessage";
 
 interface MessageBoxProps {
   userId: string;
@@ -198,16 +198,24 @@ export default function MessageBox({
                     textAlign: "left",
                     borderRadius: "6px",
                   }}
-                  onClick={() => msg.replyFor?._id && scrollToMessage(msg.replyFor._id)}
+                  onClick={() => {
+                    if (msg.replyFor && typeof msg.replyFor === 'object' && '_id' in msg.replyFor) {
+                      scrollToMessage((msg.replyFor as { _id: string })._id);
+                    }
+                  }}
                 >
                   <span className="text-xs font-semibold" style={{ color: isMine ? "#25D366" : "#888" }}>
-                    {msg.replyFor.senderId === userId ? "You" : msg.replyFor.senderId}
+                    {typeof msg.replyFor === 'object' && 'senderId' in msg.replyFor 
+                      ? ((msg.replyFor as { senderId: string }).senderId === userId ? "You" : (msg.replyFor as { senderId: string }).senderId) 
+                      : "Unknown"}
                   </span>
                   <span
                     className="text-sm text-gray-700 truncate block"
                     style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
                   >
-                    {msg.replyFor.content}
+                    {typeof msg.replyFor === 'object' && 'content' in msg.replyFor 
+                      ? (msg.replyFor as { content: string }).content 
+                      : String(msg.replyFor)}
                   </span>
                 </div>
               )}
