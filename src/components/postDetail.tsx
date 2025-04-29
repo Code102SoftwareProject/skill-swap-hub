@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, Loader2, MessageSquare, Flag, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ArrowLeft, Loader, MessageSquare, Flag, Send, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext'; 
 
@@ -274,7 +274,7 @@ const PostDetail = () => {
           <div className="absolute w-16 h-16 rounded-full border-4 border-blue-100 opacity-30"></div>
           <div className="absolute w-16 h-16 rounded-full border-4 border-t-blue-500 animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center text-blue-500">
-            <Loader2 className="w-8 h-8 animate-pulse" />
+            <Loader className="w-8 h-8 animate-pulse" />
           </div>
         </div>
       </div>
@@ -427,7 +427,7 @@ const PostDetail = () => {
                 } text-white`}
               >
                 {submitting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader className="w-5 h-5 animate-spin" />
                 ) : (
                   <Send className="w-5 h-5" />
                 )}

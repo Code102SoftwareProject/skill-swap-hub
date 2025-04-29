@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { MessageSquare, Clock, User, Loader2 } from 'lucide-react';
+import { MessageSquare, Clock, User, Loader } from 'lucide-react';
 import { IForum } from '@/lib/models/Forum';
 import ForumPosts from '../../../components/ForumPosts';
 import Navbar from '@/components/Navbar';
@@ -75,7 +75,7 @@ export default function ForumDetailsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <Loader2 className="w-16 h-16 text-blue-500 animate-spin mb-4" />
+        <Loader className="w-16 h-16 text-blue-500 animate-spin mb-4" />
         <p className="text-gray-600 font-medium">Loading forum...</p>
       </div>
     );

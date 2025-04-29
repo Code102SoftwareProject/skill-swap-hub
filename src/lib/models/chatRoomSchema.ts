@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IChatRoom extends Document {
-  participants: string[]; // Array of user IDs (strings)
+  participants: string[]; 
   createdAt: Date;
   lastMessage?: {
     content: string;
