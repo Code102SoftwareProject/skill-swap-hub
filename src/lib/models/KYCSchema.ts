@@ -24,7 +24,10 @@ const KYCSchema = new mongoose.Schema({
   reviewed: { type: Date },
   
   // URL to stored NIC image/document
-  nicUrl: { type: String }
+  nicUrl: { type: String },
+  
+  // URL to stored photo of person holding NIC front
+  nicWithPersonUrl: { type: String },
 });
 
 // Export the compiled model (avoids recompilation issues in dev)

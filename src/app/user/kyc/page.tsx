@@ -22,7 +22,10 @@ export default function KYCForm() {
   const [nicError, setNicError] = useState<string | null>(null);
 
   // File state to hold selected NIC document
-  const [file, setFile] = useState<File | null>(null);
+  const [nicFile, setNicFile] = useState<File | null>(null);
+
+  // State for photo with person holding both sides of the NIC
+  const [nicWithPersonFile, setNicWithPersonFile] = useState<File | null>(null);
 
   // Loading state for upload feedback
   const [uploading, setUploading] = useState(false);
@@ -72,8 +75,8 @@ export default function KYCForm() {
     e.preventDefault();
 
     // Basic form validation
-    if (!username.trim() || !nic.trim() || !file) {
-      setStatus({message: 'Please fill all fields', isError: true});
+    if (!username.trim() || !nic.trim() || !nicFile || !nicWithPersonFile) {
+      setStatus({message: 'Please fill all fields and upload all required photos', isError: true});
       return;
     }
 
@@ -87,23 +90,38 @@ export default function KYCForm() {
     setStatus(null);
 
     try {
-      // Step 1: Upload the file to R2 storage
-      const formData = new FormData();
-      formData.append('file', file);
+      // Step 1: Upload the NIC document
+      const nicFormData = new FormData();
+      nicFormData.append('file', nicFile);
 
-      const uploadRes = await fetch('/api/file/upload', {
+      const nicUploadRes = await fetch('/api/file/upload', {
         method: 'POST',
-        body: formData,
+        body: nicFormData,
       });
 
-      if (!uploadRes.ok) {
-        const errorData = await uploadRes.json();
-        throw new Error(errorData.error || errorData.message || 'File upload failed');
+      if (!nicUploadRes.ok) {
+        const errorData = await nicUploadRes.json();
+        throw new Error(errorData.error || errorData.message || 'NIC file upload failed');
       }
       
-      const uploadData = await uploadRes.json();
+      const nicUploadData = await nicUploadRes.json();
       
-      // Step 2: Save the KYC record with the file URL
+      // Step 2: Upload photo of person holding NIC (both sides)
+      const personFormData = new FormData();
+      personFormData.append('file', nicWithPersonFile);
+
+      const personUploadRes = await fetch('/api/file/upload', {
+        method: 'POST',
+        body: personFormData,
+      });
+
+      if (!personUploadRes.ok) {
+        throw new Error('Photo with NIC upload failed');
+      }
+      
+      const personUploadData = await personUploadRes.json();
+      
+      // Step 3: Save the KYC record with all file URLs
       const kycResponse = await fetch('/api/kyc', {
         method: 'POST',
         headers: {
@@ -112,7 +130,8 @@ export default function KYCForm() {
         body: JSON.stringify({
           nic: nic,
           recipient: username,
-          nicUrl: uploadData.url // Save the URL returned from the upload API
+          nicUrl: nicUploadData.url, // NIC document URL
+          nicWithPersonUrl: personUploadData.url  // Photo with person holding NIC
         }),
       });
 
@@ -131,7 +150,8 @@ export default function KYCForm() {
       
       // Clear form
       setNic('');
-      setFile(null);
+      setNicFile(null);
+      setNicWithPersonFile(null);
       
     } catch (err: any) {
       console.error('Submission error:', err);
@@ -186,14 +206,36 @@ export default function KYCForm() {
               </p>
             </div>
 
-            {/* File upload input */}
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-md file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              required
-            />
+            {/* NIC Document upload input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                NIC Document
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={(e) => setNicFile(e.target.files?.[0] || null)}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-md file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                required
+              />
+            </div>
+
+            {/* Photo of person holding both sides of NIC */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Photo of you holding your NIC (both sides visible)
+              </label>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png"
+                onChange={(e) => setNicWithPersonFile(e.target.files?.[0] || null)}
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-md file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Your face and both sides of your NIC should be clearly visible
+              </p>
+            </div>
 
             {/* Submit button */}
             <button
