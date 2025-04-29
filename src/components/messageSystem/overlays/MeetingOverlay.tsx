@@ -23,7 +23,7 @@ export default function MeetingOverlay({
   // Current month and year for calendar
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // Calendar navigation
+  // Calendar navigation functions
   const previousMonth = () => {
     const prevMonth = new Date(currentMonth);
     prevMonth.setMonth(prevMonth.getMonth() - 1);
@@ -41,20 +41,16 @@ export default function MeetingOverlay({
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     
-    // Get the first day of the month (0 = Sunday, 1 = Monday, etc.)
     let firstDay = new Date(year, month, 1).getDay();
-    // Adjust for Monday as first day of week
     firstDay = firstDay === 0 ? 6 : firstDay - 1;
     
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     
     const days = [];
-    // Add empty cells for days before first day of month
     for (let i = 0; i < firstDay; i++) {
       days.push(null);
     }
     
-    // Add actual days of month
     for (let i = 1; i <= daysInMonth; i++) {
       days.push(i);
     }
@@ -63,7 +59,6 @@ export default function MeetingOverlay({
   };
   
   const handleRequestMeeting = () => {
-    // Logic to send meeting request
     console.log("Meeting requested with", receiverName, "on", selectedDate, "at", `${selectedHour}:${selectedMinute} ${amPm}`);
     onClose();
   };
@@ -72,180 +67,150 @@ export default function MeetingOverlay({
   const monthName = currentMonth.toLocaleString('default', { month: 'long' });
   const year = currentMonth.getFullYear();
   
-  const isToday = (day: number) => {
-    const today = new Date();
-    return today.getDate() === day && 
-           today.getMonth() === currentMonth.getMonth() && 
-           today.getFullYear() === currentMonth.getFullYear();
-  };
-  
-  // Check if a day should be selectable (could add logic to disable past days, etc.)
   const isSelectableDay = (day: number) => {
     const today = new Date();
     const dateToCheck = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     return dateToCheck >= today;
   };
 
+  // Days of the week
+  const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-xl">
-        <h2 className="text-xl font-semibold mb-4">Select a Date & Time</h2>
-
-        <div className="flex flex-col md:flex-row justify-between items-start mb-5">
-          <div className="flex-1 w-full md:w-auto">
-            <div className="flex justify-between items-center mb-4">
-              <button 
-                onClick={previousMonth} 
-                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-800"
+      <div className="bg-white rounded-lg border-2 border-gray-300 shadow-xl p-6 w-full max-w-3xl max-h-[80vh] overflow-auto flex flex-col md:flex-row">
+        {/* Left side - Calendar */}
+        <div className="flex-1 border-r border-gray-200 pr-6">
+          <h2 className="font-medium text-lg mb-5">Select a Date & Time</h2>
+          
+          {/* Month navigation */}
+          <div className="flex justify-between items-center mb-4">
+            <button onClick={previousMonth} className="text-gray-600 hover:bg-gray-100 p-1.5 rounded">
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h3 className="text-base font-medium">{monthName} {year}</h3>
+            <button onClick={nextMonth} className="text-gray-600 hover:bg-gray-100 p-1.5 rounded">
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+          
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-2 mb-5">
+            {/* Day headers */}
+            {daysOfWeek.map((day, i) => (
+              <div key={i} className="text-xs text-gray-500 text-center py-1 border-b border-gray-100">{day}</div>
+            ))}
+            
+            {/* Calendar days */}
+            {days.map((day, index) => (
+              <div key={index} className="aspect-square flex items-center justify-center p-0.5">
+                {day !== null ? (
+                  <button 
+                    className={`w-9 h-9 rounded-full text-center text-sm transition-colors
+                      ${selectedDate?.getDate() === day && 
+                        selectedDate?.getMonth() === currentMonth.getMonth() ? 
+                        'bg-blue-500 text-white' : 
+                        isSelectableDay(day) ? 
+                          'hover:bg-blue-100 text-gray-700' : 
+                          'text-gray-300 cursor-not-allowed'
+                      }
+                    `}
+                    onClick={() => isSelectableDay(day) && setSelectedDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
+                    disabled={!isSelectableDay(day)}
+                  >
+                    {day}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          
+          {/* Time zone selector */}
+          <div className="mt-5 mb-4 border-t border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Time zone</label>
+            <div className="relative">
+              <select 
+                className="appearance-none w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 bg-white"
+                value={timeZone}
+                onChange={(e) => setTimeZone(e.target.value)}
               >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h3 className="text-base font-medium">{monthName} {year}</h3>
-              <button 
-                onClick={nextMonth} 
-                className="w-8 h-8 flex items-center justify-center text-gray-600 hover:text-gray-800"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-2 text-center mb-2">
-              <div className="text-xs font-medium">MON</div>
-              <div className="text-xs font-medium">TUE</div>
-              <div className="text-xs font-medium">WED</div>
-              <div className="text-xs font-medium">THU</div>
-              <div className="text-xs font-medium">FRI</div>
-              <div className="text-xs font-medium">SAT</div>
-              <div className="text-xs font-medium">SUN</div>
-            </div>
-              
-            <div className="grid grid-cols-7 gap-2 text-center">
-              {days.map((day, index) => (
-                <div key={index} className="h-8 flex items-center justify-center">
-                  {day !== null ? (
-                    <button 
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm
-                        ${selectedDate?.getDate() === day && 
-                          selectedDate?.getMonth() === currentMonth.getMonth() ? 
-                          'bg-blue-500 text-white' : 
-                          isSelectableDay(day) ? 
-                            'hover:bg-gray-100' : 
-                            'text-gray-300 cursor-not-allowed'
-                        }
-                      `}
-                      onClick={() => isSelectableDay(day) && setSelectedDate(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
-                      disabled={!isSelectableDay(day)}
-                    >
-                      {day}
-                    </button>
-                  ) : (
-                    <span></span>
-                  )}
-                </div>
-              ))}
+                <option value="Central European Time (8:11pm)">Central European Time (8:11pm)</option>
+                <option value="Eastern Time (2:11pm)">Eastern Time (2:11pm)</option>
+                <option value="Pacific Time (11:11am)">Pacific Time (11:11am)</option>
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path>
+                </svg>
+              </div>
             </div>
           </div>
           
-          <div className="mt-4 md:mt-0 md:ml-6">
-            <div className="flex md:block items-center">
-              <div className="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center overflow-hidden mr-3 md:mr-0 md:mb-2">
-                <img src="/avatar-placeholder.jpg" alt="" className="w-full h-full object-cover" />
-              </div>
-              <div className="md:text-center">
-                <div className="text-xs text-gray-500">Account name</div>
-                <h3 className="text-base font-medium">Meeting with {receiverName}</h3>
-              </div>
-            </div>
-            
-            <div className="mt-3 text-sm">
-              <div className="flex items-center mb-2">
-                <Clock className="w-4 h-4 text-gray-500 mr-2" />
-                <span>30 min</span>
-              </div>
-              <div className="flex items-start">
-                <Monitor className="w-4 h-4 text-gray-500 mr-2 mt-1 flex-shrink-0" />
-                <span className="text-gray-600 text-xs">Web conferencing details provided upon confirmation.</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Time zone */}
-        <div className="mb-4">
-          <h4 className="text-sm font-medium mb-2">Time zone</h4>
-          <div className="relative">
+          {/* Time selector */}
+          <div className="mt-4 flex items-center gap-2">
             <select 
-              className="w-full border rounded p-2 pr-8 appearance-none bg-white text-sm"
-              value={timeZone}
-              onChange={(e) => setTimeZone(e.target.value)}
-            >
-              <option value="Central European Time (8:11pm)">Central European Time (8:11pm)</option>
-              <option value="Eastern Time (2:11pm)">Eastern Time (2:11pm)</option>
-              <option value="Pacific Time (11:11am)">Pacific Time (11:11am)</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Time selection */}
-        <div className="flex items-center gap-2 mb-5">
-          <div className="relative">
-            <select 
-              className="border rounded py-2 px-3 appearance-none pr-8 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
               value={selectedHour}
               onChange={(e) => setSelectedHour(e.target.value)}
             >
               {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
-                <option key={hour} value={hour < 10 ? `0${hour}` : `${hour}`}>
-                  {hour}
-                </option>
+                <option key={hour} value={hour < 10 ? `0${hour}` : `${hour}`}>{hour}</option>
               ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
-          </div>
-          <span>:</span>
-          <div className="relative">
+            <span className="text-base font-medium">:</span>
             <select 
-              className="border rounded py-2 px-3 appearance-none pr-8 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
               value={selectedMinute}
               onChange={(e) => setSelectedMinute(e.target.value)}
             >
-              <option value="00">00</option>
-              <option value="15">15</option>
-              <option value="30">30</option>
-              <option value="45">45</option>
+              {['00','15','30','45'].map(min => (
+                <option key={min} value={min}>{min}</option>
+              ))}
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
-          </div>
-          <div className="relative">
             <select 
-              className="border rounded py-2 px-3 appearance-none pr-8 text-sm"
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
               value={amPm}
               onChange={(e) => setAmPm(e.target.value)}
             >
               <option value="AM">AM</option>
               <option value="PM">PM</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-              <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-            </div>
           </div>
         </div>
-
-        {/* Submit button */}
-        <button 
-          className="w-full bg-blue-600 text-white p-3 rounded font-medium hover:bg-blue-700"
-          onClick={handleRequestMeeting}
-          disabled={!selectedDate}
-        >
-          Request a Meeting
-        </button>
+        
+        {/* Right side - Meeting details */}
+        <div className="w-72 pl-6 flex items-center">
+          <div className="flex flex-col items-center text-center w-full">
+            {/* User avatar */}
+            <div className="w-16 h-16 rounded-full bg-yellow-400 flex items-center justify-center overflow-hidden mb-4 border-2 border-gray-100 shadow">
+              <img src="/avatar-placeholder.jpg" alt="" className="w-full h-full object-cover" />
+            </div>
+            
+            <div className="text-xs text-gray-500 mb-2">Account name</div>
+            <h2 className="text-lg font-medium mb-5">Meeting with {receiverName}</h2>
+            
+            {/* Meeting duration */}
+            <div className="flex items-center mb-4 text-gray-600 bg-gray-50 px-4 py-2 rounded-md border border-gray-100 w-full justify-center">
+              <Clock className="w-4 h-4 mr-2" />
+              <span className="text-sm">30 min</span>
+            </div>
+            
+            {/* Meeting details */}
+            <div className="flex items-start mb-8 text-gray-600 bg-gray-50 px-4 py-3 rounded-md border border-gray-100 w-full">
+              <Monitor className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <span className="text-xs text-left">Web conferencing details provided upon confirmation.</span>
+            </div>
+            
+            {/* Request button */}
+            <button 
+              className="w-full bg-blue-700 text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors border border-blue-800"
+              onClick={handleRequestMeeting}
+              disabled={!selectedDate}
+            >
+              Request a Meeting
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
