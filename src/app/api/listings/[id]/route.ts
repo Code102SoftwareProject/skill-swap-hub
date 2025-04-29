@@ -166,16 +166,40 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
 }
 
 // GET - Fetch a specific listing
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  return handleListingOperation(request, params.id, 'get');
+export async function GET(request: NextRequest) {
+  // Extract the listing ID from the URL path
+  const url = request.url;
+  const pathParts = url.split('/');
+  const id = pathParts[pathParts.length - 1]; 
+  
+  // Handle trailing slash if present
+  const listingId = id === '' ? pathParts[pathParts.length - 2] : id;
+  
+  return handleListingOperation(request, listingId, 'get');
 }
 
 // PUT - Update a listing
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
-  return handleListingOperation(request, params.id, 'update');
+export async function PUT(request: NextRequest) {
+  // Extract the listing ID from the URL path
+  const url = request.url;
+  const pathParts = url.split('/');
+  const id = pathParts[pathParts.length - 1];
+  
+  // Handle trailing slash if present
+  const listingId = id === '' ? pathParts[pathParts.length - 2] : id;
+  
+  return handleListingOperation(request, listingId, 'update');
 }
 
 // DELETE - Delete a listing
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  return handleListingOperation(request, params.id, 'delete');
+export async function DELETE(request: NextRequest) {
+  // Extract the listing ID from the URL path
+  const url = request.url;
+  const pathParts = url.split('/');
+  const id = pathParts[pathParts.length - 1];
+  
+  // Handle trailing slash if present
+  const listingId = id === '' ? pathParts[pathParts.length - 2] : id;
+  
+  return handleListingOperation(request, listingId, 'delete');
 }
