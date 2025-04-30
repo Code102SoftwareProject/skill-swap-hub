@@ -31,12 +31,20 @@ export async function PATCH(request: NextRequest) {
     // Parse the request body
     const body = await request.json();
     console.log('Request body:', body); // Add logging to verify what's being received
-    const { status, skillId } = body;
+    const { status, skillId, feedback } = body;
     
     // Validate input
     if (!status || !['approved', 'rejected'].includes(status)) {
       return NextResponse.json(
         { success: false, message: 'Invalid status value. Must be "approved" or "rejected"' },
+        { status: 400 }
+      );
+    }
+    
+    // Require feedback for rejection
+    if (status === 'rejected' && !feedback) {
+      return NextResponse.json(
+        { success: false, message: 'Feedback is required when rejecting a verification request' },
         { status: 400 }
       );
     }
@@ -53,8 +61,12 @@ export async function PATCH(request: NextRequest) {
     
     console.log('Before update - Request status:', verificationRequest.status);
     
-    // Update verification request status - make sure field names match exactly with model
+    // Update verification request status and feedback if provided
     verificationRequest.status = status;
+    if (feedback) {
+      verificationRequest.feedback = feedback;
+    }
+    
     const updatedRequest = await verificationRequest.save();
     
     console.log('After update - Request status:', updatedRequest.status);

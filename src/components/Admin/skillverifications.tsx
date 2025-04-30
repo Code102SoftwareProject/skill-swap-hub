@@ -13,13 +13,14 @@ interface VerificationRequest {
     id: string;
     userId: string;
     skillName: string;
-    skillId: string; // Add skillId to track which skill to update
+    skillId: string;
     status: 'pending' | 'approved' | 'rejected';
     documents: string[];
     description: string;
+    feedback?: string; // Added feedback field
     createdAt: Date;
     updatedAt: Date;
-    user?: User; // Add user info to the request object
+    user?: User;
 }
 
 export default function VerificationRequests() {
@@ -31,10 +32,23 @@ export default function VerificationRequests() {
   const [documentLoading, setDocumentLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [feedback, setFeedback] = useState<string>(''); // Added feedback state
+  const [alertMessage, setAlertMessage] = useState<string | null>(null); // Added alert message state
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success'); // Added alert type
 
   useEffect(() => {
     fetchRequests();
   }, []);
+
+  // Auto-dismiss alert after 5 seconds
+  useEffect(() => {
+    if (alertMessage) {
+      const timer = setTimeout(() => {
+        setAlertMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [alertMessage]);
 
   const fetchRequests = async () => {
     try {
@@ -100,17 +114,21 @@ export default function VerificationRequests() {
         requestId, 
         newStatus, 
         skillId: selectedRequest?.skillId,
-        currentStatus: selectedRequest?.status 
+        currentStatus: selectedRequest?.status,
+        feedback: newStatus === 'rejected' ? feedback : undefined
       }); 
       
       if (!selectedRequest) {
         throw new Error('No request selected');
       }
       
-      setError(null);
+      // Validate feedback for rejection
+      if (newStatus === 'rejected' && !feedback.trim()) {
+        setError('Please provide feedback for rejection');
+        return;
+      }
       
-      // Show loading indicator (optional)
-      // setUpdating(true);
+      setError(null);
       
       const response = await fetch(`/api/admin/skill-verification-requests/${requestId}`, {
         method: 'PATCH',
@@ -119,7 +137,8 @@ export default function VerificationRequests() {
         },
         body: JSON.stringify({ 
           status: newStatus,
-          skillId: selectedRequest.skillId
+          skillId: selectedRequest.skillId,
+          feedback: newStatus === 'rejected' ? feedback : undefined
         }),
       });
   
@@ -142,24 +161,39 @@ export default function VerificationRequests() {
       // Update the local state immediately - deep copy for safety
       setRequests(prevRequests =>
         prevRequests.map(req =>
-          req.id === requestId ? { ...req, status: newStatus } : req
+          req.id === requestId ? { 
+            ...req, 
+            status: newStatus,
+            feedback: newStatus === 'rejected' ? feedback : req.feedback
+          } : req
         )
       );
   
       // Update selected request if it's the one being modified
       setSelectedRequest(prev =>
-        prev?.id === requestId ? { ...prev, status: newStatus } : prev
+        prev?.id === requestId ? { 
+          ...prev, 
+          status: newStatus,
+          feedback: newStatus === 'rejected' ? feedback : prev.feedback 
+        } : prev
       );
       
-      // Optional: Show success message
-      // setSuccessMessage(`Request successfully ${newStatus}`);
+      // Show success alert
+      setAlertType('success');
+      setAlertMessage(`Skill verification request has been ${newStatus} successfully`);
+      
+      // Clear feedback field after successful rejection
+      if (newStatus === 'rejected') {
+        setFeedback('');
+      }
       
     } catch (error) {
       console.error('Error updating status:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while updating the status');
-    } finally {
-      // Hide loading indicator (optional)
-      // setUpdating(false);
+      
+      // Show error alert
+      setAlertType('error');
+      setAlertMessage(`Failed to ${newStatus} the skill verification request`);
     }
   };
 
@@ -223,6 +257,38 @@ export default function VerificationRequests() {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Alert Messages */}
+      {alertMessage && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
+          alertType === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          <div className="flex items-center">
+            <div className={`mr-3 flex-shrink-0 ${
+              alertType === 'success' ? 'text-green-500' : 'text-red-500'
+            }`}>
+              {alertType === 'success' ? (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              )}
+            </div>
+            <div>{alertMessage}</div>
+            <button 
+              onClick={() => setAlertMessage(null)}
+              className="ml-auto text-gray-600 hover:text-gray-800"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Left side - Requests List */}
       <div className="w-1/2 p-6 overflow-y-auto border-r border-gray-200">
         <h1 className="text-2xl font-bold mb-6">Skill Verification Requests</h1>
@@ -321,7 +387,10 @@ export default function VerificationRequests() {
             {filteredRequests.map((request) => (
               <div
                 key={request.id}
-                onClick={() => setSelectedRequest(request)}
+                onClick={() => {
+                  setSelectedRequest(request);
+                  setFeedback(request.feedback || ''); // Load feedback if exists
+                }}
                 className={`p-4 rounded-lg cursor-pointer transition-colors ${
                   selectedRequest?.id === request.id
                     ? 'bg-blue-100'
@@ -456,6 +525,27 @@ export default function VerificationRequests() {
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Description</label>
                   <p className="mt-1 text-gray-600 bg-gray-50 p-3 rounded-lg border">{selectedRequest.description}</p>
+                </div>
+              )}
+
+              {/* Show feedback if status is rejected */}
+              {selectedRequest.status === 'rejected' && selectedRequest.feedback && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600">Admin Feedback</label>
+                  <p className="mt-1 text-gray-600 bg-red-50 p-3 rounded-lg border border-red-100">{selectedRequest.feedback}</p>
+                </div>
+              )}
+
+              {/* Admin Feedback field for pending requests */}
+              {selectedRequest.status === 'pending' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Admin Feedback</label>
+                  <textarea
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Required for rejection. Provide feedback to explain why the skill verification is being rejected."
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 min-h-24"
+                  />
                 </div>
               )}
 
