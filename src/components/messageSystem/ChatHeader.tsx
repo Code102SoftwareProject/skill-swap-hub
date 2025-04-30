@@ -5,16 +5,18 @@ import { Socket } from 'socket.io-client';
 // Import parseISO along with formatDistanceToNow
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation'; // Import useRouter
+import { ArrowLeft, Calendar, BookOpen } from 'lucide-react'; // Using Lucide React for icons
 
 interface ChatHeaderProps {
   chatRoomId: string;
   socket: Socket | null;
   userId: string; // current user id
+  onToggleMeetings: (show: boolean) => void;
 }
 
 // Define an interface for the user data fetched from the API
 
-export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderProps) {
+export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings }: ChatHeaderProps) {
   const [chatRoomInfo, setChatRoomInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -22,6 +24,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
   const [otherUserName, setOtherUserName] = useState<string | null>(null); // State for other user's name
   const [otherUserId, setOtherUserId] = useState<string | null>(null); // State to store other user's ID
+  const [showingMeetings, setShowingMeetings] = useState(false);
   const router = useRouter(); // Initialize the router
 
   // Fetch chat room info (e.g., room name, participants, etc.)
@@ -216,12 +219,16 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     };
   }, [socket, otherUserId]); // Depend on socket and the specific otherUserId
 
-  // Removed the separate useEffect for initial fetchLastOnline as it's now handled
-  // when otherUserId is set and the user isn't online.
-
   // Function to handle navigation back to the dashboard
   const handleBackToDashboard = () => {
     router.push('/dashboard'); // Navigate to the dashboard page
+  };
+
+  // Handle toggling meetings view
+  const handleToggleMeetings = () => {
+    const newState = !showingMeetings;
+    setShowingMeetings(newState);
+    onToggleMeetings(newState);
   };
 
   if (loading) {
@@ -237,13 +244,13 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   console.log('Rendering ChatHeader - isOnline:', isOnline, 'lastOnline state:', lastOnline, 'Other User Name:', otherUserName);
 
   return (
-    <header className="flex items-center justify-between p-4 bg-gray-50 border-b">
+    <header className="flex items-center justify-between p-4 bg-primary border-b">
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-lg font-semibold text-white">
           {/* Use the fetched name if available, otherwise fallback */}
           {otherUserName || `Chat with ${otherUserId.substring(0, 8)}`}
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-blue-100">
           {isTyping ? 'Typing...' : (
             isOnline ? 'Online' : (
               // Ensure lastOnline is a valid Date object before formatting
@@ -254,16 +261,29 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
           )}
         </p>
       </div>
-      <div className="flex space-x-2">
-        {/* Add onClick handler to the button */}
+      <div className="flex space-x-4">
         <button
           onClick={handleBackToDashboard}
-          className="px-4 py-2 text-sm bg-white border rounded-lg"
+          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
         >
-          Back to Dashboard
+          <ArrowLeft className="h-5 w-5 mb-1" />
+          <span className="text-xs">Dashboard</span>
         </button>
-        <button className="px-4 py-2 text-sm bg-white border rounded-lg">
-          View Sessions
+        
+        <button 
+          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
+          onClick={() => console.log('Sessions clicked')}
+        >
+          <BookOpen className="h-5 w-5 mb-1" />
+          <span className="text-xs">Sessions</span>
+        </button>
+        
+        <button 
+          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          onClick={handleToggleMeetings}
+        >
+          <Calendar className="h-5 w-5 mb-1" />
+          <span className="text-xs">Meetings</span>
         </button>
       </div>
     </header>

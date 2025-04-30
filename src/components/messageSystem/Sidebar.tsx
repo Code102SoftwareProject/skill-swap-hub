@@ -90,7 +90,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
 
   if (loading) {
     return (
-      <div className="w-64 bg-bgcolor border-solid border-gray-900 text-white p-4">
+      <div className="w-64 bg-grayfill border-solid border-gray-900 text-white p-4">
         <h2 className="text-xl font-bold mb-4">Messages</h2>
         <p>Loading chats...</p>
       </div>

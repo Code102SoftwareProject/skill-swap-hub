@@ -9,6 +9,7 @@ import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
+import MeetingBox from "@/components/messageSystem/MeetingBox";
 import { useAuth } from "@/lib/context/AuthContext";
 
 export default function ChatPage() {
@@ -20,6 +21,7 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
+  const [showMeetings, setShowMeetings] = useState<boolean>(false);
 
   // Handle selecting message for reply
   const handleReplySelect = (message: IMessage) => {
@@ -29,6 +31,11 @@ export default function ChatPage() {
   // Cancel reply
   const handleCancelReply = () => {
     setReplyingTo(null);
+  };
+
+  // Toggle meetings display
+  const toggleMeetingsDisplay = (show: boolean) => {
+    setShowMeetings(show);
   };
 
   const updateLastSeen = async (userId: string) => {
@@ -117,6 +124,8 @@ export default function ChatPage() {
     }
     
     fetchChatRoom();
+    // When switching chat rooms, reset the meeting view
+    setShowMeetings(false);
   }, [selectedChatRoomId, userId]);
 
   // Improved socket listener for message read updates
@@ -212,27 +221,39 @@ export default function ChatPage() {
               chatRoomId={selectedChatRoomId}
               socket={socket}
               userId={userId}
+              onToggleMeetings={toggleMeetingsDisplay}
             />
 
             <div className="flex-1 overflow-auto">
-              <MessageBox
-                chatRoomId={selectedChatRoomId}
-                userId={userId}
-                socket={socket}
-                newMessage={newMessage}
-                onReplySelect={handleReplySelect}
-              />
+              {showMeetings ? (
+                <MeetingBox 
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  onClose={() => setShowMeetings(false)}
+                />
+              ) : (
+                <MessageBox
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  socket={socket}
+                  newMessage={newMessage}
+                  onReplySelect={handleReplySelect}
+                />
+              )}
             </div>
-            <div className="border-t p-2 bg-white">
-              <MessageInput
-                socket={socket}
-                chatRoomId={selectedChatRoomId}
-                senderId={userId}
-                replyingTo={replyingTo}
-                onCancelReply={handleCancelReply}
-                chatParticipants={chatParticipants}
-              />
-            </div>
+            
+            {!showMeetings && (
+              <div className="border-t p-2 bg-white">
+                <MessageInput
+                  socket={socket}
+                  chatRoomId={selectedChatRoomId}
+                  senderId={userId}
+                  replyingTo={replyingTo}
+                  onCancelReply={handleCancelReply}
+                  chatParticipants={chatParticipants}
+                />
+              </div>
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
