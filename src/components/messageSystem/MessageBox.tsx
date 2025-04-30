@@ -5,8 +5,8 @@ import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/types";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
-import FileMessage from "./Box/FileMessage";
-import TextMessage from "./Box/TextMessage";
+import FileMessage from "./box/FileMessage";
+import TextMessage from "./box/TextMessage";
 
 interface MessageBoxProps {
   userId: string;

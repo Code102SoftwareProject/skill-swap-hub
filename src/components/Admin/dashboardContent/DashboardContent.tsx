@@ -9,7 +9,6 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 
 // Define the structure of dashboard data we expect from the API
 interface DashboardData {
-  activeUsers: number;       
   totalUsers: number;        
   sessions: number;          
   popularSkill: string;      // Most requested/popular skill
@@ -17,6 +16,7 @@ interface DashboardData {
   skillsRequested: number;   
   matches: number;           
   skillsData: { skill: string; requests: number; offers: number }[]; // Detailed skill statistics
+  userRegistrationData: { _id: { year: number; month: number }; count: number }[]; // User registration data
 }
 
 export default function DashboardContent() {
@@ -51,27 +51,45 @@ export default function DashboardContent() {
   // Extract skill names for chart labels
   const skillLabels = data.skillsData.map(skill => skill.skill);
 
+  // Format user registration data for chart
+  const formatUserData = () => {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const labels: string[] = [];
+    const counts: number[] = [];
+    
+    if (data.userRegistrationData && data.userRegistrationData.length > 0) {
+      data.userRegistrationData.forEach(item => {
+        const monthName = months[item._id.month - 1];
+        labels.push(`${monthName} ${item._id.year}`);
+        counts.push(item.count);
+      });
+    }
+    
+    return { labels, counts };
+  };
+  
+  const userData = formatUserData();
+
   return (
     <div className="p-8 grid gap-8">
       {/* Top Stats Section - Key metrics displayed as cards */}
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        <StatCard title="Active Users" value={`${data.activeUsers}/${data.totalUsers}`} />
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <StatCard title="Total Users" value={data.totalUsers.toString()} />
         <StatCard title="No of Sessions" value={data.sessions.toString()} />
         <StatCard title="Popular Skill" value={data.popularSkill} />
         <StatCard title="No of Skills Offered" value={data.skillsOffered.toString()} />
         <StatCard title="No of Skills Requested" value={data.skillsRequested.toString()} />
-        <StatCard title="No of Match" value={data.matches.toString()} />
       </div>
 
-      {/* Line Chart - Showing user activity trend over time */}
+      {/* Line Chart - Showing user registration data over time */}
       <div className="bg-white shadow-md rounded-xl p-6">
-        <h2 className="text-xl font-semibold mb-4">No of Active Users Over Time</h2>
+        <h2 className="text-xl font-semibold mb-4">User Registration Over Time</h2>
         <Line
           data={{
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], // Monthly time periods
+            labels: userData.labels,
             datasets: [{
-              label: 'No of Visitors',
-              data: [5, 15, 10, 20, 18, 25], // Sample data points - would ideally come from API
+              label: 'Number of Users',
+              data: userData.counts,
               backgroundColor: 'rgba(59, 130, 246, 0.5)', // Light blue fill
               borderColor: 'rgba(59, 130, 246, 1)',       // Blue border
             }]

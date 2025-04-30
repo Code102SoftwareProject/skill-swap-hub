@@ -23,9 +23,25 @@ const criteriaOptions = [
 
 // Helper function to ensure image URLs are properly formatted
 const getFullImageUrl = (url: string) => {
+  if (!url) return '/placeholder-badge.png';
+  
+  // Use the retrieve API for badge images
+  if (url.startsWith('badges/')) {
+    return `/api/file/retrieve?file=${encodeURIComponent(url)}`;
+  }
+  
+  // For URLs that contain 'badges/' folder but don't start with it
+  if (url.includes('badges/')) {
+    // Extract the badges path
+    const badgesPath = url.substring(url.indexOf('badges/'));
+    return `/api/file/retrieve?file=${encodeURIComponent(badgesPath)}`;
+  }
+  
+  // For external URLs, use them directly
   if (url.startsWith('http')) return url;
-  if (url.startsWith('/')) return url;
-  return `https://pub-your-account.r2.dev/${url}`;
+  
+  // Default fallback approach
+  return `/api/file/retrieve?file=${encodeURIComponent(url)}`;
 };
 
 export default function BadgeManager() {
@@ -284,6 +300,19 @@ export default function BadgeManager() {
     return (
       <div className="mt-8 p-4 bg-gray-100 rounded">
         <h3 className="font-bold mb-2">Debug Badge Data</h3>
+        <div className="mb-4">
+          <h4 className="font-semibold">Image URLs:</h4>
+          <ul className="text-xs space-y-1">
+            {badges.map(badge => (
+              <li key={`debug-${badge._id}`} className="flex flex-col">
+                <span><strong>{badge.badgeName}</strong>: {badge.badgeImage}</span>
+                <span className="text-blue-600">
+                  Processed URL: {getFullImageUrl(badge.badgeImage)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
         <pre className="whitespace-pre-wrap text-xs overflow-auto">
           {JSON.stringify(badges, null, 2)}
         </pre>
@@ -385,7 +414,7 @@ export default function BadgeManager() {
                         <Image 
                           src={editMode === badge._id && editImagePreview 
                             ? editImagePreview 
-                            : getFullImageUrl(badge.badgeImage) || '/placeholder-badge.png'} 
+                            : getFullImageUrl(badge.badgeImage)} 
                           alt={badge.badgeName}
                           className="rounded object-cover"
                           fill
@@ -395,8 +424,16 @@ export default function BadgeManager() {
                             console.error(`Failed to load image for badge ${badge.badgeName}`);
                             console.error(`URL attempted: ${target.src}`);
                             console.error(`Original badge URL: ${badge.badgeImage}`);
+                            // Mark this specific badge image as having an error
                             setImageErrors(prev => ({ ...prev, [badge._id]: true }));
+                            
+                            // Attempt to retry with a direct URL if it looks like a path
+                            if (badge.badgeImage && badge.badgeImage.startsWith('badges/') && !target.src.includes('?retry=true')) {
+                              const retryUrl = `/api/file/retrieve?file=${encodeURIComponent(badge.badgeImage)}&retry=true`;
+                              target.src = retryUrl;
+                            }
                           }}
+                          priority={true}
                         />
                       </>
                     )}

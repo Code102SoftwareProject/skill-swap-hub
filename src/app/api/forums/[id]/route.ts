@@ -3,16 +3,18 @@ import connectToDatabase from '@/lib/db';
 import {Forum} from '@/lib/models/Forum';
 import mongoose from 'mongoose';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = await params;
+    // Extract the forum ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const id = pathParts[pathParts.length - 1]; // Get the last segment
     
+    // Handle trailing slash if present
+    const forumId = id === '' ? pathParts[pathParts.length - 2] : id;
 
     // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(forumId)) {
       return NextResponse.json(
         { error: 'Invalid forum ID format' },
         { status: 400 }
@@ -21,7 +23,7 @@ export async function GET(
 
     await connectToDatabase();
 
-    const forum = await Forum.findById(id);
+    const forum = await Forum.findById(forumId);
 
     if (!forum) {
       return NextResponse.json(

@@ -13,7 +13,10 @@ type KYCRecord = {
   dateSubmitted: string; // Submission timestamp
   status: string;       // Verification status (Not Reviewed/Accepted/Rejected)
   reviewed?: string;    //  review date
-  nicUrl?: string;      // url
+  nicUrl?: string;      // URL to stored NIC image/document
+  nicWithPersonUrl?: string; // URL to stored photo of person holding NIC
+  frontPhotoUrl?: string; // URL to stored photo of person holding NIC front
+  backPhotoUrl?: string;  // URL to stored photo of person holding NIC back
 };
 
 // Maps verification status to text color classes for visual indication
@@ -64,6 +67,10 @@ export default function KYCContent() {
 
     fetchKYCRecords();
   }, []);
+
+  useEffect(() => {
+    console.log("Records data:", records);
+  }, [records]);
 
   const downloadFile = async (fileUrl: string, nicNumber: string) => {
     try {
@@ -234,6 +241,7 @@ export default function KYCContent() {
           <th className="px-4 py-2 text-left">Date Submitted</th>
           <th className="px-4 py-2 text-left">Status</th>
           <th className="px-4 py-2 text-left">Reviewed</th>
+          <th className="px-4 py-2 text-left">Documents</th>
           <th className="px-4 py-2 text-left">Actions</th>
           </tr>
         </thead>
@@ -260,19 +268,60 @@ export default function KYCContent() {
             {record.reviewed ? formatDate(record.reviewed) : "-"}
             </td>
             <td className="px-4 py-3 border-b">
-            {/* Action buttons container */}
+            {/* Document download buttons container */}
             <div className="flex items-center gap-2">
-              {/* Document download button - only shown if document URL exists */}
+              {/* NIC document download button - only shown if URL exists */}
               {record.nicUrl && (
               <button 
                 onClick={() => downloadFile(record.nicUrl!, record.nic)}
                 className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center"
                 title="Download NIC document"
               >
+                <span className="mr-1">NIC</span>
                 <Download className="h-4 w-4" />
               </button>
               )}
               
+              {/* NIC with person photo download button */}
+              {record.nicWithPersonUrl && (
+              <button 
+                onClick={() => downloadFile(record.nicWithPersonUrl!, `${record.nic}-with-person`)}
+                className="p-2 bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center justify-center"
+                title="Download NIC with Person"
+              >
+                <span className="mr-1">Person</span>
+                <Download className="h-4 w-4" />
+              </button>
+              )}
+              
+              {/* Front photo download button */}
+              {record.frontPhotoUrl && (
+              <button 
+                onClick={() => downloadFile(record.frontPhotoUrl!, `${record.nic}-front-photo`)}
+                className="p-2 bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center justify-center"
+                title="Download Front Photo with NIC"
+              >
+                <span className="mr-1">Front</span>
+                <Download className="h-4 w-4" />
+              </button>
+              )}
+              
+              {/* Back photo download button */}
+              {record.backPhotoUrl && (
+              <button 
+                onClick={() => downloadFile(record.backPhotoUrl!, `${record.nic}-back-photo`)}
+                className="p-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center justify-center"
+                title="Download Back Photo with NIC"
+              >
+                <span className="mr-1">Back</span>
+                <Download className="h-4 w-4" />
+              </button>
+              )}
+            </div>
+            </td>
+            <td className="px-4 py-3 border-b">
+            {/* Status update action buttons */}
+            <div className="flex items-center gap-2">
               {/* Approval/rejection buttons - conditionally rendered only for unreviewed records */}
               {record.status === "Not Reviewed" && (
               <>

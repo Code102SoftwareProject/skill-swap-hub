@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       recipient: body.recipient,
       dateSubmitted: new Date(),
       status: "Not Reviewed",
-      nicUrl: body.nicUrl // Store the nicUrl from R2
+      nicUrl: body.nicUrl, // Store the nicUrl from R2
+      nicWithPersonUrl: body.nicWithPersonUrl // Store the photo URL with person holding NIC
     });
 
     // Save record to database

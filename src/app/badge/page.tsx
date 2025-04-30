@@ -44,6 +44,19 @@ export default function BadgesPage() {
     fetchBadges();
   }, []);
 
+  // Helper function to get image URL from the retrieve endpoint
+  const getImageUrl = (badgeImage: string) => {
+    if (!badgeImage) return "/default-badge.png";
+    
+    // Check if badgeImage is already a full URL
+    if (badgeImage.startsWith("http")) {
+      return `/api/file/retrieve?fileUrl=${encodeURIComponent(badgeImage)}`;
+    }
+    
+    // If it's just a filename
+    return `/api/file/retrieve?file=${encodeURIComponent(badgeImage)}`;
+  };
+
   // Filter badges based on selected category
   const filteredBadges = selectedCategory === "All"
     ? badges
@@ -81,7 +94,7 @@ export default function BadgesPage() {
             {/* Badge image container */}
             <div className="w-24 h-24 relative mb-4">
               <Image
-                src={badge.badgeImage}
+                src={getImageUrl(badge.badgeImage)}
                 alt={badge.badgeName}
                 width={96}
                 height={96}
@@ -90,7 +103,7 @@ export default function BadgesPage() {
                 onError={(e) => {
                   // Fallback to a default image if loading fails
                   const target = e.target as HTMLImageElement;
-                  target.src = "/default-badge.png"; // Create a default badge image in your public folder
+                  target.src = "/default-badge.png";
                   console.error(`Failed to load image: ${badge.badgeImage}`);
                 }}
               />
