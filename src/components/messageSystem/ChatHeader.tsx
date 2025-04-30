@@ -11,11 +11,12 @@ interface ChatHeaderProps {
   chatRoomId: string;
   socket: Socket | null;
   userId: string; // current user id
+  onToggleMeetings: (show: boolean) => void;
 }
 
 // Define an interface for the user data fetched from the API
 
-export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderProps) {
+export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings }: ChatHeaderProps) {
   const [chatRoomInfo, setChatRoomInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -23,6 +24,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
   const [otherUserName, setOtherUserName] = useState<string | null>(null); // State for other user's name
   const [otherUserId, setOtherUserId] = useState<string | null>(null); // State to store other user's ID
+  const [showingMeetings, setShowingMeetings] = useState(false);
   const router = useRouter(); // Initialize the router
 
   // Fetch chat room info (e.g., room name, participants, etc.)
@@ -217,12 +219,16 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
     };
   }, [socket, otherUserId]); // Depend on socket and the specific otherUserId
 
-  // Removed the separate useEffect for initial fetchLastOnline as it's now handled
-  // when otherUserId is set and the user isn't online.
-
   // Function to handle navigation back to the dashboard
   const handleBackToDashboard = () => {
     router.push('/dashboard'); // Navigate to the dashboard page
+  };
+
+  // Handle toggling meetings view
+  const handleToggleMeetings = () => {
+    const newState = !showingMeetings;
+    setShowingMeetings(newState);
+    onToggleMeetings(newState);
   };
 
   if (loading) {
@@ -273,8 +279,8 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
         </button>
         
         <button 
-          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
-          onClick={() => console.log('Meetings clicked')}
+          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          onClick={handleToggleMeetings}
         >
           <Calendar className="h-5 w-5 mb-1" />
           <span className="text-xs">Meetings</span>

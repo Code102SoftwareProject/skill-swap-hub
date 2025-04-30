@@ -117,7 +117,6 @@ export async function PATCH(req: Request) {
       meeting.state = "accepted";
       meeting.meetingLink = zoomMeetingLink;
       meeting.acceptStatus = true;
-      meeting.meetingTime = new Date();
     }
     // Handle other state changes
     else if (meetingData.state && meeting.state === "accepted") {
@@ -130,4 +129,3 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ message: error.message }, { status: 500 });
   }
 }
-
