@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 
 // Handler for PUT request to mark a specific notification as read
 export async function PUT(
-  req: Request,
+  request: Request,
   { params }: { params: { id: string } }
 ) {
   await connect();
