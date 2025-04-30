@@ -18,10 +18,49 @@ export default function MeetingOverlay({
   const [selectedHour, setSelectedHour] = useState("10");
   const [selectedMinute, setSelectedMinute] = useState("00");
   const [amPm, setAmPm] = useState("AM");
-  const [timeZone, setTimeZone] = useState("Central European Time (8:11pm)");
+  // Sri Lankan time is used as standard
+  const timeZone = "Sri Lanka Standard Time (GMT+5:30)";
 
   // Current month and year for calendar
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // Add helper function to check if selected time is valid
+  const isValidTime = () => {
+    if (!selectedDate) return true;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const selectedDay = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    
+    // If not today, any time is valid
+    if (selectedDay.getTime() !== today.getTime()) {
+      return true;
+    }
+    
+    // If today, check if time is in the future
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    const selectedHourNum = parseInt(selectedHour);
+    const selectedMinuteNum = parseInt(selectedMinute);
+    
+    // Convert selected time to 24-hour format for comparison
+    let selectedHour24 = selectedHourNum;
+    if (amPm === "PM" && selectedHourNum < 12) {
+      selectedHour24 += 12;
+    } else if (amPm === "AM" && selectedHourNum === 12) {
+      selectedHour24 = 0;
+    }
+    
+    // Compare times
+    if (selectedHour24 > currentHour) {
+      return true;
+    } else if (selectedHour24 === currentHour) {
+      return selectedMinuteNum >= currentMinute;
+    } else {
+      return false;
+    }
+  };
   
   // Calendar navigation functions
   const previousMonth = () => {
@@ -58,8 +97,13 @@ export default function MeetingOverlay({
     return days;
   };
   
+  // Modify handleRequestMeeting to check valid time
   const handleRequestMeeting = () => {
-    console.log("Meeting requested with", receiverName, "on", selectedDate, "at", `${selectedHour}:${selectedMinute} ${amPm}`);
+    if (!selectedDate || !isValidTime()) {
+      return;
+    }
+    
+    console.log("Meeting requested with", receiverName, "on", selectedDate, "at", `${selectedHour}:${selectedMinute} ${amPm}`, "in", timeZone);
     onClose();
   };
   
@@ -70,8 +114,15 @@ export default function MeetingOverlay({
   const isSelectableDay = (day: number) => {
     const today = new Date();
     const dateToCheck = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-    return dateToCheck >= today;
+    // Allow today by using >= instead of >
+    return dateToCheck.setHours(0, 0, 0, 0) >= today.setHours(0, 0, 0, 0);
   };
+
+  // Add timeError to show error message
+  const timeError = selectedDate ? 
+    (new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate()).getTime() === 
+    new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime() && 
+    !isValidTime()) : false;
 
   // Days of the week
   const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -125,56 +176,52 @@ export default function MeetingOverlay({
             ))}
           </div>
           
-          {/* Time zone selector */}
+          {/* Time zone info */}
           <div className="mt-5 mb-4 border-t border-gray-200 pt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time zone</label>
-            <div className="relative">
-              <select 
-                className="appearance-none w-full border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 bg-white"
-                value={timeZone}
-                onChange={(e) => setTimeZone(e.target.value)}
-              >
-                <option value="Central European Time (8:11pm)">Central European Time (8:11pm)</option>
-                <option value="Eastern Time (2:11pm)">Eastern Time (2:11pm)</option>
-                <option value="Pacific Time (11:11am)">Pacific Time (11:11am)</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"></path>
-                </svg>
-              </div>
+            <div className="flex items-center text-sm text-gray-700">
+              <Clock className="w-4 h-4 mr-2" />
+              <span>{timeZone}</span>
             </div>
           </div>
           
           {/* Time selector */}
-          <div className="mt-4 flex items-center gap-2">
-            <select 
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
-              value={selectedHour}
-              onChange={(e) => setSelectedHour(e.target.value)}
-            >
-              {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
-                <option key={hour} value={hour < 10 ? `0${hour}` : `${hour}`}>{hour}</option>
-              ))}
-            </select>
-            <span className="text-base font-medium">:</span>
-            <select 
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
-              value={selectedMinute}
-              onChange={(e) => setSelectedMinute(e.target.value)}
-            >
-              {['00','15','30','45'].map(min => (
-                <option key={min} value={min}>{min}</option>
-              ))}
-            </select>
-            <select 
-              className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
-              value={amPm}
-              onChange={(e) => setAmPm(e.target.value)}
-            >
-              <option value="AM">AM</option>
-              <option value="PM">PM</option>
-            </select>
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <select 
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
+                value={selectedHour}
+                onChange={(e) => setSelectedHour(e.target.value)}
+              >
+                {Array.from({length: 12}, (_, i) => i + 1).map(hour => (
+                  <option key={hour} value={hour < 10 ? `0${hour}` : `${hour}`}>{hour}</option>
+                ))}
+              </select>
+              <span className="text-base font-medium">:</span>
+              <select 
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
+                value={selectedMinute}
+                onChange={(e) => setSelectedMinute(e.target.value)}
+              >
+                {['00','15','30','45'].map(min => (
+                  <option key={min} value={min}>{min}</option>
+                ))}
+              </select>
+              <select 
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700 w-16"
+                value={amPm}
+                onChange={(e) => setAmPm(e.target.value)}
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
+            
+            {/* Show error message if time is invalid */}
+            {timeError && (
+              <div className="text-red-500 text-sm mt-1">
+                Please select a future time
+              </div>
+            )}
           </div>
         </div>
         
@@ -205,7 +252,7 @@ export default function MeetingOverlay({
             <button 
               className="w-full bg-blue-700 text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors border border-blue-800"
               onClick={handleRequestMeeting}
-              disabled={!selectedDate}
+              disabled={!selectedDate || timeError}
             >
               Request a Meeting
             </button>
