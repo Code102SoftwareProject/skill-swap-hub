@@ -53,7 +53,7 @@ export const PATCH = async (req: NextRequest) => {
     try {
         // Parse request body for badge update data
         const body = await req.json();
-        const { badgeId, badgeImage, criteria, description } = body;
+        const { badgeId, badgeName, badgeImage, criteria, description } = body;
 
         // Validate required badgeId parameter
         if (!badgeId) {
@@ -62,6 +62,10 @@ export const PATCH = async (req: NextRequest) => {
         
         // Check for fields to update
         const updateData: any = {};
+        
+        if (badgeName) {
+            updateData.badgeName = badgeName;
+        }
         
         if (badgeImage) {
             updateData.badgeImage = badgeImage;
