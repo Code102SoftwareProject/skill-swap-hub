@@ -44,7 +44,7 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
 
   // Sign out logic - updated to redirect to login page
   const handleLogout = () => {
-    // You might want to add logout API call here before redirecting
+    // **You might want to add logout API call here before redirecting
     router.push('/admin/login');
   };
 
