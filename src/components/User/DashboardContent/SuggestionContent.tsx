@@ -15,7 +15,7 @@ type Suggestion = {
 
 type NewSuggestion = Omit<Suggestion, "_id" | "status">;
 
-export default function SuggestionPage() {
+export default function SuggestionContent() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,7 +61,7 @@ export default function SuggestionPage() {
       <main className="p-6 max-w-7xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Suggestion Form */}
-          <section className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border">
+<section className="md:col-span-2 bg-white pt-6 px-6 pb-2 rounded-xl shadow-sm border">
             <h1 className="text-2xl font-bold mb-4 text-gray-900">
               Share Your Suggestions
             </h1>
