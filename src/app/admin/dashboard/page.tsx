@@ -1,7 +1,7 @@
 'use client'; // Required for client-side rendering
 
 import { useState } from 'react';
-import AdminSidebar from '@/components/Admin/adminSidebar';
+import AdminSidebar from '@/components/Admin/AdminSidebar';
 import AdminNavbar from '@/components/Admin/AdminNavbar';
 
 import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
