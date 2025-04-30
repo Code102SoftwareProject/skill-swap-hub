@@ -3,14 +3,13 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import SkillList from '@/lib/models/skillList';
 
-export async function GET(
-  request: Request,
-  context: { params: { id: string } }
-) {
-  // Correct way to access params in newer Next.js versions
-  const { id } = context.params;
-  
+export async function GET(request: Request) {
   try {
+    // Extract category ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const id = pathParts[pathParts.length - 1];
+    
     console.log(`Received request for category ID: ${id}`);
     
     const categoryId = parseInt(id);

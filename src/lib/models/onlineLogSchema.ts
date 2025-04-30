@@ -1,4 +1,4 @@
-import { IMessage } from "@/types/types";
+import { IMessage } from "@/types/chat";
 import mongoose,{Document,Schema} from "mongoose";
 
 interface IonlineLog extends Document{

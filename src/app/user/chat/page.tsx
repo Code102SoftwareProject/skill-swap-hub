@@ -3,115 +3,73 @@
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { useParams } from "next/navigation";
-import { IMessage } from "@/types/types";
+import { IMessage } from "@/types/chat";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
-import MeetingOverlay from "@/components/messageSystem/overlays/MeetingOverlay";
+import MeetingBox from "@/components/messageSystem/MeetingBox";
 import { useAuth } from "@/lib/context/AuthContext";
+import { updateLastSeen, fetchChatRoom, fetchUpcomingMeetingsCount as fetchMeetings} from "@/services/chatApiServices";
 
+/**
+ * Main chat page component that handles messaging functionality
+ * @returns JSX component
+ */
 export default function ChatPage() {
   const { user, token, isLoading: authLoading } = useAuth();
   const userId = user?._id; // Extract user ID from auth context
 
+  // * Core state for chat functionality
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
-  
-  // Add state for meeting overlay
-  const [showMeetingOverlay, setShowMeetingOverlay] = useState(false);
-  const [otherUserData, setOtherUserData] = useState<{ id: string, name: string | null }>({ 
-    id: '', 
-    name: null 
-  });
+  const [showMeetings, setShowMeetings] = useState<boolean>(false);
+  const [upcomingMeetingsCount, setUpcomingMeetingsCount] = useState(0);
 
-  // Handle selecting message for reply
+  /**
+   * Sets a message as the reply target
+   * @param message - The message being replied to
+   */
   const handleReplySelect = (message: IMessage) => {
     setReplyingTo(message);
   };
 
-  // Cancel reply
+  /**
+   * Cancels the current reply action
+   */
   const handleCancelReply = () => {
     setReplyingTo(null);
   };
-  
-  // Function to open meeting overlay
-  const handleOpenMeetingOverlay = () => {
-    // Find the other user's ID (the one who is not the current user)
-    const receiverId = chatParticipants.find(id => id !== userId) || '';
-    setOtherUserData({ id: receiverId, name: null }); // We'll update the name when we have it
-    setShowMeetingOverlay(true);
-    
-    // Optionally fetch the other user's name/details here
-    if (receiverId) {
-      fetchUserDetails(receiverId);
-    }
-  };
-  
-  // Function to fetch user details
-  const fetchUserDetails = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/users/profile?id=${userId}`);
-      const data = await response.json();
-      
-      if (data.success && data.user) {
-        setOtherUserData(prev => ({
-          ...prev,
-          name: `${data.user.firstName} ${data.user.lastName}`
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-    }
+
+  /**
+   * Toggles the meetings view
+   * @param show - Whether to show meetings
+   */
+  const toggleMeetingsDisplay = (show: boolean) => {
+    setShowMeetings(show);
   };
 
-  const updateLastSeen = async (userId: string) => {
-    if (!userId) return; // Skip if no user ID available
-    
-    try {
-      console.log('Updating last seen for user:', userId);
-      const response = await fetch('/api/onlinelog', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Update last seen response:', data);
-
-      if (!data.success) {
-        throw new Error(data.message);
-      }
-
-      return data.data;
-    } catch (error) {
-      console.error('Error updating online status:', error);
-      throw error;
-    }
-  };
-
-  //Create the Socket.IO connection on mount
+  // * Initialize Socket.IO connection when component mounts
   useEffect(() => {
     if (!userId || authLoading) return; // Don't connect if user isn't loaded yet
     
     // Initial online status update
     updateLastSeen(userId).catch(console.error);
 
-    const newSocket = io("https://valuable-iona-arlogic-b975dfc8.koyeb.app/", { transports: ["websocket"] });
+    // ! Production socket endpoint
+    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
+    // ? Development socket endpoint
     // const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
-    // Add beforeunload event listener for browser close
+    /**
+     * Handles browser close/refresh events
+     * Uses sendBeacon for reliable delivery during page unload
+     */
     const handleBeforeUnload = () => {
       navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
     };
@@ -132,39 +90,43 @@ export default function ChatPage() {
     };
   }, [userId, authLoading]);
 
-  // 2) As soon as the socket is ready, mark user as online
+  // * Mark user as online when socket is ready
   useEffect(() => {
     if (!socket || !userId) return;
     socket.emit("presence_online", { userId });
   }, [socket, userId]);
 
-  // Fetch chat participants when selecting a chat room
+  // * Fetch participants when chat room is selected
   useEffect(() => {
     if (!selectedChatRoomId) return;
     
-    async function fetchChatRoom() {
-      try {
-        const response = await fetch(`/api/chat-rooms/${selectedChatRoomId}`);
-        const data = await response.json();
-        if (data.success && data.chatRoom) {
-          setChatParticipants(data.chatRoom.participants || []);
-          
-          // Find the other user's ID
-          const otherUserId: string | undefined = (data.chatRoom.participants || []).find((id: string) => id !== userId);
-          if (otherUserId) {
-            setOtherUserData(prev => ({ ...prev, id: otherUserId }));
-            fetchUserDetails(otherUserId);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching chat room:", error);
+    async function getChatRoomParticipants() {
+      const chatRoom = await fetchChatRoom(selectedChatRoomId as string);
+      if (chatRoom) {
+        setChatParticipants(chatRoom.participants || []);
       }
     }
     
-    fetchChatRoom();
+    getChatRoomParticipants();
+    // When switching chat rooms, reset the meeting view
+    setShowMeetings(false);
   }, [selectedChatRoomId, userId]);
 
-  // Improved socket listener for message read updates
+  // * Fetch upcoming meetings count when chat room is selected
+  useEffect(() => {
+    if (!selectedChatRoomId || !userId) return;
+    
+    // Fetch meeting count when chat room changes
+    fetchMeetings(selectedChatRoomId, userId)
+      .then(count => {
+        setUpcomingMeetingsCount(count);
+      })
+      .catch(error => {
+        console.error('Error getting initial meetings count:', error);
+      });
+  }, [selectedChatRoomId, userId]);
+
+  // * Set up socket event listeners for messages
   useEffect(() => {
     if (!socket || !selectedChatRoomId || !userId) return;
 
@@ -173,15 +135,21 @@ export default function ChatPage() {
       userId,
     });
 
-    // Listen for incoming messages
+    /**
+     * Interface for incoming message structure
+     */
     interface IReceivedMessage {
       chatRoomId: string;
       [key: string]: any;
     }
 
+    /**
+     * Handles incoming messages from other users
+     * @param message - The message data received
+     */
     const handleReceiveMessage = (message: IReceivedMessage): void => {
       if (message.chatRoomId === selectedChatRoomId) {
-        // Guarantee uniqueness with timestamp to force re-renders
+        // Add unique identifiers to force re-renders
         setNewMessage({
           ...message, 
           timestamp: Date.now(),
@@ -190,7 +158,9 @@ export default function ChatPage() {
       }
     };
 
-    // Handle read receipts more efficiently
+    /**
+     * Interface for read receipt data
+     */
     interface IReadReceiptData {
       chatRoomId: string;
       userId: string;
@@ -199,10 +169,14 @@ export default function ChatPage() {
       [key: string]: any;
     }
 
+    /**
+     * Processes message read receipts
+     * @param data - Read receipt information
+     */
     const handleMessageRead = (data: IReadReceiptData): void => {
       if (data.chatRoomId === selectedChatRoomId) {
         console.log("Received read receipt:", data);
-        // Guarantee uniqueness to force re-render
+        // ! Important: Add unique ID to trigger state updates
         setNewMessage({
           ...data,
           type: "read_receipt",
@@ -215,20 +189,20 @@ export default function ChatPage() {
     socket.on("receive_message", handleReceiveMessage);
     socket.on("user_see_message", handleMessageRead);
 
-    // Cleanup function
+    // Cleanup listeners on unmount or when dependencies change
     return () => {
       socket.off("receive_message", handleReceiveMessage);
       socket.off("user_see_message", handleMessageRead);
     };
   }, [socket, selectedChatRoomId, userId]);
 
+  // * Component lifecycle presence tracking
   useEffect(() => {
-    // This will run once when component mounts
     if (!userId) return;
     
     console.log('Setting up component-level presence tracking');
     
-    // Cleanup function that runs once when component unmounts
+    // Update last seen when component unmounts
     return () => {
       if (userId) {
         console.log('Component unmounting, updating last seen status');
@@ -237,7 +211,7 @@ export default function ChatPage() {
     };
   }, []); // Empty dependency array = run only on mount/unmount
 
-  // 4) Render
+  // * Render loading/auth states
   if (authLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
@@ -246,6 +220,7 @@ export default function ChatPage() {
     return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
   }
 
+  // * Main component rendering
   return (
     <div className="flex h-screen">
       <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />
@@ -257,36 +232,39 @@ export default function ChatPage() {
               chatRoomId={selectedChatRoomId}
               socket={socket}
               userId={userId}
+              onToggleMeetings={toggleMeetingsDisplay}
+              upcomingMeetingsCount={upcomingMeetingsCount}
             />
 
             <div className="flex-1 overflow-auto">
-              <MessageBox
-                chatRoomId={selectedChatRoomId}
-                userId={userId}
-                socket={socket}
-                newMessage={newMessage}
-                onReplySelect={handleReplySelect}
-              />
-            </div>
-            <div className="border-t p-2 bg-white">
-              <MessageInput
-                socket={socket}
-                chatRoomId={selectedChatRoomId}
-                senderId={userId}
-                replyingTo={replyingTo}
-                onCancelReply={handleCancelReply}
-                chatParticipants={chatParticipants}
-                onOpenMeetingOverlay={handleOpenMeetingOverlay}
-              />
+              {showMeetings ? (
+                <MeetingBox 
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  onClose={() => setShowMeetings(false)}
+                />
+              ) : (
+                <MessageBox
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  socket={socket}
+                  newMessage={newMessage}
+                  onReplySelect={handleReplySelect}
+                />
+              )}
             </div>
             
-            {/* Render the meeting overlay at the page level */}
-            {showMeetingOverlay && (
-              <MeetingOverlay 
-                onClose={() => setShowMeetingOverlay(false)}
-                receiverId={otherUserData.id}
-                receiverName={otherUserData.name || "User"}
-              />
+            {!showMeetings && (
+              <div className="border-t p-2 bg-white">
+                <MessageInput
+                  socket={socket}
+                  chatRoomId={selectedChatRoomId}
+                  senderId={userId}
+                  replyingTo={replyingTo}
+                  onCancelReply={handleCancelReply}
+                  chatParticipants={chatParticipants}
+                />
+              </div>
             )}
           </>
         ) : (

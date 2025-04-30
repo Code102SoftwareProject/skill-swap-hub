@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
-import { Paperclip, X, CornerUpLeft, MessageCirclePlus } from "lucide-react";
-import { IMessage } from "@/types/types";
+import { Paperclip, X, CornerUpLeft } from "lucide-react";
+import { IMessage } from "@/types/chat";
 
 interface MessageInputProps {
   socket: Socket | null;
@@ -13,7 +13,6 @@ interface MessageInputProps {
   replyingTo?: IMessage | null;
   onCancelReply?: () => void;
   chatParticipants: string[];
-  onOpenMeetingOverlay?: () => void; // Add this new prop
 }
 
 export default function MessageInput({
@@ -24,7 +23,6 @@ export default function MessageInput({
   replyingTo,
   onCancelReply,
   chatParticipants,
-  onOpenMeetingOverlay,
 }: MessageInputProps) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,8 +30,6 @@ export default function MessageInput({
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
-
-  const [showDropdown, setShowDropdown] = useState(false);
 
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -172,38 +168,6 @@ export default function MessageInput({
       )}
 
       <div className="flex items-center space-x-2">
-        <div className="relative">
-          <button
-            onClick={() => setShowDropdown(!showDropdown)}
-            className="p-2 bg-primary text-white rounded-full"
-          >
-            <MessageCirclePlus className="w-5 h-5" />
-          </button>
-
-          {showDropdown && (
-            <div className="absolute bottom-full mb-2 left-0 bg-white shadow-lg rounded-md border p-2 w-40 z-10">
-              <button
-                className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
-                onClick={() => {
-                  setShowDropdown(false);
-                  // Handle Request Session action
-                }}
-              >
-                Request Session
-              </button>
-              <button
-                className="block w-full text-left px-3 py-2 hover:bg-gray-100 rounded-md"
-                onClick={() => {
-                  setShowDropdown(false);
-                  if (onOpenMeetingOverlay) onOpenMeetingOverlay();
-                }}
-              >
-                Request Meeting
-              </button>
-            </div>
-          )}
-        </div>
-
         {file ? (
           <div className="flex items-center border p-2 rounded bg-gray-100">
             <span className="mr-2">{file.name}</span>

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
-import connect from '../../../../lib/db';
-import VerificationRequestModel from '../../../../lib/models/VerificationRequest';
+import connect from '@/lib/db';
+import VerificationRequestModel from '@/lib/models/VerificationRequest';
 
 export async function GET(request: Request) {
   try {
     await connect();
     
+    // Extract query parameters from URL
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     
