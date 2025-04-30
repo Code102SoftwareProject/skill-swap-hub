@@ -11,6 +11,7 @@ import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 import MeetingBox from "@/components/messageSystem/MeetingBox";
 import { useAuth } from "@/lib/context/AuthContext";
+import { updateLastSeen, fetchChatRoom, fetchUpcomingMeetingsCount as fetchMeetings} from "@/services/chatApiServices";
 
 /**
  * Main chat page component that handles messaging functionality
@@ -50,84 +51,6 @@ export default function ChatPage() {
    */
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
-  };
-
-  /**
-   * Updates the user's last seen timestamp in the database
-   * @param userId - ID of the user to update
-   * @returns Promise with the updated data or undefined
-   */
-  const updateLastSeen = async (userId: string) => {
-    if (!userId) return; 
-    
-    try {
-      console.log('Updating last seen for user:', userId);
-      const response = await fetch('/api/onlinelog', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Update last seen response:', data);
-
-      if (!data.success) {
-        throw new Error(data.message);
-      }
-
-      return data.data;
-    } catch (error) {
-      console.error('Error updating online status:', error);
-      throw error;
-    }
-  };
-
-  /**
-   * Fetches the count of upcoming meetings for the selected chat room
-   * @param chatRoomId - ID of the chat room
-   * @param userId - ID of the user
-   * @returns Promise resolving to the count of upcoming meetings
-   */
-  const fetchUpcomingMeetingsCount = async (chatRoomId: string, userId: string) => {
-    if (!chatRoomId || !userId) return 0;
-    
-    try {
-      // First get the other participant's ID
-      const roomResponse = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
-      const roomData = await roomResponse.json();
-      
-      if (!roomData.success || !roomData.chatRooms || roomData.chatRooms.length === 0) {
-        return 0;
-      }
-      
-      const chatRoom = roomData.chatRooms[0];
-      const otherUserId = chatRoom.participants.find((id: string) => id !== userId);
-      
-      if (!otherUserId) return 0;
-      
-      // Then fetch all meetings
-      const meetingsResponse = await fetch(`/api/meeting`);
-      const allMeetings = await meetingsResponse.json();
-      
-      // Filter for relevant upcoming meetings
-      const upcomingMeetings = allMeetings.filter((m: any) => 
-        ((m.senderId === userId && m.receiverId === otherUserId) || 
-         (m.senderId === otherUserId && m.receiverId === userId)) &&
-        (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
-        new Date(m.meetingTime) > new Date()
-      );
-      
-      return upcomingMeetings.length;
-    } catch (error) {
-      console.error('Error fetching upcoming meetings count:', error);
-      return 0;
-    }
   };
 
   // * Initialize Socket.IO connection when component mounts
@@ -177,22 +100,14 @@ export default function ChatPage() {
   useEffect(() => {
     if (!selectedChatRoomId) return;
     
-    /**
-     * Fetches chat room details to get participants
-     */
-    async function fetchChatRoom() {
-      try {
-        const response = await fetch(`/api/chat-rooms/${selectedChatRoomId}`);
-        const data = await response.json();
-        if (data.success && data.chatRoom) {
-          setChatParticipants(data.chatRoom.participants || []);
-        }
-      } catch (error) {
-        console.error("Error fetching chat room:", error);
+    async function getChatRoomParticipants() {
+      const chatRoom = await fetchChatRoom(selectedChatRoomId as string);
+      if (chatRoom) {
+        setChatParticipants(chatRoom.participants || []);
       }
     }
     
-    fetchChatRoom();
+    getChatRoomParticipants();
     // When switching chat rooms, reset the meeting view
     setShowMeetings(false);
   }, [selectedChatRoomId, userId]);
@@ -202,7 +117,7 @@ export default function ChatPage() {
     if (!selectedChatRoomId || !userId) return;
     
     // Fetch meeting count when chat room changes
-    fetchUpcomingMeetingsCount(selectedChatRoomId, userId)
+    fetchMeetings(selectedChatRoomId, userId)
       .then(count => {
         setUpcomingMeetingsCount(count);
       })

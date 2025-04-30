@@ -6,6 +6,8 @@ import { Socket } from 'socket.io-client';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation'; // Import useRouter
 import { ArrowLeft, Calendar, BookOpen } from 'lucide-react'; // Using Lucide React for icons
+// Add import for API service
+import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
 
 interface ChatHeaderProps {
   chatRoomId: string;
@@ -29,99 +31,80 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
   // Fetch chat room info (e.g., room name, participants, etc.)
   useEffect(() => {
     async function fetchChatRoomInfo() {
-      setLoading(true); // Start loading
-      setOtherUserName(null); // Reset name on chat change
-      setOtherUserId(null); // Reset other user ID
-      setLastOnline(null); // Reset last online
-      setIsOnline(false); // Reset online status
+      setLoading(true);
+      setOtherUserName(null);
+      setOtherUserId(null);
+      setLastOnline(null);
+      setIsOnline(false);
+      
       try {
-        const response = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
-        const data = await response.json();
-        if (data.success && data.chatRooms && data.chatRooms.length > 0) {
-          const roomInfo = data.chatRooms[0];
+        const roomInfo = await fetchChatRoom(chatRoomId);
+        
+        if (roomInfo) {
           setChatRoomInfo(roomInfo);
-          // Find and set the other user's ID immediately after getting room info
+          
+          // Find and set the other user's ID
           const foundOtherUserId = roomInfo.participants?.find((id: string) => id !== userId);
           if (foundOtherUserId) {
             setOtherUserId(foundOtherUserId);
-          } else {
-            console.log('Could not find other user ID in participants:', roomInfo.participants);
           }
         } else {
-          console.error('Failed to fetch chat room info or room not found:', data.message);
-          setChatRoomInfo(null); // Ensure chatRoomInfo is null if fetch fails
+          console.error('Failed to fetch chat room info or room not found');
+          setChatRoomInfo(null);
         }
       } catch (error) {
         console.error('Error fetching chat room info:', error);
-        setChatRoomInfo(null); // Ensure chatRoomInfo is null on error
+        setChatRoomInfo(null);
       } finally {
         setLoading(false);
       }
     }
+    
     fetchChatRoomInfo();
-  }, [chatRoomId, userId]); // Add userId dependency
+  }, [chatRoomId, userId]);
 
   // Function to fetch the other user's name
   const fetchOtherUserName = async (id: string) => {
     if (!id) return;
-    try {
-      const response = await fetch(`/api/users/profile?id=${id}`);
-      const data = await response.json();
-      if (data.success && data.user) {
-        // Combine first and last name for display
-        setOtherUserName(`${data.user.firstName} ${data.user.lastName}`);
-      } else {
-        console.error('Failed to fetch other user name:', data.message);
-        setOtherUserName(null); // Reset if fetch fails
-      }
-    } catch (error) {
-      console.error('Error fetching other user name:', error);
-      setOtherUserName(null); // Reset on error
+    
+    const userData = await fetchUserProfile(id);
+    
+    if (userData) {
+      setOtherUserName(`${userData.firstName} ${userData.lastName}`);
+    } else {
+      console.error('Failed to fetch other user name');
+      setOtherUserName(null);
     }
   };
 
-  // Move fetchLastOnline outside useEffect so it can be reused
-  const fetchLastOnline = async (id: string) => {
-    // Use the passed otherUserId directly
+  // Update the fetchLastOnline function
+  const fetchUserLastOnline = async (id: string) => {
     if (!id) {
       console.log('No other user ID provided to fetchLastOnline');
       return;
     }
 
     console.log('Fetching last online for user ID:', id);
-
-    try {
-      const response = await fetch(`/api/onlinelog?userId=${id}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('Last online response:', data); // Keep for debugging
-      console.log('Raw lastOnline string:', data.data?.lastOnline); // Log raw string
-
-      if (data.success && data.data?.lastOnline) {
-        try {
-          // Use parseISO for robust parsing
-          const parsedDate = parseISO(data.data.lastOnline);
-          console.log('Parsed Date object:', parsedDate); // Log parsed date
-
-          // Check if the parsed date is valid before setting state
-          if (!isNaN(parsedDate.getTime())) {
-            setLastOnline(parsedDate);
-          } else {
-            console.error('Failed to parse date:', data.data.lastOnline);
-            setLastOnline(null); // Set to null if parsing failed
-          }
-        } catch (parseError) {
-          console.error('Error parsing date with parseISO:', parseError);
-          setLastOnline(null); // Set to null on parsing error
+    
+    const lastOnlineData = await fetchLastOnline(id);
+    
+    if (lastOnlineData) {
+      try {
+        // Use parseISO for robust parsing
+        const parsedDate = parseISO(lastOnlineData);
+        console.log('Parsed Date object:', parsedDate);
+        
+        // Check if the parsed date is valid
+        if (!isNaN(parsedDate.getTime())) {
+          setLastOnline(parsedDate);
+        } else {
+          setLastOnline(null);
         }
-      } else {
+      } catch (parseError) {
+        console.error('Error parsing date with parseISO:', parseError);
         setLastOnline(null);
       }
-    } catch (error: any) {
-      console.error('error fetching last online:', error);
+    } else {
       setLastOnline(null);
     }
   };
@@ -133,7 +116,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
       // Fetch initial last online status only if the user isn't immediately found online by socket
       // The socket listeners will handle subsequent updates.
       if (!isOnline) { // Check current state before potentially fetching
-        fetchLastOnline(otherUserId);
+        fetchUserLastOnline(otherUserId);
       }
       // Request current online status via socket as well
       if (socket) {
@@ -157,7 +140,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
       setIsOnline(isOtherUserOnline);
       // If the other user is specifically offline, fetch their last seen time
       if (!isOtherUserOnline) {
-        fetchLastOnline(otherUserId);
+        fetchUserLastOnline(otherUserId);
       } else {
         setLastOnline(null); // Clear last seen if user is online
       }
@@ -176,7 +159,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
       if (data.userId === otherUserId) {
         setIsOnline(false);
         // Fetch last seen immediately when the specific user goes offline
-        await fetchLastOnline(otherUserId);
+        await fetchUserLastOnline(otherUserId);
       }
     };
 
