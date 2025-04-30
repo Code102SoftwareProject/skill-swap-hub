@@ -1,7 +1,7 @@
 'use client'; // Required for client-side rendering
 
 import { useState } from 'react';
-import AdminSidebar from '@/components/Admin/AdminSidebar';
+import AdminSidebar from '@/components/Admin/adminSidebar';
 import AdminNavbar from '@/components/Admin/AdminNavbar';
 
 import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
@@ -9,7 +9,7 @@ import KYCContent from '@/components/Admin/dashboardContent/KYCContent';
 import UsersContent from '@/components/Admin/dashboardContent/UsersContent';
 import SuggestionsContent from '@/components/Admin/dashboardContent/SuggestionsContent';
 import SystemContent from '@/components/Admin/dashboardContent/SystemContent';
-import VerifyDocumentsContent from '@/components/Admin/dashboardContent/VerifyDocumentsContent';
+import VerificationRequests from '@/components/Admin/skillverifications';
 import ReportingContent from '@/components/Admin/dashboardContent/ReportingContent';
 
 export default function AdminDashboardPage() {
@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
       case 'system':
         return <SystemContent key={activeComponent} />;
       case 'verify-documents':
-        return <VerifyDocumentsContent key={activeComponent} />;
+        return <VerificationRequests userId='user123' key={activeComponent} />;
       case 'reporting':
         return <ReportingContent key={activeComponent} />;
       default:
