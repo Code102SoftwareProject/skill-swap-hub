@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
 import { Paperclip, X, CornerUpLeft } from "lucide-react";
-import { IMessage } from "@/types/types";
+import { IMessage } from "@/types/chat";
 
 interface MessageInputProps {
   socket: Socket | null;

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
 import { useParams } from "next/navigation";
-import { IMessage } from "@/types/types";
+import { IMessage } from "@/types/chat";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
