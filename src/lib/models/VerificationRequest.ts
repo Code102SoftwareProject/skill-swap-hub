@@ -37,7 +37,7 @@ const VerificationRequestSchema = new Schema({
   feedback: { type: String },
 }, { 
   timestamps: true,
-  collection: 'userskillverificationrequests', // Specify the collection name here
+  collection: 'userskillverificationrequests', 
   toJSON: { 
     virtuals: true,
     transform: function(doc, ret) {

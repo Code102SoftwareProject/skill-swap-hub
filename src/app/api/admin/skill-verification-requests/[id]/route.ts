@@ -4,22 +4,21 @@ import connect from '@/lib/db';
 import VerificationRequestModel from '@/lib/models/VerificationRequest';
 import UserSkill from '@/lib/models/userSkill';
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest) {
   try {
     await connect();
     
+    // Get ID from the URL pathname
+    const segments = request.nextUrl.pathname.split('/');
+    const requestId = segments[segments.length - 1];
+    
     // Make sure we have a valid ID
-    if (!params || !params.id) {
+    if (!requestId) {
       return NextResponse.json(
         { success: false, message: 'Request ID is required' },
         { status: 400 }
       );
     }
-    
-    const requestId = params.id;
     
     // Validate that the ID is a valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(requestId)) {
