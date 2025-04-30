@@ -5,6 +5,7 @@ import { Socket } from 'socket.io-client';
 // Import parseISO along with formatDistanceToNow
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation'; // Import useRouter
+import { ArrowLeft, Calendar, BookOpen } from 'lucide-react'; // Using Lucide React for icons
 
 interface ChatHeaderProps {
   chatRoomId: string;
@@ -254,16 +255,29 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
           )}
         </p>
       </div>
-      <div className="flex space-x-2">
-        {/* Add onClick handler to the button */}
+      <div className="flex space-x-4">
         <button
           onClick={handleBackToDashboard}
-          className="px-4 py-2 text-sm bg-white border rounded-lg"
+          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
         >
-          Back to Dashboard
+          <ArrowLeft className="h-5 w-5 mb-1" />
+          <span className="text-xs">Dashboard</span>
         </button>
-        <button className="px-4 py-2 text-sm bg-white border rounded-lg">
-          View Sessions
+        
+        <button 
+          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
+          onClick={() => console.log('Sessions clicked')}
+        >
+          <BookOpen className="h-5 w-5 mb-1" />
+          <span className="text-xs">Sessions</span>
+        </button>
+        
+        <button 
+          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
+          onClick={() => console.log('Meetings clicked')}
+        >
+          <Calendar className="h-5 w-5 mb-1" />
+          <span className="text-xs">Meetings</span>
         </button>
       </div>
     </header>
