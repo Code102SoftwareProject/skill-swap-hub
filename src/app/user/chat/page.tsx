@@ -9,7 +9,6 @@ import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
-import MeetingOverlay from "@/components/messageSystem/overlays/MeetingOverlay";
 import { useAuth } from "@/lib/context/AuthContext";
 
 export default function ChatPage() {
@@ -21,13 +20,6 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
-  
-  // Add state for meeting overlay
-  const [showMeetingOverlay, setShowMeetingOverlay] = useState(false);
-  const [otherUserData, setOtherUserData] = useState<{ id: string, name: string | null }>({ 
-    id: '', 
-    name: null 
-  });
 
   // Handle selecting message for reply
   const handleReplySelect = (message: IMessage) => {
@@ -37,36 +29,6 @@ export default function ChatPage() {
   // Cancel reply
   const handleCancelReply = () => {
     setReplyingTo(null);
-  };
-  
-  // Function to open meeting overlay
-  const handleOpenMeetingOverlay = () => {
-    // Find the other user's ID (the one who is not the current user)
-    const receiverId = chatParticipants.find(id => id !== userId) || '';
-    setOtherUserData({ id: receiverId, name: null }); // We'll update the name when we have it
-    setShowMeetingOverlay(true);
-    
-    // Optionally fetch the other user's name/details here
-    if (receiverId) {
-      fetchUserDetails(receiverId);
-    }
-  };
-  
-  // Function to fetch user details
-  const fetchUserDetails = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/users/profile?id=${userId}`);
-      const data = await response.json();
-      
-      if (data.success && data.user) {
-        setOtherUserData(prev => ({
-          ...prev,
-          name: `${data.user.firstName} ${data.user.lastName}`
-        }));
-      }
-    } catch (error) {
-      console.error("Error fetching user details:", error);
-    }
   };
 
   const updateLastSeen = async (userId: string) => {
@@ -148,13 +110,6 @@ export default function ChatPage() {
         const data = await response.json();
         if (data.success && data.chatRoom) {
           setChatParticipants(data.chatRoom.participants || []);
-          
-          // Find the other user's ID
-          const otherUserId: string | undefined = (data.chatRoom.participants || []).find((id: string) => id !== userId);
-          if (otherUserId) {
-            setOtherUserData(prev => ({ ...prev, id: otherUserId }));
-            fetchUserDetails(otherUserId);
-          }
         }
       } catch (error) {
         console.error("Error fetching chat room:", error);
@@ -276,18 +231,8 @@ export default function ChatPage() {
                 replyingTo={replyingTo}
                 onCancelReply={handleCancelReply}
                 chatParticipants={chatParticipants}
-                onOpenMeetingOverlay={handleOpenMeetingOverlay}
               />
             </div>
-            
-            {/* Render the meeting overlay at the page level */}
-            {showMeetingOverlay && (
-              <MeetingOverlay 
-                onClose={() => setShowMeetingOverlay(false)}
-                receiverId={otherUserData.id}
-                receiverName={otherUserData.name || "User"}
-              />
-            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center">
