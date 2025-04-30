@@ -1,19 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, User, X, Plus, Check, X as XMark, ExternalLink } from 'lucide-react';
+import { X, Plus } from 'lucide-react';
 import CreateMeetingModal from '@/components/messageSystem/meetings/CreateMeetingModal';
-import { format } from 'date-fns';
-
-interface Meeting {
-  _id: string;
-  senderId: string;
-  receiverId: string;
-  description: string;
-  sentAt: Date;
-  meetingTime: Date;
-  meetingLink: string | null;
-  acceptStatus: boolean;
-  state: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
-}
+import PendingMeetingList from '@/components/messageSystem/meetings/PendingMeetingList';
+import UpcomingMeetingList from '@/components/messageSystem/meetings/UpcomingMeetingList';
+import MeetingLists from '@/components/messageSystem/meetings/MeetingLists';
+import { Meeting, UserProfiles } from '@/components/messageSystem/meetings/types';
 
 interface MeetingBoxProps {
   chatRoomId: string;
@@ -24,7 +15,7 @@ interface MeetingBoxProps {
 export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxProps) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userProfiles, setUserProfiles] = useState<{[key: string]: {firstName: string, lastName: string}}>({});
+  const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
 
@@ -41,7 +32,6 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
           );
           setOtherUserId(otherParticipant);
           
-          // Fetch other user's profile immediately
           if (otherParticipant && !userProfiles[otherParticipant]) {
             try {
               const res = await fetch(`/api/users/profile?id=${otherParticipant}`);
@@ -132,7 +122,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
 
   const handleAcceptMeeting = async (meetingId: string) => {
     try {
-      setLoading(true); // Add loading state while accepting
+      setLoading(true);
       
       const response = await fetch('/api/meeting', {
         method: 'PATCH',
@@ -152,25 +142,12 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
       const updatedMeeting = await response.json();
       console.log("Meeting accepted, received updated meeting:", updatedMeeting);
       
-      // Handle acceptance of pending meetings
-      if (updatedMeeting.state === "pending" && updatedMeeting.acceptStatus) {
-        const zoomAccessToken = await generateZoomAccessToken();
-        const zoomMeetingLink = await createZoomMeeting(zoomAccessToken);
-
-        updatedMeeting.state = "accepted";
-        updatedMeeting.meetingLink = zoomMeetingLink;
-        updatedMeeting.acceptStatus = true;
-      }
-      
-      // Update the specific meeting in our state with the returned data
       setMeetings(prevMeetings => 
         prevMeetings.map(meeting => 
           meeting._id === meetingId ? updatedMeeting : meeting
         )
       );
       
-      // Force a refresh of all meetings to ensure we have the latest data
-      // This is optional but helps ensure everything is in sync
       if (otherUserId) {
         fetchMeetings(otherUserId);
       }
@@ -275,50 +252,19 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     m.state === 'cancelled' || m.state === 'rejected'
   );
 
-  const getUserName = (userId: string) => {
-    const profile = userProfiles[userId];
-    return profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...';
-  };
-
-  const formatDate = (date: Date | string) => {
-    const dateObj = new Date(date);
-    return format(dateObj, 'MMM d, yyyy');
-  };
-
-  const formatTime = (date: Date | string) => {
-    const dateObj = new Date(date);
-    return format(dateObj, 'h:mm a');
-  };
-
-  const getStatusClassName = (meeting: Meeting) => {
-    switch (meeting.state) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'accepted':
-        return 'bg-blue-100 text-blue-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'rejected':
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusLabel = (meeting: Meeting) => {
-    if (meeting.state === 'pending' && meeting.senderId === userId) {
-      return 'Awaiting Response';
-    }
-    return meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
-  };
-
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">
         <p>Loading meetings...</p>
       </div>
     );
+  }
+
+  function getUserName(userId: string): string {
+    if (userProfiles[userId]) {
+      return `${userProfiles[userId].firstName} ${userProfiles[userId].lastName}`;
+    }
+    return 'User';
   }
 
   return (
@@ -355,231 +301,34 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
         </div>
       ) : (
         <div className="space-y-6">
-          {pendingRequests.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-lg mb-2 border-b pb-1">Meeting Requests</h3>
-              <div className="space-y-3">
-                {pendingRequests.map(meeting => (
-                  <div key={meeting._id} className="border rounded-lg p-4 shadow-sm hover:shadow bg-yellow-50">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-lg">Meeting Request from {getUserName(meeting.senderId)}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusClassName(meeting)}`}>
-                        {getStatusLabel(meeting)}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        <span>{formatDate(meeting.meetingTime)}</span>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{formatTime(meeting.meetingTime)}</span>
-                      </div>
-                    </div>
-                    
-                    {meeting.description && (
-                      <p className="mt-2 text-gray-700">{meeting.description}</p>
-                    )}
-                    
-                    <div className="mt-4 flex justify-end space-x-2">
-                      <button 
-                        className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center"
-                        onClick={() => handleAcceptMeeting(meeting._id)}
-                      >
-                        <Check className="w-4 h-4 mr-1" />
-                        Accept
-                      </button>
-                      <button 
-                        className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center"
-                        onClick={() => handleRejectMeeting(meeting._id)}
-                      >
-                        <XMark className="w-4 h-4 mr-1" />
-                        Decline
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {upcomingMeetings.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-lg mb-2 border-b pb-1">Upcoming Meetings</h3>
-              <div className="space-y-3">
-                {upcomingMeetings.map(meeting => (
-                  <div key={meeting._id} className="border rounded-lg p-4 shadow-sm hover:shadow">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-lg">
-                        Meeting with {getUserName(meeting.senderId === userId ? meeting.receiverId : meeting.senderId)}
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusClassName(meeting)}`}>
-                        {getStatusLabel(meeting)}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        <span>{formatDate(meeting.meetingTime)}</span>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{formatTime(meeting.meetingTime)}</span>
-                      </div>
-                      
-                      {meeting.meetingLink && (
-                        <div className="flex items-center text-blue-600 font-medium">
-                          <svg 
-                            className="w-4 h-4 mr-2" 
-                            viewBox="0 0 24 24" 
-                            fill="currentColor"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M16.2 8.4V7.1c0-.8-.7-1.5-1.5-1.5H5c-.8 0-1.5.7-1.5 1.5v9.1c0 .8.7 1.5 1.5 1.5h9.7c.8 0 1.5-.7 1.5-1.5v-1.3l4.7 2.7c.5.3 1.1-.1 1.1-.7V6.3c0-.6-.6-1-1.1-.7l-4.7 2.8z" />
-                          </svg>
-                          <span className="truncate">Zoom meeting ready</span>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {meeting.description && (
-                      <p className="mt-2 text-gray-700">{meeting.description}</p>
-                    )}
-                    
-                    <div className="mt-4 flex justify-end space-x-2">
-                      {meeting.state === 'accepted' && meeting.meetingLink && (
-                        <a 
-                          href={meeting.meetingLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
-                                    text-sm flex items-center shadow-sm transition-colors"
-                        >
-                          <svg 
-                            className="w-4 h-4 mr-2" 
-                            viewBox="0 0 24 24" 
-                            fill="currentColor"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M16.2 8.4V7.1c0-.8-.7-1.5-1.5-1.5H5c-.8 0-1.5.7-1.5 1.5v9.1c0 .8.7 1.5 1.5 1.5h9.7c.8 0 1.5-.7 1.5-1.5v-1.3l4.7 2.7c.5.3 1.1-.1 1.1-.7V6.3c0-.6-.6-1-1.1-.7l-4.7 2.8z" />
-                          </svg>
-                          Join Zoom Meeting
-                        </a>
-                      )}
-                      
-                      {(meeting.senderId === userId || meeting.state === 'accepted') && (
-                        <button 
-                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
-                          onClick={() => handleCancelMeeting(meeting._id)}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {pastMeetings.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-lg mb-2 border-b pb-1">Past Meetings</h3>
-              <div className="space-y-3">
-                {pastMeetings.map(meeting => (
-                  <div key={meeting._id} className="border rounded-lg p-4 shadow-sm hover:shadow bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-lg">
-                        Meeting with {getUserName(meeting.senderId === userId ? meeting.receiverId : meeting.senderId)}
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusClassName(meeting)}`}>
-                        {getStatusLabel(meeting)}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        <span>{formatDate(meeting.meetingTime)}</span>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{formatTime(meeting.meetingTime)}</span>
-                      </div>
-                    </div>
-                    
-                    {meeting.description && (
-                      <p className="mt-2 text-gray-700">{meeting.description}</p>
-                    )}
-                    
-                    <div className="mt-4 flex justify-end space-x-2">
-                      {meeting.state === 'accepted' && meeting.meetingLink && (
-                        <a 
-                          href={meeting.meetingLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
-                                    text-sm flex items-center shadow-sm transition-colors"
-                        >
-                          <svg 
-                            className="w-4 h-4 mr-2" 
-                            viewBox="0 0 24 24" 
-                            fill="currentColor"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path d="M16.2 8.4V7.1c0-.8-.7-1.5-1.5-1.5H5c-.8 0-1.5.7-1.5 1.5v9.1c0 .8.7 1.5 1.5 1.5h9.7c.8 0 1.5-.7 1.5-1.5v-1.3l4.7 2.7c.5.3 1.1-.1 1.1-.7V6.3c0-.6-.6-1-1.1-.7l-4.7 2.8z" />
-                          </svg>
-                          Join Zoom Meeting
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {cancelledMeetings.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-lg mb-2 border-b pb-1">Cancelled Meetings</h3>
-              <div className="space-y-3">
-                {cancelledMeetings.map(meeting => (
-                  <div key={meeting._id} className="border rounded-lg p-4 shadow-sm hover:shadow bg-gray-50 opacity-75">
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-semibold text-lg">
-                        Meeting with {getUserName(meeting.senderId === userId ? meeting.receiverId : meeting.senderId)}
-                      </h3>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusClassName(meeting)}`}>
-                        {getStatusLabel(meeting)}
-                      </span>
-                    </div>
-                    
-                    <div className="mt-2 space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2" />
-                        <span>{formatDate(meeting.meetingTime)}</span>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2" />
-                        <span>{formatTime(meeting.meetingTime)}</span>
-                      </div>
-                    </div>
-                    
-                    {meeting.description && (
-                      <p className="mt-2 text-gray-700">{meeting.description}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <PendingMeetingList
+            meetings={pendingRequests}
+            userId={userId}
+            userProfiles={userProfiles}
+            onAccept={handleAcceptMeeting}
+            onReject={handleRejectMeeting}
+          />
+          
+          <UpcomingMeetingList
+            meetings={upcomingMeetings}
+            userId={userId}
+            userProfiles={userProfiles}
+            onCancel={handleCancelMeeting}
+          />
+          
+          <MeetingLists
+            type="past"
+            meetings={pastMeetings}
+            userId={userId}
+            userProfiles={userProfiles}
+          />
+          
+          <MeetingLists
+            type="cancelled"
+            meetings={cancelledMeetings}
+            userId={userId}
+            userProfiles={userProfiles}
+          />
         </div>
       )}
 
@@ -594,12 +343,3 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   );
 }
 
-async function generateZoomAccessToken(): Promise<string> {
-  // Implementation for generating Zoom access token
-  return 'zoomAccessToken';
-}
-
-async function createZoomMeeting(accessToken: string): Promise<string> {
-  // Implementation for creating Zoom meeting
-  return 'https://zoom.us/j/123456789';
-}
