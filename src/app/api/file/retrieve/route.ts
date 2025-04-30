@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const fileName = searchParams.get("file");
     const fileUrl = searchParams.get("fileUrl");
-    const fileContent = searchParams.get("fileContent"); // Add this to handle the full content string
+    const fileContent = searchParams.get("fileContent");
     
     console.log("File download request:", { fileName, fileUrl, fileContent });
     
@@ -30,8 +30,20 @@ export async function GET(req: Request) {
           
           if (secondColonIndex !== -1) {
             // Extract the filename between the two colons
-            key = afterFirstColon.substring(0, secondColonIndex).trim();
-            console.log("Extracted key from file content:", key);
+            const extractedFileName = afterFirstColon.substring(0, secondColonIndex).trim();
+            
+            // Check if this is from a chat message (contains URL with chat/ path)
+            const urlPart = afterFirstColon.substring(secondColonIndex + 1);
+            
+            // If the URL contains /chat/ directory, assume we need the chat/ prefix
+            if (urlPart && urlPart.includes('/chat/')) {
+              key = `chat/${extractedFileName}`;
+              console.log("Detected chat file, using path:", key);
+            } else {
+              // Otherwise use the filename as-is (for backward compatibility)
+              key = extractedFileName;
+              console.log("Using extracted filename:", key);
+            }
           }
         }
       } catch (error) {
@@ -39,9 +51,8 @@ export async function GET(req: Request) {
       }
     } else if (fileUrl) {
       try {
-        // For R2 URLs, try to extract the full path after bucket name
+        // For R2 URLs, extract the path including folder structure
         if (fileUrl.includes('r2.cloudflarestorage.com')) {
-          // Extract everything after the bucket name
           const bucketName = process.env.R2_BUCKET_NAME || "skillswaphub";
           const bucketIndex = fileUrl.indexOf(bucketName);
           
@@ -49,7 +60,7 @@ export async function GET(req: Request) {
             // Get everything after the bucket name and decode it
             const afterBucket = fileUrl.substring(bucketIndex + bucketName.length + 1); // +1 for the slash
             key = decodeURIComponent(afterBucket);
-            console.log("Extracted key from R2 URL:", key);
+            console.log("Extracted full path from R2 URL:", key);
           } else {
             // Fallback to original parsing method
             const url = new URL(fileUrl);
@@ -98,15 +109,33 @@ export async function GET(req: Request) {
     console.log("Retrieving file with key:", key);
     console.log("Using bucket:", process.env.R2_BUCKET_NAME || "skillswaphub");
 
-    // Get file from R2 using SDK
-    const command = new GetObjectCommand({
+    // Try with the key as provided
+    let command = new GetObjectCommand({
       Bucket: process.env.R2_BUCKET_NAME || "skillswaphub",
       Key: key,
     });
 
     try {
       console.log("Sending GetObjectCommand to R2");
-      const response = await s3Client.send(command);
+      let response;
+      try {
+        response = await s3Client.send(command);
+      } catch (error) {
+        // If error and the key doesn't already have "chat/" prefix, try with it
+        if (!key.startsWith("chat/") && fileContent?.includes("File:")) {
+          const altKey = `chat/${key}`;
+          console.log("File not found, trying with chat/ prefix:", altKey);
+          command = new GetObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME || "skillswaphub",
+            Key: altKey,
+          });
+          response = await s3Client.send(command);
+          key = altKey; // Update key for later use
+        } else {
+          // Re-throw if we can't try an alternative
+          throw error;
+        }
+      }
       
       if (!response.Body) {
         console.error("File not found in R2:", key);
@@ -124,12 +153,15 @@ export async function GET(req: Request) {
       
       console.log("File size:", buffer.length, "bytes");
       
+      // Extract just the filename without the folder path for the Content-Disposition header
+      const filenameForHeader = key.includes('/') ? key.split('/').pop() : key;
+      
       // Return the file with appropriate headers
       return new NextResponse(buffer, {
         headers: {
           "Content-Type": response.ContentType || "application/octet-stream",
           "Content-Length": response.ContentLength?.toString() || buffer.length.toString(),
-          "Content-Disposition": `attachment; filename="${encodeURIComponent(key)}"`,
+          "Content-Disposition": `attachment; filename="${encodeURIComponent(filenameForHeader || key)}"`,
         },
       });
     } catch (error: any) {
