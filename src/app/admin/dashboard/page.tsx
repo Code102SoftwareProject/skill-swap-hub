@@ -9,7 +9,7 @@ import KYCContent from '@/components/Admin/dashboardContent/KYCContent';
 import UsersContent from '@/components/Admin/dashboardContent/UsersContent';
 import SuggestionsContent from '@/components/Admin/dashboardContent/SuggestionsContent';
 import SystemContent from '@/components/Admin/dashboardContent/SystemContent';
-import VerifyDocumentsContent from '@/components/Admin/dashboardContent/VerifyDocumentsContent';
+import VerificationRequests from '@/components/Admin/skillverifications';
 import ReportingContent from '@/components/Admin/dashboardContent/ReportingContent';
 
 export default function AdminDashboardPage() {
@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
       case 'system':
         return <SystemContent key={activeComponent} />;
       case 'verify-documents':
-        return <VerifyDocumentsContent key={activeComponent} />;
+        return <VerificationRequests userId='user123' key={activeComponent} />;
       case 'reporting':
         return <ReportingContent key={activeComponent} />;
       default:
@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
     <div className="flex h-screen">
       {/* Sidebar with navigation */}
       <AdminSidebar
-        onNavigate={setActiveComponent} // ✅ This is required
+        onNavigate={setActiveComponent} 
         activeComponent={activeComponent}
       />
 
@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
       {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
-        <main className="p-6 overflow-y-auto bg-gray-50">
+        <main className="p-6 mt-4 overflow-y-auto bg-gray-50">
           {renderContent()}
         </main>
       </div>

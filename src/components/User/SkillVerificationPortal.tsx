@@ -227,27 +227,27 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-4xl font-bold text-center mb-2">Skill Verification Portal</h1>
-      <p className="text-gray-600 text-center mb-8">Verify and showcase your professional skills</p>
+      <h1 className="text-4xl text-black font-bold text-center mb-2">Skill Verification Portal</h1>
+      <p className="text-gray-600 text-black text-center mb-8">Verify and showcase your professional skills</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Form Section */}
         <div className="space-y-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label className="text-xl font-semibold block mb-2">Skill Name</label>
+              <label className="text-xl text-black font-semibold block mb-2">Skill Name</label>
               <input
                 type="text"
                 value={skillName}
                 onChange={(e) => setSkillName(e.target.value)}
-                className="w-full p-3 border rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border text-black rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500"
                 required
                 disabled={isSubmitting}
               />
             </div>
 
             <div>
-              <label className="text-xl font-semibold block mb-2">Upload Verification Documents</label>
+              <label className="text-xl text-black font-semibold block mb-2">Upload Verification Documents</label>
               <div
                 className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-500 ${
                   isSubmitting ? 'opacity-50 cursor-not-allowed' : ''
@@ -290,11 +290,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                )}
 
             <div>
-              <label className="text-xl font-semibold block mb-2">Additional Description</label>
+              <label className="text-xl text-black font-semibold block mb-2">Additional Description</label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full p-3 border rounded-lg shadow-sm h-32 focus:ring-2 focus:ring-blue-500"
+                className="w-full p-3 border text-black rounded-lg shadow-sm h-32 focus:ring-2 focus:ring-blue-500"
                 disabled={isSubmitting}
               />
             </div>
@@ -312,7 +312,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
 
         <div className="bg-white p-6 rounded-lg shadow">
-          <h2 className="text-xl font-bold mb-4">Your Verification Requests</h2>
+          <h2 className="text-xl text-black font-bold mb-4">Your Verification Requests</h2>
           <div className="space-y-3">
             {requests.length === 0 ? (
               <p className="text-gray-500 text-center py-4">No verification requests yet</p>

@@ -7,14 +7,14 @@ const AdminNavbar = () => {
         
         {/* Left Logo */}
         <div className="flex items-center gap-2">
-          <Link href="/">
+          <div className="cursor-default">
             <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
-          </Link>
+          </div>
         </div>
 
         {/* Center Title */}
         <h1 className="absolute left-1/2 transform -translate-x-1/2 text-white text-xl font-semibold">
-          Admin Dashboard
+          Admin 
         </h1>
 
         {/* Right Icons */}

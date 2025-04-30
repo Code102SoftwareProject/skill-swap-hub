@@ -1,7 +1,7 @@
 import connect from '@/lib/db';
 import User from "@/lib/models/userSchema";
 import Session from "@/lib/models/sessionSchema";
-import SkillList from "@/lib/models/skillList";
+import SkillList from "@/lib/models/skillListing";
 import SkillListing from "@/lib/models/skillListing";
 import SkillMatch from "@/lib/models/skillMatch";
 import { NextResponse } from "next/server";
@@ -11,12 +11,14 @@ export async function GET() {
     await connect(); // Connect to your MongoDB
 
     const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true }); // Adjust query based on your schema
-
     const sessions = await Session.countDocuments();
     const skillsRequested = await SkillList.countDocuments();
     const skillsOffered = await SkillListing.countDocuments();
     const matches = await SkillMatch.countDocuments();
+    
+    // Get active users (users with recent session activity - adjust time period as needed)
+    const userIds = await Session.distinct('userId');
+    const activeUsers = userIds.length;
 
     const popularSkillDoc = await SkillList.aggregate([
       { $group: { _id: "$skillName", count: { $sum: 1 } } },
@@ -34,6 +36,21 @@ export async function GET() {
       { $group: { _id: "$skillName", offers: { $sum: 1 } } }
     ]);
 
+    // Get user registration data aggregated by month
+    const userRegistrationData = await User.aggregate([
+      {
+        $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { "_id.year": 1, "_id.month": 1 } },
+      { $limit: 12 } // Get last 12 months
+    ]);
+
     const skillMap: { [key: string]: { skill: string; requests: number; offers: number } } = {};
 
     skillsData.forEach(skill => {
@@ -49,13 +66,14 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      activeUsers,
       totalUsers,
+      activeUsers,
       sessions,
       popularSkill,
       skillsOffered,
       skillsRequested,
       matches,
+      userRegistrationData,
       skillsData: Object.values(skillMap)
     });
 
