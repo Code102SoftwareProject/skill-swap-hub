@@ -1,7 +1,7 @@
 'use client'; // Required for client-side rendering
 
 import { useState } from 'react';
-import AdminSidebar from '@/components/Admin/adminSidebar';
+import AdminSidebar from '@/components/Admin/AdminSidebar';
 import AdminNavbar from '@/components/Admin/AdminNavbar';
 
 import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
@@ -44,7 +44,7 @@ export default function AdminDashboardPage() {
     <div className="flex h-screen">
       {/* Sidebar with navigation */}
       <AdminSidebar
-        onNavigate={setActiveComponent} // ✅ This is required
+        onNavigate={setActiveComponent} 
         activeComponent={activeComponent}
       />
 
@@ -52,7 +52,7 @@ export default function AdminDashboardPage() {
       {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
-        <main className="p-6 overflow-y-auto bg-gray-50">
+        <main className="p-6 mt-4 overflow-y-auto bg-gray-50">
           {renderContent()}
         </main>
       </div>
