@@ -12,13 +12,15 @@ interface VerificationRequest extends Document {
     updatedAt: Date;
 }
 
-export default function VerificationRequests({ userId }: { userId: string }) {
+export default function VerificationRequests() {
   const [requests, setRequests] = useState<VerificationRequest[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<VerificationRequest | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewingDocument, setViewingDocument] = useState<string | null>(null);
   const [documentLoading, setDocumentLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   useEffect(() => {
     fetchRequests();
@@ -29,7 +31,8 @@ export default function VerificationRequests({ userId }: { userId: string }) {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`/api/users/verification-request?userId=${userId}`);
+      // Remove userId parameter to fetch all verification requests
+      const response = await fetch('/api/admin/skill-verification-requests');
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -64,7 +67,7 @@ export default function VerificationRequests({ userId }: { userId: string }) {
         currentStatus: selectedRequest?.status }); // Debug log
       
       setError(null);
-      const response = await fetch(`/api/users/verification-request/${requestId}`, {
+      const response = await fetch(`/api/admin/skill-verification-requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -131,16 +134,30 @@ export default function VerificationRequests({ userId }: { userId: string }) {
     }
   };
 
+  // Filter requests based on status and search term
+  const filteredRequests = requests.filter(request => {
+    const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    const matchesSearch = searchTerm === '' || 
+      request.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.skillName.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    return matchesStatus && matchesSearch;
+  });
+
   return (
     <div className="flex min-h-screen bg-gray-50">
       {/* Left side - Requests List */}
       <div className="w-1/2 p-6 overflow-y-auto border-r border-gray-200">
-        <div className="mb-6">
+        <h1 className="text-2xl font-bold mb-6">Skill Verification Requests</h1>
+        
+        <div className="mb-6 space-y-4">
           <div className="relative">
             <input
               type="search"
-              placeholder="Search Requests..."
+              placeholder="Search by user ID or skill name..."
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
             <span className="absolute inset-y-0 right-0 flex items-center pr-3">
               <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,6 +165,64 @@ export default function VerificationRequests({ userId }: { userId: string }) {
               </svg>
             </span>
           </div>
+          
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => setStatusFilter('all')} 
+              className={`px-3 py-1 rounded-lg text-sm ${
+                statusFilter === 'all' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              All
+            </button>
+            <button 
+              onClick={() => setStatusFilter('pending')} 
+              className={`px-3 py-1 rounded-lg text-sm ${
+                statusFilter === 'pending' 
+                  ? 'bg-yellow-500 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Pending
+            </button>
+            <button 
+              onClick={() => setStatusFilter('approved')} 
+              className={`px-3 py-1 rounded-lg text-sm ${
+                statusFilter === 'approved' 
+                  ? 'bg-green-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Approved
+            </button>
+            <button 
+              onClick={() => setStatusFilter('rejected')} 
+              className={`px-3 py-1 rounded-lg text-sm ${
+                statusFilter === 'rejected' 
+                  ? 'bg-red-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              Rejected
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm text-gray-600">
+            {filteredRequests.length} {filteredRequests.length === 1 ? 'request' : 'requests'} found
+          </span>
+          <button 
+            onClick={fetchRequests}
+            className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
         </div>
 
         {error && (
@@ -160,13 +235,13 @@ export default function VerificationRequests({ userId }: { userId: string }) {
           <div className="flex items-center justify-center h-32">
             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
-        ) : requests.length === 0 ? (
+        ) : filteredRequests.length === 0 ? (
           <div className="text-center text-gray-500 py-8">
             {error ? 'Unable to load requests' : 'No requests found'}
           </div>
         ) : (
           <div className="space-y-4">
-            {requests.map((request) => (
+            {filteredRequests.map((request) => (
               <div
                 key={request._id}
                 onClick={() => setSelectedRequest(request)}
@@ -186,8 +261,11 @@ export default function VerificationRequests({ userId }: { userId: string }) {
                       />
                     </div>
                     <div>
-                      <h3 className="font-medium">User ID: {request.userId}</h3>
-                      <p className="text-sm text-gray-600">{request.skillName}</p>
+                      <h3 className="font-medium">{request.skillName}</h3>
+                      <p className="text-sm text-gray-600">User ID: {request.userId}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(request.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
                   </div>
                   <span className={`px-2 py-1 text-sm rounded-full ${
@@ -224,7 +302,15 @@ export default function VerificationRequests({ userId }: { userId: string }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Status</label>
-                  <p className="mt-1">{selectedRequest.status}</p>
+                  <p className={`mt-1 font-medium ${
+                    selectedRequest.status === 'pending'
+                      ? 'text-yellow-600'
+                      : selectedRequest.status === 'approved'
+                      ? 'text-green-600'
+                      : 'text-red-600'
+                  }`}>
+                    {selectedRequest.status.charAt(0).toUpperCase() + selectedRequest.status.slice(1)}
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Submission Date</label>
@@ -262,35 +348,38 @@ export default function VerificationRequests({ userId }: { userId: string }) {
                 </div>
               )}
 
-       <div className="flex space-x-4 mt-6">
-        <button
-          onClick={() => handleUpdateStatus(selectedRequest._id, 'approved')}
-          disabled={selectedRequest.status !== 'pending'}
-          className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-            selectedRequest.status === 'pending'
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Approve (Status: {selectedRequest.status})
-        </button>
-        <button
-          onClick={() => handleUpdateStatus(selectedRequest._id, 'rejected')}
-          disabled={selectedRequest.status !== 'pending'}
-          className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
-            selectedRequest.status === 'pending'
-              ? 'bg-red-600 text-white hover:bg-red-700'
-              : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          Reject (Status: {selectedRequest.status})
-        </button>
-      </div>
+              <div className="flex space-x-4 mt-6">
+                <button
+                  onClick={() => handleUpdateStatus(selectedRequest._id, 'approved')}
+                  disabled={selectedRequest.status !== 'pending'}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    selectedRequest.status === 'pending'
+                      ? 'bg-green-600 text-white hover:bg-green-700'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => handleUpdateStatus(selectedRequest._id, 'rejected')}
+                  disabled={selectedRequest.status !== 'pending'}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    selectedRequest.status === 'pending'
+                      ? 'bg-red-600 text-white hover:bg-red-700'
+                      : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  Reject
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center h-full text-gray-500">
-            Select a request to view details
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            <svg className="w-16 h-16 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <p>Select a request to view details</p>
           </div>
         )}
       </div>
