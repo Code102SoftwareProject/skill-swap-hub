@@ -1,12 +1,18 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Clock, Monitor, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MeetingOverlayProps {
   onClose: () => void;
   receiverName?: string;
   receiverId?: string;
+}
+
+interface UserData {
+  firstName: string;
+  lastName: string;
+  avatar?: string;
 }
 
 export default function MeetingOverlay({ 
@@ -20,9 +26,39 @@ export default function MeetingOverlay({
   const [amPm, setAmPm] = useState("AM");
   // Sri Lankan time is used as standard
   const timeZone = "Sri Lanka Standard Time (GMT+5:30)";
+  // Add state for user data
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Current month and year for calendar
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
+  // Fetch user data when component mounts
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!receiverId) return;
+      
+      setIsLoading(true);
+      try {
+        const response = await fetch(`/api/users/profile?id=${receiverId}`);
+        const data = await response.json();
+        
+        if (data.success && data.user) {
+          setUserData({
+            firstName: data.user.firstName,
+            lastName: data.user.lastName,
+            avatar: data.user.avatar
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchUserData();
+  }, [receiverId]);
   
   // Add helper function to check if selected time is valid
   const isValidTime = () => {
@@ -103,7 +139,7 @@ export default function MeetingOverlay({
       return;
     }
     
-    console.log("Meeting requested with", receiverName, "on", selectedDate, "at", `${selectedHour}:${selectedMinute} ${amPm}`, "in", timeZone);
+    console.log("Meeting requested with", userData ? `${userData.firstName} ${userData.lastName}` : receiverName, "on", selectedDate, "at", `${selectedHour}:${selectedMinute} ${amPm}`, "in", timeZone);
     onClose();
   };
   
@@ -126,6 +162,9 @@ export default function MeetingOverlay({
 
   // Days of the week
   const daysOfWeek = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+  // Get display name (from API or fallback to prop)
+  const displayName = userData ? `${userData.firstName} ${userData.lastName}` : receiverName;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -230,11 +269,17 @@ export default function MeetingOverlay({
           <div className="flex flex-col items-center text-center w-full">
             {/* User avatar */}
             <div className="w-16 h-16 rounded-full bg-yellow-400 flex items-center justify-center overflow-hidden mb-4 border-2 border-gray-100 shadow">
-              <img src="/avatar-placeholder.jpg" alt="" className="w-full h-full object-cover" />
+              {userData?.avatar ? (
+                <img src={userData.avatar} alt={displayName} className="w-full h-full object-cover" />
+              ) : (
+                <img src="/avatar-placeholder.jpg" alt="" className="w-full h-full object-cover" />
+              )}
             </div>
             
             <div className="text-xs text-gray-500 mb-2">Account name</div>
-            <h2 className="text-lg font-medium mb-5">Meeting with {receiverName}</h2>
+            <h2 className="text-lg font-medium mb-5">
+              {isLoading ? "Loading..." : `Meeting with ${displayName}`}
+            </h2>
             
             {/* Meeting duration */}
             <div className="flex items-center mb-4 text-gray-600 bg-gray-50 px-4 py-2 rounded-md border border-gray-100 w-full justify-center">
@@ -250,7 +295,7 @@ export default function MeetingOverlay({
             
             {/* Request button */}
             <button 
-              className="w-full bg-blue-700 text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors border border-blue-800"
+              className="w-full bg-blue-700 text-white py-3 px-4 rounded-md text-sm font-medium hover:bg-blue-800 transition-colors border border-blue-800 disabled:bg-gray-400 disabled:border-gray-500 disabled:cursor-not-allowed"
               onClick={handleRequestMeeting}
               disabled={!selectedDate || timeError}
             >
