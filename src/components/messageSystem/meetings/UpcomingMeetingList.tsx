@@ -28,11 +28,6 @@ const UpcomingMeetingList: React.FC<UpcomingMeetingListProps> = ({
 }) => {
   if (meetings.length === 0) return null;
 
-  const getUserName = (userId: string) => {
-    const profile = userProfiles[userId];
-    return profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...';
-  };
-
   return (
     <div>
       <h3 className="font-semibold text-lg mb-2 border-b pb-1">Upcoming Meetings</h3>
@@ -42,7 +37,7 @@ const UpcomingMeetingList: React.FC<UpcomingMeetingListProps> = ({
             key={meeting._id}
             meeting={meeting}
             userId={userId}
-            userName={getUserName(meeting.senderId === userId ? meeting.receiverId : meeting.senderId)}
+            userName={userProfiles[meeting.senderId === userId ? meeting.receiverId : meeting.senderId]?.firstName || 'User'}
             isUpcoming={true}
             onCancel={onCancel}
           />

@@ -1,11 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { X, Plus } from 'lucide-react';
 import CreateMeetingModal from '@/components/messageSystem/meetings/CreateMeetingModal';
 import PendingMeetingList from '@/components/messageSystem/meetings/PendingMeetingList';
 import UpcomingMeetingList from '@/components/messageSystem/meetings/UpcomingMeetingList';
 import MeetingLists from '@/components/messageSystem/meetings/MeetingLists';
-import { Meeting, UserProfiles } from '@/components/messageSystem/meetings/types';
+import  Meeting  from '@/types/meeting';
 
+interface UserProfile {
+  firstName: string;
+  lastName: string;
+}
+
+interface UserProfiles {
+  [userId: string]: UserProfile;
+}
 interface MeetingBoxProps {
   chatRoomId: string;
   userId: string;
@@ -19,6 +27,29 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
 
+  // Fetch user profile by ID
+  const fetchUserProfile = useCallback(async (id: string) => {
+    if (userProfiles[id]) return;
+    
+    try {
+      const res = await fetch(`/api/users/profile?id=${id}`);
+      const data = await res.json();
+      
+      if (data.success) {
+        setUserProfiles(prev => ({
+          ...prev,
+          [id]: {
+            firstName: data.user.firstName,
+            lastName: data.user.lastName
+          }
+        }));
+      }
+    } catch (err) {
+      console.error(`Error fetching profile for user ${id}:`, err);
+    }
+  }, [userProfiles]);
+
+  // Fetch chat room to get other user ID
   useEffect(() => {
     const fetchChatRoom = async () => {
       try {
@@ -32,23 +63,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
           );
           setOtherUserId(otherParticipant);
           
-          if (otherParticipant && !userProfiles[otherParticipant]) {
-            try {
-              const res = await fetch(`/api/users/profile?id=${otherParticipant}`);
-              const userData = await res.json();
-              
-              if (userData.success) {
-                setUserProfiles(prev => ({
-                  ...prev,
-                  [otherParticipant]: {
-                    firstName: userData.user.firstName,
-                    lastName: userData.user.lastName
-                  }
-                }));
-              }
-            } catch (err) {
-              console.error(`Error fetching profile for user ${otherParticipant}:`, err);
-            }
+          if (otherParticipant) {
+            fetchUserProfile(otherParticipant);
           }
         }
       } catch (error) {
@@ -57,9 +73,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     };
     
     fetchChatRoom();
-  }, [chatRoomId, userId, userProfiles]);
+  }, [chatRoomId, userId, fetchUserProfile]);
 
-  const fetchMeetings = async (otherUserID: string) => {
+  // Fetch meetings
+  const fetchMeetings = useCallback(async (otherUserID: string) => {
     try {
       setLoading(true);
       const response = await fetch(`/api/meeting`);
@@ -70,77 +87,57 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
         (meeting.senderId === otherUserID && meeting.receiverId === userId)
       );
       
-      console.log("Fetched meetings:", relevantMeetings);
       setMeetings(relevantMeetings);
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId]);
 
+  // Fetch meetings when otherUserId is available
   useEffect(() => {
     if (!otherUserId) return;
     fetchMeetings(otherUserId);
-  }, [userId, otherUserId, chatRoomId]);
+  }, [otherUserId, fetchMeetings]);
 
+  // Fetch user profiles for all meeting participants
   useEffect(() => {
-    const fetchUserProfiles = async () => {
-      const uniqueUserIds = new Set<string>();
-      
-      meetings.forEach(meeting => {
-        uniqueUserIds.add(meeting.senderId);
-        uniqueUserIds.add(meeting.receiverId);
-      });
+    if (meetings.length === 0) return;
+    
+    const uniqueUserIds = new Set<string>();
+    meetings.forEach(meeting => {
+      uniqueUserIds.add(meeting.senderId);
+      uniqueUserIds.add(meeting.receiverId);
+    });
 
-      for (const id of uniqueUserIds) {
-        if (!userProfiles[id]) {
-          try {
-            const res = await fetch(`/api/users/profile?id=${id}`);
-            const data = await res.json();
-            
-            if (data.success) {
-              setUserProfiles(prev => ({
-                ...prev,
-                [id]: {
-                  firstName: data.user.firstName,
-                  lastName: data.user.lastName
-                }
-              }));
-            }
-          } catch (err) {
-            console.error(`Error fetching profile for user ${id}:`, err);
-          }
-        }
-      }
-    };
+    uniqueUserIds.forEach(id => fetchUserProfile(id));
+  }, [meetings, fetchUserProfile]);
 
-    if (meetings.length > 0) {
-      fetchUserProfiles();
-    }
-  }, [meetings, userProfiles]);
-
-  const handleAcceptMeeting = async (meetingId: string) => {
+  // Generic meeting action handler (accept, reject, cancel)
+  const handleMeetingAction = async (meetingId: string, action: string, value: any = null) => {
     try {
       setLoading(true);
       
+      const body: any = { _id: meetingId };
+      
+      if (action === 'accept') {
+        body.acceptStatus = true;
+      } else if (['reject', 'cancel'].includes(action)) {
+        body.state = action === 'reject' ? 'rejected' : 'cancelled';
+      }
+      
       const response = await fetch('/api/meeting', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          _id: meetingId,
-          acceptStatus: true
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
       
       if (!response.ok) {
-        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+        throw new Error(`Server returned ${response.status}`);
       }
       
       const updatedMeeting = await response.json();
-      console.log("Meeting accepted, received updated meeting:", updatedMeeting);
       
       setMeetings(prevMeetings => 
         prevMeetings.map(meeting => 
@@ -148,63 +145,14 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
         )
       );
       
-      if (otherUserId) {
+      // Refresh meetings after accepting
+      if (action === 'accept' && otherUserId) {
         fetchMeetings(otherUserId);
       }
     } catch (error) {
-      console.error('Error accepting meeting:', error);
+      console.error(`Error ${action}ing meeting:`, error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleRejectMeeting = async (meetingId: string) => {
-    try {
-      const response = await fetch('/api/meeting', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          _id: meetingId,
-          state: 'rejected'
-        }),
-      });
-      
-      const updatedMeeting = await response.json();
-      
-      setMeetings(prevMeetings => 
-        prevMeetings.map(meeting => 
-          meeting._id === meetingId ? updatedMeeting : meeting
-        )
-      );
-    } catch (error) {
-      console.error('Error rejecting meeting:', error);
-    }
-  };
-
-  const handleCancelMeeting = async (meetingId: string) => {
-    try {
-      const response = await fetch('/api/meeting', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          _id: meetingId,
-          state: 'cancelled'
-        }),
-      });
-      
-      const updatedMeeting = await response.json();
-      
-      setMeetings(prevMeetings => 
-        prevMeetings.map(meeting => 
-          meeting._id === meetingId ? updatedMeeting : meeting
-        )
-      );
-    } catch (error) {
-      console.error('Error cancelling meeting:', error);
     }
   };
 
@@ -212,11 +160,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     if (!otherUserId) return;
     
     try {
+      setLoading(true);
       const response = await fetch('/api/meeting', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           senderId: userId,
           receiverId: otherUserId,
@@ -231,9 +178,12 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
       setShowCreateModal(false);
     } catch (error) {
       console.error('Error creating meeting:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Filter meetings by type
   const pendingRequests = meetings.filter(m => 
     m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
   );
@@ -252,19 +202,12 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     m.state === 'cancelled' || m.state === 'rejected'
   );
 
-  if (loading) {
+  if (loading && meetings.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">
         <p>Loading meetings...</p>
       </div>
     );
-  }
-
-  function getUserName(userId: string): string {
-    if (userProfiles[userId]) {
-      return `${userProfiles[userId].firstName} ${userProfiles[userId].lastName}`;
-    }
-    return 'User';
   }
 
   return (
@@ -305,15 +248,15 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
             meetings={pendingRequests}
             userId={userId}
             userProfiles={userProfiles}
-            onAccept={handleAcceptMeeting}
-            onReject={handleRejectMeeting}
+            onAccept={(id) => handleMeetingAction(id, 'accept')}
+            onReject={(id) => handleMeetingAction(id, 'reject')}
           />
           
           <UpcomingMeetingList
             meetings={upcomingMeetings}
             userId={userId}
             userProfiles={userProfiles}
-            onCancel={handleCancelMeeting}
+            onCancel={(id) => handleMeetingAction(id, 'cancel')}
           />
           
           <MeetingLists
@@ -336,7 +279,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
         <CreateMeetingModal
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateMeeting}
-          receiverName={otherUserId ? getUserName(otherUserId) : 'this user'}
+          receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
         />
       )}
     </div>

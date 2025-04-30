@@ -1,18 +1,6 @@
 import React from 'react';
 import MeetingCard from './MeetingCard';
-
-interface Meeting {
-  _id: string;
-  senderId: string;
-  receiverId: string;
-  description: string;
-  sentAt: Date;
-  meetingTime: Date;
-  meetingLink: string | null;
-  acceptStatus: boolean;
-  state: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
-}
-
+import Meeting  from '@/types/meeting';
 interface MeetingListsProps {
   type: 'past' | 'cancelled';
   meetings: Meeting[];
@@ -28,11 +16,6 @@ const MeetingLists: React.FC<MeetingListsProps> = ({
 }) => {
   if (meetings.length === 0) return null;
 
-  const getUserName = (userId: string) => {
-    const profile = userProfiles[userId];
-    return profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...';
-  };
-
   const title = type === 'past' ? 'Past Meetings' : 'Cancelled Meetings';
   const isPast = type === 'past';
   const isCancelled = type === 'cancelled';
@@ -46,7 +29,7 @@ const MeetingLists: React.FC<MeetingListsProps> = ({
             key={meeting._id}
             meeting={meeting}
             userId={userId}
-            userName={getUserName(meeting.senderId === userId ? meeting.receiverId : meeting.senderId)}
+            userName={userProfiles[meeting.senderId === userId ? meeting.receiverId : meeting.senderId]?.firstName || 'User'}
             isPast={isPast}
             isCancelled={isCancelled}
           />

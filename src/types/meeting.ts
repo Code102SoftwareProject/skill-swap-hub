@@ -1,4 +1,4 @@
-export interface Meeting {
+export default interface Meeting {
   _id: string;
   senderId: string;
   receiverId: string;
@@ -10,11 +10,3 @@ export interface Meeting {
   state: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
 }
 
-export interface UserProfile {
-  firstName: string;
-  lastName: string;
-}
-
-export interface UserProfiles {
-  [key: string]: UserProfile;
-}

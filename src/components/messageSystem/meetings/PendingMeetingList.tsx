@@ -1,18 +1,6 @@
 import React from 'react';
 import MeetingCard from './MeetingCard';
-
-interface Meeting {
-  _id: string;
-  senderId: string;
-  receiverId: string;
-  description: string;
-  sentAt: Date;
-  meetingTime: Date;
-  meetingLink: string | null;
-  acceptStatus: boolean;
-  state: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
-}
-
+import Meeting from '@/types/meeting';
 interface PendingMeetingListProps {
   meetings: Meeting[];
   userId: string;
@@ -30,11 +18,6 @@ const PendingMeetingList: React.FC<PendingMeetingListProps> = ({
 }) => {
   if (meetings.length === 0) return null;
 
-  const getUserName = (userId: string) => {
-    const profile = userProfiles[userId];
-    return profile ? `${profile.firstName} ${profile.lastName}` : 'Loading...';
-  };
-
   return (
     <div>
       <h3 className="font-semibold text-lg mb-2 border-b pb-1">Meeting Requests</h3>
@@ -44,7 +27,7 @@ const PendingMeetingList: React.FC<PendingMeetingListProps> = ({
             key={meeting._id}
             meeting={meeting}
             userId={userId}
-            userName={getUserName(meeting.senderId)}
+            userName={userProfiles[meeting.senderId]?.firstName || 'User'}
             isPending={true}
             onAccept={onAccept}
             onReject={onReject}
