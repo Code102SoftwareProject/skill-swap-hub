@@ -5,16 +5,16 @@ import Reply from '@/lib/models/replySchema';
 import mongoose from 'mongoose';
 
 // GET handler for fetching a single reply
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string, replyid: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id, replyid } = params;
-    
+    // Extract post ID and reply ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const replyId = pathParts[pathParts.length - 1]; // Last segment is the reply ID
+    const postId = pathParts[pathParts.length - 3]; // Third from last is the post ID
     
     // Validate MongoDB ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(replyid)) {
+    if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(replyId)) {
       return NextResponse.json(
         { error: 'Invalid ID format' },
         { status: 400 }
@@ -23,7 +23,7 @@ export async function GET(
     
     await connectToDatabase();
     
-    const reply = await Reply.findById(replyid);
+    const reply = await Reply.findById(replyId);
     
     if (!reply) {
       return NextResponse.json(
@@ -33,7 +33,7 @@ export async function GET(
     }
     
     // Verify reply belongs to the specified post
-    if (reply.postId.toString() !== id) {
+    if (reply.postId.toString() !== postId) {
       return NextResponse.json(
         { error: 'Reply does not belong to specified post' },
         { status: 400 }
@@ -51,16 +51,16 @@ export async function GET(
 }
 
 // PATCH handler for updating reply (likes, dislikes)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string, replyid: string } }
-) {
+export async function PATCH(request: NextRequest) {
   try {
-    const { id, replyid } = params;
-   
+    // Extract post ID and reply ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const replyId = pathParts[pathParts.length - 1]; // Last segment is the reply ID
+    const postId = pathParts[pathParts.length - 3]; // Third from last is the post ID
     
     // Validate MongoDB ObjectIds
-    if (!mongoose.Types.ObjectId.isValid(id) || !mongoose.Types.ObjectId.isValid(replyid)) {
+    if (!mongoose.Types.ObjectId.isValid(postId) || !mongoose.Types.ObjectId.isValid(replyId)) {
       return NextResponse.json(
         { error: 'Invalid ID format' },
         { status: 400 }
@@ -88,7 +88,7 @@ export async function PATCH(
     await connectToDatabase();
     
     // Verify post exists
-    const post = await Post.findById(id);
+    const post = await Post.findById(postId);
     if (!post) {
       return NextResponse.json(
         { error: 'Post not found' },
@@ -97,7 +97,7 @@ export async function PATCH(
     }
     
     // Find reply
-    const reply = await Reply.findById(replyid);
+    const reply = await Reply.findById(replyId);
     if (!reply) {
       return NextResponse.json(
         { error: 'Reply not found' },
@@ -106,7 +106,7 @@ export async function PATCH(
     }
     
     // Verify reply belongs to the specified post
-    if (reply.postId.toString() !== id) {
+    if (reply.postId.toString() !== postId) {
       return NextResponse.json(
         { error: 'Reply does not belong to specified post' },
         { status: 400 }

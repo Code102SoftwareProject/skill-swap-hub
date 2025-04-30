@@ -6,14 +6,12 @@ import Post from '@/lib/models/postSchema';
 import mongoose from 'mongoose';
 
 // GET handler for fetching a single post
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    // Ensure params is awaited before accessing its properties
-    const { id } = await params;
-    const postId = id;
+    // Extract post ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const postId = pathParts[pathParts.length - 1];
     
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(postId)) {
@@ -45,14 +43,12 @@ export async function GET(
 }
 
 // PATCH handler for updating post (likes, dislikes)
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest) {
   try {
-    // Ensure params is awaited before accessing its properties
-    const { id } = await params;
-    const postId = id;
+    // Extract post ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const postId = pathParts[pathParts.length - 1];
     
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(postId)) {
