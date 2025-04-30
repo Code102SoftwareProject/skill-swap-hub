@@ -9,10 +9,11 @@ interface User {
   avatar?: string;
 }
 
-interface VerificationRequest extends Document {
-    _id: string;
+interface VerificationRequest {
+    id: string;
     userId: string;
     skillName: string;
+    skillId: string; // Add skillId to track which skill to update
     status: 'pending' | 'approved' | 'rejected';
     documents: string[];
     description: string;
@@ -77,7 +78,7 @@ export default function VerificationRequests() {
             }
             return request;
           } catch (error) {
-            console.error(`Error fetching user for request ${request._id}:`, error);
+            console.error(`Error fetching user for request ${request.id}:`, error);
             return request;
           }
         })
@@ -95,39 +96,70 @@ export default function VerificationRequests() {
 
   const handleUpdateStatus = async (requestId: string, newStatus: 'approved' | 'rejected') => {
     try {
-      console.log('Updating status:', { requestId, newStatus, 
-        currentStatus: selectedRequest?.status }); // Debug log
+      console.log('Updating status:', { 
+        requestId, 
+        newStatus, 
+        skillId: selectedRequest?.skillId,
+        currentStatus: selectedRequest?.status 
+      }); 
+      
+      if (!selectedRequest) {
+        throw new Error('No request selected');
+      }
       
       setError(null);
+      
+      // Show loading indicator (optional)
+      // setUpdating(true);
+      
       const response = await fetch(`/api/admin/skill-verification-requests/${requestId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ 
+          status: newStatus,
+          skillId: selectedRequest.skillId
+        }),
       });
-
+  
+      // Log the raw response for debugging
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        console.error('Error response:', errorData);
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
-
+  
       const updatedData = await response.json();
       console.log('Update response:', updatedData); 
-
-      // Update the local state immediately
+  
+      if (!updatedData.success) {
+        throw new Error(updatedData.message || 'Failed to update status');
+      }
+  
+      // Update the local state immediately - deep copy for safety
       setRequests(prevRequests =>
         prevRequests.map(req =>
-          req._id === requestId ? { ...req, status: newStatus } : req
+          req.id === requestId ? { ...req, status: newStatus } : req
         )
       );
-
+  
       // Update selected request if it's the one being modified
       setSelectedRequest(prev =>
-        prev?._id === requestId ? { ...prev, status: newStatus } : prev
+        prev?.id === requestId ? { ...prev, status: newStatus } : prev
       );
+      
+      // Optional: Show success message
+      // setSuccessMessage(`Request successfully ${newStatus}`);
+      
     } catch (error) {
       console.error('Error updating status:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while updating the status');
+    } finally {
+      // Hide loading indicator (optional)
+      // setUpdating(false);
     }
   };
 
@@ -288,10 +320,10 @@ export default function VerificationRequests() {
           <div className="space-y-4">
             {filteredRequests.map((request) => (
               <div
-                key={request._id}
+                key={request.id}
                 onClick={() => setSelectedRequest(request)}
                 className={`p-4 rounded-lg cursor-pointer transition-colors ${
-                  selectedRequest?._id === request._id
+                  selectedRequest?.id === request.id
                     ? 'bg-blue-100'
                     : 'bg-white hover:bg-gray-50'
                 }`}
@@ -376,6 +408,10 @@ export default function VerificationRequests() {
                   <p className="mt-1 font-medium">{selectedRequest.skillName}</p>
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-600">Skill ID</label>
+                  <p className="mt-1 text-sm text-gray-500">{selectedRequest.skillId}</p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-600">Status</label>
                   <p className={`mt-1 font-medium ${
                     selectedRequest.status === 'pending'
@@ -425,7 +461,7 @@ export default function VerificationRequests() {
 
               <div className="flex space-x-4 mt-6">
                 <button
-                  onClick={() => handleUpdateStatus(selectedRequest._id, 'approved')}
+                  onClick={() => handleUpdateStatus(selectedRequest.id, 'approved')}
                   disabled={selectedRequest.status !== 'pending'}
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     selectedRequest.status === 'pending'
@@ -436,7 +472,7 @@ export default function VerificationRequests() {
                   Approve
                 </button>
                 <button
-                  onClick={() => handleUpdateStatus(selectedRequest._id, 'rejected')}
+                  onClick={() => handleUpdateStatus(selectedRequest.id, 'rejected')}
                   disabled={selectedRequest.status !== 'pending'}
                   className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
                     selectedRequest.status === 'pending'
