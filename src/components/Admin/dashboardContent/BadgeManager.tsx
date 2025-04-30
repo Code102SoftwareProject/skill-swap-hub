@@ -320,6 +320,7 @@ export default function BadgeManager() {
     );
   };
 
+  // Return only the form and badge management sections
   return (
     <div className="space-y-10">
       {/* Form for adding new badges */}
@@ -527,8 +528,6 @@ export default function BadgeManager() {
           </div>
         )}
       </div>
-      {/* Debug section shown only in development */}
-      {process.env.NODE_ENV !== 'production' && debugBadges()}
     </div>
   );
 }
