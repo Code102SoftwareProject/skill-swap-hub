@@ -1,6 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 
+interface User {
+  _id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  avatar?: string;
+}
+
 interface VerificationRequest extends Document {
     _id: string;
     userId: string;
@@ -10,6 +18,7 @@ interface VerificationRequest extends Document {
     description: string;
     createdAt: Date;
     updatedAt: Date;
+    user?: User; // Add user info to the request object
 }
 
 export default function VerificationRequests() {
@@ -51,7 +60,30 @@ export default function VerificationRequests() {
       }));
 
       console.log('Normalized requests:', normalizedRequests); 
-      setRequests(normalizedRequests);
+      
+      // For each request, fetch the user details
+      const requestsWithUserDetails = await Promise.all(
+        normalizedRequests.map(async (request: VerificationRequest) => {
+          try {
+            const userResponse = await fetch(`/api/users/profile?id=${request.userId}`);
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              if (userData.success && userData.user) {
+                return {
+                  ...request,
+                  user: userData.user
+                };
+              }
+            }
+            return request;
+          } catch (error) {
+            console.error(`Error fetching user for request ${request._id}:`, error);
+            return request;
+          }
+        })
+      );
+
+      setRequests(requestsWithUserDetails);
     } catch (error) {
       console.error('Error fetching requests:', error);
       setError(error instanceof Error ? error.message : 'An error occurred while fetching requests');
@@ -137,12 +169,25 @@ export default function VerificationRequests() {
   // Filter requests based on status and search term
   const filteredRequests = requests.filter(request => {
     const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+    const userName = `${request.user?.firstName || ''} ${request.user?.lastName || ''}`.trim().toLowerCase();
+    const userEmail = (request.user?.email || '').toLowerCase();
+    
     const matchesSearch = searchTerm === '' || 
       request.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      request.skillName.toLowerCase().includes(searchTerm.toLowerCase());
+      request.skillName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      userName.includes(searchTerm.toLowerCase()) ||
+      userEmail.includes(searchTerm.toLowerCase());
     
     return matchesStatus && matchesSearch;
   });
+
+  // Helper function to get user display name
+  const getUserDisplayName = (request: VerificationRequest) => {
+    if (request.user?.firstName || request.user?.lastName) {
+      return `${request.user.firstName || ''} ${request.user.lastName || ''}`.trim();
+    }
+    return 'Unknown User';
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -154,7 +199,7 @@ export default function VerificationRequests() {
           <div className="relative">
             <input
               type="search"
-              placeholder="Search by user ID or skill name..."
+              placeholder="Search by name, email, skill name..."
               className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -254,15 +299,23 @@ export default function VerificationRequests() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
-                      <img
-                        src="/api/placeholder/40/40"
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
+                      {request.user?.avatar ? (
+                        <img
+                          src={request.user.avatar}
+                          alt="Profile"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600 font-semibold text-lg">
+                          {getUserDisplayName(request).charAt(0).toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <h3 className="font-medium">{request.skillName}</h3>
-                      <p className="text-sm text-gray-600">User ID: {request.userId}</p>
+                      <p className="text-sm font-medium">
+                        {getUserDisplayName(request)}
+                      </p>
                       <p className="text-xs text-gray-500">
                         {new Date(request.createdAt).toLocaleDateString()}
                       </p>
@@ -291,14 +344,36 @@ export default function VerificationRequests() {
             <h2 className="text-xl font-semibold mb-6">Verification Request Details</h2>
             
             <div className="space-y-4">
+              <div className="flex items-center mb-4">
+                <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden mr-4">
+                  {selectedRequest.user?.avatar ? (
+                    <img
+                      src={selectedRequest.user.avatar}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-600 font-semibold text-xl">
+                      {getUserDisplayName(selectedRequest).charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium">{getUserDisplayName(selectedRequest)}</h3>
+                  {selectedRequest.user?.email && (
+                    <p className="text-sm text-gray-600">{selectedRequest.user.email}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-600">User ID</label>
-                  <p className="mt-1">{selectedRequest.userId}</p>
+                  <p className="mt-1 text-sm text-gray-500">{selectedRequest.userId}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Skill Name</label>
-                  <p className="mt-1">{selectedRequest.skillName}</p>
+                  <p className="mt-1 font-medium">{selectedRequest.skillName}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Status</label>
@@ -314,7 +389,7 @@ export default function VerificationRequests() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Submission Date</label>
-                  <p className="mt-1">{new Date(selectedRequest.createdAt).toLocaleDateString()}</p>
+                  <p className="mt-1">{new Date(selectedRequest.createdAt).toLocaleDateString()} {new Date(selectedRequest.createdAt).toLocaleTimeString()}</p>
                 </div>
               </div>
 
@@ -344,7 +419,7 @@ export default function VerificationRequests() {
               {selectedRequest.description && (
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Description</label>
-                  <p className="mt-1 text-gray-600">{selectedRequest.description}</p>
+                  <p className="mt-1 text-gray-600 bg-gray-50 p-3 rounded-lg border">{selectedRequest.description}</p>
                 </div>
               )}
 
