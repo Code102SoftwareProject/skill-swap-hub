@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: `Verification request ${status}`,
-      data: updatedRequest // Return the updated request for verification
+      data: updatedRequest 
     });
   } catch (error) {
     console.error('Error updating verification request:', error);
