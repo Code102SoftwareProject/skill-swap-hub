@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import type { Socket } from "socket.io-client";
-import { IMessage } from "@/types/types";
+import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
 import FileMessage from "./box/FileMessage";

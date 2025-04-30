@@ -3,20 +3,15 @@ import connect from '@/lib/db';
 import VerificationRequestModel from '@/lib/models/VerificationRequest';
 import { headers } from 'next/headers';
 
-interface Params {
-  params: {
-    id: string;
-  };
-}
-
-export async function PATCH(
-  request: NextRequest,
-  { params }: Params
-) {
+export async function PATCH(request: NextRequest) {
   const headersInstance = headers();
-  const id = await Promise.resolve(params.id);
-
+  
   try {
+    // Extract verification request ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const id = pathParts[pathParts.length - 1];
+
     await connect();
 
     const body = await request.json();
@@ -52,13 +47,13 @@ export async function PATCH(
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: Params
-) {
-  const id = await Promise.resolve(params.id);
-
+export async function GET(request: NextRequest) {
   try {
+    // Extract verification request ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const id = pathParts[pathParts.length - 1];
+
     await connect();
 
     const verificationRequest = await VerificationRequestModel.findById(id);
