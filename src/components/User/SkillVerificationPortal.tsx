@@ -210,11 +210,10 @@ const SkillVerificationPortal: React.FC = () => {
     );
   };
 
-  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
-
+  
     if (!userId) {
       Swal.fire({
         icon: 'error',
@@ -224,23 +223,23 @@ const SkillVerificationPortal: React.FC = () => {
       });
       return;
     }
-
+  
     try {
       setIsSubmitting(true);
       setUploadProgress(0);
-
+  
       if (!selectedSkillId) {
         throw new Error('Please select a skill to verify');
       }
-
+  
       if (hasActiveRequest(selectedSkillId)) {
         throw new Error('This skill already has a pending verification request');
       }
-
+  
       if (documents.length === 0) {
         throw new Error('Please upload at least one document');
       }
-
+  
       // Upload all documents sequentially
       const documentUrls = [];
       for (const file of documents) {
@@ -251,29 +250,32 @@ const SkillVerificationPortal: React.FC = () => {
           throw new Error(`Failed to upload ${file.name}`);
         }
       }
-
+  
+      // Log for debugging - can be removed after fix is confirmed
+      console.log('Submitting verification request with skill ID:', selectedSkillId);
+  
       // Submit verification request with document URLs
       const response = await axios.post<{ data: VerificationRequest }>(
         '/api/users/verification-request', 
         {
           userId,
-          skillId: selectedSkillId,
+          skillId: selectedSkillId, // Ensure skillId is properly included
           skillName: skillName.trim(),
           documents: documentUrls,
           description: description.trim(),
         },
         getAuthConfig()
       );
-
+  
       setRequests(prev => [response.data.data, ...prev]);
-
+  
       // Reset form
       setSelectedSkillId('');
       setSkillName('');
       setDescription('');
       setDocuments([]);
       setUploadProgress(0);
-
+  
       Swal.fire({
         icon: 'success',
         title: 'Success!',
@@ -281,7 +283,7 @@ const SkillVerificationPortal: React.FC = () => {
         confirmButtonColor: '#1e3a8a',
         timer: 2000
       });
-
+  
     } catch (err) {
       const error = err as Error;
       Swal.fire({

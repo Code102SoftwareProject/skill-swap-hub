@@ -37,6 +37,7 @@ const VerificationRequestSchema = new Schema({
   feedback: { type: String },
 }, { 
   timestamps: true,
+  collection: 'userskillverificationrequests', // Specify the collection name here
   toJSON: { 
     virtuals: true,
     transform: function(doc, ret) {
@@ -57,6 +58,7 @@ VerificationRequestSchema.index({ userId: 1, skillId: 1, status: 1 }, {
   partialFilterExpression: { status: "pending" } // Only enforce uniqueness for pending requests
 });
 
+// Update the model name to maintain consistency
 const VerificationRequestModel = mongoose.models.VerificationRequest || 
   mongoose.model<IVerificationRequest>('VerificationRequest', VerificationRequestSchema);
 
