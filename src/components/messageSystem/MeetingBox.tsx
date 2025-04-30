@@ -114,6 +114,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     uniqueUserIds.forEach(id => fetchUserProfile(id));
   }, [meetings, fetchUserProfile]);
 
+
+  
+
   // Generic meeting action handler (accept, reject, cancel)
   const handleMeetingAction = async (meetingId: string, action: string, value: any = null) => {
     try {

@@ -1,18 +1,6 @@
 import React from 'react';
 import MeetingCard from './MeetingCard';
-
-interface Meeting {
-  _id: string;
-  senderId: string;
-  receiverId: string;
-  description: string;
-  sentAt: Date;
-  meetingTime: Date;
-  meetingLink: string | null;
-  acceptStatus: boolean;
-  state: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'completed';
-}
-
+import Meeting from '@/types/meeting';
 interface UpcomingMeetingListProps {
   meetings: Meeting[];
   userId: string;

@@ -10,13 +10,12 @@ import { ArrowLeft, Calendar, BookOpen } from 'lucide-react'; // Using Lucide Re
 interface ChatHeaderProps {
   chatRoomId: string;
   socket: Socket | null;
-  userId: string; // current user id
+  userId: string;
   onToggleMeetings: (show: boolean) => void;
+  upcomingMeetingsCount: number; // Add this new prop
 }
 
-// Define an interface for the user data fetched from the API
-
-export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings }: ChatHeaderProps) {
+export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings, upcomingMeetingsCount }: ChatHeaderProps) {
   const [chatRoomInfo, setChatRoomInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
@@ -283,7 +282,14 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
           onClick={handleToggleMeetings}
         >
           <Calendar className="h-5 w-5 mb-1" />
-          <span className="text-xs">Meetings</span>
+          <div className="flex items-center">
+            <span className="text-xs">Meetings</span>
+            {upcomingMeetingsCount > 0 && (
+              <span className="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4">
+                {upcomingMeetingsCount}
+              </span>
+            )}
+          </div>
         </button>
       </div>
     </header>
