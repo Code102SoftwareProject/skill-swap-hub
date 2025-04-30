@@ -92,6 +92,15 @@ export default function KYCContent() {
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50];
 
+  // New state for tracking loading states by action and record ID
+  const [loadingActions, setLoadingActions] = useState<{
+    downloads: Record<string, boolean>;
+    statusUpdates: Record<string, boolean>;
+  }>({
+    downloads: {},
+    statusUpdates: {},
+  });
+
   useEffect(() => {
     /**
      * Fetches all KYC verification records from the API
@@ -132,7 +141,22 @@ export default function KYCContent() {
    * @throws Error if download fails
    */
   const downloadFile = async (fileUrl: string, nicNumber: string) => {
+    // Create a unique key for this download operation
+    const downloadKey = `${fileUrl}-${nicNumber}`;
+
+    // Check if this download is already in progress
+    if (loadingActions.downloads[downloadKey]) return;
+
     try {
+      // Set this specific download as loading
+      setLoadingActions((prev) => ({
+        ...prev,
+        downloads: {
+          ...prev.downloads,
+          [downloadKey]: true,
+        },
+      }));
+
       toast.loading("Downloading file...");
       console.log("Downloading file from URL:", fileUrl);
 
@@ -176,6 +200,15 @@ export default function KYCContent() {
       toast.error(
         err instanceof Error ? err.message : "Failed to download file"
       );
+    } finally {
+      // Clear the loading state for this download
+      setLoadingActions((prev) => ({
+        ...prev,
+        downloads: {
+          ...prev.downloads,
+          [downloadKey]: false,
+        },
+      }));
     }
   };
 
@@ -220,7 +253,19 @@ export default function KYCContent() {
    * @throws Error if update fails
    */
   const updateStatus = async (id: string, newStatus: string) => {
+    // Check if status update is already in progress
+    if (loadingActions.statusUpdates[id]) return;
+
     try {
+      // Set this specific status update as loading
+      setLoadingActions((prev) => ({
+        ...prev,
+        statusUpdates: {
+          ...prev.statusUpdates,
+          [id]: true,
+        },
+      }));
+
       toast.loading("Updating status...");
 
       const response = await fetch("/api/kyc/update", {
@@ -257,6 +302,15 @@ export default function KYCContent() {
       console.error("Error updating status:", err);
       toast.dismiss();
       toast.error("Failed to update status");
+    } finally {
+      // Clear the loading state for this status update
+      setLoadingActions((prev) => ({
+        ...prev,
+        statusUpdates: {
+          ...prev.statusUpdates,
+          [id]: false,
+        },
+      }));
     }
   };
 
@@ -472,74 +526,57 @@ export default function KYCContent() {
                       {record.reviewed ? formatDate(record.reviewed) : "-"}
                     </td>
                     <td className="px-4 py-3 border-b">
-                      {/* Document download buttons container */}
                       <div className="flex items-center gap-2">
-                        {/* NIC document download button - only shown if URL exists */}
+                        {/* NIC Document Download */}
                         {record.nicUrl && (
                           <button
                             onClick={() =>
-                              downloadFile(record.nicUrl!, record.nic)
+                              downloadFile(record.nicUrl as string, record.nic)
                             }
-                            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center justify-center"
+                            disabled={
+                              !!loadingActions.downloads[
+                                `${record.nicUrl}-${record.nic}`
+                              ]
+                            }
+                            className={`p-2 text-xs rounded flex items-center gap-1 ${
+                              loadingActions.downloads[
+                                `${record.nicUrl}-${record.nic}`
+                              ]
+                                ? "bg-blue-200 text-blue-700 cursor-not-allowed"
+                                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            }`}
                             title="Download NIC document"
                             aria-label={`Download NIC document for ${record.recipient}`}
                           >
-                            <span className="mr-1">NIC</span>
-                            <Download className="h-4 w-4" />
+                            <Download className="h-3 w-3" /> NIC
                           </button>
                         )}
 
-                        {/* NIC with person photo download button */}
+                        {/* Person with NIC Download */}
                         {record.nicWithPersonUrl && (
                           <button
                             onClick={() =>
                               downloadFile(
-                                record.nicWithPersonUrl!,
-                                `${record.nic}-with-person`
+                                record.nicWithPersonUrl as string,
+                                record.nic
                               )
                             }
-                            className="p-2 bg-blue-700 text-white rounded hover:bg-purple-600 flex items-center justify-center"
-                            title="Download NIC with Person"
-                            aria-label={`Download NIC with person photo for ${record.recipient}`}
-                          >
-                            <span className="mr-1">Person</span>
-                            <Download className="h-4 w-4" />
-                          </button>
-                        )}
-
-                        {/* Front photo download button */}
-                        {record.frontPhotoUrl && (
-                          <button
-                            onClick={() =>
-                              downloadFile(
-                                record.frontPhotoUrl!,
-                                `${record.nic}-front-photo`
-                              )
+                            disabled={
+                              !!loadingActions.downloads[
+                                `${record.nicWithPersonUrl}-${record.nic}`
+                              ]
                             }
-                            className="p-2 bg-purple-500 text-white rounded hover:bg-purple-600 flex items-center justify-center"
-                            title="Download Front Photo with NIC"
-                            aria-label={`Download front photo with NIC for ${record.recipient}`}
+                            className={`p-2 text-xs rounded flex items-center gap-1 ${
+                              loadingActions.downloads[
+                                `${record.nicWithPersonUrl}-${record.nic}`
+                              ]
+                                ? "bg-blue-300 text-blue-700 cursor-not-allowed"
+                                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                            }`}
+                            title="Download person with NIC photo"
+                            aria-label={`Download photo of person with NIC for ${record.recipient}`}
                           >
-                            <span className="mr-1">Front</span>
-                            <Download className="h-4 w-4" />
-                          </button>
-                        )}
-
-                        {/* Back photo download button */}
-                        {record.backPhotoUrl && (
-                          <button
-                            onClick={() =>
-                              downloadFile(
-                                record.backPhotoUrl!,
-                                `${record.nic}-back-photo`
-                              )
-                            }
-                            className="p-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 flex items-center justify-center"
-                            title="Download Back Photo with NIC"
-                            aria-label={`Download back photo with NIC for ${record.recipient}`}
-                          >
-                            <span className="mr-1">Back</span>
-                            <Download className="h-4 w-4" />
+                            <Download className="h-3 w-3" /> Person
                           </button>
                         )}
                       </div>
@@ -555,8 +592,15 @@ export default function KYCContent() {
                               onClick={() =>
                                 updateStatus(record._id, KYC_STATUSES.ACCEPTED)
                               }
-                              className="p-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center justify-center"
+                              className={`p-2 text-white rounded flex items-center justify-center ${
+                                loadingActions.statusUpdates[record._id]
+                                  ? "bg-green-300 cursor-not-allowed"
+                                  : "bg-green-500 hover:bg-green-600"
+                              }`}
                               title="Approve KYC"
+                              disabled={
+                                !!loadingActions.statusUpdates[record._id]
+                              }
                               aria-label={`Approve KYC verification for ${record.recipient}`}
                             >
                               <Check className="h-4 w-4" />
@@ -566,8 +610,15 @@ export default function KYCContent() {
                               onClick={() =>
                                 updateStatus(record._id, KYC_STATUSES.REJECTED)
                               }
-                              className="p-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center justify-center"
+                              className={`p-2 text-white rounded flex items-center justify-center ${
+                                loadingActions.statusUpdates[record._id]
+                                  ? "bg-red-300 cursor-not-allowed"
+                                  : "bg-red-500 hover:bg-red-600"
+                              }`}
                               title="Reject KYC"
+                              disabled={
+                                !!loadingActions.statusUpdates[record._id]
+                              }
                               aria-label={`Reject KYC verification for ${record.recipient}`}
                             >
                               <X className="h-4 w-4" />
