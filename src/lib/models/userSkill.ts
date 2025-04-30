@@ -8,6 +8,8 @@ export interface IUserSkill extends Document {
   skillTitle: string;
   proficiencyLevel: 'Beginner' | 'Intermediate' | 'Expert';
   description: string;
+  isVerified: boolean;
+  verificationRequestId?: string;
   createdAt: Date;
   updatedAt?: Date;
 }
@@ -39,6 +41,15 @@ const UserSkillSchema: Schema = new Schema({
     type: String,
     required: true,
     minlength: 10
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  verificationRequestId: {
+    type: Schema.Types.ObjectId,
+    ref: 'VerificationRequest',
+    default: null
   },
   createdAt: {
     type: Date,
