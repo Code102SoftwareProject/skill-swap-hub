@@ -238,13 +238,13 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
   console.log('Rendering ChatHeader - isOnline:', isOnline, 'lastOnline state:', lastOnline, 'Other User Name:', otherUserName);
 
   return (
-    <header className="flex items-center justify-between p-4 bg-gray-50 border-b">
+    <header className="flex items-center justify-between p-4 bg-primary border-b">
       <div>
-        <h1 className="text-lg font-semibold">
+        <h1 className="text-lg font-semibold text-white">
           {/* Use the fetched name if available, otherwise fallback */}
           {otherUserName || `Chat with ${otherUserId.substring(0, 8)}`}
         </h1>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-blue-100">
           {isTyping ? 'Typing...' : (
             isOnline ? 'Online' : (
               // Ensure lastOnline is a valid Date object before formatting
@@ -258,14 +258,14 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
       <div className="flex space-x-4">
         <button
           onClick={handleBackToDashboard}
-          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
+          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mb-1" />
           <span className="text-xs">Dashboard</span>
         </button>
         
         <button 
-          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
+          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
           onClick={() => console.log('Sessions clicked')}
         >
           <BookOpen className="h-5 w-5 mb-1" />
@@ -273,7 +273,7 @@ export default function ChatHeader({ chatRoomId, socket, userId }: ChatHeaderPro
         </button>
         
         <button 
-          className="flex flex-col items-center text-gray-600 hover:text-blue-600 transition-colors"
+          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
           onClick={() => console.log('Meetings clicked')}
         >
           <Calendar className="h-5 w-5 mb-1" />
