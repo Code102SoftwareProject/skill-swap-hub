@@ -92,15 +92,17 @@ const NotificationPage = () => {
     );
 
     try {
-      const response = await fetch(`/api/notification/${id}/read`, {
-        method: 'PUT',
+      const response = await fetch(`/api/notification/read`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ notificationId: id }) // Send notificationId in the request body
       });
 
       if (!response.ok) {
+        // Revert optimistic update if the server request fails
         setNotifications(prev =>
           prev.map(notification =>
             notification._id === id
@@ -112,6 +114,7 @@ const NotificationPage = () => {
       }
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
+      // Revert optimistic update if there's an error
       setNotifications(prev =>
         prev.map(notification =>
           notification._id === id
@@ -130,7 +133,7 @@ const NotificationPage = () => {
 
     try {
       const response = await fetch(`/api/notification/read-all?userId=${user?._id}`, {
-        method: 'PUT',
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'

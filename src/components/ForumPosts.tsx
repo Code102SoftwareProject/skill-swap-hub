@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Loader2, MessageSquare, Flag, PlusCircle } from 'lucide-react';
+import { Loader, MessageSquare, Flag, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
@@ -131,7 +131,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
           <div className="absolute w-16 h-16 rounded-full border-4 border-blue-100 opacity-30"></div>
           <div className="absolute w-16 h-16 rounded-full border-4 border-t-blue-500 animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center text-blue-500">
-            <Loader2 className="w-8 h-8 animate-pulse" />
+            <Loader className="w-8 h-8 animate-pulse" />
           </div>
         </div>
       </div>

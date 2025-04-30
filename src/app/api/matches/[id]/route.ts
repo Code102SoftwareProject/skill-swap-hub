@@ -25,8 +25,18 @@ function getUserIdFromToken(req: NextRequest): string | null {
   }
 }
 
+// Helper function to extract match ID from URL
+function getMatchIdFromUrl(request: NextRequest): string {
+  const url = request.url;
+  const pathParts = url.split('/');
+  const id = pathParts[pathParts.length - 1];
+  
+  // Handle trailing slash if present
+  return id === '' ? pathParts[pathParts.length - 2] : id;
+}
+
 // GET - Fetch a specific match
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
     const userId = getUserIdFromToken(request);
     
@@ -37,8 +47,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       }, { status: 401 });
     }
     
+    const matchId = getMatchIdFromUrl(request);
+    
     // Validate ID
-    if (!params.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!matchId || !mongoose.Types.ObjectId.isValid(matchId)) {
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid match ID' 
@@ -48,7 +60,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     await dbConnect();
     
     // Find the match
-    const match = await SkillMatch.findById(params.id);
+    const match = await SkillMatch.findById(matchId);
     
     if (!match) {
       return NextResponse.json({ 
@@ -103,7 +115,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 // PUT - Update match status
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest) {
   try {
     const userId = getUserIdFromToken(request);
     
@@ -114,8 +126,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       }, { status: 401 });
     }
     
+    const matchId = getMatchIdFromUrl(request);
+    
     // Validate ID
-    if (!params.id || !mongoose.Types.ObjectId.isValid(params.id)) {
+    if (!matchId || !mongoose.Types.ObjectId.isValid(matchId)) {
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid match ID' 
@@ -135,7 +149,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     await dbConnect();
     
     // Find the match
-    const match = await SkillMatch.findById(params.id);
+    const match = await SkillMatch.findById(matchId);
     
     if (!match) {
       return NextResponse.json({ 

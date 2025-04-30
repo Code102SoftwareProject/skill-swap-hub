@@ -5,13 +5,13 @@ import { Forum } from '@/lib/models/Forum';
 import mongoose from 'mongoose';
 
 // GET handler for fetching posts
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = await params;
-    const forumId = id;
+    // Extract the forum ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
+    
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -53,12 +53,12 @@ export async function GET(
 }
 
 // POST handler for creating new posts
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
-    const forumId = params.id;
+    // Extract the forum ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
     
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(forumId)) {
