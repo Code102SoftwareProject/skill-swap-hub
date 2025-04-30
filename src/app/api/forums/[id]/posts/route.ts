@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       imageUrl: data.imageUrl || null, // Include image URL if provided
       author: {
         // Generate a valid ObjectId instead of using the string
-        _id: new mongoose.Types.ObjectId(),
+        _id: data.author?._id || new mongoose.Types.ObjectId(),
         name: data.author?.name || 'Anonymous User',
         avatar: data.author?.avatar || '/default-avatar.png',
       },

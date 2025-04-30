@@ -5,15 +5,15 @@ import Reply from '@/lib/models/replySchema';
 import mongoose from 'mongoose';
 
 // GET handler for fetching all replies for a post
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = params;
+    // Extract post ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const postId = pathParts[pathParts.length - 2]; // Get the ID from the path
     
     // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
       return NextResponse.json(
         { error: 'Invalid post ID format' },
         { status: 400 }
@@ -23,7 +23,7 @@ export async function GET(
     await connectToDatabase();
     
     // Verify post exists
-    const post = await Post.findById(id);
+    const post = await Post.findById(postId);
     if (!post) {
       return NextResponse.json(
         { error: 'Post not found' },
@@ -32,7 +32,7 @@ export async function GET(
     }
     
     // Get all replies for this post - fix the field name from 'id' to 'postId'
-    const replies = await Reply.find({ postId: id }).sort({ createdAt: 1 });
+    const replies = await Reply.find({ postId: postId }).sort({ createdAt: 1 });
     
     return NextResponse.json({ replies });
   } catch (error) {
@@ -45,15 +45,15 @@ export async function GET(
 }
 
 // POST handler for creating a new reply
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest) {
   try {
-    const { id } = params;
+    // Extract post ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const postId = pathParts[pathParts.length - 2]; // Get the ID from the path
     
     // Validate MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
+    if (!mongoose.Types.ObjectId.isValid(postId)) {
       return NextResponse.json(
         { error: 'Invalid post ID format' },
         { status: 400 }
@@ -82,7 +82,7 @@ export async function POST(
     await connectToDatabase();
     
     // Verify post exists
-    const post = await Post.findById(id);
+    const post = await Post.findById(postId);
     if (!post) {
       return NextResponse.json(
         { error: 'Post not found' },
@@ -92,7 +92,7 @@ export async function POST(
     
     // Create new reply
     const reply = new Reply({
-      postId: id, // Use postId instead of id to match the schema
+      postId: postId, // Use postId instead of id to match the schema
       content: content.trim(),
       author: {
         _id: author._id,
@@ -109,7 +109,7 @@ export async function POST(
     await reply.save();
     
     // Increment reply count on the parent post
-    await Post.findByIdAndUpdate(id, { $inc: { replies: 1 } });
+    await Post.findByIdAndUpdate(postId, { $inc: { replies: 1 } });
     
     return NextResponse.json(
       { success: true, reply },
