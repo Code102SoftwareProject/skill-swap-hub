@@ -2,8 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import ChatRoom from '@/lib/models/chatRoomSchema';
 import mongoose from 'mongoose';
-import { systemApiAuth } from '@/lib/middleware/systemApiAuth';
-import { requireSystemApiKey } from '@/lib/sytemApiUtil';
+import { validateSystemApiKey } from '@/lib/middleware/systemApiAuth';
 /**
  ** GET handler - Retrieves chat rooms
  * 
@@ -14,38 +13,33 @@ import { requireSystemApiKey } from '@/lib/sytemApiUtil';
  *          Error: { success: false, message: "Error message" }
  */
 export async function GET(req: NextRequest) {
-  // For system APIs, check the x-api-key header
-  const apiKey = req.headers.get('x-api-key');
-  
-  // If API key is provided, validate it
-  if (apiKey) {
-    const response = await systemApiAuth(req);
-    if (response.status === 401) {
-      return response; // Return unauthorized if invalid API key
-    }
-  } else {
-    // For user APIs, JWT auth is already handled by your middleware
-    // You could add additional user-specific checks here if needed
-  }
   
   await connect();
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
-    
-    console.log('Received userId:', userId); // Debug log
-
+ 
     let query = {};
     if (userId) {
-      // Convert string to ObjectId
       const userObjectId = new mongoose.Types.ObjectId(userId);
       query = { participants: userObjectId };
+    }else{
+      return NextResponse.json(
+        {message:"User ID is required to fetch chat rooms",success:false},
+        {status:400}
+      )
     }
 
     const chatRooms = await ChatRoom.find(query);
-    console.log('Found chat rooms:', chatRooms); // Debug log
+    if(!chatRooms || chatRooms.length ===0){
+      return NextResponse.json(
+        {message:"No chat rooms found",success:false},
+        { status: 404 }
+      )
+    }
     
     return NextResponse.json({ success: true, chatRooms }, { status: 200 });
+
   } catch (error: any) {
     console.error('Error in GET chatrooms:', error);
     return NextResponse.json(
@@ -62,21 +56,13 @@ export async function GET(req: NextRequest) {
  *             Ex body: { "participants": ["64a82d9b5e211c2a400e30d5", "64a82db15e211c2a400e30d8"] }
  *             Participants must be valid MongoDB ObjectIds or their string representations
  * @returns JSON response with chat room object
- *          New room: { success: true, chatRoom: {...} } with 201 status
- *          Existing room: { success: true, chatRoom: {...} } with 200 status
- *          Error: { success: false, message: "Error message" }
+ *          
  */
 export async function POST(req: NextRequest) {
   // System-only API calls must have API key
-    
-  requireSystemApiKey(req); // Ensure the request has a valid API key
+  const authError = validateSystemApiKey(req);
+  if (authError) return authError;
   
-  // Validate the API key
-  const response = await systemApiAuth(req);
-  if (response.status === 401) {
-    return response;
-  }
-
   await connect();
 
   try {
@@ -131,27 +117,12 @@ export async function POST(req: NextRequest) {
  * 
  * @param req Example: DELETE /api/chatrooms?roomId=64a82db85e211c2a400e30f1
  *            roomId must be a valid MongoDB ObjectId
- * @returns   Success: { success: true, message: "Room deleted successfully" }
- *            Not found: { success: false, message: "Room not Found" }
- *            Missing ID: { success: false, message: "Room ID is Required" }
- *            Error: { success: false, message: "Error message" }
+ * @returns   json response indicating success or failure
+ *           
  */
 export async function DELETE(req: NextRequest) {  
-  // System-only API calls must have API key
-  const apiKey = req.headers.get('x-api-key');
-  
-  if (!apiKey) {
-    return NextResponse.json(
-      { success: false, message: 'API key required for this operation' },
-      { status: 401 }
-    );
-  }
-  
-  // Validate the API key
-  const response = await systemApiAuth(req);
-  if (response.status === 401) {
-    return response;
-  }
+  const authError = validateSystemApiKey(req);
+  if (authError) return authError;
   
   await connect();
   try{
