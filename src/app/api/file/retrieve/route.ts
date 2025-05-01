@@ -1,8 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/r2";
+import { systemApiAuth } from "@/lib/middleware/systemApiAuth";
 
-export async function GET(req: Request) {
+
+export async function GET(req: NextRequest) {
+
   try {
     // Extract query parameters
     const { searchParams } = new URL(req.url);
