@@ -197,6 +197,34 @@ export default function KYCForm() {
   };
 
   /**
+   * Handles file upload to the server
+   *
+   * @param {File} file - The file to upload
+   * @param {string} errorMessage - The error message to show if upload fails
+   * @returns {Promise<{url: string}>} Object containing the uploaded file URL
+   * @throws {Error} Throws an error if upload fails
+   */
+  const uploadFile = async (
+    file: File,
+    errorMessage: string
+  ): Promise<{ url: string }> => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(API_ENDPOINTS.FILE_UPLOAD, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || errorMessage);
+    }
+
+    return await response.json();
+  };
+
+  /**
    * Handles the form submission for KYC document upload
    *
    * @param {React.FormEvent} e - The form submission event
@@ -240,66 +268,14 @@ export default function KYCForm() {
     let nicUploadData;
     let personUploadData;
 
-    // Step 1: Upload the NIC document
     try {
-      const nicFormData = new FormData();
-      nicFormData.append("file", nicFile);
+      // Upload both files using the helper function
+      [nicUploadData, personUploadData] = await Promise.all([
+        uploadFile(nicFile, MESSAGES.NIC_UPLOAD_FAILED),
+        uploadFile(nicWithPersonFile, MESSAGES.PERSON_PHOTO_UPLOAD_FAILED),
+      ]);
 
-      const nicUploadRes = await fetch(API_ENDPOINTS.FILE_UPLOAD, {
-        method: "POST",
-        body: nicFormData,
-      });
-
-      if (!nicUploadRes.ok) {
-        const errorData = await nicUploadRes.json();
-        throw new Error(
-          errorData.error || errorData.message || MESSAGES.NIC_UPLOAD_FAILED
-        );
-      }
-
-      nicUploadData = await nicUploadRes.json();
-    } catch (err: any) {
-      console.error("NIC document upload error:", err);
-      setStatus({
-        message: err.message || MESSAGES.NIC_UPLOAD_FAILED,
-        isError: true,
-      });
-      setUploading(false);
-      return;
-    }
-
-    // Step 2: Upload photo of person holding NIC
-    try {
-      const personFormData = new FormData();
-      personFormData.append("file", nicWithPersonFile);
-
-      const personUploadRes = await fetch(API_ENDPOINTS.FILE_UPLOAD, {
-        method: "POST",
-        body: personFormData,
-      });
-
-      if (!personUploadRes.ok) {
-        const errorData = await personUploadRes.json();
-        throw new Error(
-          errorData.error ||
-            errorData.message ||
-            MESSAGES.PERSON_PHOTO_UPLOAD_FAILED
-        );
-      }
-
-      personUploadData = await personUploadRes.json();
-    } catch (err: any) {
-      console.error("Person photo upload error:", err);
-      setStatus({
-        message: err.message || MESSAGES.PERSON_PHOTO_UPLOAD_FAILED,
-        isError: true,
-      });
-      setUploading(false);
-      return;
-    }
-
-    // Step 3: Save the KYC record with all file URLs
-    try {
+      // Step 3: Save the KYC record with all file URLs
       const kycResponse = await fetch(API_ENDPOINTS.KYC_SUBMISSION, {
         method: "POST",
         headers: {

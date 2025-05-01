@@ -1,30 +1,3 @@
-/**
- * KYCContent Component
- *
- * Administrative interface for reviewing and managing Know Your Customer (KYC) verification submissions.
- * This component provides an interactive dashboard for administrators to:
- * - View all KYC verification submissions
- * - Filter submissions by status (Not Reviewed, Accepted, Rejected)
- * - Search by recipient name or NIC number
- * - Sort submissions by date (newest/oldest)
- * - Download submitted verification documents (NIC, person photos)
- * - Approve or reject pending verification requests
- *
- * State management:
- * - records: Array of KYC verification records from the database
- * - sortStatus: Current status filter (All, Not Reviewed, Accepted, Rejected)
- * - loading: Boolean indicating if data is being fetched
- * - error: Error message if API request fails
- * - searchTerm: Current search input value
- * - sortDirection: Current sort direction (asc/desc)
- * - currentPage: Current page in pagination
- * - recordsPerPage: Number of records shown per page
- *
- * API interactions:
- * - Fetches KYC records from /api/kyc/getAll
- * - Updates KYC status via /api/kyc/update
- * - Downloads documents via /api/file/retrieve
- */
 "use client";
 
 import {
@@ -408,7 +381,23 @@ export default function KYCContent() {
         {/* Filter controls row - status filter, search input, and sort toggle */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
           <div className="flex items-center gap-4">
-            {/* Status filter dropdown */}
+            {/* Search input field - moved to the left */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by recipient name"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 border rounded w-full md:w-64"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Status filter dropdown - moved to the right side */}
             <select
               className="border px-4 py-2 rounded"
               value={sortStatus}
@@ -447,20 +436,6 @@ export default function KYCContent() {
                 </>
               )}
             </button>
-          </div>
-
-          {/* Search input field */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search by recipient name"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border rounded w-full md:w-64"
-            />
           </div>
         </div>
 
@@ -710,7 +685,7 @@ export default function KYCContent() {
                             }
                             className={`px-3 py-1 border-t border-b ${
                               currentPage === i
-                                ? "bg-blue-500 text-white"
+                                ? "bg-primary text-white"
                                 : "hover:bg-gray-50"
                             }`}
                           >
@@ -732,7 +707,7 @@ export default function KYCContent() {
                         aria-current={currentPage === 1 ? "page" : undefined}
                         className={`px-3 py-1 border-t border-b ${
                           currentPage === 1
-                            ? "bg-blue-500 text-white"
+                            ? "bg-primary text-white"
                             : "hover:bg-gray-50"
                         }`}
                       >
@@ -770,7 +745,7 @@ export default function KYCContent() {
                                 }
                                 className={`px-3 py-1 border-t border-b ${
                                   currentPage === pageNum
-                                    ? "bg-blue-500 text-white"
+                                    ? "bg-primary text-white"
                                     : "hover:bg-gray-50"
                                 }`}
                               >
@@ -860,7 +835,7 @@ export default function KYCContent() {
                                 }
                                 className={`px-3 py-1 border-t border-b ${
                                   currentPage === pageNum
-                                    ? "bg-blue-500 text-white"
+                                    ? "bg-primary text-white"
                                     : "hover:bg-gray-50"
                                 }`}
                               >
@@ -896,7 +871,7 @@ export default function KYCContent() {
                           }
                           className={`px-3 py-1 border-t border-b ${
                             currentPage === totalPages
-                              ? "bg-blue-500 text-white"
+                              ? "bg-primary text-white"
                               : "hover:bg-gray-50"
                           }`}
                         >
