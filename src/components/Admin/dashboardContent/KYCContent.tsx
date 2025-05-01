@@ -685,7 +685,7 @@ export default function KYCContent() {
                             }
                             className={`px-3 py-1 border-t border-b ${
                               currentPage === i
-                                ? "bg-primary text-white"
+                                ? "bg-blue-500 text-white"
                                 : "hover:bg-gray-50"
                             }`}
                           >
@@ -707,7 +707,7 @@ export default function KYCContent() {
                         aria-current={currentPage === 1 ? "page" : undefined}
                         className={`px-3 py-1 border-t border-b ${
                           currentPage === 1
-                            ? "bg-primary text-white"
+                            ? "bg-blue-500 text-white"
                             : "hover:bg-gray-50"
                         }`}
                       >
@@ -745,7 +745,7 @@ export default function KYCContent() {
                                 }
                                 className={`px-3 py-1 border-t border-b ${
                                   currentPage === pageNum
-                                    ? "bg-primary text-white"
+                                    ? "bg-blue-500 text-white"
                                     : "hover:bg-gray-50"
                                 }`}
                               >
@@ -835,7 +835,7 @@ export default function KYCContent() {
                                 }
                                 className={`px-3 py-1 border-t border-b ${
                                   currentPage === pageNum
-                                    ? "bg-primary text-white"
+                                    ? "bg-blue-500 text-white"
                                     : "hover:bg-gray-50"
                                 }`}
                               >
@@ -871,7 +871,7 @@ export default function KYCContent() {
                           }
                           className={`px-3 py-1 border-t border-b ${
                             currentPage === totalPages
-                              ? "bg-primary text-white"
+                              ? "bg-blue-500 text-white"
                               : "hover:bg-gray-50"
                           }`}
                         >
