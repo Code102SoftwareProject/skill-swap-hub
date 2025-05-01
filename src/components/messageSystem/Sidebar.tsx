@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { IChatRoom } from "@/types/chat";
 import { BsPerson } from 'react-icons/bs'
 import { BsSearch } from 'react-icons/bs'
+import { fetchUserChatRooms, fetchUserProfile } from "@/services/chatApiServices";
 import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface SidebarProps {
@@ -33,23 +34,16 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   useEffect(() => {
     /**
      * Fetches all chat rooms for the current user from the API
-     * 
-     * @async
-     * @returns {Promise<void>} 
-     * @sideEffect Updates chatRooms state with the retrieved data
-     * @sideEffect Updates loading state when operation completes
      */
     async function fetchChatRooms() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/chatrooms?userId=${userId}`);
-        const data = await res.json();
-        console.log('Chat rooms response:', data); // Debug log
-        if (data.success) {
-          setChatRooms(data.chatRooms);
+        const chatRoomsData = await fetchUserChatRooms(userId);
+        if (chatRoomsData) {
+          setChatRooms(chatRoomsData);
         }
       } catch (err) {
-        console.error('Error fetching chat rooms:', err); // Add error logging
+        console.error('Error fetching chat rooms:', err);
       } finally {
         setLoading(false);
       }
@@ -63,10 +57,6 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   useEffect(() => {
     /**
      * Fetches user profile data for all chat participants (except current user)
-     * 
-     * @async
-     * @returns {Promise<void>}
-     * @sideEffect Updates userProfiles state with retrieved profile data
      */
     async function fetchUserProfiles() {
       // Extract unique participant IDs (excluding current user)
@@ -82,23 +72,20 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
       // Fetch profile data for each unique user
       for (const id of uniqueUserIds) {
         try {
-          const res = await fetch(`/api/users/profile?id=${id}`);
-          if (res.status === 404) {
+          const userData = await fetchUserProfile(id);
+          
+          if (userData) {
+            setUserProfiles(prev => ({
+              ...prev,
+              [id]: userData
+            }));
+          } else {
             setUserProfiles(prev => ({
               ...prev,
               [id]: { 
                 firstName: 'Unknown', 
                 lastName: 'User',
               }
-            }));
-            continue;
-          }
-          
-          const data = await res.json();
-          if (data.success) {
-            setUserProfiles(prev => ({
-              ...prev,
-              [id]: data.user
             }));
           }
         } catch (err) {
