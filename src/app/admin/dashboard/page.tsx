@@ -1,7 +1,7 @@
 'use client'; // Required for client-side rendering
 
 import { useState } from 'react';
-import AdminSidebar from '@/components/Admin/AdminSidebar';
+import AdminSidebar from '@/components/Admin/adminSidebar';
 import AdminNavbar from '@/components/Admin/AdminNavbar';
 
 import DashboardContent from '@/components/Admin/dashboardContent/DashboardContent';
@@ -30,7 +30,7 @@ export default function AdminDashboardPage() {
       case 'system':
         return <SystemContent key={activeComponent} />;
       case 'verify-documents':
-        return <VerificationRequests userId='user123' key={activeComponent} />;
+        return <VerificationRequests  key={activeComponent} />;
       case 'reporting':
         return <ReportingContent key={activeComponent} />;
       default:

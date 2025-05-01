@@ -7,7 +7,9 @@
     "dev:socket": "NODE_OPTIONS='--loader ts-node/esm  --trace-warnings --no-warnings' ts-node server.mts",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrate:verification-requests": "node -r dotenv/config src/scripts/migrations/migrate-verification-requests.js",
+    "migrate:userskills": "node -r dotenv/config src/scripts/migrations/migrate-userskill.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
@@ -44,6 +46,7 @@
     "next-auth": "^4.24.11",
     "next-connect": "^1.0.0",
     "next-themes": "^0.4.4",
+    "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",

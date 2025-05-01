@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
 import SkillListing from '@/lib/models/skillListing';
+import VerificationRequest from '@/lib/models/VerificationRequest';
 import mongoose from 'mongoose';
 
 // Helper function to get user ID from the token
@@ -65,11 +66,19 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         userId, 
         'offering.skillId': id 
       });
+
+      // Check if this skill has a pending verification request
+      const pendingVerification = await VerificationRequest.findOne({
+        userId,
+        skillId: id,
+        status: 'pending'
+      });
       
       return NextResponse.json({ 
         success: true, 
         data: skill,
-        isUsedInListing: listings.length > 0
+        isUsedInListing: listings.length > 0,
+        hasPendingVerification: !!pendingVerification
       });
     }
     
@@ -85,6 +94,20 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         return NextResponse.json({ 
           success: false, 
           message: 'This skill cannot be deleted because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+
+      // Check if this skill has a pending verification request
+      const pendingVerification = await VerificationRequest.findOne({
+        userId,
+        skillId: id,
+        status: 'pending'
+      });
+
+      if (pendingVerification) {
+        return NextResponse.json({
+          success: false,
+          message: 'This skill cannot be deleted because it has a pending verification request'
         }, { status: 400 });
       }
       
@@ -115,6 +138,20 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         return NextResponse.json({ 
           success: false, 
           message: 'This skill cannot be updated because it is being used in one or more listings' 
+        }, { status: 400 });
+      }
+
+      // Check if this skill has a pending verification request
+      const pendingVerification = await VerificationRequest.findOne({
+        userId,
+        skillId: id,
+        status: 'pending'
+      });
+
+      if (pendingVerification) {
+        return NextResponse.json({
+          success: false,
+          message: 'This skill cannot be updated because it has a pending verification request'
         }, { status: 400 });
       }
       
