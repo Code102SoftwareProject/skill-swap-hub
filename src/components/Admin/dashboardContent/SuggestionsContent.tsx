@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import { Eye, BarChart2 } from 'lucide-react'; 
-
+import { Eye, BarChart2, Filter } from 'lucide-react';
 
 interface Suggestion {
   _id: string;
@@ -31,7 +30,7 @@ export default function SuggestionsContent() {
     },
     {
       _id: "2",
-      userName: "Nithya Manon",
+      userName: "Nithya Menon",
       userRole: "UI Designer",
       userImage: "https://via.placeholder.com/40",
       category: "Feature request",
@@ -49,7 +48,7 @@ export default function SuggestionsContent() {
       description: "Question about the API",
       actionType: "reply",
     },
-    // Add more dummy suggestions...
+    // Add more entries as needed
   ];
 
   const filteredSuggestions = suggestions.filter((suggestion) =>
@@ -57,9 +56,21 @@ export default function SuggestionsContent() {
   );
 
   return (
-    <div className="p-6 mt-7">
-      {/* Top Section */}
-      <div className="flex justify-between items-center mb-4">
+    <div className="w-full h-full p-6 mt-7">
+      {/* Top Buttons */}
+      <div className="flex justify-end gap-2 mb-2">
+        <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
+          <Eye className="w-4 h-4" />
+          View Summary
+        </button>
+        <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
+          <BarChart2 className="w-4 h-4" />
+          View Analysis
+        </button>
+      </div>
+
+      {/* Search & Filter Row */}
+      <div className="flex items-center justify-between mt-7 mb-4">
         <div className="flex items-center gap-2">
           <input
             type="text"
@@ -68,21 +79,17 @@ export default function SuggestionsContent() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+          <button className="p-2 border rounded-lg hover:bg-gray-100">
+            <Filter className="w-4 h-4 text-gray-600" />
+          </button>
         </div>
-        <div className="flex gap-2">
-        <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
-        <Eye className="w-4 h-4" />
-        View Summary
-      </button>
-      <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
-        <BarChart2 className="w-4 h-4" />
-        View Analysis
-      </button>
+        <div className="text-sm text-gray-500">
+          1 - 10 of 52
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl shadow-lg bg-white">
+      <div className="overflow-x-auto rounded-xl shadow bg-white">
         <table className="min-w-full text-sm text-gray-700">
           <thead className="text-left bg-gray-100">
             <tr>
@@ -139,8 +146,7 @@ export default function SuggestionsContent() {
 
       {/* Pagination */}
       <div className="flex justify-end mt-4 text-sm text-gray-500">
-        1 - 10 of 52
-        <div className="flex ml-4 gap-2">
+        <div className="flex gap-2">
           <button className="border px-2 rounded-lg">&lt;</button>
           <button className="border px-2 rounded-lg">&gt;</button>
         </div>
