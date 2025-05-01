@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { uploadFileToR2 } from "@/lib/r2";
 
+/**
+ ** POST handler - Uploads a file to Cloudflare R2 storage
+ * 
+ * @param req FormData containing:
+ *            - file: The file to upload (required)
+ *            - folder: Optional folder path for organizing files
+ * @returns JSON response with upload status
+ *          
+ */
 export async function POST(req: Request) {
   try {
     // Get the form data from the request

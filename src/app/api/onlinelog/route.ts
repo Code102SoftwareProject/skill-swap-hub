@@ -3,6 +3,12 @@ import connect from '@/lib/db';
 import OnlineLogSchema from '@/lib/models/onlineLogSchema';
 import mongoose from 'mongoose';
 
+/**
+ **Updates a user's online status with the current timestamp
+ * @param req - The HTTP request object containing userId in the body
+ * @returns JSON response with success status and updated online log data
+ *          or an error message with appropriate status code
+ */
 export async function POST(req:Request) {
   await connect();
   try{
@@ -38,7 +44,12 @@ export async function POST(req:Request) {
   }
 }
 
-
+/**
+ **Retrieves a user's last online timestamp
+ * @param req - The HTTP request object containing userId as a query parameter
+ * @returns JSON response with success status and the user's online log data
+ *          or an error message with appropriate status code
+ */
 export async function GET(req: Request){
   await connect();
   try{

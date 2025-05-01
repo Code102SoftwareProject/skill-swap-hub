@@ -3,7 +3,17 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/r2";
 import { systemApiAuth } from "@/lib/middleware/systemApiAuth";
 
+/**
+ ** GET handler - Retrieves a file from Cloudflare R2 storage
+ * 
+ * @param req Request with one of the following query parameters:
+ *            - file: Direct filename to retrieve
+ *            - fileUrl: URL of the file to extract filename from
+ *            - fileContent: String in format "File:filename.ext:url"
 
+ * @returns Binary file data with appropriate headers on success
+ *         
+ */
 export async function GET(req: NextRequest) {
 
   try {
