@@ -44,6 +44,106 @@ const getFullImageUrl = (url: string) => {
   return `/api/file/retrieve?file=${encodeURIComponent(url)}`;
 };
 
+// New helper function for file upload logic
+const uploadBadgeImage = async (
+  file: File,
+  namePrefix: string
+): Promise<string> => {
+  const fileExt = file.name.split(".").pop();
+  const safeFileName = `badges/${namePrefix}_${Date.now()}.${fileExt}`;
+
+  const renamedFile = new File([file], safeFileName, {
+    type: file.type,
+  });
+
+  const uploadFormData = new FormData();
+  uploadFormData.append("file", renamedFile);
+
+  const uploadResponse = await fetch("/api/file/upload", {
+    method: "POST",
+    body: uploadFormData,
+  });
+
+  if (!uploadResponse.ok) {
+    throw new Error("Failed to upload image");
+  }
+
+  const uploadData = await uploadResponse.json();
+  return uploadData.url;
+};
+
+// Add these validation utility functions after your existing helper functions
+const validateBadgeInput = (
+  name: string,
+  description: string,
+  image: File | null,
+  isEdit: boolean
+): { isValid: boolean; errorMessage: string } => {
+  // Name validation - no empty names and no special characters except spaces and hyphens
+  if (!name || name.trim().length === 0) {
+    return { isValid: false, errorMessage: "Badge name is required" };
+  }
+
+  if (!/^[a-zA-Z0-9\s\-]+$/.test(name)) {
+    return {
+      isValid: false,
+      errorMessage:
+        "Badge name should only contain letters, numbers, spaces and hyphens",
+    };
+  }
+
+  if (name.length > 50) {
+    return {
+      isValid: false,
+      errorMessage: "Badge name must be less than 50 characters",
+    };
+  }
+
+  // Description validation - minimum length
+  if (!description || description.trim().length === 0) {
+    return { isValid: false, errorMessage: "Description is required" };
+  }
+
+  if (description.trim().length < 10) {
+    return {
+      isValid: false,
+      errorMessage: "Description must be at least 10 characters long",
+    };
+  }
+
+  // Image validation - only required for new badges, not edits
+  if (!isEdit && !image) {
+    return { isValid: false, errorMessage: "Badge image is required" };
+  }
+
+  if (image) {
+    // File type validation
+    const validImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validImageTypes.includes(image.type)) {
+      return {
+        isValid: false,
+        errorMessage: "Invalid image type. Please use JPEG, PNG, GIF or WEBP",
+      };
+    }
+
+    // File size validation (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (image.size > maxSize) {
+      return {
+        isValid: false,
+        errorMessage: "Image size should be less than 2MB",
+      };
+    }
+  }
+
+  return { isValid: true, errorMessage: "" };
+};
+
 export default function BadgeManager() {
   // State for badge list and loading status
   const [badges, setBadges] = useState<Badge[]>([]);
@@ -61,16 +161,37 @@ export default function BadgeManager() {
   const [description, setDescription] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // States for badge editing
-  const [editMode, setEditMode] = useState<string | null>(null);
-  const [editBadgeName, setEditBadgeName] = useState("");
-  const [editCriteria, setEditCriteria] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editImage, setEditImage] = useState<File | null>(null);
-  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  // Replace these individual states
+  // const [editMode, setEditMode] = useState<string | null>(null);
+  // const [editBadgeName, setEditBadgeName] = useState("");
+  // const [editCriteria, setEditCriteria] = useState("");
+  // const [editDescription, setEditDescription] = useState("");
+  // const [editImage, setEditImage] = useState<File | null>(null);
+  // const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+
+  // With this single state object
+  const [editFormState, setEditFormState] = useState<{
+    badgeId: string | null;
+    name: string;
+    criteria: string;
+    description: string;
+    image: File | null;
+    imagePreview: string | null;
+  }>({
+    badgeId: null,
+    name: "",
+    criteria: "",
+    description: "",
+    image: null,
+    imagePreview: null,
+  });
 
   // Tracks which images failed to load
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+
+  // Add form validation state
+  const [formError, setFormError] = useState("");
+  const [editFormError, setEditFormError] = useState("");
 
   // Fetch badges when component loads or refresh is triggered
   useEffect(() => {
@@ -115,59 +236,112 @@ export default function BadgeManager() {
     }
   }, [badges]);
 
-  // Handle file selection for new badge
+  // Update handleImageChange to validate file on selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+
+      // Validate file type and size immediately
+      const validImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!validImageTypes.includes(file.type)) {
+        setFormError("Invalid image type. Please use JPEG, PNG, GIF or WEBP");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // File size validation (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        setFormError("Image size should be less than 2MB");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // If validation passes, set the image
       setBadgeImage(file);
       setBadgeImagePreview(URL.createObjectURL(file));
+      setFormError(""); // Clear any previous errors
     }
   };
 
-  // Handle file selection for badge editing
+  // Update handleEditImageChange to validate file on selection
   const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setEditImage(file);
-      setEditImagePreview(URL.createObjectURL(file));
+
+      // Validate file type and size immediately
+      const validImageTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!validImageTypes.includes(file.type)) {
+        setEditFormError(
+          "Invalid image type. Please use JPEG, PNG, GIF or WEBP"
+        );
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // File size validation (max 2MB)
+      const maxSize = 2 * 1024 * 1024; // 2MB
+      if (file.size > maxSize) {
+        setEditFormError("Image size should be less than 2MB");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // If validation passes, set the image
+      setEditFormState((prevState) => ({
+        ...prevState,
+        image: file,
+        imagePreview: URL.createObjectURL(file),
+      }));
+      setEditFormError(""); // Clear any previous errors
     }
   };
 
   // Create new badge
   const handleSubmit = async () => {
-    if (!badgeName || !badgeImage || !description) {
-      alert("Please fill all fields!");
+    // Reset any previous errors
+    setFormError("");
+
+    // Validate inputs
+    const validation = validateBadgeInput(
+      badgeName,
+      description,
+      badgeImage,
+      false // not an edit
+    );
+
+    if (!validation.isValid) {
+      setFormError(validation.errorMessage);
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Prepare filename with proper path prefix
-      const fileExt = badgeImage.name.split(".").pop();
-      const safeFileName = `badges/badge_${badgeName.replace(/\s+/g, "_").toLowerCase()}.${fileExt}`;
-      const renamedFile = new File([badgeImage], safeFileName, {
-        type: badgeImage.type,
-      });
+      // Use the helper function for image upload
+      const namePrefix = `badge_${badgeName.replace(/\s+/g, "_").toLowerCase()}`;
 
-      // Upload the badge image file
-      const uploadFormData = new FormData();
-      uploadFormData.append("file", renamedFile);
-      const uploadResponse = await fetch("/api/file/upload", {
-        method: "POST",
-        body: uploadFormData,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error("Failed to upload image");
+      // Type check to ensure badgeImage is not null before passing to the function
+      if (!badgeImage) {
+        throw new Error("Badge image is required");
       }
 
-      const uploadData = await uploadResponse.json();
+      const uploadedImageUrl = await uploadBadgeImage(badgeImage, namePrefix);
 
       // Create badge with the uploaded image URL
       const badgeData = {
         badgeName,
-        badgeImage: uploadData.url,
+        badgeImage: uploadedImageUrl,
         criteria,
         description,
       };
@@ -205,53 +379,67 @@ export default function BadgeManager() {
 
   // Initialize edit mode for a badge
   const startEditMode = (badge: Badge) => {
-    setEditMode(badge._id);
-    setEditBadgeName(badge.badgeName);
-    setEditCriteria(badge.criteria);
-    setEditDescription(badge.description);
-    setEditImagePreview(badge.badgeImage);
-    setEditImage(null);
+    setEditFormState({
+      badgeId: badge._id,
+      name: badge.badgeName,
+      criteria: badge.criteria,
+      description: badge.description,
+      image: null,
+      imagePreview: badge.badgeImage,
+    });
+    setEditFormError(""); // Clear any previous edit errors
   };
 
   // Exit edit mode
   const cancelEditMode = () => {
-    setEditMode(null);
-    setEditImage(null);
-    setEditImagePreview(null);
+    setEditFormState({
+      badgeId: null,
+      name: "",
+      criteria: "",
+      description: "",
+      image: null,
+      imagePreview: null,
+    });
   };
 
   // Update existing badge
   const handleUpdate = async (badgeId: string) => {
+    // Reset any previous errors
+    setEditFormError("");
+
+    // Validate inputs
+    const validation = validateBadgeInput(
+      editFormState.name,
+      editFormState.description,
+      editFormState.image,
+      true // is an edit
+    );
+
+    if (!validation.isValid) {
+      setEditFormError(validation.errorMessage);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
       let badgeImageUrl = null;
 
       // Upload new image if selected
-      if (editImage) {
-        const fileExt = editImage.name.split(".").pop();
-        const safeFileName = `badges/badge_update_${Date.now()}.${fileExt}`;
-        const renamedFile = new File([editImage], safeFileName, {
-          type: editImage.type,
-        });
-
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", renamedFile);
-        const uploadResponse = await fetch("/api/file/upload", {
-          method: "POST",
-          body: uploadFormData,
-        });
-
-        const uploadData = await uploadResponse.json();
-        badgeImageUrl = uploadData.url;
+      if (editFormState.image) {
+        // Use the helper function for image upload
+        badgeImageUrl = await uploadBadgeImage(
+          editFormState.image,
+          "badge_update"
+        );
       }
 
       // Prepare update data
       const updateData: any = {
         badgeId,
-        badgeName: editBadgeName,
-        criteria: editCriteria,
-        description: editDescription,
+        badgeName: editFormState.name,
+        criteria: editFormState.criteria,
+        description: editFormState.description,
       };
 
       if (badgeImageUrl) {
@@ -281,9 +469,9 @@ export default function BadgeManager() {
           badge._id === badgeId
             ? {
                 ...badge,
-                badgeName: editBadgeName,
-                criteria: editCriteria,
-                description: editDescription,
+                badgeName: editFormState.name,
+                criteria: editFormState.criteria,
+                description: editFormState.description,
                 ...(badgeImageUrl ? { badgeImage: badgeImageUrl } : {}),
               }
             : badge
@@ -291,9 +479,14 @@ export default function BadgeManager() {
       );
 
       // Reset edit state
-      setEditMode(null);
-      setEditImage(null);
-      setEditImagePreview(null);
+      setEditFormState({
+        badgeId: null,
+        name: "",
+        criteria: "",
+        description: "",
+        image: null,
+        imagePreview: null,
+      });
 
       // Also trigger a refresh to ensure everything is in sync
       setRefreshTrigger((prev) => prev + 1);
@@ -390,14 +583,25 @@ export default function BadgeManager() {
       <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
         <h2 className="text-2xl font-bold mb-4">Add New Badge</h2>
 
+        {formError && (
+          <div className="p-3 bg-red-100 text-red-700 rounded-md mb-4">
+            {formError}
+          </div>
+        )}
+
         <div className="space-y-2">
           {/* Badge name input */}
           <input
             type="text"
             placeholder="Badge Name"
             value={badgeName}
-            onChange={(e) => setBadgeName(e.target.value)}
+            onChange={(e) => {
+              setBadgeName(e.target.value);
+              // Clear errors when user starts typing
+              if (formError) setFormError("");
+            }}
             className="w-full border p-2 rounded"
+            maxLength={50}
           />
 
           {/* Badge criteria selection */}
@@ -414,18 +618,33 @@ export default function BadgeManager() {
           </select>
 
           {/* Badge description */}
-          <textarea
-            placeholder="Badge Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className="w-full border p-2 rounded resize-none"
-            rows={3}
-          />
+          <div>
+            <textarea
+              placeholder="Badge Description (minimum 10 characters)"
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                // Clear errors when user starts typing
+                if (formError) setFormError("");
+              }}
+              className="w-full border p-2 rounded resize-none"
+              rows={3}
+            />
+            <div className="text-xs text-gray-500 mt-1">
+              {description.length}/10 characters minimum
+            </div>
+          </div>
 
           {/* Image upload with preview */}
           <div className="space-y-2">
-            <label className="block">Badge Image</label>
-            <input type="file" accept="image/*" onChange={handleImageChange} />
+            <label className="block">
+              Badge Image (JPEG, PNG, GIF, WEBP; max 2MB)
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg, image/png, image/gif, image/webp"
+              onChange={handleImageChange}
+            />
             {badgeImagePreview && (
               <div className="mt-2">
                 <Image
@@ -495,8 +714,9 @@ export default function BadgeManager() {
                         {/* Badge image with error handling */}
                         <Image
                           src={
-                            editMode === badge._id && editImagePreview
-                              ? editImagePreview
+                            editFormState.badgeId === badge._id &&
+                            editFormState.imagePreview
+                              ? editFormState.imagePreview
                               : getFullImageUrl(badge.badgeImage)
                           }
                           alt={badge.badgeName}
@@ -538,23 +758,40 @@ export default function BadgeManager() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-lg">{badge.badgeName}</h3>
 
-                    {editMode === badge._id ? (
+                    {editFormState.badgeId === badge._id ? (
                       // Edit form for badge
                       <>
+                        {editFormError && (
+                          <div className="p-3 bg-red-100 text-red-700 rounded-md mb-4 mx-4 text-sm">
+                            {editFormError}
+                          </div>
+                        )}
                         <div className="space-y-2 mt-2">
                           {/* Badge name editing */}
                           <input
                             type="text"
                             placeholder="Badge Name"
-                            value={editBadgeName}
-                            onChange={(e) => setEditBadgeName(e.target.value)}
+                            value={editFormState.name}
+                            onChange={(e) => {
+                              setEditFormState((prevState) => ({
+                                ...prevState,
+                                name: e.target.value,
+                              }));
+                              if (editFormError) setEditFormError("");
+                            }}
                             className="w-full border p-2 rounded text-sm"
+                            maxLength={50}
                           />
 
                           {/* Criteria selection */}
                           <select
-                            value={editCriteria}
-                            onChange={(e) => setEditCriteria(e.target.value)}
+                            value={editFormState.criteria}
+                            onChange={(e) =>
+                              setEditFormState((prevState) => ({
+                                ...prevState,
+                                criteria: e.target.value,
+                              }))
+                            }
                             className="w-full border p-2 rounded text-sm"
                           >
                             {criteriaOptions.map((option) => (
@@ -565,20 +802,38 @@ export default function BadgeManager() {
                           </select>
 
                           {/* Description editing */}
-                          <textarea
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            className="w-full border p-2 rounded text-sm resize-none"
-                            rows={3}
-                          />
+                          <div>
+                            <textarea
+                              value={editFormState.description}
+                              onChange={(e) => {
+                                setEditFormState((prevState) => ({
+                                  ...prevState,
+                                  description: e.target.value,
+                                }));
+                                if (editFormError) setEditFormError("");
+                              }}
+                              className="w-full border p-2 rounded text-sm resize-none"
+                              rows={3}
+                              placeholder="Badge Description (minimum 10 characters)"
+                            />
+                            <div className="text-xs text-gray-500 mt-1">
+                              {editFormState.description.length}/10 characters
+                              minimum
+                            </div>
+                          </div>
 
                           {/* Image upload */}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleEditImageChange}
-                            className="text-sm"
-                          />
+                          <div>
+                            <label className="block text-xs mb-1">
+                              Badge Image (JPEG, PNG, GIF, WEBP; max 2MB)
+                            </label>
+                            <input
+                              type="file"
+                              accept="image/jpeg, image/png, image/gif, image/webp"
+                              onChange={handleEditImageChange}
+                              className="text-sm"
+                            />
+                          </div>
 
                           {/* Action buttons */}
                           <div className="flex space-x-2 mt-2">
