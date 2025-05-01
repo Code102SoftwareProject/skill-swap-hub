@@ -179,38 +179,20 @@ export async function fetchChatMessages(chatRoomId: string) {
 }
 
 /**
- * Count upcoming meetings between two users
+ * Mark a message as read
  */
-export async function fetchUpcomingMeetingsCount(chatRoomId: string, userId: string) {
-  if (!chatRoomId || !userId) return 0;
-  
+export async function markMessageAsRead(messageId: string) {
   try {
-    // First get the other participant's ID
-    const chatRoom = await fetchChatRoom(chatRoomId);
+    const response = await fetch("/api/messages", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageId }),
+    });
     
-    if (!chatRoom) {
-      return 0;
-    }
-    
-    const otherUserId = chatRoom.participants.find((id: string) => id !== userId);
-    
-    if (!otherUserId) return 0;
-    
-    // Then fetch all meetings
-    const meetingsResponse = await fetch(`/api/meeting`);
-    const allMeetings = await meetingsResponse.json();
-    
-    // Filter for relevant upcoming meetings
-    const upcomingMeetings = allMeetings.filter((m: any) => 
-      ((m.senderId === userId && m.receiverId === otherUserId) || 
-       (m.senderId === otherUserId && m.receiverId === userId)) &&
-      (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
-      new Date(m.meetingTime) > new Date()
-    );
-    
-    return upcomingMeetings.length;
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error('Error fetching upcoming meetings count:', error);
-    return 0;
+    console.error("Error marking message as read:", error);
+    throw error;
   }
 }
