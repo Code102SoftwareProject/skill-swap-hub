@@ -30,7 +30,8 @@ export default function ForumManagement() {
           throw new Error('Failed to fetch forums');
         }
         const data = await response.json();
-        setForums(data);
+        // Fix: Extract the forums array from the response
+        setForums(data.forums || []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
