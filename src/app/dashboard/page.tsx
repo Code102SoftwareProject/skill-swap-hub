@@ -10,7 +10,7 @@ import ListingsContent from '@/components/User/DashboardContent/ListingsContent'
 import MatchesContent from '@/components/User/DashboardContent/MatchesContent';
 import MeetingContent from '@/components/User/DashboardContent/MeetingContent';
 import SessionsContent from '@/components/User/DashboardContent/SessionsContent';
-import SkillVerifyContent from '@/components/User/DashboardContent/SkillVerifyContent';
+import SkillVerifyContent from '@/components/User/SkillVerificationPortal';
 import SuggestionContent from '@/components/User/DashboardContent/SuggestionContent';
 import SettingContent from '@/components/User/DashboardContent/SettingContent';
 

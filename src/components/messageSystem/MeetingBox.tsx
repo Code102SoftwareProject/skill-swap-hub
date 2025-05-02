@@ -4,7 +4,8 @@ import CreateMeetingModal from '@/components/messageSystem/meetings/CreateMeetin
 import PendingMeetingList from '@/components/messageSystem/meetings/PendingMeetingList';
 import UpcomingMeetingList from '@/components/messageSystem/meetings/UpcomingMeetingList';
 import MeetingLists from '@/components/messageSystem/meetings/MeetingLists';
-import  Meeting  from '@/types/meeting';
+import Meeting from '@/types/meeting';
+import { fetchMeetings, createMeeting, updateMeeting } from "@/services/meetingApiServices";
 
 interface UserProfile {
   firstName: string;
@@ -76,18 +77,11 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   }, [chatRoomId, userId, fetchUserProfile]);
 
   // Fetch meetings
-  const fetchMeetings = useCallback(async (otherUserID: string) => {
+  const fetchMeetingsData = useCallback(async (otherUserID: string) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/meeting`);
-      const data = await response.json();
-      
-      const relevantMeetings = data.filter((meeting: Meeting) => 
-        (meeting.senderId === userId && meeting.receiverId === otherUserID) || 
-        (meeting.senderId === otherUserID && meeting.receiverId === userId)
-      );
-      
-      setMeetings(relevantMeetings);
+      const data = await fetchMeetings(userId, otherUserID);
+      setMeetings(data);
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
@@ -98,8 +92,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   // Fetch meetings when otherUserId is available
   useEffect(() => {
     if (!otherUserId) return;
-    fetchMeetings(otherUserId);
-  }, [otherUserId, fetchMeetings]);
+    fetchMeetingsData(otherUserId);
+  }, [otherUserId, fetchMeetingsData]);
 
   // Fetch user profiles for all meeting participants
   useEffect(() => {
@@ -114,43 +108,24 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     uniqueUserIds.forEach(id => fetchUserProfile(id));
   }, [meetings, fetchUserProfile]);
 
-
-  
-
   // Generic meeting action handler (accept, reject, cancel)
-  const handleMeetingAction = async (meetingId: string, action: string, value: any = null) => {
+  const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
     try {
       setLoading(true);
       
-      const body: any = { _id: meetingId };
+      const updatedMeeting = await updateMeeting(meetingId, action);
       
-      if (action === 'accept') {
-        body.acceptStatus = true;
-      } else if (['reject', 'cancel'].includes(action)) {
-        body.state = action === 'reject' ? 'rejected' : 'cancelled';
+      if (updatedMeeting) {
+        setMeetings(prevMeetings => 
+          prevMeetings.map(meeting => 
+            meeting._id === meetingId ? updatedMeeting : meeting
+          )
+        );
       }
-      
-      const response = await fetch('/api/meeting', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`);
-      }
-      
-      const updatedMeeting = await response.json();
-      
-      setMeetings(prevMeetings => 
-        prevMeetings.map(meeting => 
-          meeting._id === meetingId ? updatedMeeting : meeting
-        )
-      );
       
       // Refresh meetings after accepting
       if (action === 'accept' && otherUserId) {
-        fetchMeetings(otherUserId);
+        fetchMeetingsData(otherUserId);
       }
     } catch (error) {
       console.error(`Error ${action}ing meeting:`, error);
@@ -164,21 +139,17 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     
     try {
       setLoading(true);
-      const response = await fetch('/api/meeting', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          senderId: userId,
-          receiverId: otherUserId,
-          description: meetingData.description,
-          meetingTime: new Date(meetingData.date + 'T' + meetingData.time)
-        }),
+      const newMeeting = await createMeeting({
+        senderId: userId,
+        receiverId: otherUserId,
+        description: meetingData.description,
+        meetingTime: new Date(meetingData.date + 'T' + meetingData.time)
       });
       
-      const newMeeting = await response.json();
-      
-      setMeetings(prevMeetings => [...prevMeetings, newMeeting]);
-      setShowCreateModal(false);
+      if (newMeeting) {
+        setMeetings(prevMeetings => [...prevMeetings, newMeeting]);
+        setShowCreateModal(false);
+      }
     } catch (error) {
       console.error('Error creating meeting:', error);
     } finally {

@@ -4,6 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import type { Socket } from "socket.io-client";
 import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
+// Import the API service
+import { sendMessage as sendMessageService } from "@/services/chatApiServices";
 
 interface MessageInputProps {
   socket: Socket | null;
@@ -113,17 +115,14 @@ export default function MessageInput({
       receiverId: chatParticipants.find((id) => id !== senderId), // Determine the other user in the chat
       content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
-      replyFor: replyingTo || undefined, // Include reply reference
+      // Fix: Send just the message ID instead of the entire message object
+      replyFor: replyingTo?._id || null,
     };
 
     socket.emit("send_message", newMsg);
 
     try {
-      await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newMsg),
-      });
+      await sendMessageService(newMsg);
     } catch (error) {
       console.error("Error sending message:", error);
     }

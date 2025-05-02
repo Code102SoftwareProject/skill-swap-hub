@@ -5,7 +5,18 @@ import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
 import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encryption";
 
-
+/**
+ ** POST handler - Creates a new message in a chat room
+ * 
+ * @param req JSON body containing:
+ *            - chatRoomId: ID of the chat room (required)
+ *            - senderId: ID of the message sender (required)
+ *            - content: Message text or file link (required)
+ *            - replyFor: Optional ID of message being replied to
+ *    
+ * @returns JSON response with created message
+ *          
+ */
 export async function POST(req: Request) {
   await connect();
   try {
@@ -25,10 +36,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // This constructor usage is deprecated but still works
-    // Consider using one of these alternatives:
-    // Option 1: mongoose.Types.ObjectId.createFromHexString(chatRoomId)
-    // Option 2: Import ObjectId directly and use new ObjectId(chatRoomId)
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
     let replyForObjectId = null;
 
@@ -94,6 +101,20 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ ** GET handler - Retrieves messages for a specific chat room
+ * 
+ * @param req Request with query parameters:
+ *            - chatRoomId: ID of the chat room (required)
+ *            - lastMessage: Set to "true" to get only the most recent message
+ *            Example: GET /api/messages?chatRoomId=64a82db85e211c2a400e30f1
+ *            Example: GET /api/messages?chatRoomId=64a82db85e211c2a400e30f1&lastMessage=true
+ * @returns JSON response with messages array or single message
+ *          Success (all messages): { success: true, messages: [...messageObjects] } with 200 status
+ *          Success (last message): { success: true, message: {...messageObject} } with 200 status
+ *          Missing ID: { success: false, message: "ChatRoom ID is required" } with 400 status
+ *          Error: { success: false, message: "Error message" } with 500 status
+ */
 export async function GET(req: Request) {
   await connect();
   try {
@@ -167,6 +188,15 @@ export async function GET(req: Request) {
   }
 }
 
+/**
+ ** PATCH handler - Marks a message as read
+ * 
+ * @param req JSON body containing:
+ *            - messageId: ID of the message to mark as read (required)
+ *            Example body: { "messageId": "64a82dc15e211c2a400e30f5" }
+ * @returns JSON response with updated message
+ *          
+ */
 export async function PATCH(req: Request) {
   await connect();
   try {
@@ -214,6 +244,15 @@ export async function PATCH(req: Request) {
   }
 }
 
+/**
+ ** DELETE handler - Removes a message by ID
+ * 
+ * @param req Request with query parameters:
+ *            - messageId: ID of the message to delete (required)
+ *
+ * @returns JSON response with deletion status
+ *         
+ */
 export async function DELETE(req: Request) {
   await connect();
   try {

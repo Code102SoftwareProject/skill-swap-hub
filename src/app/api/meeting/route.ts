@@ -80,7 +80,21 @@ const createZoomMeeting = async (zoomAccessToken: string) => {
 export async function GET(req: Request) {
   await connect();
   try {
-    const meetings = await meetingSchema.find();
+    const url = new URL(req.url);
+    const userId = url.searchParams.get('userId');
+    const otherUserId = url.searchParams.get('otherUserId');
+    
+    let query = {};
+    if (userId && otherUserId) {
+      query = {
+        $or: [
+          { senderId: userId, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: userId }
+        ]
+      };
+    }
+    
+    const meetings = await meetingSchema.find(query);
     return NextResponse.json(meetings, { status: 200 });
   } catch (error: any) {
     return NextResponse.json({ message: error.message }, { status: 500 });

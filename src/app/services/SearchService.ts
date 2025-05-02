@@ -1,17 +1,11 @@
-import mongoose from 'mongoose';
 import { Forum, IForum } from '@/lib/models/Forum';
+import connect from '@/lib/db';
 
 export class SearchService {
   private static instance: SearchService;
   private isInitialized = false;
-  private readonly dbName: string;
 
-  private constructor() {
-    const mongoUri = process.env.MONGODB_URI;
-    this.dbName = mongoUri ? 
-      mongoUri.split('/').pop()?.split('?')[0] || 'skillSwapHub' : 
-      'skillSwapHub';
-  }
+  private constructor() {}
 
   public static getInstance(): SearchService {
     if (!SearchService.instance) {
@@ -24,17 +18,8 @@ export class SearchService {
     if (this.isInitialized) return;
   
     try {
-      if (!process.env.MONGODB_URI) {
-        throw new Error('MONGODB_URI is not defined in environment variables');
-      }
-
-      if (!mongoose.connection.readyState) {
-        console.log('Connecting to MongoDB...');
-        await mongoose.connect(process.env.MONGODB_URI, {
-          dbName: this.dbName
-        });
-        console.log(`Connected successfully to database: ${this.dbName}`);
-      }
+      // Use the connect function from db.ts
+      await connect();
       this.isInitialized = true;
     } catch (error) {
       console.error('MongoDB connection error:', error);
@@ -162,6 +147,8 @@ export class SearchService {
 
   async checkSearchIndex(): Promise<boolean> {
     try {
+      await this.initialize();
+      
       const results = await Forum.aggregate([
         {
           $search: {

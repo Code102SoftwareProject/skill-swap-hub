@@ -5,8 +5,10 @@ import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
-import FileMessage from "./box/FileMessage";
-import TextMessage from "./box/TextMessage";
+import FileMessage from "@/components/messageSystem/box/FileMessage";
+import TextMessage from "@/components/messageSystem/box/TextMessage";
+// Import the API service
+import { fetchChatMessages, markMessageAsRead } from "@/services/chatApiServices";
 
 interface MessageBoxProps {
   userId: string;
@@ -17,59 +19,17 @@ interface MessageBoxProps {
 }
 
 /**
- * ! TypingIndicator component
- * @returns TypingIndicator component
- * @description A simple typing indicator component with 3 dots that bounce
+ * ! TypingIndicator component with Tailwind styles
  */
 function TypingIndicator() {
   return (
-    <div className="typing-indicator flex items-center">
-      <span className="dot"></span>
-      <span className="dot"></span>
-      <span className="dot"></span>
-      <style jsx>{`
-        .typing-indicator {
-          display: flex;
-          gap: 4px;
-          margin: 10px 0;
-        }
-        .dot {
-          width: 8px;
-          height: 8px;
-          background-color: #ccc;
-          border-radius: 50%;
-          animation: bounce 1.4s infinite;
-        }
-        .dot:nth-child(1) {
-          animation-delay: 0s;
-        }
-        .dot:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-        .dot:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-        @keyframes bounce {
-          0%, 80%, 100% {
-            transform: scale(0);
-          }
-          40% {
-            transform: scale(1);
-          }
-        }
-      `}</style>
+    <div className="flex gap-1 my-2.5">
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></span>
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></span>
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></span>
     </div>
   );
 }
-
-/**
- * ! MessageBox component
- * @param userId
- * @param chatRoomId
- * @param socket
- * @param newMessage
- * @@description A component to display chat messages in a chat room
- */
 
 export default function MessageBox({
   userId,
@@ -80,40 +40,243 @@ export default function MessageBox({
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [readStatus, setReadStatus] = useState<{ [key: string]: boolean }>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Fetch chat history on mount (keeping the order as received so that the latest message is at the bottom)
+  // Near your other state declarations
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+
+  // Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
+      // Clear existing messages FIRST to prevent showing old messages
+      setMessages([]);
+      
       try {
-        const res = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
-        const data = await res.json();
-        if (data.success) {
-          setMessages(data.messages);
+        const messagesData = await fetchChatMessages(chatRoomId);
+        if (messagesData && messagesData.length > 0) {
+          setMessages(messagesData);
+          
+          // Mark the most recent message as read if sent by another user
+          const latestMessage = messagesData[messagesData.length - 1];
+          if (
+            latestMessage && 
+            latestMessage.senderId !== userId && 
+            !latestMessage.readStatus && 
+            latestMessage._id
+          ) {
+            handleMarkMessageAsRead(latestMessage);
+          }
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
       }
     }
     fetchMessages();
-  }, [chatRoomId]);
+  }, [chatRoomId, userId]);
 
-  // Append new messages if they arrive and keep view scrolled to bottom
   useEffect(() => {
-    if (!newMessage) return;
-    if (newMessage.chatRoomId !== chatRoomId) return;
-    setMessages((prev) => [...prev, newMessage]);
-  }, [newMessage, chatRoomId]);
+    async function fetchMessages() {
+      // Fetch logic...
+    }
+    fetchMessages();
+  }, [chatRoomId, userId]);
+
+  // Handle marking messages as read
+  const handleMarkMessageAsRead = async (message: IMessage) => {
+    if (!message._id || message.senderId === userId) return; // Removed readStatus check to force updates
+    
+    try {
+      console.log("Attempting to mark message as read:", message._id);
+      
+      // Update in database
+      await markMessageAsRead(message._id);
+      
+      // Emit socket event with retry logic
+      if (socket && socket.connected) {
+        const readData = {
+          messageId: message._id,
+          chatRoomId: chatRoomId,
+          readerId: userId,
+          timestamp: Date.now()
+        };
+        
+        console.log("Emitting mark_message_read event:", readData);
+        socket.emit("mark_message_read", readData);
+        
+        // Add retry mechanism for reliability
+        setTimeout(() => {
+          // If after 1 second the message still isn't marked as read locally, try again
+          if (!readStatus[message._id as string]) {
+            console.log("Read status not confirmed, retrying...");
+            socket.emit("mark_message_read", readData);
+          }
+        }, 1000);
+      } else {
+        console.error("Socket not connected, can't mark message as read");
+      }
+      
+      // Update local state
+      setReadStatus(prev => ({
+        ...prev,
+        [message._id as string]: true
+      }));
+      
+      // Also update the message in the messages array
+      setMessages(prev => 
+        prev.map(msg => 
+          msg._id === message._id 
+            ? { ...msg, readStatus: true } 
+            : msg
+        )
+      );
+    } catch (err) {
+      console.error("Error marking message as read:", err);
+    }
+  };
+
+  // Append new messages if they arrive
+  useEffect(() => {
+    if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
+    
+    setMessages(prev => [...prev, newMessage]);
+    
+    // Mark message as read if it's from another user
+    if (newMessage.senderId !== userId && !newMessage.readStatus && newMessage._id) {
+      handleMarkMessageAsRead(newMessage);
+    }
+  }, [newMessage, chatRoomId, userId]);
+
+  // Automatically mark new incoming messages as read
+  useEffect(() => {
+    // Only process if this is a new message from someone else
+    if (
+      newMessage && 
+      newMessage.chatRoomId === chatRoomId &&
+      newMessage.senderId !== userId && 
+      !newMessage.readStatus && 
+      newMessage._id
+    ) {
+      // Small delay to ensure the message is rendered first
+      const timer = setTimeout(() => {
+        handleMarkMessageAsRead(newMessage);
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [newMessage, chatRoomId, userId]);
+
+  // Listen for message read events
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log("Setting up message_read listener for chatRoomId:", chatRoomId);
+
+    const handleMessageRead = (data: { messageId: string, chatRoomId: string, readerId: string }) => {
+      // Only process this event if it's for the current chat room
+      if (data.chatRoomId !== chatRoomId) return;
+      
+      console.log(`Message ${data.messageId} marked as read by ${data.readerId}`);
+      
+      // Update both states immediately and directly
+      setReadStatus(prev => ({...prev, [data.messageId]: true}));
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg._id === data.messageId ? {...msg, readStatus: true} : msg
+        )
+      );
+    };
+
+    socket.on("message_read", handleMessageRead);
+
+    return () => {
+      socket.off("message_read", handleMessageRead);
+    };
+  }, [socket, chatRoomId, userId]);
+
+  // Add/update typing event listeners
+  useEffect(() => {
+    if (!socket) return;
+    
+    // Reset typing status when chat changes
+    setIsTyping(false);
+
+    // Add additional logging to track socket events
+    console.log("Setting up all message listeners for chatRoomId:", chatRoomId);
+    
+    // Add explicit debug event to check socket connectivity
+    socket.emit("debug_connection", { 
+      userId, 
+      chatRoomId, 
+      timestamp: new Date().toISOString() 
+    });
+
+    const handleUserTyping = (data: { userId: string, chatRoomId: string }) => {
+      // Only show typing indicator if it's for the current chat room
+      if (data.chatRoomId === chatRoomId && data.userId !== userId) {
+        setIsTyping(true);
+      }
+    };
+
+    const handleUserStoppedTyping = (data: { userId: string, chatRoomId: string }) => {
+      // Only process typing events for the current chat room
+      if (data.chatRoomId === chatRoomId && data.userId !== userId) {
+        setIsTyping(false);
+      }
+    };
+
+    socket.on("user_typing", handleUserTyping);
+    socket.on("user_stopped_typing", handleUserStoppedTyping);
+
+    return () => {
+      socket.off("user_typing", handleUserTyping);
+      socket.off("user_stopped_typing", handleUserStoppedTyping);
+    };
+  }, [socket, chatRoomId, userId]);
 
   // Auto-scroll to the bottom when messages update
   useEffect(() => {
     if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      // Add a small delay to ensure complete rendering
+      setTimeout(() => {
+        containerRef.current?.scrollTo({
+          top: containerRef.current.scrollHeight,
+          behavior: 'smooth'
+        });
+      }, 100);
+    }
+  }, [messages, newMessage]); // Add newMessage as dependency
+
+  // Update this when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const newestMessage = messages[messages.length - 1];
+      if (newestMessage._id && newestMessage._id !== lastMessageId) {
+        setLastMessageId(newestMessage._id);
+      }
     }
   }, [messages]);
+
+  // Auto-read all unread messages when entering a chat room
+  useEffect(() => {
+    // When we enter a chat room, mark all unread messages from other users as read
+    if (messages.length > 0 && socket) {
+      // Find all unread messages from other users
+      const unreadMessages = messages.filter(
+        msg => msg.senderId !== userId && !msg.readStatus && msg._id
+      );
+      
+      // Mark each one as read with a slight delay between them
+      if (unreadMessages.length > 0) {
+        // Only mark the latest message to avoid spamming
+        const latestMessage = unreadMessages[unreadMessages.length - 1];
+        handleMarkMessageAsRead(latestMessage);
+      }
+    }
+  }, [chatRoomId, messages, socket, userId]);
 
   // Function to scroll to a particular message (used for reply clicks)
   const scrollToMessage = (messageId: string) => {
@@ -129,42 +292,31 @@ export default function MessageBox({
     }
   };
 
-  // Listen for typing events via socket
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleUserTyping = (data: { userId: string }) => {
-      if (data.userId !== userId) {
-        setIsTyping(true);
+  // Function to get the last message from the current user
+  const getLastUserMessageIndex = () => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].senderId === userId) {
+        return i;
       }
-    };
+    }
+    return -1;
+  };
 
-    const handleUserStoppedTyping = (data: { userId: string }) => {
-      if (data.userId !== userId) {
-        setIsTyping(false);
-      }
-    };
-
-    socket.on("user_typing", handleUserTyping);
-    socket.on("user_stopped_typing", handleUserStoppedTyping);
-
-    return () => {
-      socket.off("user_typing", handleUserTyping);
-      socket.off("user_stopped_typing", handleUserStoppedTyping);
-    };
-  }, [socket, userId]);
+  const lastUserMessageIndex = getLastUserMessageIndex();
 
   return (
     <div ref={containerRef} className="flex flex-col w-full h-full bg-white overflow-y-auto p-4">
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
+        const isLastUserMessage = i === lastUserMessageIndex;
+        
         return (
           <div
             key={msg._id || i}
             ref={(el) => {
               if (msg._id) messageRefs.current[msg._id] = el;
             }}
-            className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
+            className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"}`}
           >
             <div
               className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} relative group`}
@@ -174,8 +326,7 @@ export default function MessageBox({
                 minHeight: "30px",
                 display: "flex",
                 flexDirection: "column",
-                wordBreak: "break-word",
-                paddingBottom: "4px",
+                wordBreak: "break-word"
               }}
             >
               {/* Reply button - show on hover */}
@@ -226,26 +377,32 @@ export default function MessageBox({
               ) : (
                 <TextMessage content={msg.content} />
               )}
-
-              {/* Timestamp */}
-              <div
-                className="flex justify-end text-xs"
-                style={{
-                  fontSize: "10px",
-                  color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777", 
-                  marginTop: "2px",
-                  textAlign: "right",
-                  alignSelf: "flex-end",
-                }}
-              >
-                {msg.sentAt
-                  ? new Date(msg.sentAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : ""}
+              
+              {/* Timestamp inside bubble */}
+              <div className="flex justify-end items-center mt-1">
+                <div
+                  className="text-xs"
+                  style={{
+                    fontSize: "10px",
+                    color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777"
+                  }}
+                >
+                  {msg.sentAt
+                    ? new Date(msg.sentAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </div>
               </div>
             </div>
+            
+            {/* Read/delivered status BELOW message bubble */}
+            {isMine && isLastUserMessage && (
+              <div className="text-xs text-right mt-1 mr-2" style={{ color: "#62717A", fontSize: "10px" }}>
+                {(readStatus[msg._id as string] === true || msg.readStatus === true) ? "read" : "delivered"}
+              </div>
+            )}
           </div>
         );
       })}
