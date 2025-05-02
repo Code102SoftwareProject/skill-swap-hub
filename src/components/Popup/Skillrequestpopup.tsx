@@ -5,7 +5,7 @@ import { X, Download, Eye, AlertCircle } from 'lucide-react';
 
 interface SkillDetailsModalProps {
   request: {
-    _id: string;
+    id: string;
     skillName: string;
     status: 'pending' | 'approved' | 'rejected';
     documents: string[];
