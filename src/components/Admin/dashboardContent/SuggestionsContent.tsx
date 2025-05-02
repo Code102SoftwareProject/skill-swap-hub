@@ -251,7 +251,7 @@ export default function SuggestionsContent() {
 
 
       {/* Suggestion Details Modal */}
-{selectedSuggestion && (
+      {selectedSuggestion && (
   <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300 ease-out">
     <div className="bg-white rounded-xl overflow-hidden w-[95%] max-w-2xl shadow-2xl relative animate-scaleIn">
       {/* Gradient Header */}
@@ -315,7 +315,7 @@ export default function SuggestionsContent() {
       {/* Content Section */}
       <div className="p-6 space-y-6">
         {/* Title Card */}
-        <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-1 transition-all hover:shadow-sm">
+        <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-5 transition-all hover:shadow-sm">
           <div className="flex items-center gap-3 text-sm font-medium text-gray-500 mb-3">
             <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -384,19 +384,10 @@ export default function SuggestionsContent() {
         </div>
       </div>
 
-      {/* Floating Action Button */}
-      <button 
-        onClick={() => setSelectedSuggestion(null)}
-        className="absolute -top-3 -right-3 bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
     </div>
   </div>
 )}
+  {/* End of Suggestion Details Modal */}
     </div>
     
   );
