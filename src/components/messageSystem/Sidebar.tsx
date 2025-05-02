@@ -34,7 +34,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   //* Component Specific Functions
 
   /**
-   * Fetches all chat rooms for the current user from the API 
+   ** Fetches all chat rooms for the current user from the API 
    * @async
    * @function fetchChatRooms
    * @returns {Promise<void>}

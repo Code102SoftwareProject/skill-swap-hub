@@ -1,15 +1,4 @@
-/**
- * API service for chat-related operations
- */
-
-// Type definitions
 import { IChatRoom, IMessage } from "@/types/chat";
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
 
 interface ChatRoomResponse {
   success: boolean;
