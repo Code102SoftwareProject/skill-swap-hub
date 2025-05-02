@@ -13,33 +13,37 @@ import { validateSystemApiKey } from '@/lib/middleware/systemApiAuth';
  *          Error: { success: false, message: "Error message" }
  */
 export async function GET(req: NextRequest) {
-  
   await connect();
   try {
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
- 
+    const chatRoomId = searchParams.get('chatRoomId');
+    
     let query = {};
-    if (userId) {
+    
+    if (chatRoomId) {
+      // If chatRoomId is provided, return that specific chat room
+      query = { _id: chatRoomId };
+    } else if (userId) {
+      // If userId is provided, return all chat rooms for that user
       const userObjectId = new mongoose.Types.ObjectId(userId);
       query = { participants: userObjectId };
-    }else{
+    } else {
       return NextResponse.json(
-        {message:"User ID is required to fetch chat rooms",success:false},
+        {message:"Either userId or chatRoomId is required", success:false},
         {status:400}
-      )
+      );
     }
 
     const chatRooms = await ChatRoom.find(query);
-    if(!chatRooms || chatRooms.length ===0){
+    if(!chatRooms || chatRooms.length === 0){
       return NextResponse.json(
-        {message:"No chat rooms found",success:false},
+        {message:"No chat rooms found", success:false},
         { status: 404 }
-      )
+      );
     }
     
     return NextResponse.json({ success: true, chatRooms }, { status: 200 });
-
   } catch (error: any) {
     console.error('Error in GET chatrooms:', error);
     return NextResponse.json(

@@ -19,6 +19,7 @@ export default function ChatPage() {
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
+  const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
@@ -34,6 +35,14 @@ export default function ChatPage() {
 
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
+  };
+
+  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+    setSelectedChatRoomId(chatRoomId);
+    setNewMessage(null); // Reset new message state when changing chats
+    if (participantInfo) {
+      setSelectedParticipantInfo(participantInfo);
+    }
   };
 
   useEffect(() => {
@@ -103,36 +112,10 @@ export default function ChatPage() {
       }
     };
 
-    interface IReadReceiptData {
-      chatRoomId: string;
-      userId: string;
-      messageId?: string;
-      timestamp?: number;
-      [key: string]: any;
-    }
-
-    const handleMessageRead = (data: IReadReceiptData): void => {
-      if (data.chatRoomId === selectedChatRoomId) {
-        console.log("Received read receipt:", data);
-        setNewMessage({
-          ...data,
-          type: "read_receipt",
-          timestamp: data.timestamp || Date.now(),
-          id: `read-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-        });
-      }
-    };
-
     socket.on("receive_message", handleReceiveMessage);
-    socket.on("user_see_message", handleMessageRead);
-    socket.on("message_read", (data) => {
-      console.log("Message read receipt received:", data);
-      // No need for additional handling as MessageBox now handles this event
-    });
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
-      socket.off("user_see_message", handleMessageRead);
     };
   }, [socket, selectedChatRoomId, userId]);
 
@@ -159,7 +142,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />
+      <Sidebar userId={userId} onChatSelect={handleChatSelect} />
 
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
@@ -169,6 +152,8 @@ export default function ChatPage() {
               socket={socket}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
+              upcomingMeetingsCount={0}
+              initialParticipantInfo={selectedParticipantInfo}
             />
 
             <div className="flex-1 overflow-auto">

@@ -84,3 +84,45 @@ export async function POST(request: Request) {
     );
   }
 }
+export async function DELETE(request: Request) {
+  try {
+    await connect();
+    
+    const {searchParams} = new URL(request.url);
+    const requestId = searchParams.get('requestId');
+
+    if(!requestId) {
+      return NextResponse.json(
+        { error: 'requestId is required' },
+        { status: 400 }
+      );
+    }
+    //find the request by id and delete it
+    const verificationRequest = await VerificationRequestModel.findByIdAndDelete(requestId);
+    if (!verificationRequest) {
+      return NextResponse.json(
+        { error: 'Verification request not found' },
+        { status: 404 }
+      );
+    }
+    //check if the status accepted 
+    if (verificationRequest.status !== 'approved') {
+      return NextResponse.json(
+        { error: 'Only accepted verification requests can be deleted' },
+        { status: 403 }
+      );
+    }
+
+    await VerificationRequestModel.findByIdAndDelete(requestId);
+    return NextResponse.json(
+      { message: 'Verification request deleted successfully' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error deleting verification request:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete verification request' },
+      { status: 500 }
+    );
+  } 
+}

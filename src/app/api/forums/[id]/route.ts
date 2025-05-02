@@ -41,3 +41,39 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(
+  request: NextRequest
+) {
+  try {
+    // Extract the forum ID from the URL path
+    const url = request.url;
+    const pathParts = url.split('/');
+    const id = pathParts[pathParts.length - 1]; 
+    
+    // Handle trailing slash if present
+    const forumId = id === '' ? pathParts[pathParts.length - 2] : id;
+
+    await connectToDatabase();
+    
+    const forum = await Forum.findByIdAndDelete(forumId);
+    
+    if (!forum) {
+      return NextResponse.json(
+        { message: 'Forum not found' },
+        { status: 404 }
+      );
+    }
+    
+    return NextResponse.json(
+      { message: 'Forum deleted successfully' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error deleting forum:', error);
+    return NextResponse.json(
+      { message: 'Failed to delete forum' },
+      { status: 500 }
+    );
+  }
+}
