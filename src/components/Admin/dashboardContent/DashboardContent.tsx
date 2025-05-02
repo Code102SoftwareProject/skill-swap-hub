@@ -56,9 +56,15 @@ const CHART_LABELS = {
   statTitles: {
     totalUsers: "Total Users",
     noOfSessions: "No of Sessions",
-    popularSkill: "Popular Skill",
+    newUsersThisWeek: "New Users This Week", // Replace popularSkill with newUsersThisWeek
     skillMatchRate: "Skill Match Rate",
     noOfSkillsRequested: "No of Skills Requested",
+  },
+  timeRanges: {
+    today: "Today",
+    week: "1 Week",
+    month: "1 Month",
+    year: "Entire Year",
   },
 };
 
@@ -105,6 +111,9 @@ const COLORS = {
   ],
 };
 
+// Time range options for filtering
+type TimeRange = "today" | "week" | "month" | "year";
+
 // API endpoint for dashboard data
 const DASHBOARD_API_URL = "/api/admin/dashboard";
 
@@ -112,14 +121,15 @@ const DASHBOARD_API_URL = "/api/admin/dashboard";
 interface DashboardData {
   totalUsers: number;
   sessions: number;
-  popularSkill: string; // Most requested/popular skill
+  newUsersThisWeek: number; // Replace popularSkill with newUsersThisWeek
   skillsOffered: number;
   skillsRequested: number;
   matches: number;
   skillsData: { skill: string; requests: number; offers: number }[]; // Detailed skill statistics
   userRegistrationData: {
-    _id: { year: number; month: number };
+    _id: { year: number; month: number; day?: number }; // Added day for more detailed filtering
     count: number;
+    date?: Date; // Add date field for filtering
   }[]; // User registration data
 }
 
@@ -213,6 +223,7 @@ export default function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [skillListData, setSkillListData] = useState<SkillListData[]>([]);
   const [skillListLoading, setSkillListLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>("month");
 
   // Effect hook to fetch dashboard data when component mounts
   useEffect(() => {
@@ -230,6 +241,18 @@ export default function DashboardContent() {
 
         // Parse JSON response
         const json = await res.json();
+
+        // Process registration data to add Date objects for easier filtering
+        if (json.userRegistrationData) {
+          json.userRegistrationData = json.userRegistrationData.map(
+            (item: any) => {
+              // Create a date object from year/month/day (if available)
+              const day = item._id.day || 1; // Default to first day if day is not provided
+              const date = new Date(item._id.year, item._id.month - 1, day);
+              return { ...item, date };
+            }
+          );
+        }
 
         // Update state with fetched data
         setData(json);
@@ -279,68 +302,137 @@ export default function DashboardContent() {
   // Get category chart data
   const categoryData = categoryChartData();
 
-  // Function to determine the most popular skill category by request count
-  const getMostPopularSkillCategory = () => {
-    if (
-      !data ||
-      !skillListData ||
-      skillListData.length === 0 ||
-      data.skillsData.length === 0
-    ) {
-      return "No data";
+  /**
+   * Filter registration data based on the selected time range
+   *
+   * @param range - Selected time range
+   * @returns {Array} Filtered registration data
+   */
+  const getFilteredRegistrationData = (range: TimeRange) => {
+    if (!data || !data.userRegistrationData) return [];
+
+    const now = new Date();
+    let cutoffDate: Date;
+
+    switch (range) {
+      case "today":
+        cutoffDate = new Date(now);
+        cutoffDate.setHours(0, 0, 0, 0);
+        break;
+      case "week":
+        cutoffDate = new Date(now);
+        cutoffDate.setDate(cutoffDate.getDate() - 7);
+        break;
+      case "month":
+        cutoffDate = new Date(now);
+        cutoffDate.setMonth(cutoffDate.getMonth() - 1);
+        break;
+      case "year":
+      default:
+        cutoffDate = new Date(now);
+        cutoffDate.setFullYear(cutoffDate.getFullYear() - 1);
+        break;
     }
 
-    // Create a map of skill names to their category
-    const skillToCategory: Record<string, string> = {};
-
-    // Populate the skill-to-category mapping with normalized skill names
-    skillListData.forEach((category) => {
-      category.skills.forEach((skill) => {
-        if (skill) {
-          // Normalize skill name: trim whitespace and convert to lowercase
-          const normalizedSkill = skill.trim().toLowerCase();
-          if (normalizedSkill) {
-            // Make sure it's not empty after trimming
-            skillToCategory[normalizedSkill] = category.categoryName;
-          }
-        }
-      });
-    });
-
-    // Create an object to track request counts per category
-    const categoryRequestCounts: Record<string, number> = {};
-
-    // Count requests for each category
-    data.skillsData.forEach((skillData) => {
-      // Normalize skill name with safe checks
-      const normalizedSkill = skillData.skill
-        ? skillData.skill.trim().toLowerCase()
-        : "";
-
-      const categoryName = skillToCategory[normalizedSkill] || "Uncategorized";
-
-      if (!categoryRequestCounts[categoryName]) {
-        categoryRequestCounts[categoryName] = 0;
-      }
-
-      categoryRequestCounts[categoryName] += skillData.requests;
-    });
-
-    // Find category with the highest request count
-    let maxRequests = 0;
-    let mostPopularCategory = "No data";
-
-    Object.entries(categoryRequestCounts).forEach(
-      ([category, requestCount]) => {
-        if (requestCount > maxRequests) {
-          maxRequests = requestCount;
-          mostPopularCategory = category;
-        }
-      }
+    // Filter using the date property we created earlier
+    return data.userRegistrationData.filter(
+      (item) => item.date && item.date >= cutoffDate
     );
-
-    return mostPopularCategory;
   };
+
+  /**
+   * Processes user registration data into chart-friendly format based on selected time range
+   *
+   * @returns {Object} Object containing labels array and counts array for the chart
+   */
+  const formatUserData = () => {
+    const filteredData = getFilteredRegistrationData(timeRange);
+    const labels: string[] = [];
+    const counts: number[] = [];
+
+    if (filteredData.length > 0) {
+      // Determine format based on time range
+      if (timeRange === "today") {
+        // Group by hours
+        const hourData: { [hour: number]: number } = {};
+
+        filteredData.forEach((item) => {
+          if (item.date) {
+            const hour = item.date.getHours();
+            hourData[hour] = (hourData[hour] || 0) + item.count;
+          }
+        });
+
+        // Fill in all hours
+        for (let i = 0; i < 24; i++) {
+          labels.push(`${i}:00`);
+          counts.push(hourData[i] || 0);
+        }
+      } else if (timeRange === "week") {
+        // Group by day of week
+        const dayData: { [day: string]: number } = {};
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+        filteredData.forEach((item) => {
+          if (item.date) {
+            const dayIndex = item.date.getDay();
+            const dayName = dayNames[dayIndex];
+            dayData[dayName] = (dayData[dayName] || 0) + item.count;
+          }
+        });
+
+        // Get last 7 days in order
+        const today = new Date().getDay();
+        for (let i = 6; i >= 0; i--) {
+          const dayIndex = (today - i + 7) % 7;
+          const dayName = dayNames[dayIndex];
+          labels.push(dayName);
+          counts.push(dayData[dayName] || 0);
+        }
+      } else {
+        // For month or year view, create a map to aggregate by month-year
+        const dataMap: { [key: string]: number } = {};
+
+        filteredData.forEach((item) => {
+          if (item._id && item.date) {
+            const monthName = MONTHS[item._id.month - 1];
+            const year = item._id.year;
+            const key = `${monthName} ${year}`;
+
+            // Aggregate counts for the same month-year
+            dataMap[key] = (dataMap[key] || 0) + item.count;
+          }
+        });
+
+        // Sort the entries by date to ensure chronological order
+        const sortedEntries = Object.entries(dataMap).sort((a, b) => {
+          const [monthA, yearA] = a[0].split(" ");
+          const [monthB, yearB] = b[0].split(" ");
+
+          const yearDiff = parseInt(yearA) - parseInt(yearB);
+          if (yearDiff !== 0) return yearDiff;
+
+          return MONTHS.indexOf(monthA) - MONTHS.indexOf(monthB);
+        });
+
+        // Extract sorted labels and counts
+        sortedEntries.forEach(([label, count]) => {
+          labels.push(label);
+          counts.push(count);
+        });
+      }
+    }
+
+    return { labels, counts };
+  };
+
+  // Handle time range change
+  const handleTimeRangeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setTimeRange(e.target.value as TimeRange);
+  };
+
+  // Get formatted user data for charts
+  const userData = formatUserData();
 
   // Show skeleton loader while data is being fetched
   if (loading || !data) {
@@ -368,28 +460,6 @@ export default function DashboardContent() {
   // Extract skill names for chart labels
   const skillLabels = data.skillsData.map((skill) => skill.skill);
 
-  /**
-   * Processes raw user registration data into chart-friendly format
-   *
-   * @returns {Object} Object containing labels array and counts array for the chart
-   */
-  const formatUserData = () => {
-    const labels: string[] = [];
-    const counts: number[] = [];
-
-    if (data.userRegistrationData && data.userRegistrationData.length > 0) {
-      data.userRegistrationData.forEach((item) => {
-        const monthName = MONTHS[item._id.month - 1];
-        labels.push(`${monthName} ${item._id.year}`);
-        counts.push(item.count);
-      });
-    }
-
-    return { labels, counts };
-  };
-
-  const userData = formatUserData();
-
   return (
     <div className="p-8 grid gap-8">
       {/* Top Stats Section - Key metrics displayed as cards */}
@@ -403,9 +473,11 @@ export default function DashboardContent() {
           value={data.sessions.toString()}
         />
         <StatCard
-          title="Most Popular Skill Group"
+          title={CHART_LABELS.statTitles.newUsersThisWeek}
           value={
-            !skillListLoading ? getMostPopularSkillCategory() : "Loading..."
+            data.newUsersThisWeek !== undefined
+              ? data.newUsersThisWeek.toString()
+              : "0"
           }
         />
         <StatCard
@@ -424,23 +496,80 @@ export default function DashboardContent() {
 
       {/* Line Chart - Showing user registration data over time */}
       <div className="bg-white shadow-md rounded-xl p-6">
-        <h2 className="text-xl font-semibold mb-4">
-          {CHART_LABELS.userRegistration}
-        </h2>
-        <Line
-          data={{
-            labels: userData.labels,
-            datasets: [
-              {
-                label: CHART_LABELS.numberOfUsers,
-                data: userData.counts,
-                backgroundColor: COLORS.blue.fill,
-                borderColor: COLORS.blue.border,
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">
+            {CHART_LABELS.userRegistration}
+          </h2>
+          <div className="relative">
+            <select
+              value={timeRange}
+              onChange={handleTimeRangeChange}
+              className="appearance-none bg-blue-50 border border-blue-200 text-blue-800 py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              aria-label="Select time range"
+            >
+              <option value="today">{CHART_LABELS.timeRanges.today}</option>
+              <option value="week">{CHART_LABELS.timeRanges.week}</option>
+              <option value="month">{CHART_LABELS.timeRanges.month}</option>
+              <option value="year">{CHART_LABELS.timeRanges.year}</option>
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-800">
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                <path
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                  fillRule="evenodd"
+                ></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        {userData.labels.length > 0 ? (
+          <Line
+            data={{
+              labels: userData.labels,
+              datasets: [
+                {
+                  label: CHART_LABELS.numberOfUsers,
+                  data: userData.counts,
+                  backgroundColor: COLORS.blue.fill,
+                  borderColor: COLORS.blue.border,
+                  tension: 0.3, // Add smooth curves to the line
+                  fill: true, // Fill area under the line
+                  pointBackgroundColor: COLORS.blue.border,
+                  pointRadius: 4,
+                  pointHoverRadius: 6,
+                },
+              ],
+            }}
+            options={{
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  ticks: {
+                    precision: 0, // Use integers only
+                  },
+                },
               },
-            ],
-          }}
-          options={{ responsive: true }} // Make chart responsive to container size
-        />
+              plugins: {
+                tooltip: {
+                  backgroundColor: "rgba(0, 0, 0, 0.8)",
+                  padding: 10,
+                  titleFont: {
+                    weight: "bold",
+                  },
+                },
+              },
+            }}
+          />
+        ) : (
+          <div className="h-64 flex items-center justify-center">
+            <p className="text-gray-500">
+              No registration data available for the selected time range
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Doughnut Chart - Skill Distribution by Category */}
@@ -531,92 +660,12 @@ export default function DashboardContent() {
           )}
         </div>
       </div>
-
-      {/* Bar Charts Section - Side by side comparison of skills requested vs offered */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Skills Requested Chart */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {CHART_LABELS.skillsRequested}
-          </h2>
-          <div className="h-72">
-            {" "}
-            {/* Fixed height container */}
-            <Bar
-              data={{
-                labels: skillLabels,
-                datasets: [
-                  {
-                    label: CHART_LABELS.noOfRequests,
-                    data: data.skillsData.map((skill) =>
-                      Number(skill.requests)
-                    ), // Cast to number
-                    backgroundColor: COLORS.green.fill,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      precision: 0, // Integer ticks only
-                    },
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Skills Offered Chart */}
-        <div className="bg-white shadow-md rounded-xl p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            {CHART_LABELS.skillsOffered}
-          </h2>
-          <div className="h-72">
-            {" "}
-            {/* Fixed height container */}
-            <Bar
-              data={{
-                labels: skillLabels,
-                datasets: [
-                  {
-                    label: CHART_LABELS.noOfOffers,
-                    data: data.skillsData.map((skill) => Number(skill.offers)), // Cast to number
-                    backgroundColor: COLORS.lightBlue.fill,
-                  },
-                ],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      precision: 0, // Integer ticks only
-                    },
-                  },
-                },
-              }}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
 
 /**
  * StatCard - Reusable component for displaying individual metric cards
- *
- * @param {Object} props - Component props
- * @param {string} props.title - The title of the statistic to display
- * @param {string} props.value - The value of the statistic to display
- * @returns {JSX.Element} A styled card displaying the statistic title and value
  */
 function StatCard({ title, value }: { title: string; value: string }) {
   return (
