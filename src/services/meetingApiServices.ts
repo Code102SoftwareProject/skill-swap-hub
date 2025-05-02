@@ -1,7 +1,12 @@
 import Meeting from "@/types/meeting";
 
 /**
- * Fetch meetings between two users
+ ** Fetch meetings between two users
+ * 
+ * @param userId - ID of the first user
+ * @param otherUserId - ID of the second user
+ * @returns Promise that resolves to an array of Meeting objects between the specified users,
+ *          or an empty array if the request fails
  */
 export async function fetchMeetings(userId: string, otherUserId: string): Promise<Meeting[]> {
   try {
@@ -19,7 +24,15 @@ export async function fetchMeetings(userId: string, otherUserId: string): Promis
 }
 
 /**
- * Create a new meeting
+ ** Create a new meeting between users
+ * 
+ * @param meetingData - Object containing meeting details
+ * @param meetingData.senderId - ID of the user sending the meeting invitation
+ * @param meetingData.receiverId - ID of the user receiving the meeting invitation
+ * @param meetingData.description - Text description of the meeting purpose
+ * @param meetingData.meetingTime - Date and time when the meeting will occur
+ * @returns Promise that resolves to the created Meeting object if successful,
+ *          or null if the request fails
  */
 export async function createMeeting(meetingData: {
   senderId: string;
@@ -46,7 +59,15 @@ export async function createMeeting(meetingData: {
 }
 
 /**
- * Update a meeting (accept, reject, cancel)
+ **  Update a meeting's status (accept, reject, cancel)
+ * 
+ * @param meetingId - ID of the meeting to update
+ * @param action - The action to perform on the meeting:
+ *                'accept' - Accept the meeting invitation
+ *                'reject' - Reject the meeting invitation
+ *                'cancel' - Cancel a previously scheduled meeting
+ * @returns Promise that resolves to the updated Meeting object if successful,
+ *          or null if the request fails
  */
 export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel'): Promise<Meeting | null> {
   try {
@@ -76,7 +97,14 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
 }
 
 /**
- * Count upcoming meetings between two users
+ ** Count upcoming meetings between two users
+ * 
+ * @param userId - ID of the first user
+ * @param otherUserId - ID of the second user
+ * @returns Promise that resolves to the number of upcoming meetings that are either:
+ *          1. Accepted meetings between the users, or
+ *          2. Pending meetings initiated by the first user (userId)
+ *          Returns 0 if there are no upcoming meetings or an error occurs
  */
 export async function fetchUpcomingMeetingsCount(userId: string, otherUserId: string): Promise<number> {
   try {
