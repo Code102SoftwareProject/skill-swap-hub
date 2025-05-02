@@ -112,36 +112,10 @@ export default function ChatPage() {
       }
     };
 
-    interface IReadReceiptData {
-      chatRoomId: string;
-      userId: string;
-      messageId?: string;
-      timestamp?: number;
-      [key: string]: any;
-    }
-
-    const handleMessageRead = (data: IReadReceiptData): void => {
-      if (data.chatRoomId === selectedChatRoomId) {
-        console.log("Received read receipt:", data);
-        setNewMessage({
-          ...data,
-          type: "read_receipt",
-          timestamp: data.timestamp || Date.now(),
-          id: `read-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-        });
-      }
-    };
-
     socket.on("receive_message", handleReceiveMessage);
-    socket.on("user_see_message", handleMessageRead);
-    socket.on("message_read", (data) => {
-      console.log("Message read receipt received:", data);
-      // No need for additional handling as MessageBox now handles this event
-    });
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
-      socket.off("user_see_message", handleMessageRead);
     };
   }, [socket, selectedChatRoomId, userId]);
 
