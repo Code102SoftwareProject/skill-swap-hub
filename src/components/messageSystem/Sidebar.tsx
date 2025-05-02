@@ -9,7 +9,7 @@ import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface SidebarProps {
   userId: string;
-  onChatSelect: (chatRoomId: string) => void;
+  onChatSelect: (chatRoomId: string, participantInfo?: { id: string, name: string }) => void;
 }
 
 interface UserProfile {
@@ -34,7 +34,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   //* Component Specific Functions
 
   /**
-   ** Fetches all chat rooms for the current user from the API 
+   * Fetches all chat rooms for the current user from the API 
    * @async
    * @function fetchChatRooms
    * @returns {Promise<void>}
@@ -185,7 +185,10 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
               <li
                 key={chat._id}
                 className="p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600"
-                onClick={() => onChatSelect(chat._id)}
+                onClick={() => onChatSelect(chat._id, { 
+                  id: otherParticipantId,
+                  name: otherParticipantName
+                })}
               >
                 <div className="flex flex- items-center space-x-2">
                   <BsPerson className="text-2xl"/>

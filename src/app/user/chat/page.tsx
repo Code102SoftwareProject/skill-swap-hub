@@ -19,6 +19,7 @@ export default function ChatPage() {
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
+  const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
@@ -36,12 +37,20 @@ export default function ChatPage() {
     setShowMeetings(show);
   };
 
+  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+    setSelectedChatRoomId(chatRoomId);
+    setNewMessage(null); // Reset new message state when changing chats
+    if (participantInfo) {
+      setSelectedParticipantInfo(participantInfo);
+    }
+  };
+
   useEffect(() => {
     if (!userId || authLoading) return;
 
     updateLastSeen(userId).catch(console.error);
 
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
+    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
     setSocket(newSocket);
 
     const handleBeforeUnload = () => {
@@ -159,7 +168,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen">
-      <Sidebar userId={userId} onChatSelect={setSelectedChatRoomId} />
+      <Sidebar userId={userId} onChatSelect={handleChatSelect} />
 
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
@@ -169,6 +178,8 @@ export default function ChatPage() {
               socket={socket}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
+              upcomingMeetingsCount={0}
+              initialParticipantInfo={selectedParticipantInfo}
             />
 
             <div className="flex-1 overflow-auto">
