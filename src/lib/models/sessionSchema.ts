@@ -1,7 +1,25 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
+
+interface ISession{
+  user1Id: mongoose.Types.ObjectId;
+  skill1Id: mongoose.Types.ObjectId;
+  descriptionOfService1: string;
+  user2Id: mongoose.Types.ObjectId;
+  skill2Id: mongoose.Types.ObjectId;
+  descriptionOfService2: string;
+  requestedDate: Date;
+  startDate:Date;
+  dueDate: Date;
+  isAccepted: boolean;
+  isAmmended: boolean;
+  status: "active" | "completed" | "canceled";
+  createdAt: Date;
+  progress1: mongoose.Types.ObjectId;
+  progress2: mongoose.Types.ObjectId;
+}
 
 const sessionSchema = new Schema(
-    {
+{
         //sessionId 
         user1Id: { type: Schema.Types.ObjectId, ref: "users", required: true },
         skill1Id: { type: Schema.Types.ObjectId, ref: "skill", required: true },
@@ -18,4 +36,4 @@ const sessionSchema = new Schema(
     { timestamps: true }
 );
 
-export default models.Session || model("Session", sessionSchema);
+
