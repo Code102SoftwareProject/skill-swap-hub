@@ -5,8 +5,8 @@ import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
-import FileMessage from "./box/FileMessage";
-import TextMessage from "./box/TextMessage";
+import FileMessage from "@/components/messageSystem/box/FileMessage";
+import TextMessage from "@/components/messageSystem/box/TextMessage";
 // Import the API service
 import { fetchChatMessages, markMessageAsRead } from "@/services/chatApiServices";
 
