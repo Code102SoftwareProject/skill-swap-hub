@@ -334,7 +334,7 @@ const SkillVerificationPortal: React.FC = () => {
       });
       
       if (result.isConfirmed) {
-        // Make sure requestId is properly defined before making the API call
+        
         await axios.delete(
           `/api/users/verification-request?requestId=${requestId}&userId=${userId}`,
           getAuthConfig()
