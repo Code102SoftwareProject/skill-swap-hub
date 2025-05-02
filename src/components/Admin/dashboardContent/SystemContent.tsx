@@ -2,6 +2,7 @@
 
 import BadgeManager from './BadgeManager';
 import SkillList from '@/components/Admin/skillList';
+import ForumManagement from '../ForumManagement';
 
 export default function SystemContent() {
   return (
@@ -15,6 +16,9 @@ export default function SystemContent() {
       <div>
        
         <SkillList />
+      </div>
+      <div>
+        <ForumManagement />
       </div>
 
       {/* Other sections */}
