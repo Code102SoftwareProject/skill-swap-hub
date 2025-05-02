@@ -8,7 +8,7 @@ import { CornerUpLeft } from "lucide-react";
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
 // Import the API service
-import { fetchChatMessages, markMessageAsRead } from "@/services/chatApiServices";
+import { fetchChatMessages } from "@/services/chatApiServices";
 
 interface MessageBoxProps {
   userId: string;
@@ -19,7 +19,7 @@ interface MessageBoxProps {
 }
 
 /**
- * ! TypingIndicator component with Tailwind styles
+ * ! TypingIndicator component 
  */
 function TypingIndicator() {
   return (
@@ -40,13 +40,11 @@ export default function MessageBox({
 }: MessageBoxProps) {
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const [readStatus, setReadStatus] = useState<{ [key: string]: boolean }>({});
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Near your other state declarations
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
 
   // Fetch chat history on mount
@@ -59,17 +57,6 @@ export default function MessageBox({
         const messagesData = await fetchChatMessages(chatRoomId);
         if (messagesData && messagesData.length > 0) {
           setMessages(messagesData);
-
-          // Mark the most recent message as read if sent by another user
-          const latestMessage = messagesData[messagesData.length - 1];
-          if (
-            latestMessage &&
-            latestMessage.senderId !== userId &&
-            !latestMessage.readStatus &&
-            latestMessage._id
-          ) {
-            handleMarkMessageAsRead(latestMessage);
-          }
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
@@ -78,132 +65,11 @@ export default function MessageBox({
     fetchMessages();
   }, [chatRoomId, userId]);
 
-  useEffect(() => {
-    async function fetchMessages() {
-      // Fetch logic...
-    }
-    fetchMessages();
-  }, [chatRoomId, userId]);
-
-  // Handle marking messages as read
-  const handleMarkMessageAsRead = async (message: IMessage) => {
-    if (!message._id || message.senderId === userId) return; // Removed readStatus check to force updates
-
-    try {
-      console.log("Attempting to mark message as read:", message._id);
-
-      // Update in database
-      await markMessageAsRead(message._id);
-
-      // Emit socket event with retry logic
-      if (socket && socket.connected) {
-        const readData = {
-          messageId: message._id,
-          chatRoomId: chatRoomId,
-          readerId: userId,
-          timestamp: Date.now(),
-        };
-
-        console.log("Emitting mark_message_read event:", readData);
-        socket.emit("mark_message_read", readData);
-
-        // Add retry mechanism for reliability
-        setTimeout(() => {
-          // If after 1 second the message still isn't marked as read locally, try again
-          if (!readStatus[message._id as string]) {
-            console.log("Read status not confirmed, retrying...");
-            socket.emit("mark_message_read", readData);
-          }
-        }, 1000);
-      } else {
-        console.error("Socket not connected, can't mark message as read");
-      }
-
-      // Update local state
-      setReadStatus((prev) => ({
-        ...prev,
-        [message._id as string]: true,
-      }));
-
-      // Also update the message in the messages array
-      setMessages((prev) =>
-        prev.map((msg) =>
-          msg._id === message._id ? { ...msg, readStatus: true } : msg
-        )
-      );
-    } catch (err) {
-      console.error("Error marking message as read:", err);
-    }
-  };
-
   // Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
-
     setMessages((prev) => [...prev, newMessage]);
-
-    // Mark message as read if it's from another user
-    if (
-      newMessage.senderId !== userId &&
-      !newMessage.readStatus &&
-      newMessage._id
-    ) {
-      handleMarkMessageAsRead(newMessage);
-    }
   }, [newMessage, chatRoomId, userId]);
-
-  // Automatically mark new incoming messages as read
-  useEffect(() => {
-    // Only process if this is a new message from someone else
-    if (
-      newMessage &&
-      newMessage.chatRoomId === chatRoomId &&
-      newMessage.senderId !== userId &&
-      !newMessage.readStatus &&
-      newMessage._id
-    ) {
-      // Small delay to ensure the message is rendered first
-      const timer = setTimeout(() => {
-        handleMarkMessageAsRead(newMessage);
-      }, 500);
-
-      return () => clearTimeout(timer);
-    }
-  }, [newMessage, chatRoomId, userId]);
-
-  // Listen for message read events
-  useEffect(() => {
-    if (!socket) return;
-
-    console.log("Setting up message_read listener for chatRoomId:", chatRoomId);
-
-    const handleMessageRead = (data: {
-      messageId: string;
-      chatRoomId: string;
-      readerId: string;
-    }) => {
-      // Only process this event if it's for the current chat room
-      if (data.chatRoomId !== chatRoomId) return;
-
-      console.log(
-        `Message ${data.messageId} marked as read by ${data.readerId}`
-      );
-
-      // Update both states immediately and directly
-      setReadStatus((prev) => ({ ...prev, [data.messageId]: true }));
-      setMessages((prevMessages) =>
-        prevMessages.map((msg) =>
-          msg._id === data.messageId ? { ...msg, readStatus: true } : msg
-        )
-      );
-    };
-
-    socket.on("message_read", handleMessageRead);
-
-    return () => {
-      socket.off("message_read", handleMessageRead);
-    };
-  }, [socket, chatRoomId, userId]);
 
   // Add/update typing event listeners
   useEffect(() => {
@@ -270,24 +136,6 @@ export default function MessageBox({
       }
     }
   }, [messages]);
-
-  // Auto-read all unread messages when entering a chat room
-  useEffect(() => {
-    // When we enter a chat room, mark all unread messages from other users as read
-    if (messages.length > 0 && socket) {
-      // Find all unread messages from other users
-      const unreadMessages = messages.filter(
-        (msg) => msg.senderId !== userId && !msg.readStatus && msg._id
-      );
-
-      // Mark each one as read with a slight delay between them
-      if (unreadMessages.length > 0) {
-        // Only mark the latest message to avoid spamming
-        const latestMessage = unreadMessages[unreadMessages.length - 1];
-        handleMarkMessageAsRead(latestMessage);
-      }
-    }
-  }, [chatRoomId, messages, socket, userId]);
 
   // Function to scroll to a particular message (used for reply clicks)
   const scrollToMessage = (messageId: string) => {
