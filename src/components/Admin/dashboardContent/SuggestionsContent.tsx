@@ -54,7 +54,7 @@ export default function SuggestionsContent() {
   const pendingSuggestions = suggestions.filter(
     (s) =>
       s.status === 'Pending' &&
-      s.userName.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) &&
+      s.userName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) &&
       (selectedCategory === 'All' || s.category === selectedCategory)
   );
 
