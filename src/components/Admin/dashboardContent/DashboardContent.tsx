@@ -132,6 +132,42 @@ interface SkillListData {
 }
 
 /**
+ * Simple fuzzy matching function to compare two strings
+ * Returns true if strA contains strB or vice versa (case-insensitive)
+ * or if they share enough common words
+ *
+ * @param {string} strA - First string to compare
+ * @param {string} strB - Second string to compare
+ * @returns {boolean} Whether the strings are considered similar
+ */
+const isSimilarSkill = (strA: string, strB: string): boolean => {
+  if (!strA || !strB) return false;
+
+  // Normalize both strings
+  const normA = strA.trim().toLowerCase();
+  const normB = strB.trim().toLowerCase();
+
+  // Direct substring check
+  if (normA.includes(normB) || normB.includes(normA)) {
+    return true;
+  }
+
+  // Split into words and check for common words
+  const wordsA = normA.split(/\s+/);
+  const wordsB = normB.split(/\s+/);
+
+  // If both have multiple words, check for at least 2 common words
+  if (wordsA.length > 1 && wordsB.length > 1) {
+    const commonWords = wordsA.filter(
+      (word) => word.length > 3 && wordsB.includes(word)
+    );
+    if (commonWords.length >= 1) return true;
+  }
+
+  return false;
+};
+
+/**
  * Skeleton loader component for stat cards
  *
  * @returns {JSX.Element} A placeholder UI element with animation for stat cards during loading
@@ -257,12 +293,16 @@ export default function DashboardContent() {
     // Create a map of skill names to their category
     const skillToCategory: Record<string, string> = {};
 
-    // Populate the skill-to-category mapping
+    // Populate the skill-to-category mapping with normalized skill names
     skillListData.forEach((category) => {
       category.skills.forEach((skill) => {
         if (skill) {
-          // Check if skill is not null or undefined
-          skillToCategory[skill.toLowerCase()] = category.categoryName;
+          // Normalize skill name: trim whitespace and convert to lowercase
+          const normalizedSkill = skill.trim().toLowerCase();
+          if (normalizedSkill) {
+            // Make sure it's not empty after trimming
+            skillToCategory[normalizedSkill] = category.categoryName;
+          }
         }
       });
     });
@@ -272,9 +312,12 @@ export default function DashboardContent() {
 
     // Count requests for each category
     data.skillsData.forEach((skillData) => {
-      // Check if skill is not null before calling toLowerCase()
-      const skillName = skillData.skill ? skillData.skill.toLowerCase() : "";
-      const categoryName = skillToCategory[skillName] || "Uncategorized";
+      // Normalize skill name with safe checks
+      const normalizedSkill = skillData.skill
+        ? skillData.skill.trim().toLowerCase()
+        : "";
+
+      const categoryName = skillToCategory[normalizedSkill] || "Uncategorized";
 
       if (!categoryRequestCounts[categoryName]) {
         categoryRequestCounts[categoryName] = 0;
