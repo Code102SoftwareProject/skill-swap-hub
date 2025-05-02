@@ -2,31 +2,33 @@
 
 import { useEffect, useState } from 'react';
 import { Socket } from 'socket.io-client';
+// Import parseISO along with formatDistanceToNow
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
+import { useRouter } from 'next/navigation'; // Import useRouter
+import { ArrowLeft, Calendar, BookOpen } from 'lucide-react'; // Using Lucide React for icons
+// Add import for API service
 import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
-import { fetchUpcomingMeetingsCount } from "@/services/meetingApiServices"; 
 
 interface ChatHeaderProps {
   chatRoomId: string;
   socket: Socket | null;
   userId: string;
   onToggleMeetings: (show: boolean) => void;
+  upcomingMeetingsCount: number; // Add this new prop
 }
 
-export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings }: ChatHeaderProps) {
-  const [upcomingMeetingsCount, setUpcomingMeetingsCount] = useState(0);
+export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeetings, upcomingMeetingsCount }: ChatHeaderProps) {
   const [chatRoomInfo, setChatRoomInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
-  const [otherUserName, setOtherUserName] = useState<string | null>(null);
-  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [otherUserName, setOtherUserName] = useState<string | null>(null); // State for other user's name
+  const [otherUserId, setOtherUserId] = useState<string | null>(null); // State to store other user's ID
   const [showingMeetings, setShowingMeetings] = useState(false);
-  const router = useRouter();
+  const router = useRouter(); // Initialize the router
 
+  // Fetch chat room info (e.g., room name, participants, etc.)
   useEffect(() => {
     async function fetchChatRoomInfo() {
       setLoading(true);
@@ -41,6 +43,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
         if (roomInfo) {
           setChatRoomInfo(roomInfo);
           
+          // Find and set the other user's ID
           const foundOtherUserId = roomInfo.participants?.find((id: string) => id !== userId);
           if (foundOtherUserId) {
             setOtherUserId(foundOtherUserId);
@@ -60,6 +63,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
     fetchChatRoomInfo();
   }, [chatRoomId, userId]);
 
+  // Function to fetch the other user's name
   const fetchOtherUserName = async (id: string) => {
     if (!id) return;
     
@@ -73,6 +77,7 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
     }
   };
 
+  // Update the fetchLastOnline function
   const fetchUserLastOnline = async (id: string) => {
     if (!id) {
       console.log('No other user ID provided to fetchLastOnline');
@@ -85,9 +90,11 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
     
     if (lastOnlineData) {
       try {
+        // Use parseISO for robust parsing
         const parsedDate = parseISO(lastOnlineData);
         console.log('Parsed Date object:', parsedDate);
         
+        // Check if the parsed date is valid
         if (!isNaN(parsedDate.getTime())) {
           setLastOnline(parsedDate);
         } else {
@@ -102,43 +109,56 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
     }
   };
 
+  // Fetch user name and initial online/offline status when otherUserId is set
   useEffect(() => {
     if (otherUserId) {
       fetchOtherUserName(otherUserId);
-      if (!isOnline) {
+      // Fetch initial last online status only if the user isn't immediately found online by socket
+      // The socket listeners will handle subsequent updates.
+      if (!isOnline) { // Check current state before potentially fetching
         fetchUserLastOnline(otherUserId);
       }
+      // Request current online status via socket as well
       if (socket) {
         socket.emit("get_online_users");
       }
     }
-  }, [otherUserId, socket]);
+    // Rerun primarily when the other user ID or the socket connection changes.
+    // Live online/offline status changes are handled by the dedicated socket listeners below.
+  }, [otherUserId, socket]); // Removed isOnline dependency
 
+  // Modify the useEffect for online status
   useEffect(() => {
-    if (!socket || !otherUserId) return;
+    if (!socket || !otherUserId) return; // Ensure socket and otherUserId are available
 
+    // Request the current online users list when component mounts or socket/otherUserId changes
     socket.emit("get_online_users");
 
     const handleOnlineUsers = (users: string[]) => {
+      // Check if the *specific* other user for this chat is in the list
       const isOtherUserOnline = users.includes(otherUserId);
       setIsOnline(isOtherUserOnline);
+      // If the other user is specifically offline, fetch their last seen time
       if (!isOtherUserOnline) {
         fetchUserLastOnline(otherUserId);
       } else {
-        setLastOnline(null);
+        setLastOnline(null); // Clear last seen if user is online
       }
     };
 
     const handleUserOnline = (data: { userId: string }) => {
+      // Check if the user coming online is the *specific* other user for this chat
       if (data.userId === otherUserId) {
         setIsOnline(true);
-        setLastOnline(null);
+        setLastOnline(null); // Clear last seen when user comes online
       }
     };
 
     const handleUserOffline = async (data: { userId: string }) => {
+      // Check if the user going offline is the *specific* other user for this chat
       if (data.userId === otherUserId) {
         setIsOnline(false);
+        // Fetch last seen immediately when the specific user goes offline
         await fetchUserLastOnline(otherUserId);
       }
     };
@@ -152,18 +172,21 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
     };
-  }, [socket, userId, otherUserId]);
+  }, [socket, userId, otherUserId]); // Depend on socket, current userId, and the specific otherUserId
 
+  // Listen for typing events from the specific other user
   useEffect(() => {
-    if (!socket || !otherUserId) return;
+    if (!socket || !otherUserId) return; // Ensure socket and otherUserId are available
 
     const handleUserTyping = (data: { userId: string }) => {
+      // Only react if the typing user is the other user in this chat
       if (data.userId === otherUserId) {
         setIsTyping(true);
       }
     };
 
     const handleUserStoppedTyping = (data: { userId: string }) => {
+      // Only react if the stopping user is the other user in this chat
       if (data.userId === otherUserId) {
         setIsTyping(false);
       }
@@ -176,24 +199,14 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
       socket.off("user_typing", handleUserTyping);
       socket.off("user_stopped_typing", handleUserStoppedTyping);
     };
-  }, [socket, otherUserId]);
+  }, [socket, otherUserId]); // Depend on socket and the specific otherUserId
 
-  useEffect(() => {
-    if (!chatRoomId || !userId || !otherUserId) return;
-    
-    fetchUpcomingMeetingsCount(userId, otherUserId)
-      .then(count => {
-        setUpcomingMeetingsCount(count);
-      })
-      .catch(error => {
-        console.error('Error getting upcoming meetings count:', error);
-      });
-  }, [chatRoomId, userId, otherUserId]);
-
+  // Function to handle navigation back to the dashboard
   const handleBackToDashboard = () => {
-    router.push('/dashboard');
+    router.push('/dashboard'); // Navigate to the dashboard page
   };
 
+  // Handle toggling meetings view
   const handleToggleMeetings = () => {
     const newState = !showingMeetings;
     setShowingMeetings(newState);
@@ -204,21 +217,25 @@ export default function ChatHeader({ chatRoomId, socket, userId, onToggleMeeting
     return <div className="p-4">Loading chat header...</div>;
   }
 
+  // Check if chatRoomInfo or otherUserId failed to load
   if (!chatRoomInfo || !otherUserId) {
     return <div className="p-4">Chat room not found or participant missing.</div>;
   }
 
+  // Add log here to see the value just before rendering
   console.log('Rendering ChatHeader - isOnline:', isOnline, 'lastOnline state:', lastOnline, 'Other User Name:', otherUserName);
 
   return (
     <header className="flex items-center justify-between p-4 bg-primary border-b">
       <div>
         <h1 className="text-lg font-semibold text-white">
+          {/* Use the fetched name if available, otherwise fallback */}
           {otherUserName || `Chat with ${otherUserId.substring(0, 8)}`}
         </h1>
         <p className="text-sm text-blue-100">
           {isTyping ? 'Typing...' : (
             isOnline ? 'Online' : (
+              // Ensure lastOnline is a valid Date object before formatting
               lastOnline instanceof Date && !isNaN(lastOnline.getTime())
                 ? `Last seen ${formatDistanceToNow(lastOnline, { addSuffix: true })}`
                 : 'Offline'
