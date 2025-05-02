@@ -50,7 +50,7 @@ export default function ChatPage() {
 
     updateLastSeen(userId).catch(console.error);
 
-    const newSocket = io("http://localhost:3001", { transports: ["websocket"] });
+    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
     setSocket(newSocket);
 
     const handleBeforeUnload = () => {
