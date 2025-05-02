@@ -31,76 +31,97 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   const [userProfiles, setUserProfiles] = useState<{[key: string]: UserProfile}>({});
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    /**
-     * Fetches all chat rooms for the current user from the API
-     */
-    async function fetchChatRooms() {
+  //* Component Specific Functions
+
+  /**
+   * Fetches all chat rooms for the current user from the API 
+   * @async
+   * @function fetchChatRooms
+   * @returns {Promise<void>}
+   */
+  async function fetchChatRooms() {
+    try {
+      setLoading(true);
+      const chatRoomsData = await fetchUserChatRooms(userId);
+      if (chatRoomsData) {
+        setChatRooms(chatRoomsData);
+      }
+    } catch (err) {
+      console.error('Error fetching chat rooms:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Fetches profile information for all unique users in the chat rooms
+   * 
+   * @async
+   * @function fetchUserProfiles
+   * @returns {Promise<void>}
+   */
+  async function fetchUserProfiles() {
+    // Extract unique participant IDs (excluding current user)
+    const uniqueUserIds = new Set<string>();
+    chatRooms.forEach(chat => {
+      chat.participants.forEach(participantId => {
+        if (participantId !== userId) {
+          uniqueUserIds.add(participantId);
+        }
+      });
+    });
+
+    // Fetch profile data for each unique user
+    for (const id of uniqueUserIds) {
       try {
-        setLoading(true);
-        const chatRoomsData = await fetchUserChatRooms(userId);
-        if (chatRoomsData) {
-          setChatRooms(chatRoomsData);
+        const userData = await fetchUserProfile(id);
+        
+        if (userData) {
+          setUserProfiles(prev => ({
+            ...prev,
+            [id]: userData
+          }));
+        } else {
+          setUserProfiles(prev => ({
+            ...prev,
+            [id]: { 
+              firstName: 'Unknown', 
+              lastName: 'User',
+            }
+          }));
         }
       } catch (err) {
-        console.error('Error fetching chat rooms:', err);
-      } finally {
-        setLoading(false);
+        // Silent failure - we'll use fallback values
       }
     }
+  }
 
+  /**
+   * Effect hook that triggers chat room data fetching when component mounts
+   * or when the userId dependency changes
+   * 
+   * @dependency [userId]
+   */
+  useEffect(() => {
     if (userId) {
       fetchChatRooms();
     }
   }, [userId]);
 
+  /**
+   * Effect hook that fetches user profile data whenever the chat rooms list changes
+   * Ensures we have profile information for all participants in the conversations
+   * 
+   * @dependency [chatRooms, userId]
+   */
   useEffect(() => {
-    /**
-     * Fetches user profile data for all chat participants (except current user)
-     */
-    async function fetchUserProfiles() {
-      // Extract unique participant IDs (excluding current user)
-      const uniqueUserIds = new Set<string>();
-      chatRooms.forEach(chat => {
-        chat.participants.forEach(participantId => {
-          if (participantId !== userId) {
-            uniqueUserIds.add(participantId);
-          }
-        });
-      });
-
-      // Fetch profile data for each unique user
-      for (const id of uniqueUserIds) {
-        try {
-          const userData = await fetchUserProfile(id);
-          
-          if (userData) {
-            setUserProfiles(prev => ({
-              ...prev,
-              [id]: userData
-            }));
-          } else {
-            setUserProfiles(prev => ({
-              ...prev,
-              [id]: { 
-                firstName: 'Unknown', 
-                lastName: 'User',
-              }
-            }));
-          }
-        } catch (err) {
-          // Silent failure - we'll use fallback values
-        }
-      }
-    }
-
     if (chatRooms.length > 0) {
       fetchUserProfiles();
     }
   }, [chatRooms, userId]);
 
   /**
-   * Renders a loading state while fetching initial data
+   * * Renders a loading state while fetching initial data
    */
   if (loading) {
     return (
@@ -110,7 +131,9 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
       </div>
     );
   }
-
+   /**
+   * * Shows all chatrooms with seqrch box
+   */
   return (
     <div className="w-64 bg-bgcolor text-white h-screen p-4 border-solid border-r border-gray-600">
       <h2 className="text-xl font-bold mb-4 text-textcolor">Messages</h2>

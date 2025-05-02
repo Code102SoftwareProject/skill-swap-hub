@@ -3,6 +3,16 @@ import connect from '@/lib/db';
 import Notification from '@/lib/models/notificationSchema';
 import mongoose from 'mongoose';
 
+/**
+ ** PATCH handler - Marks a notification as read
+ * 
+ * @param req JSON body containing:
+ *            - notificationId: ID of the notification to mark as read (required)
+
+ * 
+ * @returns JSON response with updated notification
+ 
+ */
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
