@@ -1,15 +1,4 @@
-/**
- * API service for chat-related operations
- */
-
-// Type definitions
 import { IChatRoom, IMessage } from "@/types/chat";
-
-interface ApiResponse<T> {
-  success: boolean;
-  message?: string;
-  data?: T;
-}
 
 interface ChatRoomResponse {
   success: boolean;
@@ -39,109 +28,136 @@ interface OnlineLogResponse {
 }
 
 /**
- * Fetch a chat room by ID
+ ** Fetch a chat room by chatRoomId
+ *
+ * @param chatRoomId - The unique identifier of the chat room to retrieve
+ * @returns Promise that resolves to the IChatRoom object if found,
+ *          or null if the chat room doesn't exist or an error occurs
  */
-export async function fetchChatRoom(chatRoomId: string): Promise<IChatRoom | null> {
+export async function fetchChatRoom(
+  chatRoomId: string
+): Promise<IChatRoom | null> {
   try {
     const response = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
-    const data = await response.json() as ChatRoomResponse;
-    
+    const data = (await response.json()) as ChatRoomResponse;
+
     if (data.success && data.chatRooms && data.chatRooms.length > 0) {
       return data.chatRooms[0];
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error fetching chat room:', error);
+    console.error("Error fetching chat room:", error);
     return null;
   }
 }
 
 /**
- * Fetch all chat rooms for a user
+ ** Fetch all chat rooms associated with a specific user
+ *
+ * @param userId - The unique identifier of the user whose chat rooms to retrieve
+ * @returns Promise that resolves to an array of IChatRoom objects,
+ *          or an empty array if no chat rooms exist or an error occurs
  */
 export async function fetchUserChatRooms(userId: string): Promise<IChatRoom[]> {
   try {
     const response = await fetch(`/api/chatrooms?userId=${userId}`);
-    const data = await response.json() as ChatRoomResponse;
-    
+    const data = (await response.json()) as ChatRoomResponse;
+
     if (data.success && data.chatRooms) {
       return data.chatRooms;
     }
-    
+
     return [];
   } catch (error) {
-    console.error('Error fetching user chat rooms:', error);
+    console.error("Error fetching user chat rooms:", error);
     return [];
   }
 }
 
 /**
- * Fetch user profile by ID
+ **Fetch a user's profile information by their ID
+ *
+ * @param userId - The unique identifier of the user whose profile to retrieve
+ * @returns Promise that resolves to an object containing user profile data (firstName, lastName, avatar, etc.),
+ *          or null if the user doesn't exist or an error occurs
  */
 export async function fetchUserProfile(userId: string) {
   try {
     const response = await fetch(`/api/users/profile?id=${userId}`);
-    const data = await response.json() as UserProfileResponse;
-    
+    const data = (await response.json()) as UserProfileResponse;
+
     if (data.success && data.user) {
       return data.user;
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error("Error fetching user profile:", error);
     return null;
   }
 }
 
 /**
- * Get a user's last online timestamp
+ ** Get a user's last online time
+ *
+ * @param userId - The unique identifier of the user whose online status to check
+ * @returns Promise that resolves to a string containing the ISO timestamp of when the user was last online,
+ *          or null if the information is not available or an error occurs
  */
 export async function fetchLastOnline(userId: string) {
   try {
     const response = await fetch(`/api/onlinelog?userId=${userId}`);
-    const data = await response.json() as OnlineLogResponse;
-    
+    const data = (await response.json()) as OnlineLogResponse;
+
     if (data.success && data.data?.lastOnline) {
       return data.data.lastOnline;
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error fetching last online status:', error);
+    console.error("Error fetching last online status:", error);
     return null;
   }
 }
 
 /**
- * Update a user's online status
+ * Update a user's online status to the current time
+ *
+ * @param userId - The unique identifier of the user whose online status to update
+ * @returns Promise that resolves to an object containing the updated online log data,
+ *          or null if the update fails or an error occurs
  */
 export async function updateLastSeen(userId: string) {
   try {
-    const response = await fetch('/api/onlinelog', {
-      method: 'POST',
+    const response = await fetch("/api/onlinelog", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({ userId }),
     });
-    
-    const data = await response.json() as OnlineLogResponse;
-    
+
+    const data = (await response.json()) as OnlineLogResponse;
+
     if (data.success) {
       return data.data;
     }
-    
+
     return null;
   } catch (error) {
-    console.error('Error updating online status:', error);
+    console.error("Error updating online status:", error);
     return null;
   }
 }
 
 /**
- * Send a new message
+ * Send a new message in a chat room
+ *
+ * @param messageData - Object containing message details, including:
+ *                      chatRoomId<senderId, content,timestamp:
+ * @returns Promise that resolves to the response data from the server,
+ *          or throws an error if the message could not be sent
  */
 export async function sendMessage(messageData: any) {
   try {
@@ -150,7 +166,7 @@ export async function sendMessage(messageData: any) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(messageData),
     });
-    
+
     const data = await response.json();
     return data;
   } catch (error) {
@@ -160,17 +176,21 @@ export async function sendMessage(messageData: any) {
 }
 
 /**
- * Fetch messages for a chat room
+ * Fetch all messages for a specific chat room
+ *
+ * @param chatRoomId - The unique identifier of the chat room whose messages to retrieve
+ * @returns Promise that resolves to an array of message objects,
+ *          or an empty array if no messages exist or an error occurs
  */
 export async function fetchChatMessages(chatRoomId: string) {
   try {
     const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
     const data = await response.json();
-    
+
     if (data.success) {
       return data.messages;
     }
-    
+
     return [];
   } catch (error) {
     console.error("Error fetching messages:", error);
@@ -179,7 +199,11 @@ export async function fetchChatMessages(chatRoomId: string) {
 }
 
 /**
- * Mark a message as read
+ * Mark a specific message as read by the current user
+ *
+ * @param messageId - The unique identifier of the message to mark as read
+ * @returns Promise that resolves to the response data from the server,
+ *          or throws an error if the operation fails
  */
 export async function markMessageAsRead(messageId: string) {
   try {
@@ -188,7 +212,7 @@ export async function markMessageAsRead(messageId: string) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messageId }),
     });
-    
+
     const data = await response.json();
     return data;
   } catch (error) {
