@@ -22,9 +22,13 @@ const reports: Report[] = [
 ]
 
 const ReportingPage: FC = () => {
+  const handleNavigate = (component: string) => {
+    console.log(`Navigating to ${component}`);
+  };
+
   return (
     <div className="flex h-screen">
-     <AdminSidebar />
+     <AdminSidebar onNavigate={handleNavigate} activeComponent="reporting" />
 
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />

@@ -46,7 +46,6 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
   // Function to handle document viewing/downloading
   const handleDocumentAction = async (documentUrl: string) => {
     try {
-      // Get the file extension from the URL
       const fileExtension = documentUrl.split('.').pop()?.toLowerCase();
       
       // Use our API as a proxy to fetch the document
