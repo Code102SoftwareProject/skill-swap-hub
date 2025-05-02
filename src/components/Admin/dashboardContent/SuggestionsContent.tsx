@@ -28,6 +28,10 @@ export default function SuggestionsContent() {
 
   const itemsPerPage = 5;
 
+//selected suggestion for details
+  const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+
+
   // Fetch suggestions
   const fetchSuggestions = async () => {
     try {
@@ -83,6 +87,7 @@ export default function SuggestionsContent() {
     }
   };
 
+  
   return (
     <div className="w-full h-full p-6 mt-7">
       {/* Top Buttons */}
@@ -191,7 +196,12 @@ export default function SuggestionsContent() {
                     <td className="p-3">{suggestion.category}</td>
                     <td className="p-3">{suggestion.date}</td>
                     <td className="p-3">
-                      <button className="text-blue-500 underline text-sm">View</button>
+                    <button
+                      className="text-blue-500 underline text-sm"
+                      onClick={() => setSelectedSuggestion(suggestion)}
+                    >
+                    View
+                    </button>
                     </td>
                     <td className="p-3">
                       <div className="flex gap-2">
@@ -238,6 +248,134 @@ export default function SuggestionsContent() {
           </div>
         </div>
       )}
+
+
+      
+{selectedSuggestion && (
+  <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300 ease-out">
+    <div className="bg-white rounded-xl p-6 w-[95%] max-w-2xl shadow-2xl relative animate-scaleIn">
+      {/* Header with close button */}
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">
+            Suggestion Details
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Submitted on {new Date(selectedSuggestion.date).toLocaleDateString()}
+          </p>
+        </div>
+        <button
+          onClick={() => setSelectedSuggestion(null)}
+          className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-full hover:bg-gray-100"
+          aria-label="Close"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      {/* User info with avatar */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center overflow-hidden">
+          {selectedSuggestion.avatar ? (
+            <img 
+              src={selectedSuggestion.avatar} 
+              alt={selectedSuggestion.userName}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-blue-600 font-medium text-sm">
+              {selectedSuggestion.userName.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div>
+          <h3 className="font-medium text-gray-900">{selectedSuggestion.userName}</h3>
+          <p className="text-xs text-gray-500">{selectedSuggestion.role}</p>
+        </div>
+      </div>
+
+      {/* Content cards */}
+      <div className="space-y-4">
+        <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"></path>
+            </svg>
+            Title
+          </div>
+          <h4 className="font-semibold text-gray-900">{selectedSuggestion.title}</h4>
+        </div>
+
+        <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            Description
+          </div>
+          <p className="text-gray-700 whitespace-pre-line">
+            {selectedSuggestion.description}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+              </svg>
+              Category
+            </div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {selectedSuggestion.category}
+            </div>
+          </div>
+
+          <div className="bg-gray-50/70 border border-gray-100 rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-gray-500 mb-2">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              Status
+            </div>
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+              selectedSuggestion.status === 'Pending'
+                ? 'bg-amber-100 text-amber-800'
+                : selectedSuggestion.status === 'Approved'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {selectedSuggestion.status}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex justify-end gap-3 mt-8 pt-5 border-t border-gray-100">
+        <button
+          onClick={() => setSelectedSuggestion(null)}
+          className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Close
+        </button>
+        <button
+          onClick={() => updateStatus(selectedSuggestion._id, 'Approved')}
+          className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors shadow-sm"
+        >
+          Approve Suggestion
+        </button>
+      </div>
     </div>
+  </div>
+)}
+    </div>
+    
   );
 }
