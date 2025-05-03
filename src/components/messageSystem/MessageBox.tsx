@@ -8,7 +8,7 @@ import { CornerUpLeft } from "lucide-react";
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
 // Import the API service
-import { fetchChatMessages } from "@/services/chatApiServices";
+import { fetchChatMessages, markMultipleMessagesAsRead } from "@/services/chatApiServices";
 
 interface MessageBoxProps {
   userId: string;
@@ -46,6 +46,7 @@ export default function MessageBox({
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
 
   // Fetch chat history on mount
   useEffect(() => {
@@ -137,6 +138,34 @@ export default function MessageBox({
     }
   }, [messages]);
 
+  // Mark unread messages as read when they are displayed
+  useEffect(() => {
+    // Process only messages that haven't been marked as read yet
+    const unreadMessages = messages.filter(msg => 
+      msg.senderId !== userId && 
+      msg._id && 
+      !processedMessageIds.has(msg._id) &&
+      msg.readStatus === false
+    );
+
+    if (unreadMessages.length > 0) {
+      // Extract just the IDs and filter out any undefined values
+      const unreadIds = unreadMessages
+        .map(msg => msg._id)
+        .filter((id): id is string => id !== undefined);
+      
+      // Update local tracking state immediately to prevent duplicate requests
+      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
+      setProcessedMessageIds(newProcessedIds);
+      
+      // Make a single API call with all message IDs
+      markMultipleMessagesAsRead(unreadIds)
+        .catch(error => {
+          console.error('Error marking messages as read:', error);
+        });
+    }
+  }, [messages, userId, processedMessageIds]);
+
   // Function to scroll to a particular message (used for reply clicks)
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
@@ -144,7 +173,7 @@ export default function MessageBox({
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
       // Brief highlight effect
       messageElement.style.transition = "background 0.3s";
-      messageElement.style.background = "rgba(255, 255, 0, 0.3)";
+      messageElement.style.background = "rgba(255, 255, 255, 0.3)";
       setTimeout(() => {
         messageElement.style.background = "transparent";
       }, 800);
