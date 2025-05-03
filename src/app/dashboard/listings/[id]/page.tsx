@@ -1,21 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { BadgeCheck } from 'lucide-react';
 import { useToast } from '@/lib/context/ToastContext';
 import { getListing } from '@/lib/services/listingService';
 import { SkillListing } from '@/types/skillListing';
 
-interface ListingDetailsPageProps {
-  params: {
-    id: string;
-  };
+// Helper function to extract ID from pathname
+function getIdFromPathname(pathname: string): string {
+  const segments = pathname.split('/');
+  return segments[segments.length - 1];
 }
 
-const ListingDetailsPage: React.FC<ListingDetailsPageProps> = ({ params }) => {
-  const { id } = params;
+const ListingDetailsPage: React.FC = () => {
+  const pathname = usePathname();
+  const id = getIdFromPathname(pathname);
   const router = useRouter();
   const { showToast } = useToast();
   

@@ -126,12 +126,12 @@ export default function ForumDetailsPage() {
                 <div className="absolute bottom-0 left-0 p-8 w-full">
                   <div className="flex items-center text-white/80 mb-3 text-sm">
                     <Clock className="h-4 w-4 mr-1" />
-                    <span>{forum.createdAt ? formatDate(forum.createdAt) : 'Recently'}</span>
+                    <span>{forum.createdAt ? new Date(forum.lastActive).toLocaleDateString() : 'Recently'}</span>
                     
                     <span className="mx-2">•</span>
                     
                     <User className="h-4 w-4 mr-1" />
-                    <span>{forum.author?.username || 'Anonymous'}</span>
+                    <span>{'Anonymous'}</span>
                   </div>
                   
                   <h1 className="text-4xl font-bold text-white mb-3">{forum.title}</h1>
@@ -169,10 +169,11 @@ export default function ForumDetailsPage() {
                   >
                     <div className="flex flex-col">
                       <span className="text-gray-700 font-medium">{latestForum.title}</span>
-                      <span className="text-xs text-gray-500">{formatDate(latestForum.createdAt)}</span>
+                      <span className="text-xs text-gray-500">{new Date(forum.lastActive).toLocaleDateString()}</span>
                     </div>
                     <span className="bg-blue-200 text-blue-800 text-sm px-2 py-1 rounded-full">
-                      {latestForum.postCount || 0}
+                      {/*latestForum.postCount || 0*/}
+                      {0}
                     </span>
                   </div>
                 ))}

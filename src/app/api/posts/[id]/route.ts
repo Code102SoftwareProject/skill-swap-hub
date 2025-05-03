@@ -1,9 +1,10 @@
-// File: /app/api/posts/[id]/route.ts
+//  /app/api/posts/[id]/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import connectToDatabase from '@/lib/db';
 import Post from '@/lib/models/postSchema';
 import mongoose from 'mongoose';
+import { Forum } from '@/lib/models/Forum';
 
 // GET handler for fetching a single post
 export async function GET(request: NextRequest) {
@@ -252,14 +253,22 @@ export async function DELETE(request: NextRequest) {
       );
     }
     
-    // Get user ID from request body instead of search params
+    // Get user ID and forum ID from request body
     const data = await request.json();
-    const userId = data.userId;
+    const { userId, forumId } = data;
     
     // Validate that user ID was provided
     if (!userId) {
       return NextResponse.json(
         { error: 'User ID is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate forumId if provided
+    if (forumId && !mongoose.Types.ObjectId.isValid(forumId)) {
+      return NextResponse.json(
+        { error: 'Invalid forum ID format' },
         { status: 400 }
       );
     }
@@ -285,6 +294,16 @@ export async function DELETE(request: NextRequest) {
     
     // Delete the post
     await Post.findByIdAndDelete(postId);
+    
+    // Update forum post count if forumId was provided
+    if (forumId) {
+      const forum = await Forum.findById(forumId);
+      if (forum) {
+        forum.posts = Math.max(0, forum.posts - 1);
+        forum.updatedAt = new Date();
+        await forum.save();
+      }
+    }
     
     return NextResponse.json({ 
       success: true,
