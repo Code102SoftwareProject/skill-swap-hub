@@ -62,3 +62,38 @@ export async function POST(req: Request) {
 }
 
 
+export async function GET(req: Request){
+  await connect();
+  try{
+    const {searchParams} = new URL(req.url);
+    const userId= searchParams.get('userId');
+
+    if(!userId){
+      return NextResponse.json(
+        {message:"userId is Required", success:false},
+        {status:400}
+      );
+    }
+
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const notification = await Notification.find({ userId: userObjectId }).sort({ createdAt: -1 });
+
+    if(!notification){
+      return NextResponse.json(
+        {message:"No Notification Found", success:false},
+        {status:200}
+      );
+    }
+
+    return NextResponse.json(
+      {success:true, notification},
+      {status:200}
+    )
+
+  }catch(error:any){
+    return NextResponse.json(
+      {success:false, message:error.message || "Server Error"},
+      {status:500}
+    )
+  }
+}
