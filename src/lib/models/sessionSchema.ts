@@ -1,21 +1,50 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
+
+interface ISession extends Document {
+  user1Id: mongoose.Types.ObjectId;
+  skill1Id: mongoose.Types.ObjectId;
+  descriptionOfService1: string;
+  user2Id: mongoose.Types.ObjectId;
+  skill2Id: mongoose.Types.ObjectId;
+  descriptionOfService2: string;
+  startDate: Date;
+  isAccepted: boolean;
+  isAmmended: boolean;
+  status: "active" | "completed" | "canceled";
+  createdAt: Date;
+  progress1: mongoose.Types.ObjectId;
+  progress2: mongoose.Types.ObjectId;
+}
 
 const sessionSchema = new Schema(
-    {
-        //sessionId 
-        user1Id: { type: Schema.Types.ObjectId, ref: "users", required: true },
-        skill1Id: { type: Schema.Types.ObjectId, ref: "skill", required: true },
-        descriptionOfService1: { type: String, required: true },
-        user2Id: { type: Schema.Types.ObjectId, ref: "users", required: true },
-        skill2Id: { type: Schema.Types.ObjectId, ref: "skill", required: true },
-        descriptionOfService2: { type: String, required: true },
-        startDate: { type: Date, required: true },
-        dueDate: { type: Date },
-        isAccepted: { type: Boolean, required: true, default: null },
-        isAmmended: { type: Boolean, required: true, default: false },
-        status: { type: String, enum: ["active", "completed", "canceled"], required: true ,default: null}
+{
+    user1Id: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    skill1Id: { type: Schema.Types.ObjectId, ref: "UserSkill", required: true },
+    descriptionOfService1: { type: String, required: true },
+    user2Id: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    skill2Id: { type: Schema.Types.ObjectId, ref: "Userkill", required: true },
+    descriptionOfService2: { type: String, required: true },
+    startDate: { type: Date, required: true },
+    dueDate: { type: Date },
+    isAccepted: { type: Boolean, required: true, default: null },
+    isAmmended: { type: Boolean, required: true, default: false },
+    status: {
+      type: String,
+      enum: ["active", "completed", "canceled"],
+      required: true,
+      default: null,
     },
-    { timestamps: true }
+  },
+  { timestamps: true }
 );
 
-export default models.Session || model("Session", sessionSchema);
+sessionSchema.index({ user1Id: 1 });
+sessionSchema.index({ user2Id: 1 });
+sessionSchema.index({ status: 1 });
+sessionSchema.index({ isAccepted: 1 });
+sessionSchema.index({ startDate: 1 });
+sessionSchema.index({ user1Id: 1, status: 1 });
+sessionSchema.index({ user2Id: 1, status: 1 });
+
+
+export default mongoose.models.Session || mongoose.model<ISession>("Session",sessionSchema);
