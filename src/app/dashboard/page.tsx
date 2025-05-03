@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import UserSidebar from '@/components/User/UserSidebar';
-import UserNavBar from '@/components/Navbar';
+import NavBar from '@/components/Navbar';
 
 import UserDashboardContent from '@/components/User/DashboardContent/UserDashboardContent';
 import MySkillsContent from '@/components/User/DashboardContent/MySkillsContent';
@@ -57,7 +57,7 @@ export default function UserDashboardPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <UserNavBar />
+      <NavBar />
       <div className="flex flex-1 overflow-hidden">
         <UserSidebar
           onNavigate={setActiveComponent}
