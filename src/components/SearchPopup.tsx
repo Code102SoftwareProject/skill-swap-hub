@@ -176,7 +176,7 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
                     <div className="flex gap-4">
                       <div className="w-24 h-24 flex-shrink-0 overflow-hidden rounded-lg">
                         <Image
-                          src={'/app-development.png'}
+                          src={result.image}
                           alt={result.title}
                           width={96}
                           height={96}
