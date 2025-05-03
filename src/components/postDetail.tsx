@@ -192,7 +192,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           content: replyContent,
-          author
+          author,
+          forumId: forumId
         })
       });
       
@@ -271,7 +272,8 @@ const PostDetail = () => {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            userId: user._id
+            userId: user._id,
+            forumId: forumId
           })
         });
   
@@ -322,7 +324,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           operation,
-          userId: user.email
+          userId: user.email,
+          forumId: forumId
         })
       });
       
@@ -363,7 +366,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           operation,
-          userId: user.email
+          userId: user.email,
+          forumId: forumId
         })
       });
       
