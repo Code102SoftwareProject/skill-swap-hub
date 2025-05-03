@@ -1,7 +1,7 @@
 "use client"; // Indicates this is a client component in Next.js
 
 import { useEffect, useState } from "react";
-import { Bar, Line, Doughnut } from "react-chartjs-2"; // Added Doughnut
+import { Bar, Line, Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,8 +12,11 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement, // Added for Doughnut chart
+  ArcElement,
 } from "chart.js";
+
+// Import the internationalization config
+import chartLabels, { ChartLabels, Locale } from "@/config/localization";
 
 // Register the required chart components with ChartJS
 ChartJS.register(
@@ -25,50 +28,10 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend,
-  ArcElement // Register ArcElement for Doughnut chart
+  ArcElement
 );
 
-// Constants for repeated values
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
-// Chart labels and static strings
-const CHART_LABELS = {
-  numberOfUsers: "Number of Users",
-  userRegistration: "User Registration Over Time",
-  skillsRequested: "Skills Requested",
-  skillsOffered: "Skills Offered",
-  noOfRequests: "No of Requests",
-  noOfOffers: "No of Offers",
-  skillDistribution: "Skill Distribution by Category", // Add this line
-  statTitles: {
-    totalUsers: "Total Users",
-    noOfSessions: "No of Sessions",
-    newUsersThisWeek: "New Users This Week", // Replace popularSkill with newUsersThisWeek
-    skillMatchRate: "Skill Match Rate",
-    noOfSkillsRequested: "No of Skills Requested",
-  },
-  timeRanges: {
-    today: "Today",
-    week: "1 Week",
-    month: "1 Month",
-    year: "Entire Year",
-  },
-};
-
-// Add category colors for the doughnut chart
+// Colors for charts
 const COLORS = {
   blue: {
     fill: "rgba(59, 130, 246, 0.5)",
@@ -112,7 +75,23 @@ const COLORS = {
 };
 
 // Time range options for filtering
-type TimeRange = "today" | "week" | "month" | "year";
+type TimeRange = "today" | "week" | "month" | "year" | "all";
+
+// Array of month names for date formatting
+const MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 // API endpoint for dashboard data
 const DASHBOARD_API_URL = "/api/admin/dashboard";
@@ -121,16 +100,16 @@ const DASHBOARD_API_URL = "/api/admin/dashboard";
 interface DashboardData {
   totalUsers: number;
   sessions: number;
-  newUsersThisWeek: number; // Replace popularSkill with newUsersThisWeek
+  newUsersThisWeek: number;
   skillsOffered: number;
   skillsRequested: number;
   matches: number;
-  skillsData: { skill: string; requests: number; offers: number }[]; // Detailed skill statistics
+  skillsData: { skill: string; requests: number; offers: number }[];
   userRegistrationData: {
-    _id: { year: number; month: number; day?: number }; // Added day for more detailed filtering
+    _id: { year: number; month: number; day?: number };
     count: number;
-    date?: Date; // Add date field for filtering
-  }[]; // User registration data
+    date?: Date;
+  }[];
 }
 
 // Define interface for skill list data
@@ -143,12 +122,6 @@ interface SkillListData {
 
 /**
  * Simple fuzzy matching function to compare two strings
- * Returns true if strA contains strB or vice versa (case-insensitive)
- * or if they share enough common words
- *
- * @param {string} strA - First string to compare
- * @param {string} strB - Second string to compare
- * @returns {boolean} Whether the strings are considered similar
  */
 const isSimilarSkill = (strA: string, strB: string): boolean => {
   if (!strA || !strB) return false;
@@ -179,8 +152,6 @@ const isSimilarSkill = (strA: string, strB: string): boolean => {
 
 /**
  * Skeleton loader component for stat cards
- *
- * @returns {JSX.Element} A placeholder UI element with animation for stat cards during loading
  */
 function SkeletonStatCard() {
   return (
@@ -193,8 +164,6 @@ function SkeletonStatCard() {
 
 /**
  * Skeleton loader component for charts
- *
- * @returns {JSX.Element} A placeholder UI element with animation for charts during loading
  */
 function SkeletonChart() {
   return (
@@ -207,15 +176,6 @@ function SkeletonChart() {
 
 /**
  * Main dashboard content component for the admin panel
- *
- * Fetches and displays analytics data including:
- * - Key performance metrics (users, sessions, skills)
- * - User registration trends over time
- * - Skills requested and offered comparisons
- *
- * Shows loading skeletons during data fetch
- *
- * @returns {JSX.Element} The complete admin dashboard UI
  */
 export default function DashboardContent() {
   // State to hold dashboard data, initially null until fetched
@@ -224,51 +184,82 @@ export default function DashboardContent() {
   const [skillListData, setSkillListData] = useState<SkillListData[]>([]);
   const [skillListLoading, setSkillListLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<TimeRange>("month");
+  // Add new state for filtered user metrics
+  const [filteredMetrics, setFilteredMetrics] = useState({
+    totalUsers: 0,
+    newUsers: 0,
+  });
+  // Set the default locale - could be loaded from user preferences/settings
+  const [locale, setLocale] = useState<Locale>("en-US");
+  // Get the labels for the current locale
+  const labels = chartLabels[locale];
 
   // Effect hook to fetch dashboard data when component mounts
   useEffect(() => {
-    /**
-     * Fetches dashboard analytics data from the API
-     *
-     * @async
-     * @returns {Promise<void>}
-     */
     async function fetchData() {
       try {
         setLoading(true);
-        // Call the admin dashboard API endpoint
         const res = await fetch(DASHBOARD_API_URL);
-
-        // Parse JSON response
         const json = await res.json();
 
-        // Process registration data to add Date objects for easier filtering
-        if (json.userRegistrationData) {
+        console.log("Raw registration data:", json.userRegistrationData);
+
+        // Process and convert the dates in the user registration data
+        if (
+          json.userRegistrationData &&
+          Array.isArray(json.userRegistrationData)
+        ) {
           json.userRegistrationData = json.userRegistrationData.map(
-            (item: any) => {
-              // Create a date object from year/month/day (if available)
-              const day = item._id.day || 1; // Default to first day if day is not provided
-              const date = new Date(item._id.year, item._id.month - 1, day);
-              return { ...item, date };
+            (item: {
+              _id?: { year: number; month: number; day?: number };
+              count: number;
+              date?: Date;
+            }) => {
+              // Create a proper date from the _id fields using UTC
+              if (item._id) {
+                const year = item._id.year;
+                const month = item._id.month - 1; // JavaScript months are 0-indexed
+                const day = item._id.day || 1; // Default to 1st day if not specified
+
+                // Create Date object using UTC to avoid timezone shifts
+                const dateStr = `${year}-${(month + 1).toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}T12:00:00Z`;
+                item.date = new Date(dateStr);
+
+                // Debug the created date
+                console.log(
+                  `Created date: ${item.date.toISOString()} from year=${year}, month=${month + 1}, day=${day}`
+                );
+
+                // Validate the created date
+                if (isNaN(item.date.getTime())) {
+                  console.error("Invalid date created:", {
+                    year,
+                    month: month + 1,
+                    day,
+                    dateStr,
+                  });
+                }
+              } else {
+                console.warn("Registration item without _id field:", item);
+              }
+              return item;
             }
           );
         }
 
-        // Update state with fetched data
+        console.log("Processed registration data:", json.userRegistrationData);
         setData(json);
       } catch (err) {
-        // Handle and log any errors during fetch
         console.error("Failed to fetch dashboard data", err);
       } finally {
         setLoading(false);
       }
     }
 
-    // Execute the fetch function
     fetchData();
-  }, []); // Empty dependency array means this runs once on mount
+  }, []);
 
-  // New effect for fetching skill lists
+  // Effect for fetching skill lists
   useEffect(() => {
     async function fetchSkillLists() {
       try {
@@ -285,6 +276,44 @@ export default function DashboardContent() {
 
     fetchSkillLists();
   }, []);
+
+  // Effect to update filtered metrics when time range changes or data loads
+  useEffect(() => {
+    if (data && data.userRegistrationData) {
+      const filteredData = getFilteredRegistrationData(timeRange);
+      // Calculate total users in the filtered time range
+      const newUsersInRange = filteredData.reduce(
+        (sum, item) => sum + item.count,
+        0
+      );
+
+      // Log comparison between total users and sum of registration counts
+      if (timeRange === "all") {
+        const totalFromRegistrations = data.userRegistrationData.reduce(
+          (sum, item) => sum + item.count,
+          0
+        );
+        console.log("User Count Comparison:");
+        console.log("Total users reported by API:", data.totalUsers);
+        console.log("Sum of all registration counts:", totalFromRegistrations);
+        console.log("Difference:", data.totalUsers - totalFromRegistrations);
+
+        // Log entries with potential date issues
+        const entriesWithDateIssues = data.userRegistrationData.filter(
+          (item) =>
+            !item.date ||
+            !(item.date instanceof Date) ||
+            isNaN(item.date.getTime())
+        );
+        console.log("Entries with invalid dates:", entriesWithDateIssues);
+      }
+
+      setFilteredMetrics({
+        totalUsers: data.totalUsers,
+        newUsers: newUsersInRange,
+      });
+    }
+  }, [timeRange, data]);
 
   // Prepare category data for doughnut chart
   const categoryChartData = () => {
@@ -304,12 +333,14 @@ export default function DashboardContent() {
 
   /**
    * Filter registration data based on the selected time range
-   *
-   * @param range - Selected time range
-   * @returns {Array} Filtered registration data
    */
   const getFilteredRegistrationData = (range: TimeRange) => {
     if (!data || !data.userRegistrationData) return [];
+
+    // For "all", return all data without filtering
+    if (range === "all") {
+      return data.userRegistrationData;
+    }
 
     const now = new Date();
     let cutoffDate: Date;
@@ -335,93 +366,259 @@ export default function DashboardContent() {
     }
 
     // Filter using the date property we created earlier
-    return data.userRegistrationData.filter(
-      (item) => item.date && item.date >= cutoffDate
-    );
+    const filtered = data.userRegistrationData.filter((item) => {
+      if (!item.date || !(item.date instanceof Date)) {
+        return false;
+      }
+      return item.date >= cutoffDate;
+    });
+
+    return filtered;
   };
 
   /**
-   * Processes user registration data into chart-friendly format based on selected time range
-   *
-   * @returns {Object} Object containing labels array and counts array for the chart
+   * Generate date points for a given time range
    */
-  const formatUserData = () => {
-    const filteredData = getFilteredRegistrationData(timeRange);
-    const labels: string[] = [];
-    const counts: number[] = [];
+  const generateDatePointsForRange = (range: TimeRange) => {
+    const now = new Date();
+    const datePoints: { date: Date; label: string; count: number }[] = [];
 
-    if (filteredData.length > 0) {
-      // Determine format based on time range
-      if (timeRange === "today") {
-        // Group by hours
-        const hourData: { [hour: number]: number } = {};
-
-        filteredData.forEach((item) => {
-          if (item.date) {
-            const hour = item.date.getHours();
-            hourData[hour] = (hourData[hour] || 0) + item.count;
-          }
+    // Generate all expected date points based on time range
+    if (range === "today") {
+      // Generate 24 hourly points for today
+      for (let i = 0; i < 24; i++) {
+        const date = new Date(now);
+        date.setHours(i, 0, 0, 0);
+        // Format hour with localization
+        const formattedTime = date.toLocaleTimeString(locale, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: locale === "en-US", // Use 12-hour format for US English
         });
 
-        // Fill in all hours
-        for (let i = 0; i < 24; i++) {
-          labels.push(`${i}:00`);
-          counts.push(hourData[i] || 0);
-        }
-      } else if (timeRange === "week") {
-        // Group by day of week
-        const dayData: { [day: string]: number } = {};
-        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-        filteredData.forEach((item) => {
-          if (item.date) {
-            const dayIndex = item.date.getDay();
-            const dayName = dayNames[dayIndex];
-            dayData[dayName] = (dayData[dayName] || 0) + item.count;
-          }
-        });
-
-        // Get last 7 days in order
-        const today = new Date().getDay();
-        for (let i = 6; i >= 0; i--) {
-          const dayIndex = (today - i + 7) % 7;
-          const dayName = dayNames[dayIndex];
-          labels.push(dayName);
-          counts.push(dayData[dayName] || 0);
-        }
-      } else {
-        // For month or year view, create a map to aggregate by month-year
-        const dataMap: { [key: string]: number } = {};
-
-        filteredData.forEach((item) => {
-          if (item._id && item.date) {
-            const monthName = MONTHS[item._id.month - 1];
-            const year = item._id.year;
-            const key = `${monthName} ${year}`;
-
-            // Aggregate counts for the same month-year
-            dataMap[key] = (dataMap[key] || 0) + item.count;
-          }
-        });
-
-        // Sort the entries by date to ensure chronological order
-        const sortedEntries = Object.entries(dataMap).sort((a, b) => {
-          const [monthA, yearA] = a[0].split(" ");
-          const [monthB, yearB] = b[0].split(" ");
-
-          const yearDiff = parseInt(yearA) - parseInt(yearB);
-          if (yearDiff !== 0) return yearDiff;
-
-          return MONTHS.indexOf(monthA) - MONTHS.indexOf(monthB);
-        });
-
-        // Extract sorted labels and counts
-        sortedEntries.forEach(([label, count]) => {
-          labels.push(label);
-          counts.push(count);
+        datePoints.push({
+          date,
+          label: formattedTime,
+          count: 0, // Default count
         });
       }
+    } else if (range === "week") {
+      // Generate 7 daily points for the last week
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        date.setHours(0, 0, 0, 0);
+
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const formattedDate = `${dayNames[date.getDay()]} ${date.getDate()}/${date.getMonth() + 1}`;
+
+        datePoints.push({
+          date,
+          label: formattedDate,
+          count: 0,
+        });
+      }
+    } else if (range === "month") {
+      // Generate 30 daily points for the last month
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        date.setHours(0, 0, 0, 0);
+        datePoints.push({
+          date,
+          label: `${date.getDate()} ${MONTHS[date.getMonth()]}`,
+          count: 0,
+        });
+      }
+    } else if (range === "year") {
+      // Generate 12 monthly points for the last year
+      for (let i = 11; i >= 0; i--) {
+        const date = new Date(now);
+        date.setMonth(date.getMonth() - i);
+        date.setDate(1); // First day of month
+        date.setHours(0, 0, 0, 0);
+        datePoints.push({
+          date,
+          label: `${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
+          count: 0,
+        });
+      }
+    } else if (range === "all") {
+      // For "all" option, we'll create points based on the date range in the data
+      if (
+        data &&
+        data.userRegistrationData &&
+        data.userRegistrationData.length > 0
+      ) {
+        // Find the earliest and latest dates in the data
+        let earliestDate = new Date();
+        let latestDate = new Date(0); // January 1, 1970
+
+        data.userRegistrationData.forEach((item) => {
+          if (item.date && item.date instanceof Date) {
+            if (item.date < earliestDate) earliestDate = new Date(item.date);
+            if (item.date > latestDate) latestDate = new Date(item.date);
+          }
+        });
+
+        // Set to beginning of month for earliest date
+        earliestDate.setDate(1);
+        earliestDate.setHours(0, 0, 0, 0);
+
+        // Set to end of month for latest date
+        latestDate = new Date(now);
+
+        // Generate points for each month between earliest and latest date
+        let currentDate = new Date(earliestDate);
+
+        while (currentDate <= latestDate) {
+          datePoints.push({
+            date: new Date(currentDate),
+            label: `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`,
+            count: 0,
+          });
+
+          // Move to next month
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        }
+      } else {
+        // Fallback to showing the last year if no data
+        for (let i = 11; i >= 0; i--) {
+          const date = new Date(now);
+          date.setMonth(date.getMonth() - i);
+          date.setDate(1);
+          date.setHours(0, 0, 0, 0);
+          datePoints.push({
+            date,
+            label: `${MONTHS[date.getMonth()]} ${date.getFullYear()}`,
+            count: 0,
+          });
+        }
+      }
     }
+
+    return datePoints;
+  };
+
+  /**
+   * Check if two dates match according to the required precision for a time range
+   *
+   * @param date1 First date to compare
+   * @param date2 Second date to compare
+   * @param precision Precision level for comparison
+   * @returns Boolean indicating if dates match at the specified precision
+   */
+  const datesMatch = (
+    date1: Date,
+    date2: Date,
+    precision: "hour" | "day" | "month"
+  ) => {
+    if (precision === "hour") {
+      return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate() &&
+        date1.getHours() === date2.getHours()
+      );
+    } else if (precision === "day") {
+      return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth() &&
+        date1.getDate() === date2.getDate()
+      );
+    } else {
+      // month
+      return (
+        date1.getFullYear() === date2.getFullYear() &&
+        date1.getMonth() === date2.getMonth()
+      );
+    }
+  };
+
+  // Enhanced user data formatter to ensure we always have data points
+  const formatUserData = () => {
+    const filteredData = getFilteredRegistrationData(timeRange);
+
+    // Add debug logging
+    console.log("Time Range:", timeRange);
+    console.log("Filtered Data Count:", filteredData.length);
+    console.log(
+      "Filtered Data Total Users:",
+      filteredData.reduce((sum, item) => sum + item.count, 0)
+    );
+
+    // Generate template date points based on time range
+    const datePoints = generateDatePointsForRange(timeRange);
+    console.log("Date Points Generated:", datePoints.length);
+
+    // Fill in actual data where available
+    if (filteredData.length > 0) {
+      filteredData.forEach((item) => {
+        if (!item.date || !(item.date instanceof Date)) {
+          console.log("Skipping item with invalid date:", item);
+          return;
+        }
+
+        // Select matching precision based on time range
+        const precision =
+          timeRange === "today"
+            ? "hour"
+            : timeRange === "year" || timeRange === "all"
+              ? "month"
+              : "day";
+
+        // For "all" time range, make sure month-level matching works correctly
+        if (timeRange === "all") {
+          // Find the month point that matches this item
+          const matchingPoint = datePoints.find(
+            (p) =>
+              p.date.getFullYear() === item.date!.getFullYear() &&
+              p.date.getMonth() === item.date!.getMonth()
+          );
+
+          if (matchingPoint) {
+            matchingPoint.count += item.count;
+          } else {
+            console.log(
+              `No matching point found for date: ${item.date} in "all" time range`
+            );
+            console.log(
+              `Item year/month: ${item.date.getFullYear()}/${item.date.getMonth() + 1}`
+            );
+            console.log(
+              `Available points:`,
+              datePoints.map(
+                (p) => `${p.date.getFullYear()}/${p.date.getMonth() + 1}`
+              )
+            );
+          }
+        } else {
+          // Regular matching for other time ranges
+          const matchingPoint = datePoints.find((p) =>
+            datesMatch(p.date, item.date!, precision)
+          );
+
+          if (matchingPoint) {
+            matchingPoint.count += item.count;
+          } else {
+            console.log(
+              `No matching point found for date: ${item.date} with precision ${precision}`
+            );
+          }
+        }
+      });
+    }
+
+    // Log the final calculated data
+    console.log("Final Chart Data:", {
+      labels: datePoints.map((p) => p.label),
+      counts: datePoints.map((p) => p.count),
+      total: datePoints.reduce((sum, p) => sum + p.count, 0),
+    });
+
+    // Extract labels and counts for chart
+    const labels = datePoints.map((p) => p.label);
+    const counts = datePoints.map((p) => p.count);
 
     return { labels, counts };
   };
@@ -465,23 +662,19 @@ export default function DashboardContent() {
       {/* Top Stats Section - Key metrics displayed as cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard
-          title={CHART_LABELS.statTitles.totalUsers}
+          title={labels.statTitles.totalUsers}
           value={data.totalUsers.toString()}
         />
         <StatCard
-          title={CHART_LABELS.statTitles.noOfSessions}
+          title={labels.statTitles.noOfSessions}
           value={data.sessions.toString()}
         />
         <StatCard
-          title={CHART_LABELS.statTitles.newUsersThisWeek}
-          value={
-            data.newUsersThisWeek !== undefined
-              ? data.newUsersThisWeek.toString()
-              : "0"
-          }
+          title={`${labels.statTitles.newUsersThisWeek.replace("Week", timeRange === "week" ? "Week" : timeRange === "month" ? "Month" : timeRange === "today" ? "Today" : timeRange === "all" ? "All Time" : "Year")}`}
+          value={filteredMetrics.newUsers.toString()}
         />
         <StatCard
-          title={CHART_LABELS.statTitles.skillMatchRate}
+          title={labels.statTitles.skillMatchRate}
           value={
             data.skillsRequested > 0
               ? `${Math.round((data.matches / data.skillsRequested) * 100)}%`
@@ -489,7 +682,7 @@ export default function DashboardContent() {
           }
         />
         <StatCard
-          title={CHART_LABELS.statTitles.noOfSkillsRequested}
+          title={labels.statTitles.noOfSkillsRequested}
           value={data.skillsRequested.toString()}
         />
       </div>
@@ -497,9 +690,7 @@ export default function DashboardContent() {
       {/* Line Chart - Showing user registration data over time */}
       <div className="bg-white shadow-md rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">
-            {CHART_LABELS.userRegistration}
-          </h2>
+          <h2 className="text-xl font-semibold">{labels.userRegistration}</h2>
           <div className="relative">
             <select
               value={timeRange}
@@ -507,10 +698,11 @@ export default function DashboardContent() {
               className="appearance-none bg-blue-50 border border-blue-200 text-blue-800 py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               aria-label="Select time range"
             >
-              <option value="today">{CHART_LABELS.timeRanges.today}</option>
-              <option value="week">{CHART_LABELS.timeRanges.week}</option>
-              <option value="month">{CHART_LABELS.timeRanges.month}</option>
-              <option value="year">{CHART_LABELS.timeRanges.year}</option>
+              <option value="today">{labels.timeRanges.today}</option>
+              <option value="week">{labels.timeRanges.week}</option>
+              <option value="month">{labels.timeRanges.month}</option>
+              <option value="year">{labels.timeRanges.year}</option>
+              <option value="all">All Time</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-800">
               <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
@@ -525,44 +717,65 @@ export default function DashboardContent() {
         </div>
 
         {userData.labels.length > 0 ? (
-          <Line
-            data={{
-              labels: userData.labels,
-              datasets: [
-                {
-                  label: CHART_LABELS.numberOfUsers,
-                  data: userData.counts,
-                  backgroundColor: COLORS.blue.fill,
-                  borderColor: COLORS.blue.border,
-                  tension: 0.3, // Add smooth curves to the line
-                  fill: true, // Fill area under the line
-                  pointBackgroundColor: COLORS.blue.border,
-                  pointRadius: 4,
-                  pointHoverRadius: 6,
-                },
-              ],
-            }}
-            options={{
-              responsive: true,
-              scales: {
-                y: {
-                  beginAtZero: true,
-                  ticks: {
-                    precision: 0, // Use integers only
+          <>
+            <Line
+              data={{
+                labels: userData.labels,
+                datasets: [
+                  {
+                    label: labels.numberOfUsers,
+                    data: userData.counts,
+                    backgroundColor: COLORS.blue.fill,
+                    borderColor: COLORS.blue.border,
+                    tension: 0.3, // Add smooth curves to the line
+                    fill: true, // Fill area under the line
+                    pointBackgroundColor: COLORS.blue.border,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                  },
+                ],
+              }}
+              options={{
+                responsive: true,
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      precision: 0, // Use integers only
+                    },
                   },
                 },
-              },
-              plugins: {
-                tooltip: {
-                  backgroundColor: "rgba(0, 0, 0, 0.8)",
-                  padding: 10,
-                  titleFont: {
-                    weight: "bold",
+                plugins: {
+                  tooltip: {
+                    backgroundColor: "rgba(0, 0, 0, 0.8)",
+                    padding: 10,
+                    titleFont: {
+                      weight: "bold",
+                    },
                   },
                 },
-              },
-            }}
-          />
+              }}
+            />
+            {timeRange === "all" && (
+              <div className="mt-4 text-xs text-gray-500">
+                <div className="flex justify-between">
+                  <span>API Total Users: {data.totalUsers}</span>
+                  <span>
+                    Chart Total:{" "}
+                    {userData.counts.reduce((sum, count) => sum + count, 0)}
+                  </span>
+                  {data.totalUsers !==
+                    userData.counts.reduce((sum, count) => sum + count, 0) && (
+                    <span className="text-amber-600 font-semibold">
+                      Difference:{" "}
+                      {data.totalUsers -
+                        userData.counts.reduce((sum, count) => sum + count, 0)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           <div className="h-64 flex items-center justify-center">
             <p className="text-gray-500">
@@ -575,7 +788,7 @@ export default function DashboardContent() {
       {/* Doughnut Chart - Skill Distribution by Category */}
       <div className="bg-white shadow-md rounded-xl p-6">
         <h2 className="text-xl font-semibold mb-4">
-          {CHART_LABELS.skillDistribution}
+          {labels.skillDistribution}
         </h2>
         <div className="h-80">
           {skillListLoading ? (
