@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import UserSidebar from '@/components/User/UserSidebar';
-import UserNavBar from '@/components/User/UserNavBar';
+import UserNavBar from '@/components/Navbar';
 
 import UserDashboardContent from '@/components/User/DashboardContent/UserDashboardContent';
 import MySkillsContent from '@/components/User/DashboardContent/MySkillsContent';
