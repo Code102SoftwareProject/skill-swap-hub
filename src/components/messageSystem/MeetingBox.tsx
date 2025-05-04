@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X, Plus } from 'lucide-react';
-import CreateMeetingModal from '@/components/messageSystem/meetings/CreateMeetingModal';
-import PendingMeetingList from '@/components/messageSystem/meetings/PendingMeetingList';
-import UpcomingMeetingList from '@/components/messageSystem/meetings/UpcomingMeetingList';
-import MeetingLists from '@/components/messageSystem/meetings/MeetingLists';
+import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
+import PendingMeetingList from '@/components/meetingSystem/PendingMeetingList';
+import UpcomingMeetingList from '@/components/meetingSystem/UpcomingMeetingList';
+import MeetingLists from '@/components/meetingSystem/MeetingLists';
 import Meeting from '@/types/meeting';
 import { fetchMeetings, createMeeting, updateMeeting } from "@/services/meetingApiServices";
 
