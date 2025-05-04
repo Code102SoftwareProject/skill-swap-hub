@@ -21,6 +21,7 @@ interface SpeechRecognitionEvent {
 }
 
 interface SpeechRecognition extends EventTarget {
+  onend: () => void;
   continuous: boolean;
   interimResults: boolean;
   lang: string;
@@ -89,6 +90,60 @@ export default function Chatbot() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const stopRecording = () => {
+    setIsRecording(false);
+    
+    // First, store the current transcription to a variable
+    const finalTranscriptText = transcribedText.trim();
+    
+    // Add a small delay to allow final transcript to process
+    setTimeout(() => {
+      // Stop speech recognition first
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      
+      // Then stop media recorder after a short delay
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+        
+        // Stop all tracks on the stream
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+        
+        // Clear recording timer
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+        }
+        
+        // Send message if we have a transcription
+        if (hasStartedRecording.current && (finalTranscriptText || transcribedText.trim())) {
+          const messageText = finalTranscriptText || transcribedText.trim();
+          
+          // Add the transcribed text as a normal user message
+          setMessages(prev => [
+            ...prev, 
+            { 
+              type: 'user', 
+              content: messageText
+            }
+          ]);
+          
+          // Process the transcribed text as a message
+          processTextMessage(messageText);
+        }
+        
+        // Reset recording states
+        setRecordingTime(0);
+        setIsTranscribing(false);
+        setTranscribedText('');
+        hasStartedRecording.current = false;
+      }
+    }, 500); // 500ms delay to ensure final transcript is processed
+  };
+  
+  // Update startRecording function to improve the speech recognition handling
+  
   const startRecording = async () => {
     try {
       // Reset transcribed text from previous recordings
@@ -100,40 +155,20 @@ export default function Chatbot() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
-
+  
       // This event is triggered when actual data is available
       mediaRecorder.ondataavailable = () => {
         // This ensures we've actually started recording and aren't just clicking the button
         hasStartedRecording.current = true;
       };
-
+  
+      // Since we now handle message submission in stopRecording(),
+      // mediaRecorder.onstop only needs to handle cleanup if needed
       mediaRecorder.onstop = () => {
-        // Only send a message if we actually recorded something and have transcribed text
-        if (hasStartedRecording.current && transcribedText.trim()) {
-          // Add the transcribed text as a normal user message
-          setMessages(prev => [
-            ...prev, 
-            { 
-              type: 'user', 
-              content: transcribedText
-            }
-          ]);
-          
-          // Process the transcribed text as a message
-          processTextMessage(transcribedText);
-        }
-        
-        // Reset recording timer and flags
-        setRecordingTime(0);
-        setIsTranscribing(false);
-        setTranscribedText('');
-        hasStartedRecording.current = false;
-        
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-        }
+        // Any final cleanup if needed
+        // Most logic has been moved to stopRecording()
       };
-
+  
       // Initialize Web Speech API for speech recognition
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (SpeechRecognition) {
@@ -149,8 +184,12 @@ export default function Chatbot() {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
               finalTranscript += transcript + ' ';
+            } else {
+              // Also capture interim results to show real-time transcription
+              finalTranscript += transcript + ' ';
             }
           }
+          
           if (finalTranscript) {
             setTranscribedText(finalTranscript.trim());
           }
@@ -160,14 +199,19 @@ export default function Chatbot() {
           console.error('Speech recognition error', event.error);
         };
         
+        // Add an onend handler to ensure we capture final results
+        recognition.onend = () => {
+          console.log("Speech recognition ended");
+        };
+        
         recognition.start();
       } else {
         console.error("Speech recognition not supported in this browser");
         alert("Speech recognition is not supported in your browser. Please try Chrome or Edge.");
       }
-
+  
       // Start recording
-      mediaRecorder.start(100); // Start collecting data every 100ms to trigger ondataavailable quickly
+      mediaRecorder.start(100); 
       setIsRecording(true);
       
       // Start recording timer
@@ -181,29 +225,6 @@ export default function Chatbot() {
       setIsTranscribing(false);
     }
   };
-
-  const stopRecording = () => {
-    // Stop speech recognition
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-      recognitionRef.current = null;
-    }
-    
-    // Stop media recorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      mediaRecorderRef.current.stop();
-      
-      // Stop all tracks on the stream
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
-      
-      // Clear recording timer
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-    }
-  };
-
   const processTextMessage = async (text: string) => {
     setIsLoading(true);
     try {
