@@ -12,17 +12,23 @@ interface ChatHeaderProps {
   socket: Socket | null;
   userId: string;
   onToggleMeetings: (show: boolean) => void;
+  onToggleSessions: (show: boolean) => void;
   upcomingMeetingsCount?: number;
   initialParticipantInfo?: { id: string, name: string };
+  showingMeetings?: boolean;
+  showingSessions?: boolean;
 }
 
 export default function ChatHeader({ 
   chatRoomId, 
   socket, 
   userId, 
-  onToggleMeetings, 
+  onToggleMeetings,
+  onToggleSessions,
   upcomingMeetingsCount = 0,
-  initialParticipantInfo
+  initialParticipantInfo,
+  showingMeetings = false,
+  showingSessions = false
 }: ChatHeaderProps) {
   const [chatRoomInfo, setChatRoomInfo] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -37,7 +43,6 @@ export default function ChatHeader({
     initialParticipantInfo?.id || null
   );
   
-  const [showingMeetings, setShowingMeetings] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -212,9 +217,11 @@ export default function ChatHeader({
   };
 
   const handleToggleMeetings = () => {
-    const newState = !showingMeetings;
-    setShowingMeetings(newState);
-    onToggleMeetings(newState);
+    onToggleMeetings(!showingMeetings);
+  };
+
+  const handleToggleSessions = () => {
+    onToggleSessions(!showingSessions);
   };
 
   return (
@@ -243,8 +250,8 @@ export default function ChatHeader({
         </button>
 
         <button 
-          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
-          onClick={() => console.log('Sessions clicked')}
+          className={`flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          onClick={handleToggleSessions}
         >
           <BookOpen className="h-5 w-5 mb-1" />
           <span className="text-xs">Sessions</span>
