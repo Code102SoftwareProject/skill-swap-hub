@@ -15,9 +15,6 @@ import {
   ArcElement,
 } from "chart.js";
 
-// Import the internationalization config
-import chartLabels, { ChartLabels, Locale } from "@/config/localization";
-
 // Register the required chart components with ChartJS
 ChartJS.register(
   CategoryScale,
@@ -189,10 +186,6 @@ export default function DashboardContent() {
     totalUsers: 0,
     newUsers: 0,
   });
-  // Set the default locale - could be loaded from user preferences/settings
-  const [locale, setLocale] = useState<Locale>("en-US");
-  // Get the labels for the current locale
-  const labels = chartLabels[locale];
 
   // Effect hook to fetch dashboard data when component mounts
   useEffect(() => {
@@ -390,10 +383,10 @@ export default function DashboardContent() {
         const date = new Date(now);
         date.setHours(i, 0, 0, 0);
         // Format hour with localization
-        const formattedTime = date.toLocaleTimeString(locale, {
+        const formattedTime = date.toLocaleTimeString("en-US", {
           hour: "2-digit",
           minute: "2-digit",
-          hour12: locale === "en-US", // Use 12-hour format for US English
+          hour12: true, // Use 12-hour format
         });
 
         datePoints.push({
@@ -661,20 +654,14 @@ export default function DashboardContent() {
     <div className="p-8 grid gap-8">
       {/* Top Stats Section - Key metrics displayed as cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <StatCard title="Total Users" value={data.totalUsers.toString()} />
+        <StatCard title="No of Sessions" value={data.sessions.toString()} />
         <StatCard
-          title={labels.statTitles.totalUsers}
-          value={data.totalUsers.toString()}
-        />
-        <StatCard
-          title={labels.statTitles.noOfSessions}
-          value={data.sessions.toString()}
-        />
-        <StatCard
-          title={`${labels.statTitles.newUsersThisWeek.replace("Week", timeRange === "week" ? "Week" : timeRange === "month" ? "Month" : timeRange === "today" ? "Today" : timeRange === "all" ? "All Time" : "Year")}`}
+          title={`New Users This ${timeRange === "week" ? "Week" : timeRange === "month" ? "Month" : timeRange === "today" ? "Today" : timeRange === "all" ? "All Time" : "Year"}`}
           value={filteredMetrics.newUsers.toString()}
         />
         <StatCard
-          title={labels.statTitles.skillMatchRate}
+          title="Skill Match Rate"
           value={
             data.skillsRequested > 0
               ? `${Math.round((data.matches / data.skillsRequested) * 100)}%`
@@ -682,7 +669,7 @@ export default function DashboardContent() {
           }
         />
         <StatCard
-          title={labels.statTitles.noOfSkillsRequested}
+          title="No of Skills Requested"
           value={data.skillsRequested.toString()}
         />
       </div>
@@ -690,7 +677,7 @@ export default function DashboardContent() {
       {/* Line Chart - Showing user registration data over time */}
       <div className="bg-white shadow-md rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold">{labels.userRegistration}</h2>
+          <h2 className="text-xl font-semibold">User Registration Over Time</h2>
           <div className="relative">
             <select
               value={timeRange}
@@ -698,10 +685,10 @@ export default function DashboardContent() {
               className="appearance-none bg-blue-50 border border-blue-200 text-blue-800 py-2 px-4 pr-8 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
               aria-label="Select time range"
             >
-              <option value="today">{labels.timeRanges.today}</option>
-              <option value="week">{labels.timeRanges.week}</option>
-              <option value="month">{labels.timeRanges.month}</option>
-              <option value="year">{labels.timeRanges.year}</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="year">Last 12 Months</option>
               <option value="all">All Time</option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-blue-800">
@@ -723,7 +710,7 @@ export default function DashboardContent() {
                 labels: userData.labels,
                 datasets: [
                   {
-                    label: labels.numberOfUsers,
+                    label: "Number of Users",
                     data: userData.counts,
                     backgroundColor: COLORS.blue.fill,
                     borderColor: COLORS.blue.border,
@@ -779,7 +766,7 @@ export default function DashboardContent() {
         ) : (
           <div className="h-64 flex items-center justify-center">
             <p className="text-gray-500">
-              No registration data available for the selected time range
+              No data available for the selected time range
             </p>
           </div>
         )}
@@ -788,7 +775,7 @@ export default function DashboardContent() {
       {/* Doughnut Chart - Skill Distribution by Category */}
       <div className="bg-white shadow-md rounded-xl p-6">
         <h2 className="text-xl font-semibold mb-4">
-          {labels.skillDistribution}
+          Skill Distribution by Category
         </h2>
         <div className="h-80">
           {skillListLoading ? (
