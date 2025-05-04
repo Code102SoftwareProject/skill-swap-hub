@@ -3,20 +3,31 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
 import { sendMessage } from '@/lib/services/chatbotservice';
+import { useAuth } from '@/lib/context/AuthContext';
+
+interface MessageContent {
+  text: string;
+  type?: string;
+}
 
 interface Message {
   type: 'user' | 'bot';
-  content: string;
+  content: string | MessageContent;
 }
 
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { type: 'bot', content: 'Hi! I\'m your assistant. How can I help you find information from our knowledge base?' }
+    { 
+      type: 'bot', 
+      content: 'Hi! I\'m your assistant. I can help you with verification status checks and answer technical questions.' 
+    }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // Move useAuth hook inside the component function
+  const { user } = useAuth();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,8 +47,19 @@ export default function Chatbot() {
     setIsLoading(true);
 
     try {
-      const response = await sendMessage(userMessage);
-      setMessages(prev => [...prev, { type: 'bot', content: response }]);
+      // Pass the user ID directly to the sendMessage function
+      const response = await sendMessage(userMessage, user?._id);
+      
+      if (typeof response === 'string') {
+        // Handle simple string responses
+        setMessages(prev => [...prev, { type: 'bot', content: response }]);
+      } else {
+        // Handle structured responses
+        setMessages(prev => [...prev, { 
+          type: 'bot', 
+          content: response 
+        }]);
+      }
     } catch (err) {
       setMessages(prev => [
         ...prev, 
@@ -52,12 +74,33 @@ export default function Chatbot() {
     }
   };
 
+  // Render message content based on type
+  const renderMessageContent = (content: string | MessageContent) => {
+    if (typeof content === 'string') {
+      return <div className="whitespace-pre-wrap">{content}</div>;
+    }
+
+    // For structured content
+    return (
+      <div className="space-y-3">
+        <div className="whitespace-pre-wrap">{content.text}</div>
+        
+        {/* You can add special formatting for different message types here */}
+        {content.type === 'verification_status' && (
+          <div className="mt-2 text-xs text-blue-600">
+            Verification status information
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (!isOpen) {
     return (
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-4 right-4 bg-blue-700 text-white p-4 rounded-full shadow-lg hover:bg-blue-900 transition-colors"
-        aria-label="knowledge assistant"
+        aria-label="AI Assistant"
       >
         <MessageCircle className="h-6 w-6" />
       </button>
@@ -69,7 +112,7 @@ export default function Chatbot() {
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-2">
           <MessageCircle className="h-5 w-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-800">Knowledge Assistant</h3>
+          <h3 className="font-semibold text-gray-800">AI Assistant</h3>
         </div>
         <button
           onClick={() => setIsOpen(false)}
@@ -93,7 +136,7 @@ export default function Chatbot() {
                   : 'bg-gray-100 text-gray-800'
               }`}
             >
-              {message.content}
+              {renderMessageContent(message.content)}
             </div>
           </div>
         ))}
