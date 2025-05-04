@@ -33,9 +33,9 @@ ChatRoomSchema.pre('save', function(next) {
   }
 });
 
-// Ensure unique chat rooms for the same pair of participants
+// unique chat rooms for the same pair of participants
 ChatRoomSchema.index(
-  { participants: 1 }, 
+  { 'participants.0': 1, 'participants.1': 1 }, 
   { unique: true }
 );
 

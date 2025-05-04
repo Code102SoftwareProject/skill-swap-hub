@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
-import connect from '../../../../lib/db';
-import VerificationRequestModel from '../../../../lib/models/VerificationRequest';
+import connect from '@/lib/db';
+import VerificationRequestModel from '@/lib/models/VerificationRequest';
+
+
+VerificationRequestModel.collection.name = 'userskillverificationrequests';
 
 export async function GET(request: Request) {
   try {
     await connect();
     
+    // Extract query parameters from URL
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
     
@@ -36,15 +40,37 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     // Validate required fields
-    if (!body.userId || !body.skillName) {
+    if (!body.userId || !body.skillName || !body.skillId) {
       return NextResponse.json(
-        { error: 'userId and skillName are required' },
+        { error: 'userId, skillName, and skillId are required' },
         { status: 400 }
       );
     }
 
-    // Renamed variable to avoid naming conflict with the Request type
-    const verificationRequest = await VerificationRequestModel.create(body);
+    // Check if a pending verification request already exists for this skill
+    const existingRequest = await VerificationRequestModel.findOne({
+      userId: body.userId,
+      skillId: body.skillId,
+      status: 'pending'
+    });
+
+    if (existingRequest) {
+      return NextResponse.json(
+        { error: 'A pending verification request already exists for this skill' },
+        { status: 409 } // Conflict status code
+      );
+    }
+
+    // Create the verification request
+    const verificationRequest = await VerificationRequestModel.create({
+      userId: body.userId,
+      skillId: body.skillId,
+      skillName: body.skillName,
+      documents: body.documents || [],
+      description: body.description || '',
+      status: 'pending',
+      createdAt: new Date()
+    });
     
     return NextResponse.json(
       { data: verificationRequest }, 
@@ -57,4 +83,46 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+export async function DELETE(request: Request) {
+  try {
+    await connect();
+    
+    const {searchParams} = new URL(request.url);
+    const requestId = searchParams.get('requestId');
+
+    if(!requestId) {
+      return NextResponse.json(
+        { error: 'requestId is required' },
+        { status: 400 }
+      );
+    }
+    //find the request by id and delete it
+    const verificationRequest = await VerificationRequestModel.findByIdAndDelete(requestId);
+    if (!verificationRequest) {
+      return NextResponse.json(
+        { error: 'Verification request not found' },
+        { status: 404 }
+      );
+    }
+    //check if the status accepted 
+    if (verificationRequest.status !== 'approved') {
+      return NextResponse.json(
+        { error: 'Only accepted verification requests can be deleted' },
+        { status: 403 }
+      );
+    }
+
+    await VerificationRequestModel.findByIdAndDelete(requestId);
+    return NextResponse.json(
+      { message: 'Verification request deleted successfully' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Error deleting verification request:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete verification request' },
+      { status: 500 }
+    );
+  } 
 }

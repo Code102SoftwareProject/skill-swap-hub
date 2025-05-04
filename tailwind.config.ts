@@ -19,6 +19,19 @@ const config = {
         heading: ["Manrope", "sans-serif"],
         body: ["Roboto", "sans-serif"],
       },
+      animation: {
+        bounce: 'bounce 1.4s infinite',
+      },
+      keyframes: {
+        bounce: {
+          '0%, 80%, 100%': { transform: 'scale(0)' },
+          '40%': { transform: 'scale(1)' },
+        }
+      },
+      transitionDelay: {
+        '75': '0.2s',
+        '150': '0.4s',
+      }
     },
   },
   plugins: [require("tailwindcss-animate")],

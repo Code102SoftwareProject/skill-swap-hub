@@ -51,7 +51,7 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
         >
           <option value="">Select a category</option>
           <option value="Issue">Issue</option>
-          <option value="Question">Question</option>
+          <option value="Suggestion">Suggestion</option>
           <option value="Feature Request">Feature Request</option>
           <option value="Other">Other</option>
         </select>

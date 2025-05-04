@@ -1,15 +1,16 @@
 "use client"
 
 import React from 'react';
-import { X, Download, Eye } from 'lucide-react';
+import { X, Download, Eye, AlertCircle } from 'lucide-react';
 
 interface SkillDetailsModalProps {
   request: {
-    _id: string;
+    id: string;
     skillName: string;
     status: 'pending' | 'approved' | 'rejected';
     documents: string[];
     description: string;
+    feedback?: string;
     createdAt: Date;
   };
   isOpen: boolean;
@@ -45,7 +46,6 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
   // Function to handle document viewing/downloading
   const handleDocumentAction = async (documentUrl: string) => {
     try {
-      // Get the file extension from the URL
       const fileExtension = documentUrl.split('.').pop()?.toLowerCase();
       
       // Use our API as a proxy to fetch the document
@@ -133,6 +133,25 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
             </p>
           </div>
 
+          {/* Admin Feedback Section */}
+          {(request.status === 'approved' || request.status === 'rejected') && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-2 flex items-center">
+                <AlertCircle className="h-5 w-5 mr-2 text-blue-600" />
+                Admin Feedback
+              </h3>
+              <div className={`p-4 rounded-lg ${
+                request.status === 'approved' ? 'bg-green-50' : 'bg-red-50'
+              }`}>
+                <p className={`${
+                  request.status === 'approved' ? 'text-green-800' : 'text-red-800'
+                }`}>
+                  {request.feedback || 'No feedback provided'}
+                </p>
+              </div>
+            </div>
+          )}
+
           <div>
             <h3 className="text-lg font-semibold text-gray-700 mb-2">Uploaded Documents</h3>
             <div className="space-y-2">
@@ -150,7 +169,7 @@ const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleDocumentAction(doc)}
-                          className="flex items-center gap-2 px-4 py-2 text-sm rounded-md transition-colors hover:bg-gray-100"
+                          className="flex items-center gap-2  bg-slate-700 px-4 py-2 text-sm rounded-md transition-colors hover:bg-blue-800"
                         >
                           {isViewable ? (
                             <>

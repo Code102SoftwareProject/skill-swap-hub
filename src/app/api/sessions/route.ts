@@ -2,6 +2,25 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import Session from "@/lib/models/sessionSchema";
 
+/**
+ * Creates a new skill exchange session between two users
+ * 
+ * @param req - The HTTP request object containing session details in the body:
+ *   - user1Id: ID of the first user
+ *   - skill1Id: ID of the first user's skill being offered
+ *   - user2Id: ID of the second user
+ *   - skill2Id: ID of the second user's skill being offered
+ *   - startDate: When the skill exchange session begins
+ *   - dueDate: When the skill exchange session ends
+ *   - descriptionOfService1: Optional description of first user's service
+ *   - descriptionOfService2: Optional description of second user's service
+ *   - isAccepted: Optional boolean indicating if session is accepted
+ *   - isAmmended: Optional boolean indicating if session was amended
+ *   - status: Optional session status
+ * 
+ * @returns JSON response with:
+ *   
+ */
 export async function POST(req: Request) {
     try {
         await connect();
