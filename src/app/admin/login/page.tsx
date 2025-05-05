@@ -1,49 +1,45 @@
-'use client'; // ✅ Required because we use client-side hooks
+"use client"; // ✅ Required because we use client-side hooks
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
 
   //  State hooks to handle input and errors
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   //  Form submission handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
 
     //  Basic validation
     if (!username || !password) {
-      setError('Please fill in all fields.');
+      setError("Please fill in all fields.");
       return;
     }
 
     // Call our custom API route
-       const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
     try {
-      const res = await fetch('/api/admin/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/admin/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || 'Login failed');
+        setError(data.message || "Login failed");
       } else {
-        router.push('/admin/dashboard'); //  Redirect after login
+        router.push("/admin/dashboard"); //  Redirect after login
       }
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Something went wrong. Please try again.");
     }
   };
 
@@ -61,12 +57,17 @@ export default function AdminLoginPage() {
 
         {/* 📝 Right side form */}
         <div className="md:w-1/2 w-full p-8">
-          <h2 className="text-2xl font-semibold mb-6 text-center">Admin Login</h2>
+          <h2 className="text-2xl font-semibold mb-6 text-center">
+            Admin Login
+          </h2>
 
           <form onSubmit={handleLogin} className="space-y-4">
             {/* 🧑 Username Field */}
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Username
               </label>
               <input
@@ -83,7 +84,10 @@ export default function AdminLoginPage() {
 
             {/* 🔒 Password Field */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
                 Password
               </label>
               <input
@@ -117,7 +121,9 @@ export default function AdminLoginPage() {
 
             {/* 🧾 Forget Password Link */}
             <div className="text-right text-sm mt-2">
-              <a href="#" className="text-blue-600 hover:underline">Forgot password?</a>
+              <a href="#" className="text-blue-600 hover:underline">
+                Forgot password?
+              </a>
             </div>
           </form>
         </div>
