@@ -76,6 +76,11 @@ export default function Chatbot() {
     scrollToBottom();
   }, [messages]);
 
+  // Debug effect to log state changes
+  useEffect(() => {
+    console.log('Chatbot isOpen state:', isOpen);
+  }, [isOpen]);
+
   // Cleanup recording when component unmounts
   useEffect(() => {
     return () => {
@@ -287,11 +292,18 @@ export default function Chatbot() {
     );
   };
 
+  const toggleChat = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('Toggle chat clicked, current state:', isOpen);
+    setIsOpen(prevState => !prevState);
+  };
+
   if (!isOpen) {
     return (
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 bg-blue-700 text-white p-4 rounded-full shadow-lg hover:bg-blue-900 transition-colors"
+        onClick={toggleChat}
+        className="fixed bottom-4 right-4 bg-blue-700 text-white p-4 rounded-full shadow-lg hover:bg-blue-900 transition-colors z-50"
         aria-label="AI Assistant"
       >
         <MessageCircle className="h-6 w-6" />
@@ -307,7 +319,7 @@ export default function Chatbot() {
           <h3 className="font-semibold text-gray-800">AI Assistant</h3>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
+          onClick={toggleChat}
           className="text-gray-500 hover:text-gray-700"
           aria-label="Close chat"
         >
