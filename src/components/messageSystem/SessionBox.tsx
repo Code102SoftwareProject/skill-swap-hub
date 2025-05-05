@@ -5,8 +5,7 @@ import OngoingSessions from '@/components/sessionSystem/OngoingSessions';
 import CompletedSessions from '@/components/sessionSystem/CompletedSessions';
 import CancelledSessions from '@/components/sessionSystem/CancelledSessions';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
-import { createSession, getUserSessions, updateSessionStatus, updateSessionProgress } from '@/services/sessionApiServices';
-import { getUserSkills } from '@/services/skillApiServices';
+import { createSession, getUserSessions, updateSessionStatus, updateSessionProgress ,getUserSkills} from '@/services/sessionApiServices';
 import { getOtherUserFromChatRoom } from '@/services/chatUtilServices';
 
 interface UserProfile {
