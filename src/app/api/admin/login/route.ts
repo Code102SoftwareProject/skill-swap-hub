@@ -4,7 +4,10 @@ import jwt from 'jsonwebtoken';
 import Admin from '@/lib/models/adminSchema';
 import connect from '@/lib/db';
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || 'mySuperSecretJWTKey'; // move this to .env in production
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+if (!ADMIN_JWT_SECRET) {
+  throw new Error("ADMIN_JWT_SECRET environment variable is not defined");
+}
 
 export const POST = async (req: NextRequest) => {
   try {

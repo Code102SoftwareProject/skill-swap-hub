@@ -1,4 +1,4 @@
-import connect from '@/lib/db';
+import connect from "@/lib/db";
 import User from "@/lib/models/userSchema";
 import Session from "@/lib/models/sessionSchema";
 import SkillList from "@/lib/models/skillListing";
@@ -15,53 +15,72 @@ export async function GET() {
     const skillsRequested = await SkillList.countDocuments();
     const skillsOffered = await SkillListing.countDocuments();
     const matches = await SkillMatch.countDocuments();
-    
+
     // Get active users (users with recent session activity - adjust time period as needed)
-    const userIds = await Session.distinct('userId');
+    const userIds = await Session.distinct("userId");
     const activeUsers = userIds.length;
 
     const popularSkillDoc = await SkillList.aggregate([
       { $group: { _id: "$skillName", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 1 }
+      { $limit: 1 },
     ]);
 
-    const popularSkill = popularSkillDoc.length > 0 ? popularSkillDoc[0]._id : "N/A";
+    const popularSkill =
+      popularSkillDoc.length > 0 ? popularSkillDoc[0]._id : "N/A";
 
     const skillsData = await SkillList.aggregate([
-      { $group: { _id: "$skillName", requests: { $sum: 1 } } }
+      { $group: { _id: "$skillName", requests: { $sum: 1 } } },
     ]);
 
     const skillsOfferedData = await SkillListing.aggregate([
-      { $group: { _id: "$skillName", offers: { $sum: 1 } } }
+      { $group: { _id: "$skillName", offers: { $sum: 1 } } },
     ]);
 
-    // Get user registration data aggregated by month
+    // Get user registration data for the past year at minimum
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
     const userRegistrationData = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: oneYearAgo },
+        },
+      },
       {
         $group: {
           _id: {
             year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" }
+            month: { $month: "$createdAt" },
+            day: { $dayOfMonth: "$createdAt" },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { "_id.year": 1, "_id.month": 1 } },
-      { $limit: 12 } // Get last 12 months
+      { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
     ]);
 
-    const skillMap: { [key: string]: { skill: string; requests: number; offers: number } } = {};
+    const skillMap: {
+      [key: string]: { skill: string; requests: number; offers: number };
+    } = {};
 
-    skillsData.forEach(skill => {
-      skillMap[skill._id] = { skill: skill._id, requests: skill.requests, offers: 0 };
+    skillsData.forEach((skill) => {
+      skillMap[skill._id] = {
+        skill: skill._id,
+        requests: skill.requests,
+        offers: 0,
+      };
     });
 
-    skillsOfferedData.forEach(skill => {
+    skillsOfferedData.forEach((skill) => {
       if (skillMap[skill._id]) {
         skillMap[skill._id].offers = skill.offers;
       } else {
-        skillMap[skill._id] = { skill: skill._id, requests: 0, offers: skill.offers };
+        skillMap[skill._id] = {
+          skill: skill._id,
+          requests: 0,
+          offers: skill.offers,
+        };
       }
     });
 
@@ -74,11 +93,13 @@ export async function GET() {
       skillsRequested,
       matches,
       userRegistrationData,
-      skillsData: Object.values(skillMap)
+      skillsData: Object.values(skillMap),
     });
-
   } catch (error) {
     console.error(error);
-    return NextResponse.json({ error: "Failed to load dashboard data" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load dashboard data" },
+      { status: 500 }
+    );
   }
 }

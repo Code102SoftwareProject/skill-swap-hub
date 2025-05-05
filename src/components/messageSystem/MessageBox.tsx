@@ -5,8 +5,10 @@ import type { Socket } from "socket.io-client";
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
-import FileMessage from "./box/FileMessage";
-import TextMessage from "./box/TextMessage";
+import FileMessage from "@/components/messageSystem/box/FileMessage";
+import TextMessage from "@/components/messageSystem/box/TextMessage";
+// Import the API service
+import { fetchChatMessages, markMultipleMessagesAsRead } from "@/services/chatApiServices";
 
 interface MessageBoxProps {
   userId: string;
@@ -17,59 +19,17 @@ interface MessageBoxProps {
 }
 
 /**
- * ! TypingIndicator component
- * @returns TypingIndicator component
- * @description A simple typing indicator component with 3 dots that bounce
+ * ! TypingIndicator component 
  */
 function TypingIndicator() {
   return (
-    <div className="typing-indicator flex items-center">
-      <span className="dot"></span>
-      <span className="dot"></span>
-      <span className="dot"></span>
-      <style jsx>{`
-        .typing-indicator {
-          display: flex;
-          gap: 4px;
-          margin: 10px 0;
-        }
-        .dot {
-          width: 8px;
-          height: 8px;
-          background-color: #ccc;
-          border-radius: 50%;
-          animation: bounce 1.4s infinite;
-        }
-        .dot:nth-child(1) {
-          animation-delay: 0s;
-        }
-        .dot:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-        .dot:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-        @keyframes bounce {
-          0%, 80%, 100% {
-            transform: scale(0);
-          }
-          40% {
-            transform: scale(1);
-          }
-        }
-      `}</style>
+    <div className="flex gap-1 my-2.5">
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></span>
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></span>
+      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></span>
     </div>
   );
 }
-
-/**
- * ! MessageBox component
- * @param userId
- * @param chatRoomId
- * @param socket
- * @param newMessage
- * @@description A component to display chat messages in a chat room
- */
 
 export default function MessageBox({
   userId,
@@ -85,62 +45,63 @@ export default function MessageBox({
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
-  // Fetch chat history on mount (keeping the order as received so that the latest message is at the bottom)
+  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
+
+  // Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
+      // Clear existing messages FIRST to prevent showing old messages
+      setMessages([]);
+
       try {
-        const res = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
-        const data = await res.json();
-        if (data.success) {
-          setMessages(data.messages);
+        const messagesData = await fetchChatMessages(chatRoomId);
+        if (messagesData && messagesData.length > 0) {
+          setMessages(messagesData);
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
       }
     }
     fetchMessages();
-  }, [chatRoomId]);
+  }, [chatRoomId, userId]);
 
-  // Append new messages if they arrive and keep view scrolled to bottom
+  // Append new messages if they arrive
   useEffect(() => {
-    if (!newMessage) return;
-    if (newMessage.chatRoomId !== chatRoomId) return;
+    if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     setMessages((prev) => [...prev, newMessage]);
-  }, [newMessage, chatRoomId]);
+  }, [newMessage, chatRoomId, userId]);
 
-  // Auto-scroll to the bottom when messages update
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  // Function to scroll to a particular message (used for reply clicks)
-  const scrollToMessage = (messageId: string) => {
-    const messageElement = messageRefs.current[messageId];
-    if (messageElement) {
-      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Brief highlight effect
-      messageElement.style.transition = "background 0.3s";
-      messageElement.style.background = "rgba(255, 255, 0, 0.3)";
-      setTimeout(() => {
-        messageElement.style.background = "transparent";
-      }, 800);
-    }
-  };
-
-  // Listen for typing events via socket
+  // Add/update typing event listeners
   useEffect(() => {
     if (!socket) return;
 
-    const handleUserTyping = (data: { userId: string }) => {
-      if (data.userId !== userId) {
+    // Reset typing status when chat changes
+    setIsTyping(false);
+
+    // Add additional logging to track socket events
+    console.log("Setting up all message listeners for chatRoomId:", chatRoomId);
+
+    // Add explicit debug event to check socket connectivity
+    socket.emit("debug_connection", {
+      userId,
+      chatRoomId,
+      timestamp: new Date().toISOString(),
+    });
+
+    const handleUserTyping = (data: { userId: string; chatRoomId: string }) => {
+      // Only show typing indicator if it's for the current chat room
+      if (data.chatRoomId === chatRoomId && data.userId !== userId) {
         setIsTyping(true);
       }
     };
 
-    const handleUserStoppedTyping = (data: { userId: string }) => {
-      if (data.userId !== userId) {
+    const handleUserStoppedTyping = (data: {
+      userId: string;
+      chatRoomId: string;
+    }) => {
+      // Only process typing events for the current chat room
+      if (data.chatRoomId === chatRoomId && data.userId !== userId) {
         setIsTyping(false);
       }
     };
@@ -152,22 +113,110 @@ export default function MessageBox({
       socket.off("user_typing", handleUserTyping);
       socket.off("user_stopped_typing", handleUserStoppedTyping);
     };
-  }, [socket, userId]);
+  }, [socket, chatRoomId, userId]);
+
+  // Auto-scroll to the bottom when messages update
+  useEffect(() => {
+    if (containerRef.current) {
+      // Add a small delay to ensure complete rendering
+      setTimeout(() => {
+        containerRef.current?.scrollTo({
+          top: containerRef.current.scrollHeight,
+          behavior: "smooth",
+        });
+      }, 100);
+    }
+  }, [messages, newMessage]); // Add newMessage as dependency
+
+  // Update this when messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      const newestMessage = messages[messages.length - 1];
+      if (newestMessage._id && newestMessage._id !== lastMessageId) {
+        setLastMessageId(newestMessage._id);
+      }
+    }
+  }, [messages]);
+
+  // Mark unread messages as read when they are displayed
+  useEffect(() => {
+    // Process only messages that haven't been marked as read yet
+    const unreadMessages = messages.filter(msg => 
+      msg.senderId !== userId && 
+      msg._id && 
+      !processedMessageIds.has(msg._id) &&
+      msg.readStatus === false
+    );
+
+    if (unreadMessages.length > 0) {
+      // Extract just the IDs and filter out any undefined values
+      const unreadIds = unreadMessages
+        .map(msg => msg._id)
+        .filter((id): id is string => id !== undefined);
+      
+      // Update local tracking state immediately to prevent duplicate requests
+      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
+      setProcessedMessageIds(newProcessedIds);
+      
+      // Make a single API call with all message IDs
+      markMultipleMessagesAsRead(unreadIds)
+        .catch(error => {
+          console.error('Error marking messages as read:', error);
+        });
+    }
+  }, [messages, userId, processedMessageIds]);
+
+  // Function to scroll to a particular message (used for reply clicks)
+  const scrollToMessage = (messageId: string) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
+      // Brief highlight effect
+      messageElement.style.transition = "background 0.3s";
+      messageElement.style.background = "rgba(255, 255, 255, 0.3)";
+      setTimeout(() => {
+        messageElement.style.background = "transparent";
+      }, 800);
+    }
+  };
+
+  // Function to get the last message from the current user
+  const getLastUserMessageIndex = () => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].senderId === userId) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const lastUserMessageIndex = getLastUserMessageIndex();
 
   return (
-    <div ref={containerRef} className="flex flex-col w-full h-full bg-white overflow-y-auto p-4">
+    <div
+      ref={containerRef}
+      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+    >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
+        const isLastUserMessage = i === lastUserMessageIndex;
+
         return (
           <div
             key={msg._id || i}
             ref={(el) => {
               if (msg._id) messageRefs.current[msg._id] = el;
             }}
-            className={`mb-1 flex ${isMine ? "justify-end" : "justify-start"}`}
+            className={`mb-3 flex flex-col ${
+              isMine ? "items-end" : "items-start"
+            }`}
           >
             <div
-              className={`p-2 rounded-lg ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} relative group`}
+              className={`p-2 rounded-lg ${
+                isMine
+                  ? "bg-secondary text-textcolor"
+                  : "bg-gray-200 text-black"
+              } relative group`}
               style={{
                 maxWidth: "75%",
                 minWidth: "50px",
@@ -175,11 +224,10 @@ export default function MessageBox({
                 display: "flex",
                 flexDirection: "column",
                 wordBreak: "break-word",
-                paddingBottom: "4px",
               }}
             >
               {/* Reply button - show on hover */}
-              <button 
+              <button
                 onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
                 className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                 title="Reply"
@@ -193,28 +241,44 @@ export default function MessageBox({
                   className="reply-box rounded-md p-2 mb-1 cursor-pointer"
                   style={{
                     backgroundColor: "#e9ecef",
-                    borderLeft: isMine ? "4px solid #25D366" : "4px solid #ccc",
+                    borderLeft: isMine
+                      ? "4px solid #25D366"
+                      : "4px solid #ccc",
                     maxWidth: "100%",
                     textAlign: "left",
                     borderRadius: "6px",
                   }}
                   onClick={() => {
-                    if (msg.replyFor && typeof msg.replyFor === 'object' && '_id' in msg.replyFor) {
+                    if (
+                      msg.replyFor &&
+                      typeof msg.replyFor === "object" &&
+                      "_id" in msg.replyFor
+                    ) {
                       scrollToMessage((msg.replyFor as { _id: string })._id);
                     }
                   }}
                 >
-                  <span className="text-xs font-semibold" style={{ color: isMine ? "#25D366" : "#888" }}>
-                    {typeof msg.replyFor === 'object' && 'senderId' in msg.replyFor 
-                      ? ((msg.replyFor as { senderId: string }).senderId === userId ? "You" : (msg.replyFor as { senderId: string }).senderId) 
+                  <span
+                    className="text-xs font-semibold"
+                    style={{ color: isMine ? "#25D366" : "#888" }}
+                  >
+                    {typeof msg.replyFor === "object" && "senderId" in msg.replyFor
+                      ? (msg.replyFor as { senderId: string }).senderId ===
+                        userId
+                        ? "You"
+                        : (msg.replyFor as { senderId: string }).senderId
                       : "Unknown"}
                   </span>
                   <span
                     className="text-sm text-gray-700 truncate block"
-                    style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
                   >
-                    {typeof msg.replyFor === 'object' && 'content' in msg.replyFor 
-                      ? (msg.replyFor as { content: string }).content 
+                    {typeof msg.replyFor === "object" && "content" in msg.replyFor
+                      ? (msg.replyFor as { content: string }).content
                       : String(msg.replyFor)}
                   </span>
                 </div>
@@ -227,23 +291,22 @@ export default function MessageBox({
                 <TextMessage content={msg.content} />
               )}
 
-              {/* Timestamp */}
-              <div
-                className="flex justify-end text-xs"
-                style={{
-                  fontSize: "10px",
-                  color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777", 
-                  marginTop: "2px",
-                  textAlign: "right",
-                  alignSelf: "flex-end",
-                }}
-              >
-                {msg.sentAt
-                  ? new Date(msg.sentAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })
-                  : ""}
+              {/* Timestamp inside bubble */}
+              <div className="flex justify-end items-center mt-1">
+                <div
+                  className="text-xs"
+                  style={{
+                    fontSize: "10px",
+                    color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777",
+                  }}
+                >
+                  {msg.sentAt
+                    ? new Date(msg.sentAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </div>
               </div>
             </div>
           </div>

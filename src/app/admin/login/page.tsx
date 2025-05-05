@@ -6,23 +6,23 @@ import { useRouter } from 'next/navigation';
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  // 👇 State hooks to handle input and errors
+  //  State hooks to handle input and errors
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  // 🔐 Form submission handler
+  //  Form submission handler
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // ⚠️ Basic validation
+    //  Basic validation
     if (!username || !password) {
       setError('Please fill in all fields.');
       return;
     }
 
-    // 📡 Call our custom API route
+    // Call our custom API route
        const res = await fetch('/api/admin/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
       if (!res.ok) {
         setError(data.message || 'Login failed');
       } else {
-        router.push('/admin/dashboard'); // ✅ Redirect after login
+        router.push('/admin/dashboard'); //  Redirect after login
       }
     } catch {
       setError('Something went wrong. Please try again.');

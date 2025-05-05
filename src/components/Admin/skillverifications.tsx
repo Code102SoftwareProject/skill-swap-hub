@@ -17,7 +17,7 @@ interface VerificationRequest {
     status: 'pending' | 'approved' | 'rejected';
     documents: string[];
     description: string;
-    feedback?: string; // Added feedback field
+    feedback?: string; 
     createdAt: Date;
     updatedAt: Date;
     user?: User;
@@ -32,9 +32,9 @@ export default function VerificationRequests() {
   const [documentLoading, setDocumentLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [feedback, setFeedback] = useState<string>(''); // Added feedback state
-  const [alertMessage, setAlertMessage] = useState<string | null>(null); // Added alert message state
-  const [alertType, setAlertType] = useState<'success' | 'error'>('success'); // Added alert type
+  const [feedback, setFeedback] = useState<string>(''); 
+  const [alertMessage, setAlertMessage] = useState<string | null>(null); 
+  const [alertType, setAlertType] = useState<'success' | 'error'>('success'); 
 
   useEffect(() => {
     fetchRequests();
@@ -55,7 +55,7 @@ export default function VerificationRequests() {
       setLoading(true);
       setError(null);
       
-      // Remove userId parameter to fetch all verification requests
+     
       const response = await fetch('/api/admin/skill-verification-requests');
       
       if (!response.ok) {
@@ -291,14 +291,14 @@ export default function VerificationRequests() {
 
       {/* Left side - Requests List */}
       <div className="w-1/2 p-6 overflow-y-auto border-r border-gray-200">
-        <h1 className="text-2xl font-bold mb-6">Skill Verification Requests</h1>
+        <h1 className="text-2xl text-black font-bold mb-6">Skill Verification Requests</h1>
         
         <div className="mb-6 space-y-4">
           <div className="relative">
             <input
               type="search"
               placeholder="Search by name, email, skill name..."
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -389,7 +389,7 @@ export default function VerificationRequests() {
                 key={request.id}
                 onClick={() => {
                   setSelectedRequest(request);
-                  setFeedback(request.feedback || ''); // Load feedback if exists
+                  setFeedback(request.feedback || ''); 
                 }}
                 className={`p-4 rounded-lg cursor-pointer transition-colors ${
                   selectedRequest?.id === request.id
@@ -397,7 +397,7 @@ export default function VerificationRequests() {
                     : 'bg-white hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex text-black items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
                       {request.user?.avatar ? (
@@ -441,7 +441,7 @@ export default function VerificationRequests() {
       {/* Right side - Request Details */}
       <div className="w-1/2 p-6">
         {selectedRequest ? (
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-white rounded-lg text-black shadow-sm p-6">
             <h2 className="text-xl font-semibold mb-6">Verification Request Details</h2>
             
             <div className="space-y-4">

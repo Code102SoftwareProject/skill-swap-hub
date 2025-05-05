@@ -1,7 +1,7 @@
 "use client";
 import {
     AlertTriangle,
-    HelpCircle,
+    Sparkles ,
     Lightbulb,
     Tag,
   } from "lucide-react";
@@ -20,7 +20,7 @@ import { ReactElement } from "react";
   // Category badge styles
   const categoryStyles: Record<string, string> = {
     issue: "bg-red-100 text-red-800",
-    question: "bg-blue-100 text-blue-800",
+    suggestion: "bg-blue-100 text-blue-800",
     "feature request": "bg-green-100 text-green-800",
     other: "bg-gray-100 text-gray-800",
   };
@@ -28,7 +28,7 @@ import { ReactElement } from "react";
   // Category icons
   const categoryIcons: Record<string, ReactElement> = {
     issue: <AlertTriangle className="w-4 h-4 mr-1" />,
-    question: <HelpCircle className="w-4 h-4 mr-1" />,
+    suggestion: <Sparkles  className="w-4 h-4 mr-1" />,
     "feature request": <Lightbulb className="w-4 h-4 mr-1" />,
     other: <Tag className="w-4 h-4 mr-1" />,
     default: <Tag className="w-4 h-4 mr-1" />,
