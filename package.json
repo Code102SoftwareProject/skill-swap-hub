@@ -17,6 +17,7 @@
     "@elastic/elasticsearch": "^8.17.0",
     "@fontsource/manrope": "^5.1.0",
     "@fontsource/roboto": "^5.1.0",
+    "@google-cloud/speech": "^7.0.1",
     "@google/generative-ai": "^0.24.0",
     "@headlessui/react": "^2.2.1",
     "@radix-ui/react-slot": "^1.1.1",
