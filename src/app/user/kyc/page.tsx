@@ -1,34 +1,29 @@
-"use client"; // Ensures this component runs on the client side
+"use client";
 
 import { useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode"; // Named import for decoding JWT
+import { jwtDecode } from "jwt-decode";
 
-// Constants for API endpoints
 const API_ENDPOINTS = {
   FILE_UPLOAD: "/api/file/upload",
   KYC_SUBMISSION: "/api/kyc",
 };
 
-// Constants for file types and formats
 const FILE_TYPES = {
   NIC_DOCUMENT: ".pdf,.jpg,.jpeg,.png",
   PERSON_PHOTO: ".jpg,.jpeg,.png",
 };
 
-// File validation constraints
 const FILE_CONSTRAINTS = {
   MAX_SIZE_MB: 2,
-  MAX_SIZE_BYTES: 2 * 1024 * 1024, // 2MB in bytes
+  MAX_SIZE_BYTES: 2 * 1024 * 1024,
   ALLOWED_TYPES: ["image/jpeg", "image/jpg", "image/png", "application/pdf"],
 };
 
-// Constants for validation patterns
 const NIC_PATTERNS = {
   OLD_NIC: /^[0-9]{9}[VvXx]$/,
   NEW_NIC: /^[0-9]{12}$/,
 };
 
-// Constants for error and info messages
 const MESSAGES = {
   NIC_FORMAT_ERROR:
     "Invalid NIC format. Please enter either 9 digits followed by V/X or 12 digits",
@@ -48,16 +43,13 @@ const MESSAGES = {
   FILE_VALIDATION: "Files must be under 2MB and in PDF or image format",
 };
 
-// Add this with your other constants
 const FIELD_NAMES = {
   NIC_FILE: "nicFile" as const,
   NIC_WITH_PERSON_FILE: "nicWithPersonFile" as const,
 };
 
-// Type derived from the constants
 type FieldName = (typeof FIELD_NAMES)[keyof typeof FIELD_NAMES];
 
-// Form field labels and placeholders
 const FORM_LABELS = {
   TITLE: "NIC Document Upload",
   USERNAME: "Username",
@@ -68,7 +60,6 @@ const FORM_LABELS = {
   UPLOADING: "Uploading...",
 };
 
-// Define a type to represent the decoded JWT payload
 type DecodedToken = {
   username?: string;
   email?: string;
@@ -76,32 +67,27 @@ type DecodedToken = {
   [key: string]: any;
 };
 
-// File validation error type
 type FileValidationError = {
   message: string;
   field: FieldName | null;
 };
 
-// API error response structure
 type ApiErrorResponse = {
   error?: string;
   message?: string;
   status?: number;
 };
 
-// Extended Error type for better TypeScript support
 interface ExtendedError extends Error {
   field?: FieldName;
 }
 
-// Define the form state type
 type KYCFormState = {
   nic: string;
   nicFile: File | null;
   nicWithPersonFile: File | null;
 };
 
-// Initial form state
 const initialFormState: KYCFormState = {
   nic: "",
   nicFile: null,
@@ -109,28 +95,16 @@ const initialFormState: KYCFormState = {
 };
 
 export default function KYCForm() {
-  // State for username
   const [username, setUsername] = useState("");
-
-  // State for NIC validation error
   const [nicError, setNicError] = useState<string | null>(null);
-
-  // State for file validation errors
   const [fileError, setFileError] = useState<FileValidationError | null>(null);
-
-  // Loading state for upload feedback
   const [uploading, setUploading] = useState(false);
-
-  // Status message for feedback
   const [status, setStatus] = useState<{
     message: string;
     isError: boolean;
   } | null>(null);
-
-  // In your component
   const [formState, setFormState] = useState<KYCFormState>(initialFormState);
 
-  // Update state with a setter method
   const updateField = <K extends keyof KYCFormState>(
     field: K,
     value: KYCFormState[K]
@@ -138,13 +112,11 @@ export default function KYCForm() {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
-  // Reset form by returning to initial state
   const resetForm = () => {
     setFormState(initialFormState);
     setFileError(null);
     setNicError(null);
 
-    // Reset file inputs
     const fileInputs = document.querySelectorAll(
       'input[type="file"]'
     ) as NodeListOf<HTMLInputElement>;
@@ -153,7 +125,6 @@ export default function KYCForm() {
     });
   };
 
-  // Automatically extract and set the username from the JWT (stored in localStorage)
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -167,19 +138,11 @@ export default function KYCForm() {
     }
   }, []);
 
-  /**
-   * Validates if a file meets the required size and type constraints
-   *
-   * @param {File} file - The file to validate
-   * @returns {string|null} Error message if invalid, null if valid
-   */
   const validateFile = (file: File): string | null => {
-    // Check file size
     if (file.size > FILE_CONSTRAINTS.MAX_SIZE_BYTES) {
       return MESSAGES.FILE_SIZE_ERROR;
     }
 
-    // Check file type
     if (!FILE_CONSTRAINTS.ALLOWED_TYPES.includes(file.type)) {
       return MESSAGES.FILE_TYPE_ERROR;
     }
@@ -187,12 +150,6 @@ export default function KYCForm() {
     return null;
   };
 
-  /**
-   * Validates if the provided NIC number matches Sri Lankan NIC format
-   *
-   * @param {string} nicNumber - The National Identity Card number to validate
-   * @returns {boolean} True if the NIC format is valid, false otherwise
-   */
   const validateNIC = (nicNumber: string): boolean => {
     return (
       NIC_PATTERNS.OLD_NIC.test(nicNumber) ||
@@ -200,7 +157,6 @@ export default function KYCForm() {
     );
   };
 
-  // Handle NIC input change with validation
   const handleNicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nicValue = e.target.value;
     updateField("nic", nicValue);
@@ -212,7 +168,6 @@ export default function KYCForm() {
     }
   };
 
-  // Handle NIC document file selection with validation
   const handleNicFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileError(null);
     const file = e.target.files?.[0] || null;
@@ -230,7 +185,6 @@ export default function KYCForm() {
     updateField("nicFile", file);
   };
 
-  // Handle person with NIC photo file selection with validation
   const handlePersonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFileError(null);
     const file = e.target.files?.[0] || null;
@@ -243,7 +197,7 @@ export default function KYCForm() {
           field: FIELD_NAMES.NIC_WITH_PERSON_FILE,
         });
         updateField("nicWithPersonFile", null);
-        e.target.value = ""; // Reset file input
+        e.target.value = "";
         return;
       }
     }
@@ -251,15 +205,6 @@ export default function KYCForm() {
     updateField("nicWithPersonFile", file);
   };
 
-  /**
-   * Handles file upload to the server
-   *
-   * @param {File} file - The file to upload
-   * @param {string} errorMessage - The error message to show if upload fails
-   * @param {string} field - The field name to help with error handling
-   * @returns {Promise<{url: string}>} Object containing the uploaded file URL
-   * @throws {Error} Throws an error if upload fails
-   */
   const uploadFile = async (
     file: File,
     errorMessage: string,
@@ -279,7 +224,6 @@ export default function KYCForm() {
         errorData.error || errorData.message || errorMessage
       ) as ExtendedError;
 
-      // Add the field information to help with error handling
       if (field) {
         error.field = field;
       }
@@ -290,12 +234,6 @@ export default function KYCForm() {
     return await response.json();
   };
 
-  /**
-   * Checks if an error is related to file upload with field information
-   *
-   * @param error The error to check
-   * @returns Whether the error has field information
-   */
   const isFileUploadError = (error: unknown): error is ExtendedError => {
     return (
       error instanceof Error &&
@@ -304,17 +242,10 @@ export default function KYCForm() {
     );
   };
 
-  /**
-   * Handles the form submission for KYC document upload
-   *
-   * @param {React.FormEvent} e - The form submission event
-   * @returns {Promise<void>} Promise representing the async form submission process
-   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFileError(null);
 
-    // Basic form validation
     if (
       !username.trim() ||
       !formState.nic.trim() ||
@@ -328,13 +259,11 @@ export default function KYCForm() {
       return;
     }
 
-    // Validate NIC format before submission
     if (!validateNIC(formState.nic)) {
       setStatus({ message: MESSAGES.INVALID_NIC, isError: true });
       return;
     }
 
-    // Revalidate files before submission
     const nicFileError = validateFile(formState.nicFile);
     if (nicFileError) {
       setFileError({ message: nicFileError, field: FIELD_NAMES.NIC_FILE });
@@ -357,7 +286,6 @@ export default function KYCForm() {
     let personUploadData;
 
     try {
-      // Upload both files using the helper function with field identifiers
       [nicUploadData, personUploadData] = await Promise.all([
         uploadFile(
           formState.nicFile,
@@ -371,7 +299,6 @@ export default function KYCForm() {
         ),
       ]);
 
-      // KYC submission code...
       const kycResponse = await fetch(API_ENDPOINTS.KYC_SUBMISSION, {
         method: "POST",
         headers: {
@@ -394,31 +321,26 @@ export default function KYCForm() {
 
       await kycResponse.json();
 
-      // Success handling...
       setStatus({
         message: MESSAGES.SUCCESS,
         isError: false,
       });
 
-      // Clear form data...
       resetForm();
     } catch (err: unknown) {
       console.error("KYC submission error:", err);
 
       if (isFileUploadError(err)) {
-        // Handle file-specific errors
         setFileError({
           message: err.message,
           field: err.field || null,
         });
       } else if (err instanceof Error) {
-        // Handle general errors
         setStatus({
           message: err.message || MESSAGES.KYC_SUBMISSION_FAILED,
           isError: true,
         });
       } else {
-        // Handle unknown errors
         setStatus({
           message: MESSAGES.GENERIC_ERROR,
           isError: true,
@@ -432,7 +354,6 @@ export default function KYCForm() {
   return (
     <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* Left side image */}
         <div className="md:w-1/2 hidden md:block">
           <img
             src="/kyc.png"
@@ -441,7 +362,6 @@ export default function KYCForm() {
           />
         </div>
 
-        {/* Right side form */}
         <div className="bg-white p-4 max-w-md w-full py-16">
           <form
             onSubmit={handleSubmit}
@@ -452,7 +372,6 @@ export default function KYCForm() {
               {FORM_LABELS.TITLE}
             </h2>
 
-            {/* Username field (autofilled from JWT) */}
             <div>
               <label
                 htmlFor="username"
@@ -471,7 +390,6 @@ export default function KYCForm() {
               />
             </div>
 
-            {/* NIC number input with validation */}
             <div>
               <label
                 htmlFor="nic"
@@ -505,7 +423,6 @@ export default function KYCForm() {
               </p>
             </div>
 
-            {/* NIC Document upload input */}
             <div>
               <label
                 htmlFor="nicFile"
@@ -537,7 +454,6 @@ export default function KYCForm() {
               </p>
             </div>
 
-            {/* Photo of person holding both sides of NIC */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 {FORM_LABELS.PERSON_PHOTO}
@@ -557,7 +473,6 @@ export default function KYCForm() {
               </p>
             </div>
 
-            {/* Submit button */}
             <button
               type="submit"
               className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
@@ -567,7 +482,6 @@ export default function KYCForm() {
               {uploading ? FORM_LABELS.UPLOADING : FORM_LABELS.SUBMIT}
             </button>
 
-            {/* Status message */}
             {status && (
               <div
                 className={`mt-4 p-3 rounded ${status.isError ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}
