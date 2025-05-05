@@ -22,20 +22,38 @@ export default function AdminLoginPage() {
       return;
     }
 
+    console.log("Attempting login with:", { username }); // Debug log
+
     // Call our custom API route
     try {
+      console.log("Sending request to /api/admin/login"); // Debug log
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
+        // Important: include credentials to ensure cookies are sent with the request
+        credentials: "include",
       });
 
       const data = await res.json();
+      console.log("Response status:", res.status); // Debug log
+      console.log("Response data:", data); // Debug log
 
       if (!res.ok) {
         setError(data.message || "Login failed");
       } else {
-        router.push("/admin/dashboard"); //  Redirect after login
+        // Instead of setTimeout, use router.refresh() before redirecting
+        // This ensures Next.js updates its state with the new cookie
+        console.log("Login successful! Redirecting to dashboard...");
+
+        try {
+          router.refresh(); // Refresh the current route
+          router.push("/admin/dashboard"); // Redirect to dashboard
+        } catch (navError) {
+          console.error("Navigation error:", navError);
+          // Fallback to window.location if router.push fails
+          window.location.href = "/admin/dashboard";
+        }
       }
     } catch (err) {
       console.error("Login error:", err);
