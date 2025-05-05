@@ -1,18 +1,79 @@
-import { NextResponse } from "next/server";
-import connect from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 import Session from "@/lib/models/sessionSchema";
 import SessionProgress from "@/lib/models/sessionProgressSchema";
-import mongoose from "mongoose";
+import connect from "@/lib/db";
 
-/**
- * Creates a new skill exchange session between two users
- * 
- * @param req - The HTTP request object containing session details in the body
- * @returns JSON response with the newly created session details
- */
-export async function POST(req:Request){
+export async function GET(request: NextRequest) {
   try {
-    const body = await req.json();
+    await connect();
+    
+    // Get the userId from query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    
+    if (!userId) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "userId is required" 
+      }, { status: 400 });
+    }
+    
+    // Find all sessions where the user is either user1 or user2
+    const sessions = await Session.find({
+      $or: [
+        { user1Id: userId },
+        { user2Id: userId }
+      ]
+    })
+    .populate("progress1")
+    .populate("progress2")
+    .populate("skill1Id", "skillTitle categoryName")
+    .populate("skill2Id", "skillTitle categoryName")
+    .sort({ createdAt: -1 }); // Latest first
+    
+    return NextResponse.json({ 
+      success: true, 
+      sessions 
+    });
+    
+  } catch (error: any) {
+    return NextResponse.json({ 
+      success: false, 
+      message: error.message 
+    }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    // Connect to database
+    try {
+      await connect();
+    } catch (dbError: any) {
+      // This likely won't happen since you're seeing "DB already connected"
+      console.error("Database connection error:", dbError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Database connection failed", 
+        details: dbError.message 
+      }, { status: 500 });
+    }
+    
+    // Parse request body
+    let body;
+    try {
+      body = await request.json();
+      console.log("Received request body:", JSON.stringify(body, null, 2));
+    } catch (parseError: any) {
+      console.error("Request parsing error:", parseError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Invalid request format", 
+        details: parseError.message 
+      }, { status: 400 });
+    }
+    
+    // Validate required fields and data types
     const {
       user1Id,
       skill1Id,
@@ -20,137 +81,149 @@ export async function POST(req:Request){
       user2Id,
       skill2Id,
       descriptionOfService2,
-      startDate,
       dueDateUser1,
       dueDateUser2,
     } = body;
-    
-    // Validate required fields
-    if (!user1Id || !skill1Id || !descriptionOfService1 || 
-        !user2Id || !skill2Id || !descriptionOfService2) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Missing required fields" 
-      }, { status: 400 });
-    }
-    
-    // Connect to database
-    await connect();
-    
-    // Create the new session
-    const newSession = new Session({
+
+    // Log all the extracted fields for debugging
+    console.log("Extracted fields:", {
       user1Id,
       skill1Id,
-      descriptionOfService1,
+      descriptionOfService1, 
       user2Id,
       skill2Id,
       descriptionOfService2,
-      startDate,
-      isAccepted: false,
-      status: "active"
+      dueDateUser1,
+      dueDateUser2
     });
-    
-    const savedSession = await newSession.save();
-    
-    const user1Progress = new SessionProgress({
-      userId: user1Id,
-      sessionId: savedSession._id,
-      completionPercentage: 0,
-      status: "not_started",
-      
-      dueDate:dueDateUser1
-    });
-    
-    const user2Progress = new SessionProgress({
-      userId: user2Id,
-      sessionId: savedSession._id,
-      completionPercentage: 0,
-      status: "not_started",
-      dueDate:dueDateUser2
-    });
-    
-    const [savedProgress1, savedProgress2] = await Promise.all([
-      user1Progress.save(),
-      user2Progress.save()
-    ]);
-    
-    savedSession.progress1 = savedProgress1._id;
-    savedSession.progress2 = savedProgress2._id;
-    await savedSession.save();
-    
-    return NextResponse.json({
-      success: true,
-      session: savedSession,
-      progress: {
-        user1: savedProgress1,
-        user2: savedProgress2
-      }
-    }, { status: 201 });
-    
-  } catch(error) {
-    console.error("Error creating session:", error);
-    return NextResponse.json({
-      success: false,
-      message: "Failed to create session",
-      error: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
-  }
-}
 
-/**
- * Retrieves all sessions for a specific user
- * 
- * @param req - The HTTP request object with userId as query parameter
- * @returns JSON response with the user's sessions
- */
-export async function GET(req: Request) {
-  try {
-    // Get the user ID from the URL query parameters
-    const url = new URL(req.url);
-    const userId = url.searchParams.get('userId');
-
-    // Check if userId is provided
-    if (!userId) {
+    // Check for missing required fields
+    const missingFields = [];
+    if (!user1Id) missingFields.push('user1Id');
+    if (!skill1Id) missingFields.push('skill1Id');
+    if (!descriptionOfService1) missingFields.push('descriptionOfService1');
+    if (!user2Id) missingFields.push('user2Id');
+    if (!skill2Id) missingFields.push('skill2Id'); 
+    if (!descriptionOfService2) missingFields.push('descriptionOfService2');
+    if (!dueDateUser1) missingFields.push('dueDateUser1');
+    if (!dueDateUser2) missingFields.push('dueDateUser2');
+    
+    if (missingFields.length > 0) {
+      console.log("Missing fields detected:", missingFields);
       return NextResponse.json({
         success: false,
-        message: "User ID is required"
+        error: "Missing required fields",
+        missingFields,
+        receivedData: body // Include the received data in the error
       }, { status: 400 });
     }
 
-    // Connect to database
-    await connect();
-
-    // Ensure the userId is converted to a valid ObjectId
-    const objectId = new mongoose.Types.ObjectId(userId);
-
-    // Find all sessions where the user ID matches either user1Id or user2Id
-    const sessions = await Session.find({
-      $or: [
-        { user1Id: objectId },
-        { user2Id: objectId }
-      ]
-    }).populate([
-      { path: 'skill1Id', select: 'name level' },
-      { path: 'skill2Id', select: 'name level' },
-      { path: 'user1Id', select: 'name profileImage' },
-      { path: 'user2Id', select: 'name profileImage' },
-      { path: 'progress1', model: 'SessionProgress' },
-      { path: 'progress2', model: 'SessionProgress' }
-    ]);
-
-    return NextResponse.json({
-      success: true,
-      sessions,
-      count: sessions.length
-    }, { status: 200 });
+    const today = new Date();
     
-  } catch(error) {
-    console.error("Error fetching sessions:", error);
-    return NextResponse.json({
-      success: false,
-      message: "Failed to fetch sessions",
-      error: error instanceof Error ? error.message : String(error)
+    // Create the session
+    let newSession;
+    try {
+      newSession = await Session.create({
+        user1Id,
+        skill1Id,
+        descriptionOfService1,
+        user2Id,
+        skill2Id,
+        descriptionOfService2,
+        startDate: today,
+        isAccepted: null,
+        isAmmended: false,
+        status: "active"
+      });
+    } catch (sessionError: any) {
+      console.error("Session creation error:", sessionError);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Failed to create session", 
+        details: sessionError.message 
+      }, { status: 500 });
+    }
+    
+    // Create progress for user1
+    let progress1;
+    try {
+      progress1 = await SessionProgress.create({
+        userId: user1Id,
+        sessionId: newSession._id,
+        startDate: today,
+        dueDate: new Date(dueDateUser1),
+        completionPercentage: 0,
+        status: "not_started"
+      });
+    } catch (progress1Error: any) {
+      console.error("Progress1 creation error:", progress1Error);
+      // Clean up the session we already created
+      await Session.findByIdAndDelete(newSession._id);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Failed to create progress for user1", 
+        details: progress1Error.message 
+      }, { status: 500 });
+    }
+    
+    // Create progress for user2
+    let progress2;
+    try {
+      progress2 = await SessionProgress.create({
+        userId: user2Id,
+        sessionId: newSession._id,
+        startDate: today,
+        dueDate: new Date(dueDateUser2),
+        completionPercentage: 0,
+        status: "not_started"
+      });
+    } catch (progress2Error: any) {
+      console.error("Progress2 creation error:", progress2Error);
+      // Clean up resources we already created
+      await Session.findByIdAndDelete(newSession._id);
+      await SessionProgress.findByIdAndDelete(progress1._id);
+      return NextResponse.json({ 
+        success: false, 
+        error: "Failed to create progress for user2", 
+        details: progress2Error.message 
+      }, { status: 500 });
+    }
+    
+    // Update session with progress references
+    let updatedSession;
+    try {
+      updatedSession = await Session.findByIdAndUpdate(
+        newSession._id,
+        {
+          progress1: progress1._id,
+          progress2: progress2._id
+        },
+        { new: true }
+      );
+    } catch (updateError: any) {
+      console.error("Session update error:", updateError);
+      // We'll still return success since the core resources were created
+      // but with a warning that linking might have failed
+      return NextResponse.json({ 
+        success: true, 
+        warning: "Session created but progress linking may have failed",
+        details: updateError.message,
+        session: newSession
+      });
+    }
+    
+    return NextResponse.json({ 
+      success: true, 
+      session: updatedSession
+    });
+    
+  } catch (error: any) {
+    console.error("Unexpected error in POST /api/sessions:", error);
+    return NextResponse.json({ 
+      success: false, 
+      error: "An unexpected error occurred", 
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     }, { status: 500 });
   }
 }
-

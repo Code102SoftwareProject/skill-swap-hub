@@ -1,28 +1,25 @@
-import Session from '@/types/session';
+/**
+ * API services for handling session-related operations
+ */
 
 /**
- * Fetches all sessions for a specific user
+ * Interface for creating a session
  */
-export const fetchSessions = async (userId: string): Promise<Session[]> => {
-  try {
-    const response = await fetch(`/api/sessions?userId=${userId}`);
-    const data = await response.json();
-
-    if (!data.success) {
-      throw new Error(data.message || 'Failed to fetch sessions');
-    }
-
-    return data.sessions;
-  } catch (error) {
-    console.error('Error fetching sessions:', error);
-    throw error;
-  }
-};
+interface CreateSessionData {
+  user1Id: string;
+  skill1Id: string;
+  descriptionOfService1: string;
+  user2Id: string;
+  skill2Id: string;
+  descriptionOfService2: string;
+  dueDateUser1: string;
+  dueDateUser2: string;
+}
 
 /**
- * Creates a new session between users
+ * Create a new skill exchange session
  */
-export const createSession = async (sessionData: any): Promise<Session> => {
+export async function createSession(sessionData: CreateSessionData) {
   try {
     const response = await fetch('/api/sessions', {
       method: 'POST',
@@ -31,39 +28,55 @@ export const createSession = async (sessionData: any): Promise<Session> => {
       },
       body: JSON.stringify(sessionData),
     });
-    
+
     const data = await response.json();
     
-    if (!data.success) {
+    if (!response.ok) {
       throw new Error(data.message || 'Failed to create session');
     }
     
-    return data.session;
+    return data;
   } catch (error) {
     console.error('Error creating session:', error);
     throw error;
   }
-};
+}
 
 /**
- * Updates session acceptance status
+ * Get all sessions for a user
  */
-export const updateSessionStatus = async (sessionId: string, isAccepted: boolean): Promise<Session> => {
+export async function getUserSessions(userId: string) {
   try {
-    const response = await fetch(`/api/sessions/status`, {
+    const response = await fetch(`/api/sessions?userId=${userId}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to fetch sessions');
+    }
+    
+    return data.sessions;
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update session status (accept/reject)
+ */
+export async function updateSessionStatus(sessionId: string, isAccepted: boolean) {
+  try {
+    const response = await fetch(`/api/sessions/${sessionId}/status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        sessionId,
-        isAccepted
-      }),
+      body: JSON.stringify({ isAccepted }),
     });
     
     const data = await response.json();
     
-    if (!data.success) {
+    if (!response.ok) {
       throw new Error(data.message || 'Failed to update session status');
     }
     
@@ -72,14 +85,14 @@ export const updateSessionStatus = async (sessionId: string, isAccepted: boolean
     console.error('Error updating session status:', error);
     throw error;
   }
-};
+}
 
 /**
- * Updates session progress
+ * Update session progress
  */
-export const updateSessionProgress = async (progressId: string, updateData: any): Promise<any> => {
+export async function updateSessionProgress(progressId: string, updateData: any) {
   try {
-    const response = await fetch(`/api/sessions/progress?progressId=${progressId}`, {
+    const response = await fetch(`/api/sessions/progress/${progressId}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -89,7 +102,7 @@ export const updateSessionProgress = async (progressId: string, updateData: any)
     
     const data = await response.json();
     
-    if (!data.success) {
+    if (!response.ok) {
       throw new Error(data.message || 'Failed to update session progress');
     }
     
@@ -98,4 +111,4 @@ export const updateSessionProgress = async (progressId: string, updateData: any)
     console.error('Error updating session progress:', error);
     throw error;
   }
-};
+}
