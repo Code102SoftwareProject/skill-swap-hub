@@ -1,72 +1,78 @@
-"use client"; // ✅ Required because we use client-side hooks
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Constants for API endpoints and error messages
+const LOGIN_API_URL = "/api/admin/login";
+const DASHBOARD_URL = "/admin/dashboard";
+const ERROR_MESSAGES = {
+  EMPTY_FIELDS: "Please fill in all fields.",
+  LOGIN_FAILED: "Login failed",
+  GENERAL_ERROR: "Something went wrong. Please try again.",
+};
+
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  //  State hooks to handle input and errors
+  // State management for form inputs and UI controls
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  //  Form submission handler
+  /**
+   * Handles the login form submission
+   * - Validates form inputs
+   * - Sends authentication request to server
+   * - Handles navigation on success
+   */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    //  Basic validation
+    // Form validation
     if (!username || !password) {
-      setError("Please fill in all fields.");
+      setError(ERROR_MESSAGES.EMPTY_FIELDS);
       return;
     }
 
-    console.log("Attempting login with:", { username }); // Debug log
-
-    // Call our custom API route
     try {
-      console.log("Sending request to /api/admin/login"); // Debug log
-      const res = await fetch("/api/admin/login", {
+      // Send login request to the server
+      const res = await fetch(LOGIN_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),
-        // Important: include credentials to ensure cookies are sent with the request
-        credentials: "include",
+        credentials: "include", // Include cookies for session management
       });
 
       const data = await res.json();
-      console.log("Response status:", res.status); // Debug log
-      console.log("Response data:", data); // Debug log
 
       if (!res.ok) {
-        setError(data.message || "Login failed");
+        // Handle authentication failure
+        setError(data.message || ERROR_MESSAGES.LOGIN_FAILED);
       } else {
-        // Instead of setTimeout, use router.refresh() before redirecting
-        // This ensures Next.js updates its state with the new cookie
-        console.log("Login successful! Redirecting to dashboard...");
-
+        // Handle successful login with fallback navigation
         try {
-          router.refresh(); // Refresh the current route
-          router.push("/admin/dashboard"); // Redirect to dashboard
+          router.refresh(); // Refresh current page data
+          router.push(DASHBOARD_URL); // Navigate to dashboard
         } catch (navError) {
-          console.error("Navigation error:", navError);
-          // Fallback to window.location if router.push fails
-          window.location.href = "/admin/dashboard";
+          // Fallback navigation method if router.push fails
+          window.location.href = DASHBOARD_URL;
         }
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError("Something went wrong. Please try again.");
+      // Handle network or other unexpected errors
+      setError(ERROR_MESSAGES.GENERAL_ERROR);
     }
   };
 
   return (
     <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
+      {/* Login card container with responsive layout */}
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
-        {/* 📷 Left side image */}
+        {/* Left side image - hidden on mobile */}
         <div className="md:w-1/2 hidden md:block">
           <img
             src="/login.jpg"
@@ -75,14 +81,14 @@ export default function AdminLoginPage() {
           />
         </div>
 
-        {/* 📝 Right side form */}
+        {/* Right side login form */}
         <div className="md:w-1/2 w-full p-8">
           <h2 className="text-2xl font-semibold mb-6 text-center">
             Admin Login
           </h2>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {/* 🧑 Username Field */}
+            {/* Username input field */}
             <div>
               <label
                 htmlFor="username"
@@ -103,7 +109,7 @@ export default function AdminLoginPage() {
               />
             </div>
 
-            {/* 🔒 Password Field */}
+            {/* Password input field with visibility toggle */}
             <div>
               <label
                 htmlFor="password"
@@ -123,6 +129,7 @@ export default function AdminLoginPage() {
                   autoComplete="current-password"
                   required
                 />
+                {/* Password visibility toggle button */}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
@@ -168,7 +175,7 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* 🔘 Remember Me */}
+            {/* Remember me checkbox */}
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -178,23 +185,16 @@ export default function AdminLoginPage() {
               <span className="text-sm text-gray-600">Remember me</span>
             </label>
 
-            {/* ❌ Error Message */}
+            {/* Error message display */}
             {error && <div className="text-red-500 text-sm">{error}</div>}
 
-            {/* 🚀 Submit Button */}
+            {/* Login button */}
             <button
               type="submit"
               className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition"
             >
               Login
             </button>
-
-            {/* 🧾 Forget Password Link */}
-            <div className="text-right text-sm mt-2">
-              <a href="#" className="text-blue-600 hover:underline">
-                Forgot password?
-              </a>
-            </div>
           </form>
         </div>
       </div>
