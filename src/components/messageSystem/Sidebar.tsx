@@ -2,10 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { IChatRoom } from "@/types/chat";
-import { BsPerson } from 'react-icons/bs'
-import { BsSearch } from 'react-icons/bs'
+import { User, Search } from 'lucide-react';
 import { fetchUserChatRooms, fetchUserProfile } from "@/services/chatApiServices";
-import { decryptMessage } from "@/lib/messageEncryption/encryption";
+
 
 interface SidebarProps {
   userId: string;
@@ -15,7 +14,7 @@ interface SidebarProps {
 interface UserProfile {
   firstName: string;
   lastName: string;
-  avatar?: string;
+  avatar?: string;// TODO:Make it display Profile Pic
 }
 
 /**
@@ -23,7 +22,7 @@ interface UserProfile {
  * 
  * @param {string} userId - The ID of the current authenticated user
  * @param {function} onChatSelect - Callback function that's triggered when a chat room is selected
- * @returns {JSX.Element} The rendered sidebar component with chat list and search functionality
+ * @returns {TSX.Element} The rendered sidebar component with chat list and search functionality
  */
 export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
@@ -61,7 +60,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
    * @returns {Promise<void>}
    */
   async function fetchUserProfiles() {
-    // Extract unique participant IDs (excluding current user)
+    // Extract unique participant IDs excepts Me
     const uniqueUserIds = new Set<string>();
     chatRooms.forEach(chat => {
       chat.participants.forEach(participantId => {
@@ -91,7 +90,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
           }));
         }
       } catch (err) {
-        // Silent failure - we'll use fallback values
+        //
       }
     }
   }
@@ -141,7 +140,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
       {/* Search input with icon */}
       <div className="mb-4 relative bg-primary">
         <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-          <BsSearch className="text-bgcolor" />
+          <Search className="text-bgcolor" />
         </div>
         <input
           type="text"
@@ -191,7 +190,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
                 })}
               >
                 <div className="flex flex- items-center space-x-2">
-                  <BsPerson className="text-2xl"/>
+                  <User className="text-2xl"/>
                   <div className="flex flex-col">
                     <span>{otherParticipantName}</span>
                     <span className="text-sm text-gray-400">{lastMessage}</span>
