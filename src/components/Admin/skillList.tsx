@@ -297,17 +297,17 @@ const SkillLists = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl text-black font-bold mb-6">Skill Categories Manager</h1>
+      <h1 className="text-3xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-700">Skill Categories Manager</h1>
 
       {/* Status messages */}
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md mb-6 animate-pulse">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+        <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded shadow-md mb-6 animate-pulse">
           {success}
         </div>
       )}
@@ -315,8 +315,10 @@ const SkillLists = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
           {/* Add new category form */}
-          <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-            <h2 className="text-2xl text-black font-semibold mb-4">Add New Category</h2>
+          <div className="bg-white shadow-lg rounded-lg p-6 mb-8 border-t-4 border-blue-500 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-2xl text-black font-semibold mb-4 flex items-center">
+              <span className="mr-2">🏷️</span> Add New Category
+            </h2>
             <form onSubmit={createCategory}>
               <div className="mb-4">
                 <label htmlFor="categoryName" className="block text-gray-700 font-medium mb-2">
@@ -327,57 +329,65 @@ const SkillLists = () => {
                   id="categoryName"
                   value={newCategory.categoryName}
                   onChange={(e) => setNewCategory({categoryName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
               <button
                 type="submit"
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-md"
+                className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium flex items-center"
                 disabled={loading}
               >
-                {loading ? 'Adding...' : 'Add Category'}
+                {loading ? 'Adding...' : '+ Add Category'}
               </button>
             </form>
           </div>
 
           {/* Add skills to category form */}
-          <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-            <h2 className="text-2xl text-black font-semibold mb-4">Add Skills to Category</h2>
+          <div className="bg-white shadow-lg rounded-lg p-6 mb-8 border-t-4 border-green-500 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-2xl text-black font-semibold mb-4 flex items-center">
+              <span className="mr-2">🔧</span> Add Skills to Category
+            </h2>
             {!selectedCategory ? (
-              <p className="text-gray-600">Select a category from the list on the right to add skills</p>
+              <p className="text-gray-600 p-3 bg-gray-50 rounded-lg border border-gray-200 italic">Select a category from the list to add skills</p>
             ) : (
               <>
-                <div className="mb-4">
-                  <h3 className="font-medium text-lg">Selected Category: <span className="font-bold">{selectedCategory.categoryName}</span></h3>
+                <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
+                  <h3 className="font-medium text-lg">Selected Category: <span className="font-bold text-green-700">{selectedCategory.categoryName}</span></h3>
                 </div>
                 <form onSubmit={addSkillsToCategory}>
                   <div className="mb-4">
-                    <label htmlFor="skills" className="block text-gray-700 font-medium mb-2">
+                    <label htmlFor="skills" className=" text-gray-700 font-medium mb-2 flex items-center">
+                      <svg className="w-4 h-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                      </svg>
                       Skills (comma-separated)
                     </label>
                     <textarea
                       id="skills"
                       value={newSkill.skills}
                       onChange={(e) => setNewSkill({skills: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 h-32"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 h-32"
+                      placeholder="e.g. JavaScript, React, Node.js"
                       required
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md"
-                    disabled={loading}
-                  >
-                    {loading ? 'Adding...' : 'Add Skills'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory(null)}
-                    className="ml-2 bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md"
-                  >
-                    Cancel Selection
-                  </button>
+                  <div className="flex space-x-3">
+                    <button
+                      type="submit"
+                      className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white py-2 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium flex items-center"
+                      disabled={loading}
+                    >
+                      {loading ? 'Adding...' : '+ Add Skills'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory(null)}
+                      className="bg-gray-100 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors duration-200 border border-gray-300"
+                    >
+                      Cancel Selection
+                    </button>
+                  </div>
                 </form>
               </>
             )}
@@ -387,8 +397,10 @@ const SkillLists = () => {
         <div>
           {/* Edit category name form */}
           {editingSkillList && (
-            <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-              <h2 className="text-2xl text-black font-semibold mb-4">Edit Category Name</h2>
+            <div className="bg-white shadow-lg rounded-lg p-6 mb-8 border-t-4 border-blue-400 hover:shadow-xl transition-shadow duration-300">
+              <h2 className="text-2xl text-black font-semibold mb-4 flex items-center">
+                <span className="mr-2">✏️</span> Edit Category Name
+              </h2>
               <form onSubmit={updateCategoryName}>
                 <div className="mb-4">
                   <label htmlFor="editCategoryName" className="block text-gray-700 font-medium mb-2">
@@ -399,14 +411,14 @@ const SkillLists = () => {
                     id="editCategoryName"
                     value={updateForm.categoryName}
                     onChange={(e) => setUpdateForm({...updateForm, categoryName: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     required
                   />
                 </div>
                 <div className="flex space-x-4">
                   <button
                     type="submit"
-                    className="bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-md"
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white py-2 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                     disabled={loading}
                   >
                     {loading ? 'Updating...' : 'Update Name'}
@@ -414,7 +426,7 @@ const SkillLists = () => {
                   <button
                     type="button"
                     onClick={cancelEditing}
-                    className="bg-gray-500 hover:bg-gray-600 text-white py-2 px-4 rounded-md"
+                    className="bg-gradient-to-r from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600 text-white py-2 px-5 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-medium"
                     disabled={loading}
                   >
                     Cancel
@@ -425,64 +437,92 @@ const SkillLists = () => {
           )}
 
           {/* Display skill lists */}
-          <div className="bg-white shadow-md rounded-lg p-6">
-            <h2 className="text-2xl text-black font-semibold mb-4">Categories</h2>
+          <div className="bg-white shadow-lg rounded-lg p-6 border-t-4 border-indigo-500 hover:shadow-xl transition-shadow duration-300">
+            <h2 className="text-2xl text-black font-semibold mb-6 flex items-center">
+              <span className="mr-2">📋</span> Categories
+            </h2>
             {loading && !skillLists.length ? (
-              <div className="text-center py-10">Loading categories...</div>
+              <div className="text-center py-10 animate-pulse">
+                <div className="inline-block p-4 rounded-full bg-blue-50">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </div>
+                <p className="mt-2 font-medium text-blue-600">Loading categories...</p>
+              </div>
             ) : !skillLists.length ? (
-              <div className="text-center py-10">No categories found. Create one!</div>
+              <div className="text-center py-10 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                <svg className="w-16 h-16 text-gray-400 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                </svg>
+                <p className="text-gray-600">No categories found. Create one!</p>
+              </div>
             ) : (
-              skillLists.map((skillList) => (
-                <div key={skillList._id} className="border-b border-gray-200 pb-4 mb-4 last:border-b-0 last:mb-0 last:pb-0">
-                  <div className="flex justify-between mb-2">
-                    <h3 className="text-xl text-black font-semibold">{skillList.categoryName}</h3>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleSelectCategory(skillList)}
-                        className={`${selectedCategory?.categoryId === skillList.categoryId ? 'text-green-700' : 'text-green-500 hover:text-green-700'}`}
-                      >
-                        {selectedCategory?.categoryId === skillList.categoryId ? 'Selected' : 'Select'}
-                      </button>
-                      <button
-                        onClick={() => setupUpdateForm(skillList)}
-                        className="text-blue-500 hover:text-blue-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => deleteSkillList(skillList.categoryId)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        Delete
-                      </button>
+              <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {skillLists.map((skillList) => (
+                  <div key={skillList._id} className="border border-gray-100 rounded-lg bg-white overflow-hidden hover:shadow-md transition-shadow duration-200">
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 flex justify-between items-center border-b border-gray-100">
+                      <h3 className="text-xl text-gray-800 font-semibold">{skillList.categoryName}</h3>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleSelectCategory(skillList)}
+                          className={`px-3 py-1 rounded-md ${
+                            selectedCategory?.categoryId === skillList.categoryId 
+                              ? 'bg-green-100 text-green-700 font-medium' 
+                              : 'bg-white border border-green-200 text-green-600 hover:bg-green-50'
+                          } transition-colors duration-150`}
+                        >
+                          {selectedCategory?.categoryId === skillList.categoryId ? 'Selected' : 'Select'}
+                        </button>
+                        <button
+                          onClick={() => setupUpdateForm(skillList)}
+                          className="px-3 py-1 rounded-md bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors duration-150"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => deleteSkillList(skillList.categoryId)}
+                          className="px-3 py-1 rounded-md bg-white border border-red-200 text-red-600 hover:bg-red-50 transition-colors duration-150"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      {skillList.skills.length > 0 ? (
+                        <div>
+                          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+                            <svg className="w-4 h-4 mr-1 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5z" clipRule="evenodd" />
+                            </svg>
+                            Skills:
+                          </h4>
+                          <ul className="flex flex-wrap gap-2">
+                            {skillList.skills.map((skill) => (
+                              <li 
+                                key={skill.skillId} 
+                                className="bg-gradient-to-r from-blue-50 to-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full text-sm flex items-center shadow-sm transition-all duration-200 hover:shadow-md hover:from-blue-100 hover:to-indigo-100 border border-indigo-100 transform hover:-translate-y-0.5"
+                              >
+                                {skill.name}
+                                <button 
+                                  onClick={() => removeSkill(skillList.categoryId, skill.skillId)}
+                                  className="ml-2 flex items-center justify-center w-5 h-5 rounded-full bg-red-100 text-red-500 hover:bg-red-200 hover:text-red-700 transition-colors duration-150"
+                                  title="Remove skill"
+                                >
+                                  ×
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <p className="text-gray-500 italic">No skills added yet</p>
+                      )}
                     </div>
                   </div>
-                  {skillList.skills.length > 0 ? (
-                    <div>
-                      <h4 className="font-medium text-gray-700 mb-2">Skills:</h4>
-                      <ul className="flex flex-wrap gap-2">
-                        {skillList.skills.map((skill) => (
-                          <li 
-                            key={skill.skillId} 
-                            className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm flex items-center"
-                          >
-                            {skill.name}
-                            <button 
-                              onClick={() => removeSkill(skillList.categoryId, skill.skillId)}
-                              className="ml-2 text-red-500 hover:text-red-700 font-bold"
-                              title="Remove skill"
-                            >
-                              ×
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic">No skills added yet</p>
-                  )}
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
