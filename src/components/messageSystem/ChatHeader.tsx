@@ -111,7 +111,7 @@ export default function ChatHeader({
         // ? Consider removing this log in production
         console.log('Parsed Date object:', parsedDate);
 
-        // ! Validate date is actually valid before setting state
+        // ! Validate date is actually valid 
         if (!isNaN(parsedDate.getTime())) {
           setLastOnline(parsedDate);
         } else {
@@ -119,7 +119,7 @@ export default function ChatHeader({
           setLastOnline(null);
         }
       } catch (parseError) {
-        // ! Error handling: Failed to parse date string
+        // !  Failed to parse date string
         console.error('Error parsing date with parseISO:', parseError);
         setLastOnline(null);
       }
@@ -135,6 +135,9 @@ export default function ChatHeader({
         fetchUserLastOnline(otherUserId);
       }
       if (socket) {
+        // ! ONLINE STATUS CHECK: Initial user load or reconnection
+        // * Triggers when otherUserId is first set or socket connection changes
+        // * Ensures we have online status immediately after identifying chat participant
         socket.emit("get_online_users");
       }
     }
@@ -143,6 +146,9 @@ export default function ChatHeader({
   useEffect(() => {
     if (!socket || !otherUserId) return;
 
+    // ! ONLINE STATUS CHECK: User identity change
+    // * Runs when current user ID changes or other user ID changes
+    // * Critical for maintaining accurate presence when user context changes
     socket.emit("get_online_users");
 
     const handleOnlineUsers = (users: string[]) => {
@@ -202,16 +208,9 @@ export default function ChatHeader({
   useEffect(() => {
     if (!socket || !otherUserId) return;
 
-    // Reset all status indicators when changing chats
-    setIsTyping(false);
-    setIsOnline(false);
-    setLastOnline(null);
-  }, [chatRoomId]);
-
-  useEffect(() => {
-    if (!socket || !otherUserId) return;
-
-    // Force re-check online status when chat changes
+    // ! ONLINE STATUS CHECK: Chat room change
+    // * Specifically triggers when user switches to a different conversation
+    // * Ensures fresh online status data when focusing on a new chat partner
     socket.emit("get_online_users");
 
     const handleUserTyping = (data: { userId: string, chatRoomId: string }) => {
