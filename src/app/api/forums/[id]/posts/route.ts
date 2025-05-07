@@ -54,6 +54,10 @@ export async function GET(request: NextRequest) {
 
 // POST handler for creating new posts
 export async function POST(request: NextRequest) {
+  // Use a session to ensure both operations (post creation and forum update) succeed or fail together
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     // Extract the forum ID from the URL path
     const url = request.url;
@@ -71,8 +75,10 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     
     // Check if forum exists
-    const forum = await Forum.findById(forumId);
+    const forum = await Forum.findById(forumId).session(session);
     if (!forum) {
+      await session.abortTransaction();
+      session.endSession();
       return NextResponse.json(
         { error: 'Forum not found' },
         { status: 404 }
@@ -83,6 +89,8 @@ export async function POST(request: NextRequest) {
     
     // Validate request body
     if (!data.title || !data.content) {
+      await session.abortTransaction();
+      session.endSession();
       return NextResponse.json(
         { error: 'Title and content are required' },
         { status: 400 }
@@ -108,13 +116,32 @@ export async function POST(request: NextRequest) {
       replies: 0
     });
     
-    await newPost.save();
+    // Save the post with the session
+    await newPost.save({ session });
+    
+    // Update forum post count and lastActive time
+    await Forum.findByIdAndUpdate(
+      forumId,
+      { 
+        $inc: { posts: 1 },
+        lastActive: new Date().toISOString()
+      },
+      { session }
+    );
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
       
     return NextResponse.json({ 
       success: true,
       post: newPost 
     }, { status: 201 });
   } catch (error) {
+    // Abort the transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('Error creating post:', errorMessage, errorStack);

@@ -181,7 +181,7 @@ const PostDetail = () => {
       const author = {
         _id: user._id, 
         name: `${user.firstName} ${user.lastName}`,
-        avatar: user.avatar
+       // avatar: user.avatar
       };
       
       const response = await fetch(`/api/posts/${postId}/replies`, {
@@ -192,7 +192,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           content: replyContent,
-          author
+          author,
+          forumId: forumId
         })
       });
       
@@ -271,7 +272,8 @@ const PostDetail = () => {
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            userId: user._id
+            userId: user._id,
+            forumId: forumId
           })
         });
   
@@ -322,7 +324,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           operation,
-          userId: user.email
+          userId: user.email,
+          forumId: forumId
         })
       });
       
@@ -363,7 +366,8 @@ const PostDetail = () => {
         },
         body: JSON.stringify({
           operation,
-          userId: user.email
+          userId: user.email,
+          forumId: forumId
         })
       });
       
@@ -991,7 +995,7 @@ const PostDetail = () => {
             <div className="flex items-start space-x-4">
               <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-blue-100 flex-shrink-0">
                 <Image 
-                  src={user.avatar ? getImageUrl(user.avatar) : '/user-avatar.png'} 
+                  src={/*user.avatar ? getImageUrl(user.avatar) :*/ '/user-avatar.png'} 
                   alt={`${user.firstName} ${user.lastName}`}
                   fill
                   className="object-cover"

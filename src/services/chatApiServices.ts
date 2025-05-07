@@ -198,25 +198,25 @@ export async function fetchChatMessages(chatRoomId: string) {
   }
 }
 
+
+
 /**
- * Mark a specific message as read by the current user
- *
- * @param messageId - The unique identifier of the message to mark as read
- * @returns Promise that resolves to the response data from the server,
- *          or throws an error if the operation fails
+ * Mark multiple messages as read in a single request
+ * 
+ * @param messageIds - Array of message IDs to mark as read
+ * @returns Promise with the response data
  */
-export async function markMessageAsRead(messageId: string) {
+export async function markMultipleMessagesAsRead(messageIds: string[]) {
   try {
-    const response = await fetch("/api/messages", {
+    const response = await fetch("/api/messages/read-status", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageId }),
+      body: JSON.stringify({ messageIds }),
     });
 
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
-    console.error("Error marking message as read:", error);
+    console.error("Error marking messages as read:", error);
     throw error;
   }
 }

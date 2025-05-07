@@ -10,6 +10,7 @@ import ChatHeader from "@/components/messageSystem/ChatHeader";
 import MessageBox from "@/components/messageSystem/MessageBox";
 import MessageInput from "@/components/messageSystem/MessageInput";
 import MeetingBox from "@/components/messageSystem/MeetingBox";
+import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { updateLastSeen, fetchChatRoom } from "@/services/chatApiServices";
 
@@ -24,6 +25,7 @@ export default function ChatPage() {
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
+  const [showSessions, setShowSessions] = useState<boolean>(false);
 
   const handleReplySelect = (message: IMessage) => {
     setReplyingTo(message);
@@ -35,6 +37,12 @@ export default function ChatPage() {
 
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
+    if (show) setShowSessions(false); // Hide sessions when showing meetings
+  };
+
+  const toggleSessionsDisplay = (show: boolean) => {
+    setShowSessions(show);
+    if (show) setShowMeetings(false); // Hide meetings when showing sessions
   };
 
   const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
@@ -87,6 +95,7 @@ export default function ChatPage() {
 
     getChatRoomParticipants();
     setShowMeetings(false);
+    setShowSessions(false);
   }, [selectedChatRoomId, userId]);
 
   useEffect(() => {
@@ -152,8 +161,11 @@ export default function ChatPage() {
               socket={socket}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
+              onToggleSessions={toggleSessionsDisplay}
               upcomingMeetingsCount={0}
               initialParticipantInfo={selectedParticipantInfo}
+              showingSessions={showSessions}
+              showingMeetings={showMeetings}
             />
 
             <div className="flex-1 overflow-auto">
@@ -162,6 +174,12 @@ export default function ChatPage() {
                   chatRoomId={selectedChatRoomId}
                   userId={userId}
                   onClose={() => setShowMeetings(false)}
+                />
+              ) : showSessions ? (
+                <SessionBox
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  onClose={() => setShowSessions(false)}
                 />
               ) : (
                 <MessageBox
@@ -174,7 +192,7 @@ export default function ChatPage() {
               )}
             </div>
 
-            {!showMeetings && (
+            {!showMeetings && !showSessions && (
               <div className="border-t p-2 bg-white">
                 <MessageInput
                   socket={socket}

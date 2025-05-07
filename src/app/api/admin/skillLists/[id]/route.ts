@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connect  from '@/lib/db';
+import connect from '@/lib/db';
 import SkillList from '@/lib/models/skillList';
+import { v4 as uuidv4 } from 'uuid';
 
-interface Params {
-  params: {
-    id: string;
-  };
+// Helper function to extract ID from URL pathname
+function getIdFromPathname(pathname: string): string {
+  const segments = pathname.split('/');
+  return segments[segments.length - 1];
 }
 
 // GET a specific skill list by ID
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(request: NextRequest) {
   try {
-    const { id } = params;
+    // Get ID from the URL pathname
+    const requestId = getIdFromPathname(request.nextUrl.pathname);
+    
     await connect();
     
-    const skillList = await SkillList.findOne({ categoryId: parseInt(id) });
+    const skillList = await SkillList.findOne({ categoryId: parseInt(requestId) });
     
     if (!skillList) {
       return NextResponse.json(
@@ -34,15 +37,16 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 // PUT update a skill list
-export async function PUT(request: NextRequest, { params }: Params) {
+export async function PUT(request: NextRequest) {
   try {
-    const { id } = params;
+    // Get ID from the URL pathname
+    const requestId = getIdFromPathname(request.nextUrl.pathname);
     const body = await request.json();
     
     await connect();
     
     // Check if skill list exists
-    const skillList = await SkillList.findOne({ categoryId: parseInt(id) });
+    const skillList = await SkillList.findOne({ categoryId: parseInt(requestId) });
     
     if (!skillList) {
       return NextResponse.json(
@@ -51,9 +55,49 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
     
-    // Update fields if provided
-    if (body.categoryName) skillList.categoryName = body.categoryName;
-    if (body.skills) skillList.skills = body.skills;
+    // Update category name if provided
+    if (body.categoryName) {
+      skillList.categoryName = body.categoryName;
+    }
+    
+    // Process any skills provided in the request
+    if (body.skills) {
+      // Process incoming skills to ensure they have skillId
+      const processSkill = (skill: any) => {
+        if (typeof skill === 'string') {
+          // Convert string to skill object
+          return { skillId: uuidv4(), name: skill };
+        } else if (typeof skill === 'object') {
+          // Ensure skill object has skillId
+          return { 
+            ...skill,
+            skillId: skill.skillId || uuidv4(),
+            name: skill.name || ''
+          };
+        }
+        return { skillId: uuidv4(), name: String(skill) };
+      };
+      
+      const processedSkills = body.skills.map(processSkill);
+      
+      // Check if we should append skills or replace them
+      if (body.appendSkills === true) {
+        // Create a map of existing skills by skillId for quick lookup
+        const existingSkillsMap = new Map(
+          skillList.skills.map((skill: { skillId: any; }) => [skill.skillId, skill])
+        );
+        
+        // Process and add new skills
+        for (const newSkill of processedSkills) {
+          if (!existingSkillsMap.has(newSkill.skillId)) {
+            skillList.skills.push(newSkill);
+          }
+        }
+      } else {
+        // Replace all skills
+        skillList.skills = processedSkills;
+      }
+    }
     
     await skillList.save();
     
@@ -77,12 +121,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
 }
 
 // DELETE a skill list
-export async function DELETE(request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest) {
   try {
-    const { id } = params;
+    // Get ID from the URL pathname
+    const requestId = getIdFromPathname(request.nextUrl.pathname);
+    
     await connect();
     
-    const result = await SkillList.deleteOne({ categoryId: parseInt(id) });
+    const result = await SkillList.deleteOne({ categoryId: parseInt(requestId) });
     
     if (result.deletedCount === 0) {
       return NextResponse.json(

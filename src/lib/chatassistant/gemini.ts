@@ -1,32 +1,45 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+/**
+ * Integration with Gemini API for getting answers to technical questions
+ */
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error('Please add your Gemini API key to .env.local');
-}
+// Import Gemini API client
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize the Gemini API client
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-export async function getAnswerFromGemini(question: string, context: string) {
-  const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-  
-  const prompt = `
-    Based on the following context, please answer the question:
-    
-    Question: ${question}
-    
-    Context:
-    ${context}
-    
-    Provide an accurate and helpful answer based solely on the information in the context. If the answer cannot be found in the context, state that you don't have enough information to answer the question.
-  `;
-  
+/**
+ * Get answer from Gemini AI for a given question
+ * @param question The user's question
+ * @param context Optional additional context to provide to Gemini
+ * @returns The generated answer
+ */
+export async function getAnswerFromGemini(question: string, context?: string): Promise<string> {
   try {
+    // Get the generative model (using Gemini Pro)
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+
+    // Construct the prompt
+    let prompt = `You are a helpful technical assistant that provides accurate and concise information.
+
+Question: ${question}`;
+
+    // Add context if provided
+    if (context) {
+      prompt += `\n\nAdditional context:\n${context}`;
+    }
+
+    // Add system instruction for formatting
+    prompt += `\n\nProvide a clear and direct answer. If you don't know the answer with certainty, acknowledge the limitations.`;
+
+    // Generate content
     const result = await model.generateContent(prompt);
     const response = result.response;
     const text = response.text();
+
     return text;
   } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    return "Sorry, I encountered an error processing your question. Please try again.";
+    console.error('Error getting answer from Gemini:', error);
+    return 'I encountered an error while processing your question. Please try again later.';
   }
 }

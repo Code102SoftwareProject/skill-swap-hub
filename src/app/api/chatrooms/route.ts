@@ -66,9 +66,7 @@ export async function POST(req: NextRequest) {
   // System-only API calls must have API key
   const authError = validateSystemApiKey(req);
   if (authError) return authError;
-  
   await connect();
-
   try {
     const body = await req.json();
     let { participants } = body;
