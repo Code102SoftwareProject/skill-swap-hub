@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { io, Socket } from "socket.io-client";
-import { useParams } from "next/navigation";
 import { IMessage } from "@/types/chat";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
@@ -14,19 +13,31 @@ import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { updateLastSeen, fetchChatRoom } from "@/services/chatApiServices";
 
+/**
+ * * ChatPage Component
+ * Main component for handling user messaging functionality
+ * Includes socket connection management, chat selection, and message display
+ */
 export default function ChatPage() {
-  const { user, token, isLoading: authLoading } = useAuth();
+  // * Authentication state from context
+  const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
 
+  // ! Core state for socket communication 
   const [socket, setSocket] = useState<Socket | null>(null);
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
+  
+  // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
 
+  /**
+   * * Event Handlers
+   */
   const handleReplySelect = (message: IMessage) => {
     setReplyingTo(message);
   };
@@ -37,7 +48,10 @@ export default function ChatPage() {
 
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
-    if (show) setShowSessions(false); // Hide sessions when showing meetings
+    // ? Is this condition working as expected? It toggles off immediately
+    if (show){
+      setShowMeetings(false);
+    }
   };
 
   const toggleSessionsDisplay = (show: boolean) => {
@@ -53,6 +67,11 @@ export default function ChatPage() {
     }
   };
 
+  /**
+   * ! Primary useEffect for socket initialization
+   * Sets up socket connection and handles component cleanup
+   * Updates last seen status and manages beforeUnload events
+   */
   useEffect(() => {
     if (!userId || authLoading) return;
 
@@ -61,12 +80,14 @@ export default function ChatPage() {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
     setSocket(newSocket);
 
+    // * Browser close handler - sends last status update via beacon
     const handleBeforeUnload = () => {
       navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
+    // ! Critical cleanup function on page umount
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
@@ -78,11 +99,18 @@ export default function ChatPage() {
     };
   }, [userId, authLoading]);
 
+  /**
+   * * Emit online presence when socket or userId changes
+   */
   useEffect(() => {
     if (!socket || !userId) return;
     socket.emit("presence_online", { userId });
   }, [socket, userId]);
 
+  /**
+   * * Fetch chat participants whenever selected chat room changes
+   * Also resets UI view modes
+   */
   useEffect(() => {
     if (!selectedChatRoomId) return;
 
@@ -98,6 +126,10 @@ export default function ChatPage() {
     setShowSessions(false);
   }, [selectedChatRoomId, userId]);
 
+  /**
+   * ! Socket message handling effect
+   * Sets up room joining and message listeners when chat room is selected
+   */
   useEffect(() => {
     if (!socket || !selectedChatRoomId || !userId) return;
 
@@ -123,16 +155,21 @@ export default function ChatPage() {
 
     socket.on("receive_message", handleReceiveMessage);
 
+    // * Clean up socket listeners on unmount or when dependencies change
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, selectedChatRoomId, userId]);
 
+  /**
+   * * Component unmount handler for last seen status
+   * ! Note: This runs only once on mount and cleanup on unmount
+   * ? Consider adding userId to dependency array for reactive updates
+   */
   useEffect(() => {
     if (!userId) return;
-
-    console.log('Setting up component-level presence tracking');
-
+    
+    // Component gets unmounted when page is closed
     return () => {
       if (userId) {
         console.log('Component unmounting, updating last seen status');
@@ -141,6 +178,9 @@ export default function ChatPage() {
     };
   }, []);
 
+  /**
+   * * Loading and authentication state handlers
+   */
   if (authLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
@@ -149,13 +189,19 @@ export default function ChatPage() {
     return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
   }
 
+  /**
+   * * Main component render
+   * Structured with sidebar and main content area
+   */
   return (
     <div className="flex h-screen">
+      {/* * Chat sidebar with conversation list */}
       <Sidebar userId={userId} onChatSelect={handleChatSelect} />
 
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
           <>
+            {/* * Chat header with participant info and controls */}
             <ChatHeader
               chatRoomId={selectedChatRoomId}
               socket={socket}
@@ -168,6 +214,7 @@ export default function ChatPage() {
               showingMeetings={showMeetings}
             />
 
+            {/* * Main content area - conditionally renders messages, meetings or sessions */}
             <div className="flex-1 overflow-auto">
               {showMeetings ? (
                 <MeetingBox
@@ -192,6 +239,7 @@ export default function ChatPage() {
               )}
             </div>
 
+            {/* * Message input area - only shown when not in meetings/sessions view */}
             {!showMeetings && !showSessions && (
               <div className="border-t p-2 bg-white">
                 <MessageInput
