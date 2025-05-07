@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
 import { IMessage } from "@/types/chat";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
@@ -11,20 +10,23 @@ import MessageInput from "@/components/messageSystem/MessageInput";
 import MeetingBox from "@/components/messageSystem/MeetingBox";
 import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
-import { updateLastSeen, fetchChatRoom } from "@/services/chatApiServices";
+import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
+import { fetchChatRoom } from "@/services/chatApiServices";
 
 /**
  * * ChatPage Component
  * Main component for handling user messaging functionality
- * Includes socket connection management, chat selection, and message display
+ * Uses centralized socket context for connection management
  */
 export default function ChatPage() {
   // * Authentication state from context
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
 
-  // ! Core state for socket communication 
-  const [socket, setSocket] = useState<Socket | null>(null);
+  // * Get socket from context instead of managing it locally
+  const { socket, joinRoom, sendMessage, startTyping, stopTyping, markMessageAsRead } = useSocket();
+  
+  // ! Core state for chat functionality
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
@@ -68,46 +70,6 @@ export default function ChatPage() {
   };
 
   /**
-   * ! Primary useEffect for socket initialization
-   * Sets up socket connection and handles component cleanup
-   * Updates last seen status and manages beforeUnload events
-   */
-  useEffect(() => {
-    if (!userId || authLoading) return;
-
-    updateLastSeen(userId).catch(console.error);
-
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
-    setSocket(newSocket);
-
-    // * Browser close handler - sends last status update via beacon
-    const handleBeforeUnload = () => {
-      navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    // ! Critical cleanup function on page umount
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-
-      updateLastSeen(userId)
-        .then(() => {
-          newSocket.disconnect();
-        })
-        .catch(console.error);
-    };
-  }, [userId, authLoading]);
-
-  /**
-   * * Emit online presence when socket or userId changes
-   */
-  useEffect(() => {
-    if (!socket || !userId) return;
-    socket.emit("presence_online", { userId });
-  }, [socket, userId]);
-
-  /**
    * * Fetch chat participants whenever selected chat room changes
    * Also resets UI view modes
    */
@@ -127,16 +89,13 @@ export default function ChatPage() {
   }, [selectedChatRoomId, userId]);
 
   /**
-   * ! Socket message handling effect
-   * Sets up room joining and message listeners when chat room is selected
+   * * Join chat room when selected and socket is available
    */
   useEffect(() => {
     if (!socket || !selectedChatRoomId || !userId) return;
 
-    socket.emit("join_room", {
-      chatRoomId: selectedChatRoomId,
-      userId,
-    });
+    // Use the joinRoom function from the context
+    joinRoom(selectedChatRoomId);
 
     interface IReceivedMessage {
       chatRoomId: string;
@@ -153,30 +112,13 @@ export default function ChatPage() {
       }
     };
 
+    // Still need to set up the message listener locally
     socket.on("receive_message", handleReceiveMessage);
 
-    // * Clean up socket listeners on unmount or when dependencies change
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [socket, selectedChatRoomId, userId]);
-
-  /**
-   * * Component unmount handler for last seen status
-   * ! Note: This runs only once on mount and cleanup on unmount
-   * ? Consider adding userId to dependency array for reactive updates
-   */
-  useEffect(() => {
-    if (!userId) return;
-    
-    // Component gets unmounted when page is closed
-    return () => {
-      if (userId) {
-        console.log('Component unmounting, updating last seen status');
-        updateLastSeen(userId).catch(console.error);
-      }
-    };
-  }, []);
+  }, [socket, selectedChatRoomId, userId, joinRoom]);
 
   /**
    * * Loading and authentication state handlers
@@ -204,7 +146,6 @@ export default function ChatPage() {
             {/* * Chat header with participant info and controls */}
             <ChatHeader
               chatRoomId={selectedChatRoomId}
-              socket={socket}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
               onToggleSessions={toggleSessionsDisplay}
@@ -232,7 +173,6 @@ export default function ChatPage() {
                 <MessageBox
                   chatRoomId={selectedChatRoomId}
                   userId={userId}
-                  socket={socket}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
                 />
@@ -243,7 +183,6 @@ export default function ChatPage() {
             {!showMeetings && !showSessions && (
               <div className="border-t p-2 bg-white">
                 <MessageInput
-                  socket={socket}
                   chatRoomId={selectedChatRoomId}
                   senderId={userId}
                   replyingTo={replyingTo}
