@@ -127,15 +127,30 @@ export async function GET(req: Request){
       );
     }
 
+    // Transform notifications to include typename and color directly
+    const formattedNotifications = notifications.map(notification => {
+      const notificationObj = notification.toObject();
+      
+      // Extract type information and add directly to root level
+      notificationObj.typename = notificationObj.typeId.name;
+      notificationObj.color = notificationObj.typeId.color;
+      
+      // Optional: Remove or keep the typeId object depending on your needs
+      // If you want to remove the nested typeId object:
+      delete notificationObj.typeId;
+      
+      return notificationObj;
+    });
+
     return NextResponse.json(
-      {success:true, notifications},
+      {success:true, notifications: formattedNotifications},
       {status:200}
     )
 
-    }catch(error:any){
-      return NextResponse.json(
-        {success:false, message:error.message || "Server Error"},
-        {status:500}
-      );
-    }
+  }catch(error:any){
+    return NextResponse.json(
+      {success:false, message:error.message || "Server Error"},
+      {status:500}
+    );
   }
+}
