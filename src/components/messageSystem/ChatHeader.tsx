@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { Socket } from 'socket.io-client';
+import { useSocket } from '@/lib/context/SocketContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
@@ -9,7 +9,6 @@ import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/cha
 
 interface ChatHeaderProps {
   chatRoomId: string;
-  socket: Socket | null;
   userId: string;
   onToggleMeetings: (show: boolean) => void;
   onToggleSessions: (show: boolean) => void;
@@ -21,7 +20,6 @@ interface ChatHeaderProps {
 
 export default function ChatHeader({ 
   chatRoomId, 
-  socket, 
   userId, 
   onToggleMeetings,
   onToggleSessions,
@@ -30,6 +28,8 @@ export default function ChatHeader({
   showingMeetings = false,
   showingSessions = false
 }: ChatHeaderProps) {
+  const { socket } = useSocket();
+  
   const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [lastOnline, setLastOnline] = useState<Date | null>(null);

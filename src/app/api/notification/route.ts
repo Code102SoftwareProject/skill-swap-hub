@@ -1,16 +1,18 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Notification from '@/lib/models/notificationSchema';
+import NotificationType from '@/lib/models/notificationTypeSchema';
 import mongoose from 'mongoose';
 
 /**
  ** POST handler - Creates a new notification
  * 
  * @param req JSON body containing:
- *            - userId: ID of the user to receive the notification (required)
- *            - type: Type of notification (e.g., "message", "request", "system") (required)
+ *            - userId: ID of the user to receive the notification (required unless broadcast is true)
+ *            - typeno: Type number of the notification (required)
  *            - description: Content/message of the notification (required)
  *            - targetDestination: Optional URL or path where clicking the notification should lead
+ *            - broadcast: Boolean indicating if this is a broadcast notification (optional)
  *            
  * @returns JSON response with created notification
  *          
@@ -21,35 +23,85 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log('Received body:', body);
 
-    const { userId, type, description, targetDestination } = body;
+    let { userId, typeno, description, targetDestination, broadcast } = body;
+
+    // If broadcast is true, set userId to null
+    if (broadcast === true) {
+      userId = null;
+    } else {
+      // Validate userId is required when not broadcasting
+      if (!userId) {
+        return NextResponse.json(
+          { success: false, message: 'userId is required when not broadcasting' },
+          { status: 400 }
+        );
+      }
+      
+      // Validate userId is a valid MongoDB ObjectId
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid userId format' },
+          { status: 400 }
+        );
+      }
+    }
 
     // Validate required fields
-    if (!userId || !type || !description) {
+    if (!typeno || !description) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Missing required fields: typeno and description' },
         { status: 400 }
       );
     }
 
-    // Validate userId is a valid MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
+    // Find the notification type by its typeno
+    const notificationType = await NotificationType.findOne({ typeno });
+    
+    if (!notificationType) {
       return NextResponse.json(
-        { success: false, message: 'Invalid userId format' },
+        { success: false, message: 'Invalid notification type' },
         { status: 400 }
       );
     }
 
-    // Convert userId string to ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(userId);
+    // Convert userId string to ObjectId if it's not null
+    const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
 
     const notification = await Notification.create({
       userId: userObjectId,
-      type,
+      typeId: notificationType._id,
       description,
       targetDestination,
       isRead: false,
       createdAt: new Date(),
     });
+
+    // Send the notification to the socket server
+    try {
+      const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET || 'https://valuable-iona-arlogic-b975dfc8.koyeb.app/';
+      
+      await fetch(`${socketServerUrl}emit-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any authentication headers if needed
+        },
+        body: JSON.stringify({
+          userId: userId,
+          broadcast: broadcast === true,
+          description: description,
+          targetDestination: targetDestination,
+          type: notificationType.name,
+          color: notificationType.color,
+          notificationId: notification._id.toString()
+        })
+      });
+      
+      console.log('Notification sent to socket server');
+    } catch (socketError) {
+      console.error('Error sending notification to socket server:', socketError);
+      // Continue execution - we don't want to fail the API response if socket delivery fails
+    }
 
     return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (error: any) {
@@ -62,64 +114,19 @@ export async function POST(req: Request) {
 }
 
 /**
- ** GET handler - Retrieves notifications for a specific user
- *
- * @param req Request with query parameters:
- *            - userId: ID of the user whose notifications to retrieve (required)
- *
- * @returns JSON response with user's notifications sorted by createdAt (newest first)
+ ** GET handler - Retrieves notifications for a user
+ * 
+ * @param req Query parameters containing:
+ *            - userId: ID of the user whose notifications are to be retrieved (required)
+ *            
+ * @returns JSON response with notifications
+ *          
  */
-export async function GET(req: Request) {
-  await connect();
-  
-  try {
-    const url = new URL(req.url);
-    const userId = url.searchParams.get('userId');
-
-    // Check if userId is provided
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: 'Missing required userId parameter' }, 
-        { status: 400 }
-      );
-    }
-
-    // Validate userId is a valid MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(userId)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid userId format' },
-        { status: 400 }
-      );
-    }
-
-    // Convert userId string to ObjectId
-    const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    // Fetch notifications for the user
-    const notifications = await Notification.find({ userId: userObjectId })
-      .sort({ createdAt: -1 }) // Sort by creation date, newest first
-      .lean(); // Convert documents to plain JavaScript objects
-
-    return NextResponse.json({ 
-      success: true, 
-      notifications 
-    });
-    
-  } catch (error: any) {
-    console.error('Error fetching notifications:', error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-
 export async function GET(req: Request){
   await connect();
   try{
     const {searchParams} = new URL(req.url);
-    const userId= searchParams.get('userId');
+    const userId = searchParams.get('userId');
 
     if(!userId){
       return NextResponse.json(
@@ -129,17 +136,41 @@ export async function GET(req: Request){
     }
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
-    const notification = await Notification.find({ userId: userObjectId }).sort({ createdAt: -1 });
+    
+    // Find both user-specific notifications AND broadcast notifications (where userId is null)
+    const notifications = await Notification.find({ 
+      $or: [
+        { userId: userObjectId },
+        { userId: null }  // Include broadcast notifications
+      ]
+    })
+      .populate('typeId')
+      .sort({ createdAt: -1 });
 
-    if(!notification){
+    if(!notifications || notifications.length === 0){
       return NextResponse.json(
-        {message:"No Notification Found", success:false},
+        {message:"No Notifications Found", success:false},
         {status:200}
       );
     }
 
+    // Transform notifications to include typename and color directly
+    const formattedNotifications = notifications.map(notification => {
+      const notificationObj = notification.toObject();
+      
+      // Extract type information and add directly to root level
+      notificationObj.typename = notificationObj.typeId.name;
+      notificationObj.color = notificationObj.typeId.color;
+      
+      // Optional: Remove or keep the typeId object depending on your needs
+      // If you want to remove the nested typeId object:
+      delete notificationObj.typeId;
+      
+      return notificationObj;
+    });
+
     return NextResponse.json(
-      {success:true, notification},
+      {success:true, notifications: formattedNotifications},
       {status:200}
     )
 
@@ -147,6 +178,6 @@ export async function GET(req: Request){
     return NextResponse.json(
       {success:false, message:error.message || "Server Error"},
       {status:500}
-    )
+    );
   }
 }
