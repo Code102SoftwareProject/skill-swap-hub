@@ -1,5 +1,8 @@
 
 
+'use client';
+
+
 import React, { useState, useEffect } from 'react';
 import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/lib/services/skillService';
 import { UserSkill } from '@/types/userSkill';
