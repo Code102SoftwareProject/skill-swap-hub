@@ -52,7 +52,6 @@ export default function AdminDashboardPage() {
         <main className="p-6 mt-4 overflow-y-auto bg-gray-50 min-h-screen">
           {renderContent()}
         </main>
-
       </div>
     </div>
   );

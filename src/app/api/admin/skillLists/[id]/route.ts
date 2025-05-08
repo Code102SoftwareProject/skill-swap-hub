@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import SkillList from '@/lib/models/skillList';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper function to extract ID from URL pathname
 function getIdFromPathname(pathname: string): string {
@@ -54,9 +55,49 @@ export async function PUT(request: NextRequest) {
       );
     }
     
-    // Update fields if provided
-    if (body.categoryName) skillList.categoryName = body.categoryName;
-    if (body.skills) skillList.skills = body.skills;
+    // Update category name if provided
+    if (body.categoryName) {
+      skillList.categoryName = body.categoryName;
+    }
+    
+    // Process any skills provided in the request
+    if (body.skills) {
+      // Process incoming skills to ensure they have skillId
+      const processSkill = (skill: any) => {
+        if (typeof skill === 'string') {
+          // Convert string to skill object
+          return { skillId: uuidv4(), name: skill };
+        } else if (typeof skill === 'object') {
+          // Ensure skill object has skillId
+          return { 
+            ...skill,
+            skillId: skill.skillId || uuidv4(),
+            name: skill.name || ''
+          };
+        }
+        return { skillId: uuidv4(), name: String(skill) };
+      };
+      
+      const processedSkills = body.skills.map(processSkill);
+      
+      // Check if we should append skills or replace them
+      if (body.appendSkills === true) {
+        // Create a map of existing skills by skillId for quick lookup
+        const existingSkillsMap = new Map(
+          skillList.skills.map((skill: { skillId: any; }) => [skill.skillId, skill])
+        );
+        
+        // Process and add new skills
+        for (const newSkill of processedSkills) {
+          if (!existingSkillsMap.has(newSkill.skillId)) {
+            skillList.skills.push(newSkill);
+          }
+        }
+      } else {
+        // Replace all skills
+        skillList.skills = processedSkills;
+      }
+    }
     
     await skillList.save();
     

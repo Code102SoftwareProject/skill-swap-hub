@@ -19,7 +19,7 @@ export default function SuggestionContent() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const userId =  '67a732a5cf38e0b816133093';//"001"; // TODO: Replace with actual user ID after auth integration
+  const userId =  '67737e995cdb43dc110f0e9f';//"001"; // TODO: Replace with actual user ID after auth integration
 
   // Fetch suggestions from the API
   const fetchSuggestions = async () => {
