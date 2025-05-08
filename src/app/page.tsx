@@ -11,8 +11,9 @@ export default function Home() {
       </div>
       <div className="relative flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-blue-100 to-blue-200 overflow-hidden">
         <HeroSection />
-        <Chatbot/>
+        
       </div>
+      <Chatbot/>
     </>
   );
 }

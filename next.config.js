@@ -5,6 +5,7 @@ const nextConfig = {
     // Legacy configuration for static domain allowlist
     domains: [
       'pub-your-account.r2.dev', // Cloudflare R2 bucket domain for storing user uploads
+       "ik.imagekit.io", // ImageKit CDN domain for optimized image delivery
     ],
     // Modern pattern-based configuration for external image sources
     remotePatterns: [

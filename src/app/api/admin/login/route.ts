@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import Admin from '@/lib/models/adminSchema';
-import connect from '@/lib/db';
+import { NextRequest, NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import Admin from "@/lib/models/adminSchema";
+import connect from "@/lib/db";
 
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 if (!ADMIN_JWT_SECRET) {
@@ -12,9 +12,13 @@ if (!ADMIN_JWT_SECRET) {
 export const POST = async (req: NextRequest) => {
   try {
     const { username, password } = await req.json();
+    console.log("Login attempt for:", username); // Debug log
 
     if (!username || !password) {
-      return NextResponse.json({ message: 'Username and password required' }, { status: 400 });
+      return NextResponse.json(
+        { message: "Username and password required" },
+        { status: 400 }
+      );
     }
 
     await connect();
@@ -22,39 +26,57 @@ export const POST = async (req: NextRequest) => {
     const admin = await Admin.findOne({ username });
 
     if (!admin) {
-      return NextResponse.json({ message: 'Admin not found' }, { status: 404 });
+      console.log("Admin not found"); // Debug log
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
-      return NextResponse.json({ message: 'Invalid password' }, { status: 401 });
+      console.log("Password doesn't match"); // Debug log
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const token = jwt.sign(
-      { id: admin._id, username: admin.username, email: admin.email },
+      {
+        id: admin._id,
+        username: admin.username,
+        email: admin.email,
+        role: "admin",
+      },
       ADMIN_JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: "1h" }
     );
 
+    console.log("Login successful, setting cookie"); // Debug log
+
     const response = NextResponse.json({
-      message: 'Login successful',
-      admin: {
-        username: admin.username,
-        email: admin.email
-      }
+      success: true,
+      message: "Login successful",
     });
 
-    // 🍪 Set token as HTTP-only cookie (optional)
-    response.cookies.set('token', token, {
+    // Set adminToken cookie
+    response.cookies.set({
+      name: "adminToken",
+      value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 3600, // 1 hour
-      path: '/'
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 60 * 60, // 1 hour
+      path: "/",
+      sameSite: "lax",
     });
 
     return response;
-
   } catch (error: any) {
-    return NextResponse.json({ message: 'Login error', error: error.message }, { status: 500 });
+    console.error("Login error:", error); // Debug log
+    return NextResponse.json(
+      { message: "Login error", error: error.message },
+      { status: 500 }
+    );
   }
 };
