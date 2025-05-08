@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import type { Socket } from "socket.io-client";
+import { useSocket } from '@/lib/context/SocketContext'; // Add this import
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
@@ -13,7 +13,6 @@ import { fetchChatMessages } from "@/services/chatApiServices";
 interface MessageBoxProps {
   userId: string;
   chatRoomId: string;
-  socket: Socket | null;
   newMessage?: IMessage;
   onReplySelect?: (message: IMessage) => void;
 }
@@ -34,10 +33,11 @@ function TypingIndicator() {
 export default function MessageBox({
   userId,
   chatRoomId,
-  socket,
   newMessage,
   onReplySelect,
 }: MessageBoxProps) {
+  const { socket, markMessageAsRead } = useSocket(); // Add this to get socket from context
+  
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +46,7 @@ export default function MessageBox({
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
+  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
 
   // Fetch chat history on mount
   useEffect(() => {
@@ -137,6 +138,36 @@ export default function MessageBox({
     }
   }, [messages]);
 
+  // Mark unread messages as read when they are displayed
+  useEffect(() => {
+    // Process only messages that haven't been marked as read yet
+    const unreadMessages = messages.filter(msg => 
+      msg.senderId !== userId && 
+      msg._id && 
+      !processedMessageIds.has(msg._id) &&
+      msg.readStatus === false
+    );
+
+    if (unreadMessages.length > 0) {
+      // Extract just the IDs and filter out any undefined values
+      const unreadIds = unreadMessages
+        .map(msg => msg._id)
+        .filter((id): id is string => id !== undefined);
+      
+      // Update local tracking state immediately to prevent duplicate requests
+      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
+      setProcessedMessageIds(newProcessedIds);
+      
+      // Use markMessageAsRead from context for each message ID
+      Promise.all(unreadIds.map(messageId => 
+        markMessageAsRead(messageId, chatRoomId, userId)
+      ))
+      .catch((error: unknown) => {
+        console.error('Error marking messages as read:', error);
+      });
+    }
+  }, [messages, userId, processedMessageIds, markMessageAsRead]);
+
   // Function to scroll to a particular message (used for reply clicks)
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
@@ -144,7 +175,7 @@ export default function MessageBox({
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
       // Brief highlight effect
       messageElement.style.transition = "background 0.3s";
-      messageElement.style.background = "rgba(255, 255, 0, 0.3)";
+      messageElement.style.background = "rgba(255, 255, 255, 0.3)";
       setTimeout(() => {
         messageElement.style.background = "transparent";
       }, 800);

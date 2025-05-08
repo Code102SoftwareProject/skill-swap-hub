@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import type { Socket } from "socket.io-client";
+import { useSocket } from '@/lib/context/SocketContext';
 import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 // Import the API service
 import { sendMessage as sendMessageService } from "@/services/chatApiServices";
 
 interface MessageInputProps {
-  socket: Socket | null;
   chatRoomId: string;
   senderId: string;
   receiverId?: string;
@@ -18,7 +17,6 @@ interface MessageInputProps {
 }
 
 export default function MessageInput({
-  socket,
   chatRoomId,
   senderId,
   receiverId,
@@ -26,6 +24,7 @@ export default function MessageInput({
   onCancelReply,
   chatParticipants,
 }: MessageInputProps) {
+  const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -86,14 +85,12 @@ export default function MessageInput({
   };
 
   const handleTyping = () => {
-    if (!socket) return;
-
-    socket.emit("typing", { chatRoomId, userId: senderId });
+    startTyping(chatRoomId);
 
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
 
     typingTimeout.current = setTimeout(() => {
-      socket.emit("stop_typing", { chatRoomId, userId: senderId });
+      stopTyping(chatRoomId);
     }, 1500);
   };
 
@@ -112,14 +109,13 @@ export default function MessageInput({
     const newMsg = {
       chatRoomId,
       senderId,
-      receiverId: chatParticipants.find((id) => id !== senderId), // Determine the other user in the chat
+      receiverId: chatParticipants.find((id) => id !== senderId),
       content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
       sentAt: Date.now(),
-      // Fix: Send just the message ID instead of the entire message object
       replyFor: replyingTo?._id || null,
     };
 
-    socket.emit("send_message", newMsg);
+    socketSendMessage(newMsg);
 
     try {
       await sendMessageService(newMsg);

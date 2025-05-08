@@ -3,6 +3,7 @@ import connectToDatabase from '@/lib/db';
 import Post from '@/lib/models/postSchema';
 import Reply from '@/lib/models/replySchema';
 import mongoose from 'mongoose';
+import { Forum } from '@/lib/models/Forum';
 
 // GET handler for fetching all replies for a post
 export async function GET(request: NextRequest) {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Get data from request body, which now includes user details from the AuthContext
-    const { content, author } = await request.json();
+    const { content, author, forumId } = await request.json();
     
     // Validate content
     if (!content || content.trim() === '') {
@@ -75,6 +76,14 @@ export async function POST(request: NextRequest) {
     if (!author || !author._id || !author.name) {
       return NextResponse.json(
         { error: 'Author information is required' },
+        { status: 400 }
+      );
+    }
+    
+    // Validate forumId if provided
+    if (forumId && !mongoose.Types.ObjectId.isValid(forumId)) {
+      return NextResponse.json(
+        { error: 'Invalid forum ID format' },
         { status: 400 }
       );
     }
@@ -110,6 +119,24 @@ export async function POST(request: NextRequest) {
     
     // Increment reply count on the parent post
     await Post.findByIdAndUpdate(postId, { $inc: { replies: 1 } });
+    
+    // Update forum reply count if forumId was provided directly
+    let updatedForumId = forumId;
+    
+    // If forumId wasn't provided directly, try to get it from the post
+    if (!updatedForumId && post.forumId) {
+      updatedForumId = post.forumId;
+    }
+    
+    // Update the forum if we have a valid forumId
+    if (updatedForumId) {
+      // Update forum with incremented reply count and updated lastActive timestamp
+      await Forum.findByIdAndUpdate(updatedForumId, {
+        $inc: { replies: 1 },
+        lastActive: new Date().toISOString(),
+        updatedAt: new Date()
+      });
+    }
     
     return NextResponse.json(
       { success: true, reply },

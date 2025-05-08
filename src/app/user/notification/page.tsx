@@ -1,21 +1,14 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react'; // Import useMemo
+import React, { useState, useEffect, useMemo } from 'react';
 import Notification from '@/components/notificationSystem/Notification';
-import { Bell, CheckCheck, Loader2, Inbox, History, ArrowDownUp } from 'lucide-react'; // Added Inbox, History, ArrowDownUp icons
+import NotificationAlert from '@/components/notificationSystem/NotificationAlert';
+import { Bell, CheckCheck, Loader2, Inbox, History, ArrowDownUp } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar'; // Import the Navbar component
-
-// Define notification type
-interface NotificationType {
-  _id: string;
-  type: string;
-  description: string;
-  createdAt: string;
-  isRead: boolean;
-  targetDestination: string | null;
-}
+import Navbar from '@/components/Navbar';
+import { useSocket } from '@/lib/context/SocketContext';
+import { Notification as NotificationType } from '@/types/notification';
 
 const NotificationPage = () => {
   const { user, token, isLoading: authLoading } = useAuth();
@@ -23,7 +16,8 @@ const NotificationPage = () => {
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest'); // State for sorting
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const { socket, isConnected } = useSocket();
 
   // Fetch user notifications when component mounts
   useEffect(() => {
@@ -41,6 +35,48 @@ const NotificationPage = () => {
       setIsLoading(false);
     }
   }, [token, user?._id, authLoading, router]);
+
+  // Listen for real-time notifications
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    // Set up event listener for notifications
+    const handleNewNotification = (notificationData: any) => {
+      console.log('Page received notification:', notificationData);
+
+      // Create a properly formatted notification object
+      const newNotification: NotificationType = {
+        _id: notificationData._id || notificationData.notificationId || `temp-${Date.now()}`,
+        typename: notificationData.type || notificationData.typename || 'Notification',
+        color: notificationData.color || '#006699',
+        description: notificationData.description,
+        createdAt: notificationData.createdAt || new Date().toISOString(),
+        isRead: false,
+        targetDestination: notificationData.targetDestination || null
+      };
+
+      setNotifications(prevNotifications => {
+        // Check if we already have this notification to prevent duplicates
+        const exists = prevNotifications.some(n => 
+          n._id === newNotification._id || 
+          (n.description === newNotification.description && 
+           Math.abs(new Date(n.createdAt).getTime() - new Date(newNotification.createdAt).getTime()) < 2000)
+        );
+        
+        if (exists) return prevNotifications;
+
+        // Add the new notification at the beginning for immediate visibility
+        return [newNotification, ...prevNotifications];
+      });
+    };
+
+    socket.on('receive_notification', handleNewNotification);
+
+    // Clean up the socket listener when component unmounts
+    return () => {
+      socket.off('receive_notification', handleNewNotification);
+    };
+  }, [socket, isConnected]);
 
   const fetchNotifications = async () => {
     setIsLoading(true);
@@ -68,8 +104,6 @@ const NotificationPage = () => {
 
       const data = await response.json();
       if (data.success) {
-        // Initial sort is handled by the backend or here if needed,
-        // but useMemo will handle dynamic sorting based on user selection
         setNotifications(data.notifications);
       } else {
         throw new Error(data.message || 'Failed to fetch notifications');
@@ -98,11 +132,10 @@ const NotificationPage = () => {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ notificationId: id }) // Send notificationId in the request body
+        body: JSON.stringify({ notificationId: id })
       });
 
       if (!response.ok) {
-        // Revert optimistic update if the server request fails
         setNotifications(prev =>
           prev.map(notification =>
             notification._id === id
@@ -114,7 +147,6 @@ const NotificationPage = () => {
       }
     } catch (err) {
       console.error('Failed to mark notification as read:', err);
-      // Revert optimistic update if there's an error
       setNotifications(prev =>
         prev.map(notification =>
           notification._id === id
@@ -152,10 +184,10 @@ const NotificationPage = () => {
 
   // Memoize sorted notifications based on sortOrder
   const sortedNotifications = useMemo(() => {
-    const sorted = [...notifications]; // Create a copy to avoid mutating state
+    const sorted = [...notifications];
     if (sortOrder === 'newest') {
       sorted.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    } else { // 'oldest'
+    } else {
       sorted.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     }
     return sorted;
@@ -169,6 +201,7 @@ const NotificationPage = () => {
     return (
       <>
         <Navbar />
+        <NotificationAlert />
         <div className="container mx-auto max-w-4xl py-20 px-4 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-[#006699] mx-auto mb-4" />
           <p className="text-gray-600">Loading notifications...</p>
@@ -180,6 +213,7 @@ const NotificationPage = () => {
   return (
     <>
       <Navbar />
+      <NotificationAlert />
       <div className="container mx-auto max-w-4xl py-8 px-4">
         {user && (
           <div className="mb-4 text-gray-600">
@@ -188,7 +222,6 @@ const NotificationPage = () => {
         )}
 
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-          {/* Title and Unread Count */}
           <div className="flex items-center">
             <Bell className="h-6 w-6 text-[#006699] mr-3" />
             <h1 className="text-2xl font-bold text-gray-800">Notifications</h1>
@@ -199,25 +232,22 @@ const NotificationPage = () => {
             )}
           </div>
 
-          {/* Action Buttons: Sort and Mark All Read */}
           <div className="flex items-center gap-4">
-             {/* Sort Dropdown */}
-             {notifications.length > 0 && (
-               <div className="relative inline-block text-left">
-                 <select
-                   value={sortOrder}
-                   onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                   className="flex items-center text-gray-600 hover:text-gray-800 text-sm font-medium border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#006699] focus:border-[#006699] appearance-none pr-8 bg-white"
-                   aria-label="Sort notifications"
-                 >
-                   <option value="newest">Newest First</option>
-                   <option value="oldest">Oldest First</option>
-                 </select>
-                 <ArrowDownUp className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
-               </div>
-             )}
+            {notifications.length > 0 && (
+              <div className="relative inline-block text-left">
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
+                  className="flex items-center text-gray-600 hover:text-gray-800 text-sm font-medium border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#006699] focus:border-[#006699] appearance-none pr-8 bg-white"
+                  aria-label="Sort notifications"
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                </select>
+                <ArrowDownUp className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            )}
 
-            {/* Mark All Read Button */}
             {unreadNotifications.length > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
@@ -236,7 +266,6 @@ const NotificationPage = () => {
           </div>
         )}
 
-        {/* Unread Section */}
         {unreadNotifications.length > 0 && (
           <div className="mb-8">
             <h2 className="flex items-center text-lg font-semibold text-gray-700 mb-3">
@@ -254,7 +283,6 @@ const NotificationPage = () => {
           </div>
         )}
 
-        {/* Read Section */}
         {readNotifications.length > 0 && (
           <div className="mb-8">
             <h2 className="flex items-center text-lg font-semibold text-gray-700 mb-3">
@@ -265,14 +293,13 @@ const NotificationPage = () => {
                 <Notification
                   key={notification._id}
                   notification={notification}
-                  onMarkAsRead={handleMarkAsRead} // Keep this if you want to allow marking read items as read again (no effect) or potentially unread later
+                  onMarkAsRead={handleMarkAsRead}
                 />
               ))}
             </div>
           </div>
         )}
 
-        {/* No Notifications */}
         {notifications.length === 0 && !isLoading && !error && (
           <div className="py-10 px-4 text-center bg-white rounded-lg shadow-sm border border-gray-200">
             <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
@@ -280,7 +307,6 @@ const NotificationPage = () => {
           </div>
         )}
 
-        {/* All Caught Up */}
         {notifications.length > 0 && unreadNotifications.length === 0 && !isLoading && !error && (
           <div className="py-6 px-4 text-center text-gray-500 text-sm">
             You're all caught up! No unread notifications.
