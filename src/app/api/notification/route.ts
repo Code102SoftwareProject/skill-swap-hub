@@ -61,6 +61,59 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ ** GET handler - Retrieves notifications for a specific user
+ *
+ * @param req Request with query parameters:
+ *            - userId: ID of the user whose notifications to retrieve (required)
+ *
+ * @returns JSON response with user's notifications sorted by createdAt (newest first)
+ */
+export async function GET(req: Request) {
+  await connect();
+  
+  try {
+    const url = new URL(req.url);
+    const userId = url.searchParams.get('userId');
+
+    // Check if userId is provided
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: 'Missing required userId parameter' }, 
+        { status: 400 }
+      );
+    }
+
+    // Validate userId is a valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid userId format' },
+        { status: 400 }
+      );
+    }
+
+    // Convert userId string to ObjectId
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Fetch notifications for the user
+    const notifications = await Notification.find({ userId: userObjectId })
+      .sort({ createdAt: -1 }) // Sort by creation date, newest first
+      .lean(); // Convert documents to plain JavaScript objects
+
+    return NextResponse.json({ 
+      success: true, 
+      notifications 
+    });
+    
+  } catch (error: any) {
+    console.error('Error fetching notifications:', error);
+    return NextResponse.json(
+      { success: false, message: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 
 export async function GET(req: Request){
   await connect();
