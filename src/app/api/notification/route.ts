@@ -76,6 +76,33 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     });
 
+    // Send the notification to the socket server
+    try {
+      const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET || 'https://valuable-iona-arlogic-b975dfc8.koyeb.app/';
+      
+      await fetch(`${socketServerUrl}emit-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add any authentication headers if needed
+        },
+        body: JSON.stringify({
+          userId: userId,
+          broadcast: broadcast === true,
+          description: description,
+          targetDestination: targetDestination,
+          type: notificationType.name,
+          color: notificationType.color,
+          notificationId: notification._id.toString()
+        })
+      });
+      
+      console.log('Notification sent to socket server');
+    } catch (socketError) {
+      console.error('Error sending notification to socket server:', socketError);
+      // Continue execution - we don't want to fail the API response if socket delivery fails
+    }
+
     return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (error: any) {
     console.error('Error creating notification:', error);

@@ -83,6 +83,15 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
     });
 
+    // Add notification listener
+    newSocket.on('receive_notification', (notification) => {
+      // Handle incoming notification (e.g., show a toast or update UI)
+      console.log('Received notification:', notification);
+      
+      // You can trigger a UI update here or dispatch to state management
+      // Example: toast.info(notification.description);
+    });
+
     // Browser close handler
     const handleBeforeUnload = () => {
       navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
@@ -130,7 +139,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   // Send a notification
   const sendNotification = (notification: NotificationData) => {
     if (socket) {
-      socket.emit('send_notification', notification);
+      socket.emit('notification', notification); // Changed from 'send_notification' to 'notification'
     }
   };
 

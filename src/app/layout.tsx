@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from '@/lib/context/AuthContext';
 import { SocketProvider } from '@/lib/context/SocketContext';
 import { ToastProvider } from '@/lib/context/ToastContext';
+import NotificationAlert from '@/components/notificationSystem/NotificationAlert';
 import './globals.css';
 
 const geistSans = Geist({
@@ -35,6 +36,7 @@ export default function RootLayout({
           <SocketProvider>
             <ToastProvider>
               {children}
+              <NotificationAlert />
             </ToastProvider>
           </SocketProvider>
         </AuthProvider>

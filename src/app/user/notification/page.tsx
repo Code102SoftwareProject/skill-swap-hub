@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Notification from '@/components/notificationSystem/Notification';
+import NotificationAlert from '@/components/notificationSystem/NotificationAlert';
 import { Bell, CheckCheck, Loader2, Inbox, History, ArrowDownUp } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -40,36 +41,40 @@ const NotificationPage = () => {
     if (!socket || !isConnected) return;
 
     // Set up event listener for notifications
-    socket.on('receive_notification', (notificationData) => {
-      console.log('Received a new notification:', notificationData);
+    const handleNewNotification = (notificationData: any) => {
+      console.log('Page received notification:', notificationData);
 
-      // Add the new notification to the list
-      if (notificationData._id) {
-        setNotifications(prevNotifications => {
-          // Check if we already have this notification to prevent duplicates
-          const exists = prevNotifications.some(n => n._id === notificationData._id);
-          if (exists) return prevNotifications;
+      // Create a properly formatted notification object
+      const newNotification: NotificationType = {
+        _id: notificationData._id || notificationData.notificationId || `temp-${Date.now()}`,
+        typename: notificationData.type || notificationData.typename || 'Notification',
+        color: notificationData.color || '#006699',
+        description: notificationData.description,
+        createdAt: notificationData.createdAt || new Date().toISOString(),
+        isRead: false,
+        targetDestination: notificationData.targetDestination || null
+      };
 
-          // Add the new notification at the beginning for immediate visibility
-          return [
-            {
-              _id: notificationData._id,
-              typename: notificationData.typename,
-              color: notificationData.color,
-              description: notificationData.description,
-              createdAt: notificationData.createdAt || new Date().toISOString(),
-              isRead: false,
-              targetDestination: notificationData.targetDestination || null
-            },
-            ...prevNotifications
-          ];
-        });
-      }
-    });
+      setNotifications(prevNotifications => {
+        // Check if we already have this notification to prevent duplicates
+        const exists = prevNotifications.some(n => 
+          n._id === newNotification._id || 
+          (n.description === newNotification.description && 
+           Math.abs(new Date(n.createdAt).getTime() - new Date(newNotification.createdAt).getTime()) < 2000)
+        );
+        
+        if (exists) return prevNotifications;
+
+        // Add the new notification at the beginning for immediate visibility
+        return [newNotification, ...prevNotifications];
+      });
+    };
+
+    socket.on('receive_notification', handleNewNotification);
 
     // Clean up the socket listener when component unmounts
     return () => {
-      socket.off('receive_notification');
+      socket.off('receive_notification', handleNewNotification);
     };
   }, [socket, isConnected]);
 
@@ -196,6 +201,7 @@ const NotificationPage = () => {
     return (
       <>
         <Navbar />
+        <NotificationAlert />
         <div className="container mx-auto max-w-4xl py-20 px-4 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-[#006699] mx-auto mb-4" />
           <p className="text-gray-600">Loading notifications...</p>
@@ -207,6 +213,7 @@ const NotificationPage = () => {
   return (
     <>
       <Navbar />
+      <NotificationAlert />
       <div className="container mx-auto max-w-4xl py-8 px-4">
         {user && (
           <div className="mb-4 text-gray-600">
