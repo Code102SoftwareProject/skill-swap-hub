@@ -12,39 +12,36 @@ import {
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
-/**
- * KYC status constants to avoid magic strings
- */
+// Define the possible verification statuses for KYC documents
 const KYC_STATUSES = {
   NOT_REVIEWED: "Not Reviewed",
   ACCEPTED: "Accepted",
   REJECTED: "Rejected",
-  ALL: "All",
+  ALL: "All", // Used for filtering purposes
 };
 
-/**
- * Type definition for KYC verification record
- */
+// Type definition for KYC records received from the API
 type KYCRecord = {
   _id: string;
-  nic: string;
-  recipient: string;
+  nic: string; // National Identity Card number
+  recipient: string; // User who submitted the KYC
   dateSubmitted: string;
-  status: string; // "Not Reviewed", "Accepted", or "Rejected"
-  reviewed?: string; // Timestamp of when review occurred
-  nicUrl?: string; // URL to stored NIC image/document
-  nicWithPersonUrl?: string; // URL to stored photo of person holding NIC
-  frontPhotoUrl?: string; // URL to stored photo of person holding NIC front
-  backPhotoUrl?: string; // URL to stored photo of person holding NIC back
+  status: string;
+  reviewed?: string; // Date when the KYC was reviewed
+  nicUrl?: string; // URL to NIC document file
+  nicWithPersonUrl?: string; // URL to photo of person with NIC
+  frontPhotoUrl?: string; // URL to front photo of ID
+  backPhotoUrl?: string; // URL to back photo of ID
 };
 
-// Visual styling maps for status indicators
+// Color mapping for different statuses to provide visual feedback
 const statusColorMap: Record<string, { bg: string; text: string }> = {
   [KYC_STATUSES.NOT_REVIEWED]: { bg: "bg-gray-100", text: "text-gray-800" },
   [KYC_STATUSES.ACCEPTED]: { bg: "bg-green-50", text: "text-green-800" },
   [KYC_STATUSES.REJECTED]: { bg: "bg-red-50", text: "text-red-800" },
 };
 
+// Color mapping for status indicator dots
 const dotColorMap: Record<string, string> = {
   [KYC_STATUSES.NOT_REVIEWED]: "bg-gray-200",
   [KYC_STATUSES.REJECTED]: "bg-red-100",
@@ -52,7 +49,7 @@ const dotColorMap: Record<string, string> = {
 };
 
 export default function KYCContent() {
-  // State management
+  // State for KYC records and UI controls
   const [records, setRecords] = useState<KYCRecord[]>([]);
   const [sortStatus, setSortStatus] = useState(KYC_STATUSES.ALL);
   const [loading, setLoading] = useState(true);
@@ -65,7 +62,7 @@ export default function KYCContent() {
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50];
 
-  // New state for tracking loading states by action and record ID
+  // Track loading states for asynchronous operations (downloads, status updates)
   const [loadingActions, setLoadingActions] = useState<{
     downloads: Record<string, boolean>;
     statusUpdates: Record<string, boolean>;
@@ -74,10 +71,8 @@ export default function KYCContent() {
     statusUpdates: {},
   });
 
+  // Fetch KYC records from the API when component mounts
   useEffect(() => {
-    /**
-     * Fetches all KYC verification records from the API
-     */
     async function fetchKYCRecords() {
       try {
         setLoading(true);
@@ -101,27 +96,24 @@ export default function KYCContent() {
     fetchKYCRecords();
   }, []);
 
+  // Log records for debugging purposes
   useEffect(() => {
     console.log("Records data:", records);
   }, [records]);
 
   /**
-   * Downloads document file from the server
-   *
-   * @param fileUrl - URL of the file to download
-   * @param nicNumber - NIC number to use in filename
-   * @returns Promise that resolves when download is complete
-   * @throws Error if download fails
+   * Download a KYC document file from the server
+   * @param fileUrl URL of the file to download
+   * @param nicNumber NIC number to use in the downloaded filename
    */
   const downloadFile = async (fileUrl: string, nicNumber: string) => {
-    // Create a unique key for this download operation
     const downloadKey = `${fileUrl}-${nicNumber}`;
 
-    // Check if this download is already in progress
+    // Prevent duplicate downloads
     if (loadingActions.downloads[downloadKey]) return;
 
     try {
-      // Set this specific download as loading
+      // Set loading state for this specific download
       setLoadingActions((prev) => ({
         ...prev,
         downloads: {
@@ -143,19 +135,18 @@ export default function KYCContent() {
         throw new Error(errorData.message || "Failed to download file");
       }
 
-      // Get content type and determine appropriate file extension
+      // Determine file type and create appropriate filename
       const contentType = response.headers.get("content-type") || "";
       const fileExtension = getFileExtensionFromMimeType(contentType);
       const downloadFileName = `NIC-${nicNumber}.${fileExtension}`;
 
-      // Create downloadable blob from response
       const blob = await response.blob();
 
       if (blob.size === 0) {
         throw new Error("Downloaded file is empty");
       }
 
-      // Set up browser download mechanism
+      // Create and trigger a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -174,7 +165,7 @@ export default function KYCContent() {
         err instanceof Error ? err.message : "Failed to download file"
       );
     } finally {
-      // Clear the loading state for this download
+      // Reset loading state for this download
       setLoadingActions((prev) => ({
         ...prev,
         downloads: {
@@ -186,10 +177,9 @@ export default function KYCContent() {
   };
 
   /**
-   * Determines file extension based on MIME type
-   *
-   * @param mimeType - MIME type from response headers
-   * @returns Appropriate file extension string
+   * Convert MIME type to file extension
+   * @param mimeType Content type from HTTP header
+   * @returns Appropriate file extension
    */
   const getFileExtensionFromMimeType = (mimeType: string): string => {
     switch (mimeType.toLowerCase()) {
@@ -201,14 +191,13 @@ export default function KYCContent() {
       case "image/png":
         return "png";
       default:
-        return "pdf"; // Default extension
+        return "pdf";
     }
   };
 
   /**
-   * Extracts extension from filename when MIME type unavailable
-   *
-   * @param filename - Full filename with extension
+   * Extract file extension from filename
+   * @param filename Name of the file
    * @returns File extension string
    */
   const getFileExtension = (filename: string): string => {
@@ -218,19 +207,16 @@ export default function KYCContent() {
   };
 
   /**
-   * Updates verification status of a KYC record
-   *
-   * @param id - Record ID to update
-   * @param newStatus - New status value ("Accepted" or "Rejected")
-   * @returns Promise that resolves when status update is complete
-   * @throws Error if update fails
+   * Update the status of a KYC record (Accept or Reject)
+   * @param id The KYC record ID to update
+   * @param newStatus The new status to set
    */
   const updateStatus = async (id: string, newStatus: string) => {
-    // Check if status update is already in progress
+    // Prevent duplicate status updates
     if (loadingActions.statusUpdates[id]) return;
 
     try {
-      // Set this specific status update as loading
+      // Set loading state for this specific update
       setLoadingActions((prev) => ({
         ...prev,
         statusUpdates: {
@@ -256,7 +242,7 @@ export default function KYCContent() {
         throw new Error("Failed to update status");
       }
 
-      // Update local record with new status and review timestamp using callback version
+      // Update local state with the new status
       setRecords((prevRecords) =>
         prevRecords.map((record) =>
           record._id === id
@@ -276,7 +262,7 @@ export default function KYCContent() {
       toast.dismiss();
       toast.error("Failed to update status");
     } finally {
-      // Clear the loading state for this status update
+      // Reset loading state for this update
       setLoadingActions((prev) => ({
         ...prev,
         statusUpdates: {
@@ -288,10 +274,9 @@ export default function KYCContent() {
   };
 
   /**
-   * Formats ISO date string to readable format
-   *
-   * @param dateString - ISO date string
-   * @returns Formatted date string in Month Day, Year format
+   * Format a date string to a user-friendly format
+   * @param dateString ISO date string
+   * @returns Formatted date string
    */
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -302,21 +287,20 @@ export default function KYCContent() {
   };
 
   /**
-   * Toggles sort direction between ascending and descending
-   * Controls whether newest or oldest submissions appear first
+   * Toggle between ascending and descending sort order
    */
   const toggleSortDirection = () => {
     setSortDirection(sortDirection === "asc" ? "desc" : "asc");
   };
 
-  // Apply filters and sorting to records
+  // Filter and sort records based on current filter settings
   const filteredAndSortedRecords = records
     .filter((rec) => {
-      // Filter by status
+      // Filter by status if a specific status is selected
       const statusMatches =
         sortStatus === KYC_STATUSES.ALL || rec.status === sortStatus;
 
-      // Filter by search term (case-insensitive)
+      // Filter by search term (recipient name or NIC)
       const searchMatches =
         searchTerm === "" ||
         (rec.recipient &&
@@ -345,16 +329,13 @@ export default function KYCContent() {
   );
 
   /**
-   * Changes current page in pagination
-   *
-   * @param pageNumber - Page number to navigate to
+   * Navigate to a specific page
+   * @param pageNumber Page number to navigate to
    */
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   /**
-   * Updates records per page setting
-   *
-   * @param e - Change event from select input
+   * Handle change in number of records shown per page
    */
   const handleRecordsPerPageChange = (
     e: React.ChangeEvent<HTMLSelectElement>
@@ -363,25 +344,22 @@ export default function KYCContent() {
     setCurrentPage(1); // Reset to first page when changing page size
   };
 
-  // Generate page numbers for pagination controls
+  // Generate array of page numbers for pagination
   const pageNumbers = [];
   for (let i = 1; i <= totalPages; i++) {
     pageNumbers.push(i);
   }
 
-  // Component render
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      {/* Main page heading for the KYC verification section */}
       <h1 className="text-2xl font-semibold text-[#0077b6] mb-6">
         Admin Dashboard - KYC
       </h1>
 
       <div className="bg-white rounded-lg shadow p-6">
-        {/* Filter controls row - status filter, search input, and sort toggle */}
+        {/* Search and filter controls */}
         <div className="flex flex-wrap justify-between items-center gap-4 mb-4">
           <div className="flex items-center gap-4">
-            {/* Search input field - moved to the left */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -397,7 +375,7 @@ export default function KYCContent() {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Status filter dropdown - moved to the right side */}
+            {/* Status filter dropdown */}
             <select
               className="border px-4 py-2 rounded"
               value={sortStatus}
@@ -415,7 +393,7 @@ export default function KYCContent() {
               </option>
             </select>
 
-            {/* Date sort toggle button */}
+            {/* Sort direction toggle button */}
             <button
               onClick={toggleSortDirection}
               className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-50"
@@ -439,31 +417,26 @@ export default function KYCContent() {
           </div>
         </div>
 
-        {/* Conditional rendering based on data loading state - shows appropriate UI for each state */}
+        {/* Loading, error, or empty state handling */}
         {loading ? (
-          // Loading spinner displayed while fetching records from API
           <div className="text-center py-10">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-t-blue-500 border-r-transparent border-b-blue-500 border-l-transparent"></div>
             <p className="mt-2 text-gray-600">Loading KYC records...</p>
           </div>
         ) : error ? (
-          // Error message shown if API request fails
           <div className="text-center py-10 text-red-500">{error}</div>
         ) : records.length === 0 ? (
-          // Empty state when no KYC records are found
           <div className="text-center py-10 text-gray-500">
             No KYC records found.
           </div>
         ) : filteredAndSortedRecords.length === 0 ? (
-          // No results state when filters yield no matches
           <div className="text-center py-10 text-gray-500">
             No matching records found.
           </div>
         ) : (
           <>
-            {/* Data table displaying KYC records when available */}
+            {/* KYC records table */}
             <table className="w-full table-auto border-separate border-spacing-y-2 text-sm">
-              {/* Table header with column titles */}
               <thead>
                 <tr className="bg-gray-100">
                   <th className="px-4 py-2 text-left">NIC</th>
@@ -475,7 +448,6 @@ export default function KYCContent() {
                   <th className="px-4 py-2 text-left">Accept/Reject</th>
                 </tr>
               </thead>
-              {/* Table body with paginated records */}
               <tbody>
                 {currentRecords.map((record) => (
                   <tr key={record._id} className="bg-white hover:bg-gray-50">
@@ -484,8 +456,8 @@ export default function KYCContent() {
                     <td className="px-4 py-3 border-b">
                       {formatDate(record.dateSubmitted)}
                     </td>
+                    {/* Status badge with color coding */}
                     <td className="px-4 py-3 border-b">
-                      {/* Pill-style status indicator */}
                       <div className="flex items-center justify-start">
                         <span
                           className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -497,12 +469,11 @@ export default function KYCContent() {
                       </div>
                     </td>
                     <td className="px-4 py-3 border-b">
-                      {/* Shows review date if available, otherwise shows dash */}
                       {record.reviewed ? formatDate(record.reviewed) : "-"}
                     </td>
+                    {/* Document download buttons */}
                     <td className="px-4 py-3 border-b">
                       <div className="flex items-center gap-2">
-                        {/* NIC Document Download */}
                         {record.nicUrl && (
                           <button
                             onClick={() =>
@@ -527,7 +498,6 @@ export default function KYCContent() {
                           </button>
                         )}
 
-                        {/* Person with NIC Download */}
                         {record.nicWithPersonUrl && (
                           <button
                             onClick={() =>
@@ -556,13 +526,11 @@ export default function KYCContent() {
                         )}
                       </div>
                     </td>
+                    {/* Accept/Reject action buttons */}
                     <td className="px-4 py-3 border-b">
-                      {/* Status update action buttons */}
                       <div className="flex items-center gap-2">
-                        {/* Approval/rejection buttons - conditionally rendered only for unreviewed records */}
                         {record.status === KYC_STATUSES.NOT_REVIEWED && (
                           <>
-                            {/* Approve button - Changes status to "Accepted" */}
                             <button
                               onClick={() =>
                                 updateStatus(record._id, KYC_STATUSES.ACCEPTED)
@@ -580,7 +548,6 @@ export default function KYCContent() {
                             >
                               <Check className="h-4 w-4" />
                             </button>
-                            {/* Reject button - Changes status to "Rejected" */}
                             <button
                               onClick={() =>
                                 updateStatus(record._id, KYC_STATUSES.REJECTED)
@@ -661,18 +628,16 @@ export default function KYCContent() {
                   Prev
                 </button>
 
-                {/* Page number buttons - improved pagination with ellipsis */}
+                {/* Dynamic page number buttons with ellipsis for large sets */}
                 {(() => {
-                  // Enhanced pagination algorithm with better error handling
                   const renderPageNumbers = () => {
                     const buttons = [];
 
-                    // Handle edge case where totalPages is 0 or undefined
                     if (!totalPages || totalPages <= 0) {
                       return <></>;
                     }
 
-                    // Show all pages if total pages are 7 or fewer
+                    // Simple pagination for fewer pages
                     if (totalPages <= 7) {
                       for (let i = 1; i <= totalPages; i++) {
                         buttons.push(
@@ -696,9 +661,7 @@ export default function KYCContent() {
                       return buttons;
                     }
 
-                    // Complex pagination with ellipsis for more than 7 pages
-
-                    // Always show first page
+                    // Complex pagination with ellipsis for many pages
                     buttons.push(
                       <button
                         key={1}
@@ -715,11 +678,10 @@ export default function KYCContent() {
                       </button>
                     );
 
-                    // Calculate range around current page
                     let startPage: number, endPage: number;
 
+                    // Near the beginning
                     if (currentPage <= 3) {
-                      // Near beginning
                       startPage = 2;
                       endPage = 5;
 
@@ -733,7 +695,7 @@ export default function KYCContent() {
                           },
                           (_, i) => {
                             const pageNum = startPage + i;
-                            if (pageNum >= totalPages) return null; // Skip if beyond total pages
+                            if (pageNum >= totalPages) return null;
 
                             return (
                               <button
@@ -753,10 +715,9 @@ export default function KYCContent() {
                               </button>
                             );
                           }
-                        ).filter(Boolean) // Remove null entries
+                        ).filter(Boolean)
                       );
 
-                      // Only show ellipsis if there are more pages
                       if (totalPages > 6) {
                         buttons.push(
                           <span
@@ -767,8 +728,9 @@ export default function KYCContent() {
                           </span>
                         );
                       }
-                    } else if (currentPage >= totalPages - 2) {
-                      // Near end
+                    }
+                    // Near the end
+                    else if (currentPage >= totalPages - 2) {
                       buttons.push(
                         <span
                           key="ellipsis1"
@@ -806,8 +768,9 @@ export default function KYCContent() {
                           }
                         )
                       );
-                    } else {
-                      // Middle - show ellipsis on both sides
+                    }
+                    // Somewhere in the middle
+                    else {
                       buttons.push(
                         <span
                           key="ellipsis1"
@@ -817,6 +780,7 @@ export default function KYCContent() {
                         </span>
                       );
 
+                      // Show current page and one page before/after
                       startPage = Math.max(2, currentPage - 1);
                       endPage = Math.min(totalPages - 1, currentPage + 1);
 
@@ -846,7 +810,6 @@ export default function KYCContent() {
                         )
                       );
 
-                      // Only add second ellipsis if there are pages between endPage and totalPages
                       if (endPage < totalPages - 1) {
                         buttons.push(
                           <span
@@ -859,7 +822,7 @@ export default function KYCContent() {
                       }
                     }
 
-                    // Always show last page if it's different from first page
+                    // Always show the last page
                     if (totalPages > 1) {
                       buttons.push(
                         <button
@@ -915,7 +878,7 @@ export default function KYCContent() {
               </div>
             </div>
 
-            {/* Records count indicator */}
+            {/* Records count summary */}
             <div className="flex items-center mt-4 text-sm text-gray-600">
               <div>
                 Showing {indexOfFirstRecord + 1}-
