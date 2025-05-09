@@ -1,8 +1,8 @@
-'use client'; // Required for using client-side hooks (e.g., useState, useRouter)
+"use client"; // Required for using client-side hooks (e.g., useState, useRouter)
 
 // Importing React & Next modules
-import { FC } from 'react';
-import { useRouter } from 'next/navigation'; // Next.js router for navigation
+import { FC } from "react";
+import { useRouter } from "next/navigation"; // Next.js router for navigation
 
 //Importing Lucide icons
 import {
@@ -14,25 +14,25 @@ import {
   FileText,
   Flag,
   LogOut,
-} from 'lucide-react'; 
+} from "lucide-react";
 
-import clsx from 'clsx'; // Utility for conditional class names
+import clsx from "clsx"; // Utility for conditional class names
 
 // Define props for conditional rendering
 interface AdminSidebarProps {
-  onNavigate: (component: string) => void;  // Function passed from parent to switch the view
+  onNavigate: (component: string) => void; // Function passed from parent to switch the view
   activeComponent: string; // Current active component ID
 }
 
 // Navigation items config
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home },
-  { id: 'kyc', label: 'KYC', icon: IdCard },
-  { id: 'users', label: 'Users', icon: Users },
-  { id: 'suggestions', label: 'Suggestions', icon: Lightbulb },
-  { id: 'system', label: 'System', icon: Settings },
-  { id: 'verify-documents', label: 'Verify Documents', icon: FileText },
-  { id: 'reporting', label: 'Reporting', icon: Flag },
+  { id: "dashboard", label: "Dashboard", icon: Home },
+  { id: "kyc", label: "KYC", icon: IdCard },
+  { id: "users", label: "Users", icon: Users },
+  { id: "suggestions", label: "Suggestions", icon: Lightbulb },
+  { id: "system", label: "System", icon: Settings },
+  { id: "verify-documents", label: "Verify Documents", icon: FileText },
+  { id: "reporting", label: "Reporting", icon: Flag },
 ];
 
 // Component
@@ -42,15 +42,27 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
 }) => {
   const router = useRouter(); // Now we'll use this for navigation
 
-  // Sign out logic - updated to redirect to login page
-  const handleLogout = () => {
-    // **You might want to add logout API call here before redirecting
-    router.push('/admin/login');
+  // Sign out logic - updated to call the API and redirect
+  const handleLogout = async () => {
+    try {
+      const response = await fetch("/api/admin/signout", {
+        method: "POST",
+        credentials: "include", // Important to include cookies in the request
+      });
+
+      if (response.ok) {
+        // Redirect to login page after successful signout
+        router.push("/admin/login");
+      } else {
+        console.error("Failed to sign out");
+      }
+    } catch (error) {
+      console.error("Error during sign out:", error);
+    }
   };
 
   return (
     <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200 pt-28">
-      
       {/* Navigation Section (conditionally rendered) */}
       <div className="flex flex-col w-full">
         {navItems.map((item) => {
@@ -60,18 +72,18 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
           return (
             <button
               key={item.id}
-              onClick={() => onNavigate(item.id)}  //  Trigger component switch
+              onClick={() => onNavigate(item.id)} //  Trigger component switch
               className={clsx(
-                'flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200',
+                "flex items-center w-full px-4 py-3 border-l-4 transition-all duration-200",
                 isActive
-                  ? 'bg-primary text-white border-blue-600'
-                  : 'text-gray-500 hover:bg-gray-100 border-transparent'
+                  ? "bg-primary text-white border-blue-600"
+                  : "text-gray-500 hover:bg-gray-100 border-transparent"
               )}
             >
               <Icon
                 className={clsx(
-                  'w-5 h-5 mr-3',
-                  isActive ? 'text-white' : 'text-gray-400'
+                  "w-5 h-5 mr-3",
+                  isActive ? "text-white" : "text-gray-400"
                 )}
               />
               <span className="text-sm font-medium">{item.label}</span>

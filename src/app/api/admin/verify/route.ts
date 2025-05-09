@@ -1,41 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
+import { verifyJWT } from "@/lib/auth";
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
-
+/**
+ * Admin verification endpoint that validates JWT tokens
+ * Used to protect admin routes by checking authorization headers
+ */
 export async function GET(req: NextRequest) {
   try {
-    // Get the admin token from cookies
-    const adminToken = req.cookies.get("adminToken")?.value;
+    // Extract the authorization header from the request
+    const authHeader = req.headers.get("authorization");
 
-    if (!adminToken) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
+    // Check if authorization header exists and has correct format
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
-    if (!ADMIN_JWT_SECRET) {
-      throw new Error("ADMIN_JWT_SECRET is not defined");
+    // Extract the JWT token from the authorization header
+    const token = authHeader.split(" ")[1];
+
+    // Verify the token's validity
+    const isValid = await verifyJWT(token);
+
+    // If token is invalid or expired, return unauthorized response
+    if (!isValid) {
+      return NextResponse.json(
+        { message: "Invalid or expired token" },
+        { status: 401 }
+      );
     }
 
-    // Verify the token
-    try {
-      const decoded = jwt.verify(adminToken, ADMIN_JWT_SECRET);
-
-      // Check if token has admin role
-      if (!decoded || (decoded as any).role !== "admin") {
-        return NextResponse.json({ authenticated: false }, { status: 403 });
-      }
-
-      return NextResponse.json({
-        authenticated: true,
-        user: {
-          username: (decoded as any).username,
-          role: (decoded as any).role,
-        },
-      });
-    } catch (error) {
-      return NextResponse.json({ authenticated: false }, { status: 401 });
-    }
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Return authenticated response if token is valid
+    return NextResponse.json({ message: "Authenticated" }, { status: 200 });
+  } catch (error) {
+    console.error("Admin verification error:", error);
+    return NextResponse.json(
+      { message: "Authentication error" },
+      { status: 500 }
+    );
   }
 }
