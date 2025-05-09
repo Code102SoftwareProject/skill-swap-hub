@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 
+// localStorage key constants
+const ADMIN_AUTHENTICATED_KEY = "adminAuthenticated";
+const ADMIN_TOKEN_KEY = "admin_token";
+
 /**
  * Handles admin logout by clearing authentication state
  * - Removes localStorage tokens
@@ -9,8 +13,8 @@ import { cookies } from "next/headers";
 export async function logoutAdmin() {
   // Clear localStorage
   if (typeof window !== "undefined") {
-    localStorage.removeItem("adminAuthenticated");
-    localStorage.removeItem("admin_token");
+    localStorage.removeItem(ADMIN_AUTHENTICATED_KEY);
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
   }
 
   // Clear cookies via API call

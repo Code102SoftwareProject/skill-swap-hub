@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation";
 const LOGIN_API_URL = "/api/admin/login";
 // Redirect path after successful login
 const DASHBOARD_URL = "/admin/dashboard";
+// localStorage key constants
+const ADMIN_AUTHENTICATED_KEY = "adminAuthenticated";
+const ADMIN_TOKEN_KEY = "admin_token";
 // Validation and error message constants
 const ERROR_MESSAGES = {
   EMPTY_FIELDS: "Please fill in all fields.",
@@ -63,11 +66,11 @@ export default function AdminLoginPage() {
         console.log("Login successful, setting local storage...");
 
         // Store authentication state
-        localStorage.setItem("adminAuthenticated", "true");
+        localStorage.setItem(ADMIN_AUTHENTICATED_KEY, "true");
 
         // Store JWT if provided
         if (data.token) {
-          localStorage.setItem("admin_token", data.token);
+          localStorage.setItem(ADMIN_TOKEN_KEY, data.token);
           console.log("Token stored in localStorage");
         }
 

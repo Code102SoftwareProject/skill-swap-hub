@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// Cookie name constant
+const ADMIN_TOKEN_COOKIE = "adminToken";
+
 export async function POST() {
   try {
     // Create a response that will clear the cookie
@@ -10,7 +13,7 @@ export async function POST() {
 
     // Clear the token by setting an expired cookie
     response.cookies.set({
-      name: "adminToken",
+      name: ADMIN_TOKEN_COOKIE,
       value: "",
       httpOnly: true,
       expires: new Date(0),
