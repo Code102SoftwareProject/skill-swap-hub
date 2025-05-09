@@ -1,42 +1,63 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-// This function runs for every request
-export function middleware(request: NextRequest) {
-  // Check if the request is for an admin route
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    // Allow access to login page
-    if (request.nextUrl.pathname === "/admin/login") {
-      return NextResponse.next();
-    }
+// Routes that require admin authentication
+const protectedRoutes = ["/admin/dashboard", "/admin/users", "/admin/skills"];
 
-    // Get the admin token from cookies
-    const adminToken = request.cookies.get("adminToken")?.value;
+/**
+ * Middleware function to protect admin routes
+ * Verifies admin authentication before allowing access to protected routes
+ */
+export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
 
-    // If there's no token, redirect to login
-    if (!adminToken) {
+  // Check if the requested path is a protected admin route
+  if (
+    protectedRoutes.some((route) => path.startsWith(route)) ||
+    path === "/admin"
+  ) {
+    // Extract admin authentication token from cookies
+    const token = request.cookies.get("adminToken")?.value;
+
+    // Redirect to login if no token exists
+    if (!token) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
 
     try {
-      // We'll verify token asynchronously but since middleware must be synchronous,
-      // we'll just check if token exists and handle detailed validation in protected pages
-      // This is a simpler approach for middleware
+      // Get JWT secret from environment variables
+      const jwtSecret = process.env.JWT_SECRET;
 
-      // Allow access if token exists (detailed verification happens in protected pages)
+      // Ensure JWT secret exists in production environment
+      if (!jwtSecret && process.env.NODE_ENV === "production") {
+        throw new Error("JWT_SECRET is not defined in production environment");
+      }
+
+      // Create secret key for JWT verification
+      const secret = new TextEncoder().encode(
+        jwtSecret ||
+          (process.env.NODE_ENV !== "production"
+            ? "dev-fallback-secret-key"
+            : "")
+      );
+
+      // Verify JWT token using the secret
+      await jwtVerify(token, secret);
+
+      // Allow request to proceed if token is valid
       return NextResponse.next();
     } catch (error) {
-      // Token is invalid or expired, redirect to login
+      // Handle token verification failure
+      console.error("Token verification failed:", error);
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
   }
 
-  // Allow all other requests
+  // Allow non-protected routes to proceed
   return NextResponse.next();
 }
 
-// Specify which routes this middleware should run for
+// Configure middleware to run only on admin routes
 export const config = {
   matcher: ["/admin/:path*"],
 };
