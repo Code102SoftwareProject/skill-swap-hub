@@ -4,11 +4,15 @@ import jwt from "jsonwebtoken";
 import Admin from "@/lib/models/adminSchema";
 import connect from "@/lib/db";
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "mySuperSecretJWTKey"; // move this to .env in production
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+if (!ADMIN_JWT_SECRET) {
+  throw new Error("ADMIN_JWT_SECRET environment variable is not defined");
+}
 
 export const POST = async (req: NextRequest) => {
   try {
-    const { username, password } = await req.json(); // Changed from email to username
+    const { username, password } = await req.json();
+    console.log("Login attempt for:", username); // Debug log
 
     if (!username || !password) {
       return NextResponse.json(
@@ -22,42 +26,54 @@ export const POST = async (req: NextRequest) => {
     const admin = await Admin.findOne({ username }); // Changed from email to username
 
     if (!admin) {
-      return NextResponse.json({ message: "Admin not found" }, { status: 404 });
+      console.log("Admin not found"); // Debug log
+      return NextResponse.json(
+        { message: "Invalid credentials" },
+        { status: 401 }
+      );
     }
 
     const isMatch = await bcrypt.compare(password, admin.password);
     if (!isMatch) {
+      console.log("Password doesn't match"); // Debug log
       return NextResponse.json(
-        { message: "Invalid password" },
+        { message: "Invalid credentials" },
         { status: 401 }
       );
     }
 
     const token = jwt.sign(
-      { id: admin._id, username: admin.username, email: admin.email },
+      {
+        id: admin._id,
+        username: admin.username,
+        email: admin.email,
+        role: "admin",
+      },
       ADMIN_JWT_SECRET,
       { expiresIn: "1h" }
     );
 
+    console.log("Login successful, setting cookie"); // Debug log
+
     const response = NextResponse.json({
+      success: true,
       message: "Login successful",
-      token: token, // Add this line to return the token in the response
-      admin: {
-        username: admin.username,
-        email: admin.email,
-      },
     });
 
-    // 🍪 Set token as HTTP-only cookie (optional)
-    response.cookies.set("token", token, {
+    // Set adminToken cookie
+    response.cookies.set({
+      name: "adminToken",
+      value: token,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      maxAge: 3600, // 1 hour
+      maxAge: 60 * 60, // 1 hour
       path: "/",
+      sameSite: "lax",
     });
 
     return response;
   } catch (error: any) {
+    console.error("Login error:", error); // Debug log
     return NextResponse.json(
       { message: "Login error", error: error.message },
       { status: 500 }

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from '@/lib/context/AuthContext';
+import { SocketProvider } from '@/lib/context/SocketContext';
 import { ToastProvider } from '@/lib/context/ToastContext';
-//import ProtectRoute from '@/lib/middleware/ProtectRoute';
-import "./globals.css";
+import NotificationAlert from '@/components/notificationSystem/NotificationAlert';
+import './globals.css';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,22 +23,22 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`
-      }
-      suppressHydrationWarning={true}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning={true}
       >
         <AuthProvider>
-          <ToastProvider>
-            
+          <SocketProvider>
+            <ToastProvider>
               {children}
-           
-          </ToastProvider>
+              <NotificationAlert />
+            </ToastProvider>
+          </SocketProvider>
         </AuthProvider>
       </body>
     </html>

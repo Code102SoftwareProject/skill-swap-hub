@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Notification from '@/lib/models/notificationSchema';
 
+/**
+ ** PATCH handler - Marks all unread notifications as read for a specific user
+ * 
+ * @param request Request with query parameters:
+ *                - userId: ID of the user whose notifications should be marked as read (required)
+ *               
+ * 
+ * @returns JSON response with result summary
+ *          
+ */
 export async function PATCH(request: NextRequest) {
   await connect();
   try {

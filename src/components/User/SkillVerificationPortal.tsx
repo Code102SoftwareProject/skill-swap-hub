@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, CheckCircle } from 'lucide-react';
+import { UploadCloud, CheckCircle, Trash2 } from 'lucide-react';
 import axios, { AxiosError } from 'axios';
 import Swal from 'sweetalert2';
 import SkillDetailsModal from '../Popup/Skillrequestpopup';
@@ -14,11 +14,11 @@ interface UserSkill {
 }
 
 interface VerificationRequest {
-  _id: string;
+  id: string;
   userId: string;
   skillId: string;
   skillName: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' ;
   documents: string[];
   description: string;
   feedback?: string;
@@ -89,7 +89,9 @@ const SkillVerificationPortal: React.FC = () => {
           `/api/users/verification-request?userId=${userId}`,
           getAuthConfig()
         );
+        console.log(response.data.data);
         setRequests(response.data.data); 
+     
       } catch (err) {
         console.error('Error fetching verification requests:', err);
         Swal.fire({
@@ -301,6 +303,74 @@ const SkillVerificationPortal: React.FC = () => {
     setSelectedRequest(request);
   };
 
+  // Handle delete verification request
+  const handleDeleteRequest = async (requestId: string, event: React.MouseEvent) => {
+    // Prevent the click from triggering the parent element's onClick
+    event.stopPropagation();
+    
+    // Log for debugging
+    console.log('Deleting request with ID:', requestId);
+    
+    if (!requestId) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Invalid request ID',
+        confirmButtonColor: '#1e3a8a'
+      });
+      return;
+    }
+    
+    try {
+      // Confirm before deleting
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "This verification request will be permanently deleted.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#1e3a8a',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, delete it!'
+      });
+      
+      if (result.isConfirmed) {
+        
+        await axios.delete(
+          `/api/users/verification-request?requestId=${requestId}&userId=${userId}`,
+          getAuthConfig()
+        );
+        
+        // Update the requests state
+        setRequests(prev => prev.filter(req => req.id !== requestId));
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Verification request has been deleted.',
+          confirmButtonColor: '#1e3a8a',
+          timer: 1500
+        });
+      }
+    } catch (error) {
+      console.error('Delete error:', error);
+      const axiosError = error as AxiosError;
+      let errorMessage = 'Failed to delete verification request';
+      
+      if (axiosError.response?.status === 403) {
+        errorMessage = 'Only accepted verification requests can be deleted';
+      } else if (axiosError.response?.status === 404) {
+        errorMessage = 'Verification request not found';
+      }
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: errorMessage,
+        confirmButtonColor: '#1e3a8a'
+      });
+    }
+  };
+
   if (loading) {
     return <div className="text-center p-8">Loading...</div>;
   }
@@ -340,6 +410,11 @@ const SkillVerificationPortal: React.FC = () => {
       default:
         return '#4A7997';
     }
+  };
+
+  // Check if request can be deleted (only if status is "accepted")
+  const canDeleteRequest = (status: string): boolean => {
+    return status.toLowerCase() === 'approved';
   };
 
   return (
@@ -457,8 +532,8 @@ const SkillVerificationPortal: React.FC = () => {
             ) : (
               requests.map((request) => (
                 <div
-                  key={request._id}
-                  className="flex items-center justify-between p-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                  key={request.id}
+                  className="flex items-center justify-between p-4 rounded-lg cursor-pointer hover:opacity-90 transition-opacity relative"
                   style={{
                     backgroundColor: getCardBackgroundColor(request.status)
                   }}
@@ -471,6 +546,17 @@ const SkillVerificationPortal: React.FC = () => {
                     >
                       {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                     </span>
+                    
+                    {/* Delete button - only shown for accepted requests */}
+                    {canDeleteRequest(request.status) && (
+                      <button
+                        onClick={(e) => handleDeleteRequest(request.id, e)}
+                        className="ml-2 p-1 bg-white bg-opacity-20 rounded-full hover:bg-opacity-30 transition-all"
+                        title="Delete verification request"
+                      >
+                        <Trash2 size={16} className="text-white" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

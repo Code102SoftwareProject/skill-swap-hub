@@ -49,7 +49,7 @@ export default function AdminDashboardPage() {
       {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
         <AdminNavbar />
-        <main className="p-6 mt-4 overflow-y-auto bg-gray-50">
+        <main className="p-6 mt-4 overflow-y-auto bg-gray-50 min-h-screen">
           {renderContent()}
         </main>
       </div>

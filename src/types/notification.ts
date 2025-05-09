@@ -1,12 +1,14 @@
-// Type definitions
+export interface Notification {
+  _id: string;
+  typename: string;       // Type name from the API
+  color: string;          // Color code from the API
+  description: string;
+  isRead: boolean;
+  createdAt: string | Date;
+  targetDestination?: string | null;
+}
+
 export interface NotificationProps {
-  notification: {
-    _id: string;
-    type: string;
-    description: string;
-    isRead: boolean;
-    createdAt: string | Date;
-    targetDestination?: string | null;
-  };
+  notification: Notification;
   onMarkAsRead: (id: string) => void;
 }
