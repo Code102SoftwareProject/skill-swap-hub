@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Constants for API endpoints and error messages
+// API endpoint for admin authentication
 const LOGIN_API_URL = "/api/admin/login";
+// Redirect path after successful login
 const DASHBOARD_URL = "/admin/dashboard";
+// Validation and error message constants
 const ERROR_MESSAGES = {
   EMPTY_FIELDS: "Please fill in all fields.",
   LOGIN_FAILED: "Login failed",
@@ -15,7 +17,7 @@ const ERROR_MESSAGES = {
 export default function AdminLoginPage() {
   const router = useRouter();
 
-  // State management for form inputs and UI controls
+  // Form state management
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -23,54 +25,65 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   /**
-   * Handles the login form submission
-   * - Validates form inputs
-   * - Sends authentication request to server
-   * - Handles navigation on success
+   * Handles form submission for admin login
+   * Validates inputs and makes API call to authenticate
    */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    // Form validation
+    // Basic form validation
     if (!username || !password) {
       setError(ERROR_MESSAGES.EMPTY_FIELDS);
       return;
     }
 
     try {
-      // Send login request to the server
+      console.log("Sending login request with:", { username, password });
+
+      // Send authentication request to backend
       const res = await fetch(LOGIN_API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }),
         credentials: "include", // Include cookies for session management
       });
 
+      console.log("Response status:", res.status);
       const data = await res.json();
+      console.log("Response data:", data);
 
       if (!res.ok) {
         // Handle authentication failure
         setError(data.message || ERROR_MESSAGES.LOGIN_FAILED);
       } else {
-        // Handle successful login with fallback navigation
-        try {
-          router.refresh(); // Refresh current page data
-          router.push(DASHBOARD_URL); // Navigate to dashboard
-        } catch (navError) {
-          // Fallback navigation method if router.push fails
-          window.location.href = DASHBOARD_URL;
+        console.log("Login successful, setting local storage...");
+
+        // Store authentication state
+        localStorage.setItem("adminAuthenticated", "true");
+
+        // Store JWT if provided
+        if (data.token) {
+          localStorage.setItem("admin_token", data.token);
+          console.log("Token stored in localStorage");
         }
+
+        console.log("Redirecting to dashboard...");
+        router.push(DASHBOARD_URL);
       }
     } catch (err) {
-      // Handle network or other unexpected errors
+      console.error("Login error:", err);
+      // Handle network or unexpected errors
       setError(ERROR_MESSAGES.GENERAL_ERROR);
     }
   };
 
   return (
+    // Main container with responsive layout
     <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
-      {/* Login card container with responsive layout */}
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
         {/* Left side image - hidden on mobile */}
         <div className="md:w-1/2 hidden md:block">
@@ -129,13 +142,14 @@ export default function AdminLoginPage() {
                   autoComplete="current-password"
                   required
                 />
-                {/* Password visibility toggle button */}
+                {/* Toggle password visibility button */}
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 flex items-center pr-3 mt-1 text-gray-600 hover:text-gray-800"
                 >
                   {showPassword ? (
+                    // Hide password icon
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -151,6 +165,7 @@ export default function AdminLoginPage() {
                       />
                     </svg>
                   ) : (
+                    // Show password icon
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
