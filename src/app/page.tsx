@@ -2,6 +2,7 @@
 import Navbar from "@/components/Navbar";
 import Chatbot from "@/components/chatassistant/chatbot";
 import HeroSection from "@/components/Herosection";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   return (
@@ -14,6 +15,7 @@ export default function Home() {
         
       </div>
       <Chatbot/>
+      <Footer />
     </>
   );
 }
