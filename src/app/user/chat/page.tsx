@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
-import { useParams } from "next/navigation";
 import { IMessage } from "@/types/chat";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
@@ -12,21 +10,36 @@ import MessageInput from "@/components/messageSystem/MessageInput";
 import MeetingBox from "@/components/messageSystem/MeetingBox";
 import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
-import { updateLastSeen, fetchChatRoom } from "@/services/chatApiServices";
+import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
+import { fetchChatRoom } from "@/services/chatApiServices";
 
+/**
+ * * ChatPage Component
+ * Main component for handling user messaging functionality
+ * Uses centralized socket context for connection management
+ */
 export default function ChatPage() {
-  const { user, token, isLoading: authLoading } = useAuth();
+  // * Authentication state from context
+  const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
 
-  const [socket, setSocket] = useState<Socket | null>(null);
+  // * Get socket from context instead of managing it locally
+  const { socket, joinRoom, sendMessage, startTyping, stopTyping, markMessageAsRead } = useSocket();
+  
+  // ! Core state for chat functionality
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
+  
+  // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
 
+  /**
+   * * Event Handlers
+   */
   const handleReplySelect = (message: IMessage) => {
     setReplyingTo(message);
   };
@@ -37,7 +50,10 @@ export default function ChatPage() {
 
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
-    if (show) setShowSessions(false); // Hide sessions when showing meetings
+    // ? Is this condition working as expected? It toggles off immediately
+    if (show){
+      setShowMeetings(false);
+    }
   };
 
   const toggleSessionsDisplay = (show: boolean) => {
@@ -53,36 +69,10 @@ export default function ChatPage() {
     }
   };
 
-  useEffect(() => {
-    if (!userId || authLoading) return;
-
-    updateLastSeen(userId).catch(console.error);
-
-    const newSocket = io(process.env.NEXT_PUBLIC_SOCKET, { transports: ["websocket"] });
-    setSocket(newSocket);
-
-    const handleBeforeUnload = () => {
-      navigator.sendBeacon('/api/onlinelog', JSON.stringify({ userId }));
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-
-      updateLastSeen(userId)
-        .then(() => {
-          newSocket.disconnect();
-        })
-        .catch(console.error);
-    };
-  }, [userId, authLoading]);
-
-  useEffect(() => {
-    if (!socket || !userId) return;
-    socket.emit("presence_online", { userId });
-  }, [socket, userId]);
-
+  /**
+   * * Fetch chat participants whenever selected chat room changes
+   * Also resets UI view modes
+   */
   useEffect(() => {
     if (!selectedChatRoomId) return;
 
@@ -98,13 +88,14 @@ export default function ChatPage() {
     setShowSessions(false);
   }, [selectedChatRoomId, userId]);
 
+  /**
+   * * Join chat room when selected and socket is available
+   */
   useEffect(() => {
     if (!socket || !selectedChatRoomId || !userId) return;
 
-    socket.emit("join_room", {
-      chatRoomId: selectedChatRoomId,
-      userId,
-    });
+    // Use the joinRoom function from the context
+    joinRoom(selectedChatRoomId);
 
     interface IReceivedMessage {
       chatRoomId: string;
@@ -121,26 +112,17 @@ export default function ChatPage() {
       }
     };
 
+    // Still need to set up the message listener locally
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [socket, selectedChatRoomId, userId]);
+  }, [socket, selectedChatRoomId, userId, joinRoom]);
 
-  useEffect(() => {
-    if (!userId) return;
-
-    console.log('Setting up component-level presence tracking');
-
-    return () => {
-      if (userId) {
-        console.log('Component unmounting, updating last seen status');
-        updateLastSeen(userId).catch(console.error);
-      }
-    };
-  }, []);
-
+  /**
+   * * Loading and authentication state handlers
+   */
   if (authLoading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
   }
@@ -149,16 +131,21 @@ export default function ChatPage() {
     return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
   }
 
+  /**
+   * * Main component render
+   * Structured with sidebar and main content area
+   */
   return (
     <div className="flex h-screen">
+      {/* * Chat sidebar with conversation list */}
       <Sidebar userId={userId} onChatSelect={handleChatSelect} />
 
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
           <>
+            {/* * Chat header with participant info and controls */}
             <ChatHeader
               chatRoomId={selectedChatRoomId}
-              socket={socket}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
               onToggleSessions={toggleSessionsDisplay}
@@ -168,6 +155,7 @@ export default function ChatPage() {
               showingMeetings={showMeetings}
             />
 
+            {/* * Main content area - conditionally renders messages, meetings or sessions */}
             <div className="flex-1 overflow-auto">
               {showMeetings ? (
                 <MeetingBox
@@ -185,17 +173,16 @@ export default function ChatPage() {
                 <MessageBox
                   chatRoomId={selectedChatRoomId}
                   userId={userId}
-                  socket={socket}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
                 />
               )}
             </div>
 
+            {/* * Message input area - only shown when not in meetings/sessions view */}
             {!showMeetings && !showSessions && (
               <div className="border-t p-2 bg-white">
                 <MessageInput
-                  socket={socket}
                   chatRoomId={selectedChatRoomId}
                   senderId={userId}
                   replyingTo={replyingTo}
