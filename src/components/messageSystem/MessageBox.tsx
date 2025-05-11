@@ -1,20 +1,22 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { useSocket } from '@/lib/context/SocketContext'; // Add this import
+import { useSocket } from '@/lib/context/SocketContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 // Import the extracted FileMessage and TextMessage components
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
 // Import the API service
-import { fetchChatMessages } from "@/services/chatApiServices";
+import { fetchChatMessages, fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
 
+// Update the props interface to accept participant info
 interface MessageBoxProps {
   userId: string;
   chatRoomId: string;
   newMessage?: IMessage;
   onReplySelect?: (message: IMessage) => void;
+  participantInfo?: { id: string, name: string }; // Add this prop
 }
 
 /**
@@ -35,8 +37,9 @@ export default function MessageBox({
   chatRoomId,
   newMessage,
   onReplySelect,
+  participantInfo,
 }: MessageBoxProps) {
-  const { socket, markMessageAsRead } = useSocket(); // Add this to get socket from context
+  const { socket, markMessageAsRead } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -47,6 +50,43 @@ export default function MessageBox({
 
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
   const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
+
+  // Add state to store all participant names
+  const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+
+  // Fetch participant names when component mounts or chatRoomId changes
+  useEffect(() => {
+    async function fetchParticipantNames() {
+      try {
+        // First add the participant info we already have
+        const namesMap: Record<string, string> = {};
+        if (participantInfo?.id && participantInfo?.name) {
+          namesMap[participantInfo.id] = participantInfo.name;
+        }
+        
+        // Get chat room info to find all participants
+        const chatRoom = await fetchChatRoom(chatRoomId);
+        if (chatRoom?.participants) {
+          // For each participant we don't already have info for
+          for (const participantId of chatRoom.participants) {
+            // Skip current user and participants we already have
+            if (participantId !== userId && !namesMap[participantId]) {
+              const userData = await fetchUserProfile(participantId);
+              if (userData) {
+                namesMap[participantId] = `${userData.firstName} ${userData.lastName}`;
+              }
+            }
+          }
+        }
+        
+        setParticipantNames(namesMap);
+      } catch (error) {
+        console.error("Error fetching participant names:", error);
+      }
+    }
+    
+    fetchParticipantNames();
+  }, [chatRoomId, userId, participantInfo]);
 
   // Fetch chat history on mount
   useEffect(() => {
@@ -126,7 +166,7 @@ export default function MessageBox({
         });
       }, 100);
     }
-  }, [messages, newMessage]); // Add newMessage as dependency
+  }, [messages, newMessage]);
 
   // Update this when messages change
   useEffect(() => {
@@ -194,6 +234,70 @@ export default function MessageBox({
 
   const lastUserMessageIndex = getLastUserMessageIndex();
 
+  // Update getReplyContent function to use participant names
+  const getReplyContent = (replyFor: any): { sender: string, content: string } => {
+    // Case 1: replyFor is a complete message object
+    if (typeof replyFor === "object" && replyFor !== null) {
+      if ("content" in replyFor && "senderId" in replyFor) {
+        let senderName: string;
+        
+        if (replyFor.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to user info in message
+          senderName = participantNames[replyFor.senderId] || 
+                      (replyFor.senderInfo?.name || 
+                       `${replyFor.senderInfo?.firstName || ''} ${replyFor.senderInfo?.lastName || ''}`.trim());
+          
+          // If we still don't have a name, use a better formatted fallback
+          if (!senderName || senderName === '') {
+            senderName = "Chat Partner";
+          }
+        }
+        
+        return {
+          sender: senderName,
+          content: replyFor.content
+        };
+      }
+    }
+    
+    // Case 2: replyFor is just an ID
+    if (typeof replyFor === "string" || typeof replyFor === "number") {
+      const replyId = String(replyFor);
+      const originalMessage = messages.find(m => m._id === replyId);
+      
+      if (originalMessage) {
+        let senderName: string;
+        
+        if (originalMessage.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to user info in message
+          senderName = participantNames[originalMessage.senderId] || 
+                      (originalMessage.senderInfo?.name || 
+                       `${originalMessage.senderInfo?.firstName || ''} ${originalMessage.senderInfo?.lastName || ''}`.trim());
+          
+          // If we still don't have a name, use a better formatted fallback
+          if (!senderName || senderName === '') {
+            senderName = "Chat Partner";
+          }
+        }
+        
+        return {
+          sender: senderName,
+          content: originalMessage.content
+        };
+      }
+    }
+    
+    // Fallback
+    return {
+      sender: "Unknown",
+      content: typeof replyFor === "string" ? replyFor : "Message unavailable"
+    };
+  };
+
   return (
     <div
       ref={containerRef}
@@ -202,6 +306,9 @@ export default function MessageBox({
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
         const isLastUserMessage = i === lastUserMessageIndex;
+        
+        // Get reply content if message has a reply reference
+        const replyInfo = msg.replyFor ? getReplyContent(msg.replyFor) : null;
 
         return (
           <div
@@ -237,8 +344,8 @@ export default function MessageBox({
                 <CornerUpLeft className="w-3 h-3" />
               </button>
 
-              {/* Reply box (if applicable) */}
-              {msg.replyFor && (
+              {/* Reply box (if applicable) - UPDATED */}
+              {msg.replyFor && replyInfo && (
                 <div
                   className="reply-box rounded-md p-2 mb-1 cursor-pointer"
                   style={{
@@ -257,6 +364,8 @@ export default function MessageBox({
                       "_id" in msg.replyFor
                     ) {
                       scrollToMessage((msg.replyFor as { _id: string })._id);
+                    } else if (typeof msg.replyFor === "string") {
+                      scrollToMessage(msg.replyFor);
                     }
                   }}
                 >
@@ -264,12 +373,7 @@ export default function MessageBox({
                     className="text-xs font-semibold"
                     style={{ color: isMine ? "#25D366" : "#888" }}
                   >
-                    {typeof msg.replyFor === "object" && "senderId" in msg.replyFor
-                      ? (msg.replyFor as { senderId: string }).senderId ===
-                        userId
-                        ? "You"
-                        : (msg.replyFor as { senderId: string }).senderId
-                      : "Unknown"}
+                    {replyInfo.sender}
                   </span>
                   <span
                     className="text-sm text-gray-700 truncate block"
@@ -279,9 +383,7 @@ export default function MessageBox({
                       textOverflow: "ellipsis",
                     }}
                   >
-                    {typeof msg.replyFor === "object" && "content" in msg.replyFor
-                      ? (msg.replyFor as { content: string }).content
-                      : String(msg.replyFor)}
+                    {replyInfo.content}
                   </span>
                 </div>
               )}
@@ -295,7 +397,7 @@ export default function MessageBox({
 
               {/* Timestamp inside bubble */}
               <div className="flex justify-end items-center mt-1">
-                <div
+              <div
                   className="text-xs"
                   style={{
                     fontSize: "10px",
