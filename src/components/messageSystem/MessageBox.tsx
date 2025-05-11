@@ -19,6 +19,12 @@ interface MessageBoxProps {
   participantInfo?: { id: string, name: string }; // Add this prop
 }
 
+// Add this type definition near the top of your file with other interfaces
+interface ReplyContent {
+  sender: string;
+  content: string;
+}
+
 /**
  * ! TypingIndicator component 
  */
@@ -28,6 +34,34 @@ function TypingIndicator() {
       <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></span>
       <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></span>
       <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></span>
+    </div>
+  );
+}
+
+// Extract reply component to improve readability
+function ReplyPreview({ 
+  replyInfo, 
+  isMine, 
+  onReplyClick 
+}: { 
+  replyInfo: { sender: string; content: string } | null;
+  isMine: boolean;
+  onReplyClick: () => void;
+}) {
+  if (!replyInfo) return null;
+  
+  return (
+    <div
+      className={`reply-box rounded-md p-2 mb-1 cursor-pointer bg-gray-100
+        ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
+      onClick={onReplyClick}
+    >
+      <span className={`text-xs font-semibold ${isMine ? "text-secondary" : "text-gray-600"}`}>
+        {replyInfo.sender}
+      </span>
+      <span className="text-sm text-gray-700 truncate block">
+        {replyInfo.content}
+      </span>
     </div>
   );
 }
@@ -53,6 +87,12 @@ export default function MessageBox({
 
   // Add state to store all participant names
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+
+  // Add state for highlighted message
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // Add state for last user message index
+  const [lastUserMessageIndex, setLastUserMessageIndex] = useState<number>(-1);
 
   // Fetch participant names when component mounts or chatRoomId changes
   useEffect(() => {
@@ -168,26 +208,37 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // Update this when messages change
+  // Optimize by combining multiple message processing operations
   useEffect(() => {
-    if (messages.length > 0) {
-      const newestMessage = messages[messages.length - 1];
-      if (newestMessage._id && newestMessage._id !== lastMessageId) {
-        setLastMessageId(newestMessage._id);
+    if (messages.length === 0) return;
+    
+    // Track both unread messages and last user message in one pass
+    const unreadMessages: IMessage[] = [];
+    let lastUserMsgIdx = -1;
+    
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      
+      // Check for unread messages
+      if (msg.senderId !== userId && 
+          msg._id && 
+          !processedMessageIds.has(msg._id) &&
+          msg.readStatus === false) {
+        unreadMessages.push(msg);
+      }
+      
+      // Find last user message (only once)
+      if (lastUserMsgIdx === -1 && msg.senderId === userId) {
+        lastUserMsgIdx = i;
       }
     }
-  }, [messages]);
-
-  // Mark unread messages as read when they are displayed
-  useEffect(() => {
-    // Process only messages that haven't been marked as read yet
-    const unreadMessages = messages.filter(msg => 
-      msg.senderId !== userId && 
-      msg._id && 
-      !processedMessageIds.has(msg._id) &&
-      msg.readStatus === false
-    );
-
+    
+    // Update last user message index
+    if (lastUserMsgIdx !== -1) {
+      setLastUserMessageIndex(lastUserMsgIdx);
+    }
+    
+    // Handle unread messages...
     if (unreadMessages.length > 0) {
       // Extract just the IDs and filter out any undefined values
       const unreadIds = unreadMessages
@@ -206,36 +257,24 @@ export default function MessageBox({
         console.error('Error marking messages as read:', error);
       });
     }
-  }, [messages, userId, processedMessageIds, markMessageAsRead]);
+  }, [messages, userId, processedMessageIds, markMessageAsRead, chatRoomId]);
 
   // Function to scroll to a particular message (used for reply clicks)
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
       messageElement.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Brief highlight effect
-      messageElement.style.transition = "background 0.3s";
-      messageElement.style.background = "rgba(255, 255, 255, 0.3)";
+      setHighlightedMessageId(messageId);
       setTimeout(() => {
-        messageElement.style.background = "transparent";
+        setHighlightedMessageId(null);
       }, 800);
     }
   };
 
-  // Function to get the last message from the current user
-  const getLastUserMessageIndex = () => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].senderId === userId) {
-        return i;
-      }
-    }
-    return -1;
-  };
-
-  const lastUserMessageIndex = getLastUserMessageIndex();
-
-  // Update getReplyContent function to use participant names
-  const getReplyContent = (replyFor: any): { sender: string, content: string } => {
+  // Replace the getReplyContent function with this improved version
+  const getReplyContent = (
+    replyFor: string | { _id?: string; senderId?: string; content?: string }
+  ): ReplyContent => {
     // Case 1: replyFor is a complete message object
     if (typeof replyFor === "object" && replyFor !== null) {
       if ("content" in replyFor && "senderId" in replyFor) {
@@ -244,44 +283,32 @@ export default function MessageBox({
         if (replyFor.senderId === userId) {
           senderName = "You";
         } else {
-          // Use fetched participant name or fallback to user info in message
-          senderName = participantNames[replyFor.senderId] || 
-                      (replyFor.senderInfo?.name || 
-                       `${replyFor.senderInfo?.firstName || ''} ${replyFor.senderInfo?.lastName || ''}`.trim());
-          
-          // If we still don't have a name, use a better formatted fallback
-          if (!senderName || senderName === '') {
-            senderName = "Chat Partner";
-          }
+          // Use fetched participant name or fallback to a generic name
+          senderName = replyFor.senderId && participantNames[replyFor.senderId] 
+            ? participantNames[replyFor.senderId] 
+            : "Chat Partner";
         }
         
         return {
           sender: senderName,
-          content: replyFor.content
+          content: replyFor.content || "No content available"
         };
       }
     }
     
-    // Case 2: replyFor is just an ID
-    if (typeof replyFor === "string" || typeof replyFor === "number") {
-      const replyId = String(replyFor);
+    // Case 2: replyFor is just an ID (string only)
+    if (typeof replyFor === "string") {
+      const replyId = replyFor;
       const originalMessage = messages.find(m => m._id === replyId);
       
-      if (originalMessage) {
+      if (originalMessage && originalMessage.senderId) {
         let senderName: string;
         
         if (originalMessage.senderId === userId) {
           senderName = "You";
         } else {
-          // Use fetched participant name or fallback to user info in message
-          senderName = participantNames[originalMessage.senderId] || 
-                      (originalMessage.senderInfo?.name || 
-                       `${originalMessage.senderInfo?.firstName || ''} ${originalMessage.senderInfo?.lastName || ''}`.trim());
-          
-          // If we still don't have a name, use a better formatted fallback
-          if (!senderName || senderName === '') {
-            senderName = "Chat Partner";
-          }
+          // Use fetched participant name or fallback
+          senderName = participantNames[originalMessage.senderId] || "Chat Partner";
         }
         
         return {
@@ -316,24 +343,13 @@ export default function MessageBox({
             ref={(el) => {
               if (msg._id) messageRefs.current[msg._id] = el;
             }}
-            className={`mb-3 flex flex-col ${
-              isMine ? "items-end" : "items-start"
-            }`}
+            className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
+              ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
           >
             <div
-              className={`p-2 rounded-lg ${
-                isMine
-                  ? "bg-secondary text-textcolor"
-                  : "bg-gray-200 text-black"
-              } relative group`}
-              style={{
-                maxWidth: "75%",
-                minWidth: "50px",
-                minHeight: "30px",
-                display: "flex",
-                flexDirection: "column",
-                wordBreak: "break-word",
-              }}
+              className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
+                ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
+                relative group`}
             >
               {/* Reply button - show on hover */}
               <button
@@ -344,49 +360,22 @@ export default function MessageBox({
                 <CornerUpLeft className="w-3 h-3" />
               </button>
 
-              {/* Reply box (if applicable) - UPDATED */}
-              {msg.replyFor && replyInfo && (
-                <div
-                  className="reply-box rounded-md p-2 mb-1 cursor-pointer"
-                  style={{
-                    backgroundColor: "#e9ecef",
-                    borderLeft: isMine
-                      ? "4px solid #25D366"
-                      : "4px solid #ccc",
-                    maxWidth: "100%",
-                    textAlign: "left",
-                    borderRadius: "6px",
-                  }}
-                  onClick={() => {
-                    if (
-                      msg.replyFor &&
-                      typeof msg.replyFor === "object" &&
-                      "_id" in msg.replyFor
-                    ) {
-                      scrollToMessage((msg.replyFor as { _id: string })._id);
-                    } else if (typeof msg.replyFor === "string") {
-                      scrollToMessage(msg.replyFor);
-                    }
-                  }}
-                >
-                  <span
-                    className="text-xs font-semibold"
-                    style={{ color: isMine ? "#25D366" : "#888" }}
-                  >
-                    {replyInfo.sender}
-                  </span>
-                  <span
-                    className="text-sm text-gray-700 truncate block"
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {replyInfo.content}
-                  </span>
-                </div>
-              )}
+              {/* Reply box (if applicable) */}
+              <ReplyPreview 
+                replyInfo={replyInfo} 
+                isMine={isMine} 
+                onReplyClick={() => {
+                  if (
+                    msg.replyFor &&
+                    typeof msg.replyFor === "object" &&
+                    "_id" in msg.replyFor
+                  ) {
+                    scrollToMessage((msg.replyFor as { _id: string })._id);
+                  } else if (typeof msg.replyFor === "string") {
+                    scrollToMessage(msg.replyFor);
+                  }
+                }}
+              />
 
               {/* Main message content or File */}
               {msg.content.startsWith("File:") ? (
@@ -397,13 +386,7 @@ export default function MessageBox({
 
               {/* Timestamp inside bubble */}
               <div className="flex justify-end items-center mt-1">
-              <div
-                  className="text-xs"
-                  style={{
-                    fontSize: "10px",
-                    color: isMine ? "rgba(0, 0, 0, 0.8)" : "#777",
-                  }}
-                >
+                <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
                   {msg.sentAt
                     ? new Date(msg.sentAt).toLocaleTimeString([], {
                         hour: "2-digit",
