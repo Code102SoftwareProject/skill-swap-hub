@@ -138,7 +138,11 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen">
       {/* * Chat sidebar with conversation list */}
-      <Sidebar userId={userId} onChatSelect={handleChatSelect} />
+      <Sidebar 
+        userId={userId} 
+        selectedChatRoomId={selectedChatRoomId} 
+        onChatSelect={handleChatSelect} 
+      />
 
       <div className="flex-1 flex flex-col">
         {selectedChatRoomId ? (
@@ -175,6 +179,7 @@ export default function ChatPage() {
                   userId={userId}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
+                  participantInfo={selectedParticipantInfo}  // Add this prop
                 />
               )}
             </div>

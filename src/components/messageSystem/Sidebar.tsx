@@ -7,9 +7,11 @@ import {
   fetchUserChatRooms,
   fetchUserProfile,
 } from "@/services/chatApiServices";
+import {useSocket} from "@/lib/context/SocketContext";
 
 interface SidebarProps {
   userId: string;
+  selectedChatRoomId?: string | null; // Add this prop
   onChatSelect: (
     chatRoomId: string,
     participantInfo?: { id: string; name: string }
@@ -43,13 +45,14 @@ function SidebarBox({ otherParticipantName, lastMessage }: {
  * @param {function} onChatSelect - Callback function that's triggered when a chat room is selected
  * @returns {TSX.Element} The rendered sidebar component with chat list and search functionality
  */
-export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
+export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<{
     [key: string]: UserProfile;
   }>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const {socket}= useSocket();
 
   //* Component Specific Functions
 
@@ -141,6 +144,52 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   }, [chatRooms, userId]);
 
   /**
+   * Effect hook that listens for new messages and updates the sidebar
+   * 
+   * @dependency [socket, userId, fetchChatRooms]
+   */
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleReceiveMessage = (messageData: any) => {
+      setChatRooms(prevRooms => {
+        // Check if this room exists in our list
+        const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
+        
+        if (!roomExists) {
+          // If we don't have this room yet, trigger a refresh
+          // We'll use a setTimeout to avoid React state setting conflicts
+          setTimeout(() => fetchChatRooms(), 0);
+          return prevRooms;
+        }
+        
+        // Update the existing room with new message
+        return prevRooms.map(room => {
+          if (room._id === messageData.chatRoomId) {
+            return {
+              ...room,
+              lastMessage: {
+                content: messageData.content,
+                senderId: messageData.senderId,
+                sentAt: new Date().getTime()
+              }
+            };
+          }
+          return room;
+        });
+      });
+    };
+
+    // Set up the listener
+    socket.on("receive_message", handleReceiveMessage);
+
+    // Clean up
+    return () => {
+      socket.off("receive_message", handleReceiveMessage);
+    };
+  }, [socket, userId, fetchChatRooms]);
+
+  /**
    * * Renders a loading state while fetching initial data
    */
   if (loading) {
@@ -157,7 +206,7 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
   return (
     <div className="w-64 bg-bgcolor text-white h-screen p-4 border-solid border-r border-gray-600">
       <h2 className="text-xl font-bold mb-4 text-textcolor">Messages</h2>
-
+      
       {/* Search input */}
       <div className="mb-4 relative bg-primary">
         <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
@@ -174,6 +223,12 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
 
       <ul className="space-y-2">
         {chatRooms
+          // Sort by most recent message
+          .sort((a, b) => {
+            const dateA = a.lastMessage?.sentAt ? new Date(a.lastMessage.sentAt) : new Date(0);
+            const dateB = b.lastMessage?.sentAt ? new Date(b.lastMessage.sentAt) : new Date(0);
+            return dateB.getTime() - dateA.getTime();
+          })
           // Filter chat rooms based on search query
           .filter((chat) => {
             const otherParticipantId =
@@ -206,7 +261,9 @@ export default function Sidebar({ userId, onChatSelect }: SidebarProps) {
             return (
               <li
                 key={chat._id}
-                className="p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600"
+                className={`p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
+                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700" : ""
+                }`}
                 onClick={() =>
                   onChatSelect(chat._id, {
                     id: otherParticipantId,
