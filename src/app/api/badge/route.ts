@@ -84,7 +84,7 @@ export const POST = async (req: NextRequest) => {
 
     // Return success response with created badge
     return NextResponse.json(
-      { message: "Badge is created", Admin: newBadge },
+      { message: "Badge is created", badge: newBadge },
       { status: 200 }
     );
   } catch (error: any) {
@@ -211,3 +211,30 @@ export const DELETE = async (req: NextRequest) => {
     );
   }
 };
+
+/**
+ * Example of calling badge endpoint
+ * @param badgeData - The badge data to create
+ */
+export async function createBadge(badgeData: BadgeInput) {
+  try {
+    const response = await fetch("/api/badge", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(badgeData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Failed to create badge");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error creating badge:", error);
+    throw error;
+  }
+}
