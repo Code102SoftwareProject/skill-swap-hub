@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnswerFromGemini } from '@/lib/chatassistant/gemini';
+import connect from '@/lib/db';
+import VerificationRequestModel from '@/lib/models/VerificationRequest';
 
 /**
  * Agent function to handle skill verification request status
@@ -7,21 +9,21 @@ import { getAnswerFromGemini } from '@/lib/chatassistant/gemini';
  */
 async function checkVerificationStatus(userId: string) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/verification-request?userId=${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch verification status: ${response.status}`);
-    }
-
-    const responseData = await response.json();
+    // Connect directly to the database instead of making an HTTP request
+    await connect();
     
-    // The API now returns an array of requests under the data property
-    const verificationRequests = responseData.data;
+    // Query database directly instead of making an HTTP call
+    const verificationRequests = await VerificationRequestModel.find({ userId })
+      .sort({ createdAt: -1 });
+    
+    // If no requests found, return early with a message
+    if (!verificationRequests || verificationRequests.length === 0) {
+      return {
+        type: 'verification_status',
+        data: [],
+        message: "You don't have any verification requests at the moment."
+      };
+    }
     
     return {
       type: 'verification_status',

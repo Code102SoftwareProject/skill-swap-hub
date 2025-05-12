@@ -58,36 +58,3 @@ export async function sendMessage(
     throw error;
   }
 }
-
-/**
- * Retrieves user verification status directly
- * Can be used for direct status checks outside the chat flow
- * @param userId - The user ID to check verification status for
- */
-export async function checkVerificationStatus(userId: string): Promise<{ status: string; details?: any }> {
-  try {
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-    
-    const response = await fetch(`/api/users/verification-request?userId=${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch verification status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return {
-      status: data.request?.status || 'none',
-      details: data.request
-    };
-  } catch (error) {
-    console.error('Error checking verification status:', error);
-    throw error;
-  }
-}
