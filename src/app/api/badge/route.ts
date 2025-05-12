@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import Badge from "@/lib/models/badgeSchema";
 import { NextRequest } from "next/server";
 import { Types } from "mongoose";
-import { adminAuth } from "@/lib/middleware/adminAuth";
 
 /**
  * Interface for badge input validation
@@ -70,15 +69,9 @@ export const GET = async (req: Request) => {
 };
 
 /**
- * POST endpoint to create a new badge with admin authentication
+ * POST endpoint to create a new badge
  */
 export const POST = async (req: NextRequest) => {
-  // Authenticate admin first
-  const authResponse = await adminAuth(req);
-  if (authResponse instanceof NextResponse) {
-    return authResponse; // Return auth error if not authenticated
-  }
-
   try {
     // Parse request body for badge data
     const body: BadgeInput = await req.json();
@@ -104,15 +97,9 @@ export const POST = async (req: NextRequest) => {
 };
 
 /**
- * PATCH endpoint to update an existing badge with admin authentication
+ * PATCH endpoint to update an existing badge
  */
 export const PATCH = async (req: NextRequest) => {
-  // Authenticate admin first
-  const authResponse = await adminAuth(req);
-  if (authResponse instanceof NextResponse) {
-    return authResponse; // Return auth error if not authenticated
-  }
-
   try {
     // Parse request body for badge update data
     const body: BadgeUpdateInput = await req.json();
@@ -184,15 +171,9 @@ export const PATCH = async (req: NextRequest) => {
 };
 
 /**
- * DELETE endpoint to remove a badge with admin authentication
+ * DELETE endpoint to remove a badge
  */
 export const DELETE = async (req: NextRequest) => {
-  // Authenticate admin first
-  const authResponse = await adminAuth(req);
-  if (authResponse instanceof NextResponse) {
-    return authResponse; // Return auth error if not authenticated
-  }
-
   try {
     // Extract badgeId from URL query parameters
     const { searchParams } = new URL(req.url);
@@ -232,19 +213,15 @@ export const DELETE = async (req: NextRequest) => {
 };
 
 /**
- * Example of calling protected badge endpoint
+ * Example of calling badge endpoint
  * @param badgeData - The badge data to create
  */
 export async function createBadge(badgeData: BadgeInput) {
   try {
-    // Get admin token from wherever you store it (localStorage, cookies, etc.)
-    const adminToken = localStorage.getItem("adminToken");
-
     const response = await fetch("/api/badge", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`, // Include the token
       },
       body: JSON.stringify(badgeData),
     });
@@ -258,39 +235,6 @@ export async function createBadge(badgeData: BadgeInput) {
     return data;
   } catch (error) {
     console.error("Error creating badge:", error);
-    throw error;
-  }
-}
-
-/**
- * Function to handle admin login
- * @param email - Admin email
- * @param password - Admin password
- * @returns Response data or throws error
- */
-async function adminLogin(email: string, password: string) {
-  try {
-    const response = await fetch("/api/admin/login", {
-      // Updated path
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Login failed");
-    }
-
-    // Save token for future requests
-    localStorage.setItem("adminToken", data.token);
-
-    return data;
-  } catch (error) {
-    console.error("Admin login error:", error);
     throw error;
   }
 }
