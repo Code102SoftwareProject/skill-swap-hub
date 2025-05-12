@@ -63,9 +63,15 @@ const PostDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [editErrors, setEditErrors] = useState<{ title?: string; content?: string; image?: string }>({});
   
+  // Reply edit state
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editReplyContent, setEditReplyContent] = useState('');
+  const [updatingReply, setUpdatingReply] = useState(false);
+  
   // Refs
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
+  const editReplyRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch post details
   useEffect(() => {
@@ -699,6 +705,164 @@ const PostDetail = () => {
   const isPostLiked = user?.email && post.likedBy.includes(user.email);
   const isPostDisliked = user?.email && post.dislikedBy.includes(user.email);
 
+  // Function to handle editing a reply
+  const handleEditReply = (reply: Reply) => {
+    setEditingReplyId(reply._id);
+    setEditReplyContent(reply.content);
+    
+    // Focus on the edit textarea after a short delay to ensure it's rendered
+    setTimeout(() => {
+      if (editReplyRef.current) {
+        editReplyRef.current.focus();
+      }
+    }, 100);
+  };
+
+  // Function to save edited reply
+  const handleSaveReplyEdit = async () => {
+    if (!editingReplyId || !editReplyContent.trim() || !user || !token) {
+      return;
+    }
+
+    try {
+      setUpdatingReply(true);
+      
+      const response = await fetch(`/api/posts/${postId}/replies/${editingReplyId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          content: editReplyContent,
+          userId: user._id,
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update reply');
+      }
+      
+      const data = await response.json();
+      
+      // Update the reply in the list
+      setReplies(replies.map(reply => 
+        reply._id === editingReplyId ? data.reply : reply
+      ));
+      
+      // Reset edit state
+      setEditingReplyId(null);
+      setEditReplyContent('');
+      
+      // Show success notification
+      Swal.fire({
+        icon: 'success',
+        title: 'Reply Updated',
+        text: 'Your reply has been updated successfully!',
+        confirmButtonColor: '#3b82f6',
+        timer: 1500
+      });
+    } catch (err) {
+      console.error('Error updating reply:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Update Failed',
+        text: 'Failed to update reply. Please try again.',
+        confirmButtonColor: '#3b82f6'
+      });
+    } finally {
+      setUpdatingReply(false);
+    }
+  };
+
+  // Function to cancel reply editing
+  const handleCancelReplyEdit = () => {
+    setEditingReplyId(null);
+    setEditReplyContent('');
+  };
+
+  // Function to delete a reply
+  const handleDeleteReply = async (replyId: string) => {
+    if (!user || !token) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Authentication Required',
+        text: 'You must be logged in to delete a reply',
+        confirmButtonColor: '#3b82f6'
+      });
+      return;
+    }
+  
+    // Ask for confirmation before deleting
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Delete Reply',
+      text: 'Are you sure you want to delete this reply? This action cannot be undone.',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, delete it',
+      cancelButtonText: 'Cancel'
+    });
+  
+    if (!result.isConfirmed) return;
+  
+    try {
+      // Show loading state
+      Swal.fire({
+        title: 'Deleting...',
+        text: 'Please wait',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+  
+      const response = await fetch(`/api/posts/${postId}/replies/${replyId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: user._id
+        })
+      });
+  
+      if (!response.ok) {
+        throw new Error('Failed to delete reply');
+      }
+  
+      // Remove the deleted reply from the list
+      setReplies(replies.filter(reply => reply._id !== replyId));
+      
+      // Update post reply count
+      if (post) {
+        setPost({
+          ...post,
+          replies: post.replies - 1
+        });
+      }
+  
+      // Show success message
+      Swal.fire({
+        icon: 'success',
+        title: 'Reply Deleted',
+        text: 'Your reply has been deleted successfully!',
+        confirmButtonColor: '#3b82f6',
+        timer: 1500
+      });
+    } catch (err) {
+      console.error('Error deleting reply:', err);
+      Swal.fire({
+        icon: 'error',
+        title: 'Delete Failed',
+        text: 'Failed to delete the reply. Please try again.',
+        confirmButtonColor: '#3b82f6'
+      });
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
       <motion.button
@@ -1080,7 +1244,45 @@ const PostDetail = () => {
                       </div>
                       
                       <div className="mt-2 text-gray-700 whitespace-pre-line">
-                        {reply.content}
+                        {editingReplyId === reply._id ? (
+                          <div className="space-y-2">
+                            <textarea
+                              ref={editReplyRef}
+                              value={editReplyContent}
+                              onChange={(e) => setEditReplyContent(e.target.value)}
+                              rows={3}
+                              className="w-full px-4 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200"
+                            />
+                            <div className="flex justify-end space-x-2">
+                              <button
+                                type="button"
+                                onClick={handleCancelReplyEdit}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleSaveReplyEdit}
+                                disabled={updatingReply}
+                                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                              >
+                                {updatingReply ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    <span>Saving...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span>Save</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          reply.content
+                        )}
                       </div>
                       
                       <div className="mt-3 flex items-center space-x-4">
@@ -1099,6 +1301,25 @@ const PostDetail = () => {
                           <ThumbsDown className="w-4 h-4" />
                           <span className="text-sm">{reply.dislikes}</span>
                         </button>
+                        
+                        {user && user._id === reply.author._id && (
+                          <div className="flex items-center space-x-2">
+                            <button
+                              type="button"
+                              onClick={() => handleEditReply(reply)}
+                              className="text-gray-500 hover:text-blue-600 transition-colors"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReply(reply._id)}
+                              className="text-gray-500 hover:text-red-500 transition-colors"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
