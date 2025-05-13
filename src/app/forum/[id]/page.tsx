@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { MessageSquare, Clock, User, Loader } from 'lucide-react';
 import { IForum } from '@/lib/models/Forum';
-import ForumPosts from '../../../components/ForumPosts';
-import Navbar from '@/components/Navbar';
+import ForumPosts from '../../../components/communityForum/ForumPosts';
+import Navbar from '@/components/homepage/Navbar';
 import Chatbot from "@/components/chatassistant/chatbot";
 
 export default function ForumDetailsPage() {
