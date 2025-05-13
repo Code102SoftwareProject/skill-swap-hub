@@ -37,11 +37,14 @@ export async function GET(request: Request) {
       }, { status: 404 });
     }
     
-    console.log(`Returning ${category.skills?.length || 0} skills for category ${category.categoryName}`);
+    // Extract the name field from each skill in the skills array
+    const skillNames = category.skills.map((skill: { name: string }) => skill.name);
+    
+    console.log(`Returning ${skillNames.length} skills for category ${category.categoryName}`);
     
     return NextResponse.json({ 
       success: true, 
-      data: category.skills 
+      data: skillNames 
     });
   } catch (error) {
     console.error('Error fetching skills for category:', error);
