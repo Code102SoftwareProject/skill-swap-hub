@@ -1,7 +1,4 @@
-
-
 'use client';
-
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/lib/context/ToastContext';
@@ -102,40 +99,40 @@ const ListingsPage = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-800">Skill Listings</h1>
         
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           {/* Filter buttons */}
-          <div className="flex rounded-md overflow-hidden border border-gray-300">
+          <div className="flex rounded-md overflow-hidden border border-gray-300 shadow-sm">
             <button
               onClick={() => setActiveFilter('all')}
-              className={`px-4 py-2 text-sm ${
+              className={`px-4 py-2 text-sm font-medium ${
                 activeFilter === 'all' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              } transition-colors`}
             >
               All Listings
             </button>
             <button
               onClick={() => setActiveFilter('mine')}
-              className={`px-4 py-2 text-sm ${
+              className={`px-4 py-2 text-sm font-medium ${
                 activeFilter === 'mine' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              } transition-colors`}
             >
               My Listings
             </button>
             <button
               onClick={() => setActiveFilter('other')}
-              className={`px-4 py-2 text-sm ${
+              className={`px-4 py-2 text-sm font-medium ${
                 activeFilter === 'other' 
                   ? 'bg-blue-600 text-white' 
                   : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
+              } transition-colors`}
             >
               Other Users
             </button>
@@ -144,7 +141,7 @@ const ListingsPage = () => {
           {/* Add New Listing button */}
           <button
             onClick={() => setShowNewListingForm(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-colors shadow-sm font-medium"
           >
             Add New Listing
           </button>
@@ -169,7 +166,7 @@ const ListingsPage = () => {
           {activeFilter === 'mine' && (
             <button
               onClick={() => setShowNewListingForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors shadow-sm font-medium"
             >
               Create Your First Listing
             </button>
@@ -190,14 +187,15 @@ const ListingsPage = () => {
 
       {/* New Listing Form Modal */}
       {showNewListingForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-gray-800">Create New Listing</h2>
                 <button 
                   onClick={() => setShowNewListingForm(false)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-gray-500 hover:text-gray-700 text-2xl focus:outline-none"
+                  aria-label="Close modal"
                 >
                   &times;
                 </button>
@@ -213,14 +211,15 @@ const ListingsPage = () => {
 
       {/* Edit Listing Form Modal */}
       {editingListing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-gray-800">Edit Listing</h2>
                 <button 
                   onClick={() => setEditingListing(null)}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                  className="text-gray-500 hover:text-gray-700 text-2xl focus:outline-none"
+                  aria-label="Close modal"
                 >
                   &times;
                 </button>
@@ -253,4 +252,3 @@ const ListingsPage = () => {
 };
 
 export default ListingsPage;
-
