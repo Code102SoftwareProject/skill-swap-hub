@@ -92,45 +92,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Register function - Updated to handle JWT token
-  const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
-    setIsLoading(true);
-    
-    try {
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
+ const register = async (userData: RegisterData): Promise<{ success: boolean; message: string }> => {
+  setIsLoading(true);
+  
+  try {
+    const response = await fetch('/api/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData),
+    });
 
-      const data = await response.json();
+    const data = await response.json();
+    
+    if (data.success) {
+      // UNCOMMENT THESE LINES to auto-login after registration
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
       
-      if (data.success) {
-        // Store token and user in localStorage if auto-login is desired
-        // Uncomment the following lines to auto-login after registration
-        /*
-        localStorage.setItem('auth_token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        // Update state
-        setToken(data.token);
-        setUser(data.user);
-        */
-      }
-      
-      setIsLoading(false);
-      
-      return { 
-        success: data.success, 
-        message: data.message || (data.success ? 'Registration successful' : 'Registration failed') 
-      };
-    } catch (error) {
-      console.error('Registration error:', error);
-      setIsLoading(false);
-      return { success: false, message: 'An error occurred during registration' };
+      // Update state
+      setToken(data.token);
+      setUser(data.user);
     }
-  };
+    
+    setIsLoading(false);
+    
+    return { 
+      success: data.success, 
+      message: data.message || (data.success ? 'Registration successful' : 'Registration failed') 
+    };
+  } catch (error) {
+    console.error('Registration error:', error);
+    setIsLoading(false);
+    return { success: false, message: 'An error occurred during registration' };
+  }
+};
 
   // Logout function
   const logout = async () => {

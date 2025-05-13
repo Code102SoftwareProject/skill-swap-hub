@@ -51,34 +51,35 @@ const Register = () => {
       return;
     }
 
-    try {
-      console.log('Submitting registration data...');
-      const result = await register(formData);
-      console.log('Registration result:', result);
+try {
+  console.log('Submitting registration data...');
+  const result = await register(formData);
+  console.log('Registration result:', result);
 
-      if (result.success) {
-        showToast('Registration successful! Redirecting to login...', 'success');
-        
-        // Reset form
-        setFormData({
-          firstName: '',
-          lastName: '',
-          email: '',
-          phone: '',
-          title: '',
-          password: '',
-          confirmPassword: '',
-        });
-        setAgreeToTerms(false);
-        
-        // Add a small delay to ensure the toast is visible
-        setTimeout(() => {
-          router.push('/login');
-        }, 1500);
-      } else {
-        showToast(result.message || 'Registration failed', 'error');
-        console.error('Registration failed with message:', result.message);
-      }
+  // In register/page.tsx, update the handleSubmit function
+  if (result.success) {
+  showToast('Registration successful! Redirecting to dashboard...', 'success');
+  
+  // Reset form
+  setFormData({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    title: '',
+    password: '',
+    confirmPassword: '',
+  });
+  setAgreeToTerms(false);
+  
+  // Redirect to dashboard instead of login
+  setTimeout(() => {
+    router.push('/dashboard');  // Change this from '/login' to '/dashboard'
+  }, 1500);
+} else {
+  showToast(result.message || 'Registration failed', 'error');
+  console.error('Registration failed with message:', result.message);
+}
     } catch (error) {
       showToast('An error occurred during registration', 'error');
       console.error('Registration error:', error);
