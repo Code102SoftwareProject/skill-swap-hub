@@ -163,11 +163,7 @@ export default function ChatPage() {
                   onClose={() => setShowMeetings(false)}
                 />
               ) : showSessions ? (
-                <SessionBox
-                  chatRoomId={selectedChatRoomId}
-                  userId={userId}
-                  onClose={() => setShowSessions(false)}
-                />
+                <SessionBox/>
               ) : (
                 <MessageBox
                   chatRoomId={selectedChatRoomId}
