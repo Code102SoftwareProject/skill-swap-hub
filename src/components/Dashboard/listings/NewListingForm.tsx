@@ -6,8 +6,8 @@ import {
   getSkillCategories, 
   getSkillsByCategory, 
   getUserSkills 
-} from '@/lib/services/skillService';
-import { createListing } from '@/lib/services/listingService';
+} from '@/services/skillService';
+import { createListing } from '@/services/listingService';
 import { UserSkill } from '@/types/userSkill';
 import { NewListingData } from '@/types/skillListing';
 

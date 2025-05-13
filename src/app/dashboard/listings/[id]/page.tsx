@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { BadgeCheck } from 'lucide-react';
 import { useToast } from '@/lib/context/ToastContext';
-import { getListing } from '@/lib/services/listingService';
+import { getListing } from '@/services/listingService';
 import { SkillListing } from '@/types/skillListing';
 
 // Helper function to extract ID from pathname

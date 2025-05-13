@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { SkillMatch } from '@/types/skillMatch';
 import { useToast } from '@/lib/context/ToastContext';
-import { updateMatchStatus } from '@/lib/services/matchService';
+import { updateMatchStatus } from '@/services/matchService';
 import { BadgeCheck, ArrowRight, MessageCircle, Calendar, XCircle, CheckCircle, Clock } from 'lucide-react';
 
 interface MatchDetailsModalProps {
