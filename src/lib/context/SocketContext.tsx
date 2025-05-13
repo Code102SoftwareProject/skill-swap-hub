@@ -5,7 +5,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { updateLastSeen } from '@/services/chatApiServices';
 
-// Type definitions for socket context
+// Type 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -47,7 +47,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     updateLastSeen(userId).catch(console.error);
 
     // Create socket connection
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET || 'https://valuable-iona-arlogic-b975dfc8.koyeb.app/';
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET;
     const newSocket = io(SOCKET_URL, { transports: ['websocket'] });
     setSocket(newSocket);
 
@@ -85,11 +85,9 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     // Add notification listener
     newSocket.on('receive_notification', (notification) => {
-      // Handle incoming notification (e.g., show a toast or update UI)
+      // Handle incoming notification 
       console.log('Received notification:', notification);
       
-      // You can trigger a UI update here or dispatch to state management
-      // Example: toast.info(notification.description);
     });
 
     // Browser close handler
@@ -139,7 +137,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   // Send a notification
   const sendNotification = (notification: NotificationData) => {
     if (socket) {
-      socket.emit('notification', notification); // Changed from 'send_notification' to 'notification'
+      socket.emit('notification', notification); 
     }
   };
 
@@ -186,7 +184,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };
 
-// Custom hook to use socket context
+// hook to use socket context
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (context === undefined) {

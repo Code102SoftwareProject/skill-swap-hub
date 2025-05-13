@@ -4,8 +4,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSocket } from '@/lib/context/SocketContext';
 import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
-// Import the API service
-import { sendMessage as sendMessageService } from "@/services/chatApiServices";
+
+import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -27,6 +27,8 @@ export default function MessageInput({
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  // Add state for storing the reply sender's name
+  const [replySenderName, setReplySenderName] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -42,6 +44,26 @@ export default function MessageInput({
       inputRef.current.focus();
     }
   }, [replyingTo]);
+
+  // Fetch user profile for the message being replied to
+  useEffect(() => {
+    const fetchReplyUserName = async () => {
+      if (replyingTo && replyingTo.senderId) {
+        if (replyingTo.senderId === senderId) {
+          setReplySenderName("yourself");
+        } else {
+          const userProfile = await fetchUserProfile(replyingTo.senderId);
+          if (userProfile) {
+            setReplySenderName(`${userProfile.firstName} ${userProfile.lastName}`);
+          } else {
+            setReplySenderName("Unknown User");
+          }
+        }
+      }
+    };
+
+    fetchReplyUserName();
+  }, [replyingTo, senderId]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0] || null;
@@ -135,15 +157,14 @@ export default function MessageInput({
 
   return (
     <div className="p-3 border-t bg-white">
-      {/* Reply Preview */}
+      {/* Reply Preview with user name instead of ID */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-gray-100 rounded flex items-start">
           <div className="flex-1">
             <div className="flex items-center mb-1">
               <CornerUpLeft className="w-3 h-3 mr-1" />
               <span className="text-xs font-semibold text-blue-600">
-                Replying to{" "}
-                {replyingTo.senderId === senderId ? "yourself" : replyingTo.senderId}
+                Replying to {replySenderName}
               </span>
             </div>
             <p className="text-sm text-gray-700 truncate">

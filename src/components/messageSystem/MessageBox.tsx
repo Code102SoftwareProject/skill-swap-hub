@@ -4,25 +4,45 @@ import React, { useEffect, useState, useRef } from "react";
 import { useSocket } from '@/lib/context/SocketContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
-// Import the extracted FileMessage and TextMessage components
+
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
-// Import the API service
+
 import { fetchChatMessages, fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
 
-// Update the props interface to accept participant info
+
 interface MessageBoxProps {
   userId: string;
   chatRoomId: string;
   newMessage?: IMessage;
   onReplySelect?: (message: IMessage) => void;
-  participantInfo?: { id: string, name: string }; // Add this prop
+  participantInfo?: { id: string, name: string }; 
 }
 
-// Add this type definition near the top of your file with other interfaces
+
 interface ReplyContent {
   sender: string;
   content: string;
+}
+
+/**
+ * DateBadge component to show date separators between messages
+ */
+function DateBadge({ date }: { date: Date }) {
+  const formattedDate = new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short', 
+    day: 'numeric',
+    year: 'numeric'
+  }).format(date);
+  
+  return (
+    <div className="flex items-center justify-center my-4 w-full">
+      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1">
+        {formattedDate}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -38,8 +58,8 @@ function TypingIndicator() {
   );
 }
 
-// Extract reply component to improve readability
-function ReplyPreview({ 
+// Reply Message 
+function ReplyMessage({ 
   replyInfo, 
   isMine, 
   onReplyClick 
@@ -56,7 +76,7 @@ function ReplyPreview({
         ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
       onClick={onReplyClick}
     >
-      <span className={`text-xs font-semibold ${isMine ? "text-secondary" : "text-gray-600"}`}>
+      <span className={`text-xs font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
         {replyInfo.sender}
       </span>
       <span className="text-sm text-gray-700 truncate block">
@@ -93,6 +113,18 @@ export default function MessageBox({
 
   // Add state for last user message index
   const [lastUserMessageIndex, setLastUserMessageIndex] = useState<number>(-1);
+
+  // Helper function to check if two dates are from different days
+  const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
+    if (!date1 || !date2) return false;
+    
+    const d1 = new Date(date1);
+    const d2 = new Date(date2);
+    
+    return d1.getFullYear() !== d2.getFullYear() ||
+          d1.getMonth() !== d2.getMonth() ||
+          d1.getDate() !== d2.getDate();
+  };
 
   // Fetch participant names when component mounts or chatRoomId changes
   useEffect(() => {
@@ -295,29 +327,6 @@ export default function MessageBox({
         };
       }
     }
-    
-    // Case 2: replyFor is just an ID (string only)
-    if (typeof replyFor === "string") {
-      const replyId = replyFor;
-      const originalMessage = messages.find(m => m._id === replyId);
-      
-      if (originalMessage && originalMessage.senderId) {
-        let senderName: string;
-        
-        if (originalMessage.senderId === userId) {
-          senderName = "You";
-        } else {
-          // Use fetched participant name or fallback
-          senderName = participantNames[originalMessage.senderId] || "Chat Partner";
-        }
-        
-        return {
-          sender: senderName,
-          content: originalMessage.content
-        };
-      }
-    }
-    
     // Fallback
     return {
       sender: "Unknown",
@@ -334,69 +343,79 @@ export default function MessageBox({
         const isMine = msg.senderId === userId;
         const isLastUserMessage = i === lastUserMessageIndex;
         
+        // Get current message date
+        const currentDate = msg.sentAt ? new Date(msg.sentAt) : undefined;
+        // Get previous message date (if any)
+        const prevDate = i > 0 && messages[i-1]?.sentAt ? new Date(messages[i-1].sentAt!) : undefined;
+        
+        // Display date badge if this is the first message or if it's a new day compared to previous message
+        const showDateBadge = i === 0 || isNewDay(currentDate, prevDate);
+        
         // Get reply content if message has a reply reference
         const replyInfo = msg.replyFor ? getReplyContent(msg.replyFor) : null;
 
         return (
-          <div
-            key={msg._id || i}
-            ref={(el) => {
-              if (msg._id) messageRefs.current[msg._id] = el;
-            }}
-            className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
-              ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
-          >
+          <React.Fragment key={msg._id || `msg-${i}`}>
+            {showDateBadge && currentDate && <DateBadge date={currentDate} />}
             <div
-              className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
-                ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
-                relative group`}
+              ref={(el) => {
+                if (msg._id) messageRefs.current[msg._id] = el;
+              }}
+              className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
+                ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
             >
-              {/* Reply button - show on hover */}
-              <button
-                onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
-                className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Reply"
+              <div
+                className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
+                  ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
+                  relative group`}
               >
-                <CornerUpLeft className="w-3 h-3" />
-              </button>
+                {/* Reply button - show on hover */}
+                <button
+                  onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
+                  className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  title="Reply"
+                >
+                  <CornerUpLeft className="w-3 h-3" />
+                </button>
 
-              {/* Reply box (if applicable) */}
-              <ReplyPreview 
-                replyInfo={replyInfo} 
-                isMine={isMine} 
-                onReplyClick={() => {
-                  if (
-                    msg.replyFor &&
-                    typeof msg.replyFor === "object" &&
-                    "_id" in msg.replyFor
-                  ) {
-                    scrollToMessage((msg.replyFor as { _id: string })._id);
-                  } else if (typeof msg.replyFor === "string") {
-                    scrollToMessage(msg.replyFor);
-                  }
-                }}
-              />
+                {/* Reply box (if applicable) */}
+                <ReplyMessage 
+                  replyInfo={replyInfo} 
+                  isMine={isMine} 
+                  onReplyClick={() => {
+                    if (
+                      msg.replyFor &&
+                      typeof msg.replyFor === "object" &&
+                      "_id" in msg.replyFor
+                    ) {
+                      scrollToMessage((msg.replyFor as { _id: string })._id);
+                    } else if (typeof msg.replyFor === "string") {
+                      scrollToMessage(msg.replyFor);
+                    }
+                  }}
+                />
 
-              {/* Main message content or File */}
-              {msg.content.startsWith("File:") ? (
-                <FileMessage fileInfo={msg.content} />
-              ) : (
-                <TextMessage content={msg.content} />
-              )}
+                {/* Main message content or File */}
+                {msg.content.startsWith("File:") ? (
+                  <FileMessage fileInfo={msg.content} />
+                ) : (
+                  <TextMessage content={msg.content} />
+                )}
 
-              {/* Timestamp inside bubble */}
-              <div className="flex justify-end items-center mt-1">
-                <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
-                  {msg.sentAt
-                    ? new Date(msg.sentAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : ""}
+                {/* Timestamp inside bubble */}
+                <div className="flex justify-end items-center mt-1">
+                  <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
+                    {msg.sentAt
+                      ? new Date(msg.sentAt).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : ""}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          </React.Fragment>
         );
       })}
 

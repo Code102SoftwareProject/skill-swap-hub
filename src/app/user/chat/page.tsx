@@ -50,10 +50,6 @@ export default function ChatPage() {
 
   const toggleMeetingsDisplay = (show: boolean) => {
     setShowMeetings(show);
-    // ? Is this condition working as expected? It toggles off immediately
-    if (show){
-      setShowMeetings(false);
-    }
   };
 
   const toggleSessionsDisplay = (show: boolean) => {
