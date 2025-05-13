@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
 
   /**
@@ -192,16 +192,6 @@ export default function AdminLoginPage() {
                 </button>
               </div>
             </div>
-
-            {/* Remember me checkbox */}
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              <span className="text-sm text-gray-600">Remember me</span>
-            </label>
 
             {/* Error message display */}
             {error && <div className="text-red-500 text-sm">{error}</div>}

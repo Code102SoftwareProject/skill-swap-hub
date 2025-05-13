@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/lib/context/ToastContext';
-import { getListings, deleteListing } from '@/lib/services/listingService';
+import { getListings, deleteListing } from '@/services/listingService';
 import { SkillListing } from '@/types/skillListing';
 import ListingCard from '@/components/Dashboard/listings/ListingCard';
 import NewListingForm from '@/components/Dashboard/listings/NewListingForm';

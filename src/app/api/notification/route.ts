@@ -7,13 +7,7 @@ import mongoose from 'mongoose';
 /**
  ** POST handler - Creates a new notification
  * 
- * @param req JSON body containing:
- *            - userId: ID of the user to receive the notification (required unless broadcast is true)
- *            - typeno: Type number of the notification (required)
- *            - description: Content/message of the notification (required)
- *            - targetDestination: Optional URL or path where clicking the notification should lead
- *            - broadcast: Boolean indicating if this is a broadcast notification (optional)
- *            
+ * @param req JSON body containing: userIde typeno description targetDestination     
  * @returns JSON response with created notification
  *          
  */
@@ -116,9 +110,7 @@ export async function POST(req: Request) {
 /**
  ** GET handler - Retrieves notifications for a user
  * 
- * @param req Query parameters containing:
- *            - userId: ID of the user whose notifications are to be retrieved (required)
- *            
+ * @param req Query  userId          
  * @returns JSON response with notifications
  *          
  */

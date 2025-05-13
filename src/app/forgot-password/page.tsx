@@ -10,6 +10,7 @@ const ForgotPassword = () => {
   const router = useRouter();
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   // Add initialLoading state to prevent redirect loops
   const [initialLoading, setInitialLoading] = useState(true);
@@ -56,8 +57,36 @@ const ForgotPassword = () => {
     checkResetStatus();
   }, [router]);
 
+  const validateEmail = (email: string): boolean => {
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      return false;
+    }
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Please enter a valid email address');
+      return false;
+    }
+    
+    setEmailError(null);
+    return true;
+  };
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+    if (emailError) {
+      validateEmail(e.target.value);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!validateEmail(email)) {
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -142,14 +171,19 @@ const ForgotPassword = () => {
                   id="email"
                   name="email"
                   type="email"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="johndoe@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={handleEmailChange}
                   disabled={isLoading}
                   required
+                  aria-invalid={emailError ? 'true' : 'false'}
+                  aria-describedby={emailError ? "email-error" : undefined}
                 />
               </div>
+              {emailError && (
+                <p className="mt-1 text-sm text-red-600" id="email-error">{emailError}</p>
+              )}
             </div>
 
             <div>

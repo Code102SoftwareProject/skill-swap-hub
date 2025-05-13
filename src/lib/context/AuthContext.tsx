@@ -43,15 +43,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Check for existing auth on mount
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token');
-    const storedUser = localStorage.getItem('user');
-    
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+    try {
+      const storedToken = localStorage.getItem('auth_token');
+      const storedUser = localStorage.getItem('user');
+      
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error('Error reading from localStorage:', error);
+      // Clear potentially corrupted data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
+    } finally {
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
   }, []);
 
   // Login function
@@ -67,6 +74,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify({ email, password, rememberMe }),
       });
 
+      if (!response.ok) {
+        // Handle HTTP errors
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
       const data = await response.json();
 
       if (data.success) {
@@ -78,16 +91,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setToken(data.token);
         setUser(data.user);
         
-        setIsLoading(false);
         return { success: true, message: data.message || 'Login successful' };
       } else {
-        setIsLoading(false);
         return { success: false, message: data.message || 'Login failed' };
       }
     } catch (error) {
       console.error('Login error:', error);
+      return { success: false, message: 'An error occurred during login. Please try again.' };
+    } finally {
       setIsLoading(false);
-      return { success: false, message: 'An error occurred during login' };
     }
   };
 
@@ -96,6 +108,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     
     try {
+      // Basic validation
+      if (userData.password !== userData.confirmPassword) {
+        setIsLoading(false);
+        return { success: false, message: 'Passwords do not match' };
+      }
+      
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -104,22 +122,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         body: JSON.stringify(userData),
       });
 
+      if (!response.ok) {
+        // Handle HTTP errors
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
       const data = await response.json();
       
       if (data.success) {
-        // Store token and user in localStorage if auto-login is desired
-        // Uncomment the following lines to auto-login after registration
-        /*
+        // Store token and user in localStorage for auto-login after registration
         localStorage.setItem('auth_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         // Update state
         setToken(data.token);
         setUser(data.user);
-        */
       }
-      
-      setIsLoading(false);
       
       return { 
         success: data.success, 
@@ -127,8 +146,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
     } catch (error) {
       console.error('Registration error:', error);
+      return { success: false, message: error instanceof Error ? error.message : 'An error occurred during registration' };
+    } finally {
       setIsLoading(false);
-      return { success: false, message: 'An error occurred during registration' };
     }
   };
 

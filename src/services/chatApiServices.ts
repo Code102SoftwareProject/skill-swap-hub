@@ -168,6 +168,37 @@ export async function sendMessage(messageData: any) {
     });
 
     const data = await response.json();
+    
+    // After sending the message, get chat room details to find recipient
+    const chatRoom = await fetchChatRoom(messageData.chatRoomId);
+    
+    if (chatRoom && chatRoom.participants) {
+      // Determine recipient(s) (everyone in chat except sender)
+      const recipients = chatRoom.participants.filter(
+        (participant) => participant.toString() !== messageData.senderId
+      );
+      
+      // Get sender user profile to include name in notification
+      const senderProfile = await fetchUserProfile(messageData.senderId);
+      const senderName = senderProfile ? 
+        `${senderProfile.firstName} ${senderProfile.lastName}` : 
+        "Someone";
+      
+      // Create notifications for each recipient
+      for (const recipientId of recipients) {
+        await fetch("/api/notification", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: recipientId,
+            typeno: 2, // Type 2 for new message notification
+            description: `New message from ${senderName}`,
+            targetDestination: `/chat`,
+          }),
+        });
+      }
+    }
+
     return data;
   } catch (error) {
     console.error("Error sending message:", error);
@@ -197,8 +228,6 @@ export async function fetchChatMessages(chatRoomId: string) {
     return [];
   }
 }
-
-
 
 /**
  * Mark multiple messages as read in a single request

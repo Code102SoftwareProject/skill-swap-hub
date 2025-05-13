@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Mic, StopCircle } from 'lucide-react';
-import { sendMessage } from '@/lib/services/chatbotservice';
+import { sendMessage } from '@/services/chatbotservice';
 import { useAuth } from '@/lib/context/AuthContext';
 
 // Define SpeechRecognition interfaces

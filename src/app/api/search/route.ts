@@ -1,4 +1,4 @@
-import { SearchService } from '@/app/services/SearchService';
+import { searchForums, initializeDB } from '@/app/services/SearchService';
 import { NextResponse } from 'next/server';
 
 export async function GET(request: Request) {
@@ -11,10 +11,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ forums: [] });
     }
 
-    const searchService = SearchService.getInstance();
-    await searchService.initialize();
-    
-    const forums = await searchService.searchForums(query);
+    await initializeDB();
+    const forums = await searchForums(query);
     console.log('Search results:', forums);
 
     return NextResponse.json({ 
