@@ -127,11 +127,6 @@ export default function ForumDetailsPage() {
                   <div className="flex items-center text-white/80 mb-3 text-sm">
                     <Clock className="h-4 w-4 mr-1" />
                     <span>{forum.createdAt ? new Date(forum.lastActive).toLocaleDateString() : 'Recently'}</span>
-                    
-                    <span className="mx-2">•</span>
-                    
-                    <User className="h-4 w-4 mr-1" />
-                    <span>{'Anonymous'}</span>
                   </div>
                   
                   <h1 className="text-4xl font-bold text-white mb-3">{forum.title}</h1>
@@ -172,8 +167,8 @@ export default function ForumDetailsPage() {
                       <span className="text-xs text-gray-500">{new Date(forum.lastActive).toLocaleDateString()}</span>
                     </div>
                     <span className="bg-blue-200 text-blue-800 text-sm px-2 py-1 rounded-full">
-                      {/*latestForum.postCount || 0*/}
-                      {0}
+                      {latestForum.posts || 0}
+                    
                     </span>
                   </div>
                 ))}

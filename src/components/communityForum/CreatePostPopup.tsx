@@ -178,14 +178,14 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
         }
       }
       
-      // Mock user data - in a real app, you'd get this from authentication
+      
       const currentUser = {
         _id: user ? user._id : 'temp-user-id',
         name: user ? user.firstName+ " "+ user.lastName: 'Current User',
         avatar: 'user-avatar.png'
       };
       
-      // Now create the post with JSON data
+      // create the post with JSON data
       const postData = {
         title,
         content,
@@ -211,7 +211,6 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
           const errorData = JSON.parse(errorText);
           errorMessage = errorData.error || errorData.message || errorData.details || 'Failed to create post';
         } catch (e) {
-          // If not JSON, use the text
           errorMessage = errorText || 'Failed to create post';
         }
         
@@ -258,7 +257,6 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Close on Escape key
     if (e.key === 'Escape') {
       onClose();
     }
@@ -313,7 +311,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
                     name="title"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.title ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Enter post title"
@@ -336,7 +334,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                     rows={6}
-                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                    className={`w-full px-4 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
                       errors.content ? 'border-red-500' : 'border-gray-300'
                     }`}
                     placeholder="Write your post content here..."
