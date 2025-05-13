@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { updateUserSkill, getSkillCategories, getSkillsByCategory } from '@/lib/services/skillService';
+import { updateUserSkill, getSkillCategories, getSkillsByCategory } from '@/services/skillService';
 import { useToast } from '@/lib/context/ToastContext';
 import { UserSkill, UpdateSkillData, CategoryData } from '@/types/userSkill';
 
