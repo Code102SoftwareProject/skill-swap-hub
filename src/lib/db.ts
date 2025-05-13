@@ -13,13 +13,13 @@ const connect = async () => {
   
   // If already connected, return early
   if (connectionState === 1) {
-    console.log("DB already connected");
+    // console.log("DB already connected");
     return;
   }
   
   // If connecting, wait for it
   if (connectionState === 2) {
-    console.log("DB connecting");
+    // console.log("DB connecting");
     return;
   }
 
@@ -30,9 +30,9 @@ const connect = async () => {
         dbName: "skillSwapHub",
         bufferCommands: true
       });
-      console.log("DB connected");
+      // console.log("DB connected");
     } catch (error: any) {
-      console.error("Error connecting to the database:", error);
+      // console.error("Error connecting to the database:", error);
       throw new Error(`Database connection failed: ${error.message}`);
     }
   }

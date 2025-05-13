@@ -1,11 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from './AuthContext';
 import { updateLastSeen } from '@/services/chatApiServices';
 
-// Type definitions for socket context
+// Type 
 interface SocketContextType {
   socket: Socket | null;
   isConnected: boolean;
@@ -39,58 +39,70 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const userId = user?._id;
 
+  // Track the previous userId with a ref to prevent unnecessary reconnections
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+
   // Initialize socket connection
   useEffect(() => {
+    // Don't do anything if userId is not available
     if (!userId) return;
+
+    // Skip if we already have a connection for this user
+    if (socket && prevUserIdRef.current === userId && isConnected) return;
+
+    // Update reference
+    prevUserIdRef.current = userId;
 
     // Update user's last seen status
     updateLastSeen(userId).catch(console.error);
 
     // Create socket connection
-    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET || 'https://valuable-iona-arlogic-b975dfc8.koyeb.app/';
+    const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET;
     const newSocket = io(SOCKET_URL, { transports: ['websocket'] });
+
+    // Important: Set socket state only once
     setSocket(newSocket);
 
-    // Set up socket event handlers
-    newSocket.on('connect', () => {
-      console.log('Socket connected:', newSocket.id);
-      setIsConnected(true);
-      newSocket.emit('presence_online', { userId });
-      newSocket.emit('get_online_users');
-    });
+    // Set up event handlers for this socket instance
+    const setupSocketEvents = () => {
+      newSocket.on('connect', () => {
+        console.log('Socket connected:', newSocket.id);
+        setIsConnected(true);
+        newSocket.emit('presence_online', { userId });
+        newSocket.emit('get_online_users');
+      });
 
-    newSocket.on('disconnect', () => {
-      console.log('Socket disconnected');
-      setIsConnected(false);
-    });
+      newSocket.on('disconnect', () => {
+        console.log('Socket disconnected');
+        setIsConnected(false);
+      });
 
-    newSocket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      setIsConnected(false);
-    });
+      newSocket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setIsConnected(false);
+      });
 
-    newSocket.on('online_users', (users: string[]) => {
-      setOnlineUsers(users);
-    });
+      newSocket.on('online_users', (users: string[]) => {
+        setOnlineUsers(users);
+      });
 
-    newSocket.on('user_online', ({ userId: onlineUserId }) => {
-      setOnlineUsers(prev => 
-        prev.includes(onlineUserId) ? prev : [...prev, onlineUserId]
-      );
-    });
+      newSocket.on('user_online', ({ userId: onlineUserId }) => {
+        setOnlineUsers(prev =>
+          prev.includes(onlineUserId) ? prev : [...prev, onlineUserId]
+        );
+      });
 
-    newSocket.on('user_offline', ({ userId: offlineUserId }) => {
-      setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
-    });
+      newSocket.on('user_offline', ({ userId: offlineUserId }) => {
+        setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
+      });
 
-    // Add notification listener
-    newSocket.on('receive_notification', (notification) => {
-      // Handle incoming notification (e.g., show a toast or update UI)
-      console.log('Received notification:', notification);
-      
-      // You can trigger a UI update here or dispatch to state management
-      // Example: toast.info(notification.description);
-    });
+      newSocket.on('receive_notification', (notification) => {
+        console.log('Received notification:', notification);
+      });
+    };
+
+    // Set up the events
+    setupSocketEvents();
 
     // Browser close handler
     const handleBeforeUnload = () => {
@@ -99,18 +111,29 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
 
-    // Clean up on unmount
+    // Clean up on unmount or when userId changes
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      
-      if (userId) {
-        updateLastSeen(userId)
-          .then(() => {
-            if (newSocket) {
+
+      if (newSocket) {
+        // Make sure to remove ALL event listeners
+        newSocket.off('connect');
+        newSocket.off('disconnect');
+        newSocket.off('connect_error');
+        newSocket.off('online_users');
+        newSocket.off('user_online');
+        newSocket.off('user_offline');
+        newSocket.off('receive_notification');
+
+        if (userId) {
+          updateLastSeen(userId)
+            .then(() => {
               newSocket.disconnect();
-            }
-          })
-          .catch(console.error);
+            })
+            .catch(console.error);
+        } else {
+          newSocket.disconnect();
+        }
       }
     };
   }, [userId]);
@@ -139,7 +162,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   // Send a notification
   const sendNotification = (notification: NotificationData) => {
     if (socket) {
-      socket.emit('notification', notification); // Changed from 'send_notification' to 'notification'
+      socket.emit('notification', notification);
     }
   };
 
@@ -186,7 +209,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };
 
-// Custom hook to use socket context
+// hook to use socket context
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (context === undefined) {
