@@ -3,27 +3,7 @@ import { NextResponse } from "next/server";
 import Badge from "@/lib/models/badgeSchema";
 import { NextRequest } from "next/server";
 import { Types } from "mongoose";
-
-/**
- * Interface for badge input validation
- */
-interface BadgeInput {
-  badgeName: string;
-  badgeImage: string;
-  criteria: string;
-  description: string;
-}
-
-/**
- * Interface for badge update validation with optional fields
- */
-interface BadgeUpdateInput {
-  badgeId: string;
-  badgeName?: string;
-  badgeImage?: string;
-  criteria?: string;
-  description?: string;
-}
+import type { BadgeInput, BadgeUpdateInput } from "@/services/badgeService";
 
 /**
  * Helper function to validate badge ID
@@ -84,7 +64,7 @@ export const POST = async (req: NextRequest) => {
 
     // Return success response with created badge
     return NextResponse.json(
-      { message: "Badge is created", Admin: newBadge },
+      { message: "Badge is created", badge: newBadge },
       { status: 200 }
     );
   } catch (error: any) {

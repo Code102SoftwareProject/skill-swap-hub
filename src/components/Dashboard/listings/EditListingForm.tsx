@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useToast } from '@/lib/context/ToastContext';
 import { 
   updateListing, 
-} from '@/lib/services/listingService';
+} from '@/services/listingService';
 import { 
   getSkillCategories, 
   getSkillsByCategory, 
   getUserSkills 
-} from '@/lib/services/skillService';
+} from '@/services/skillService';
 import { SkillListing, UpdateListingData } from '@/types/skillListing';
 import { UserSkill } from '@/types/userSkill';
 

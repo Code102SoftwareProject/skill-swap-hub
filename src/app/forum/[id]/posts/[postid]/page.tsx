@@ -1,6 +1,6 @@
 import React from 'react';
-import PostDetail from '@/components/postDetail';
-import Navbar from '@/components/Navbar';
+import PostDetail from '@/components/communityForum/postDetail';
+import Navbar from '@/components/homepage/Navbar';
 import Chatbot from "@/components/chatassistant/chatbot";
 
 export default function PostDetailPage() {

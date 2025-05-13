@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -9,6 +9,7 @@ import { useToast } from '@/lib/context/ToastContext';
 
 const Login = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
   const { showToast } = useToast();
   
@@ -18,15 +19,63 @@ const Login = () => {
     rememberMe: false
   });
 
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
+  // Check for redirect parameter
+  useEffect(() => {
+    const redirect = searchParams?.get('redirect');
+    if (redirect) {
+      // Store it for later use after login
+      sessionStorage.setItem('redirectAfterLogin', redirect);
+    }
+  }, [searchParams]);
+
+  const validateForm = () => {
+    const newErrors: {
+      email?: string;
+      password?: string;
+    } = {};
+    
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
+    const { name, value, type, checked } = e.target;
+    const inputValue = type === 'checkbox' ? checked : value;
+    
+    setFormData({ ...formData, [name]: inputValue });
+    
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors({ ...errors, [name]: undefined });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -38,7 +87,15 @@ const Login = () => {
 
       if (result.success) {
         showToast('Login successful! Redirecting...', 'success');
-        router.push('/dashboard');
+        
+        // Check if there's a redirect URL stored
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectUrl);
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         showToast(result.message || 'Login failed', 'error');
       }
@@ -85,13 +142,17 @@ const Login = () => {
                   id="email"
                   name="email"
                   type="email"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="johndoe@example.com"
                   value={formData.email}
                   onChange={handleChange}
-                  required
+                  aria-invalid={errors.email ? 'true' : 'false'}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                 />
               </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600" id="email-error">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -108,13 +169,17 @@ const Login = () => {
                   id="password"
                   name="password"
                   type="password"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="********"
                   value={formData.password}
                   onChange={handleChange}
-                  required
+                  aria-invalid={errors.password ? 'true' : 'false'}
+                  aria-describedby={errors.password ? "password-error" : undefined}
                 />
               </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600" id="password-error">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
