@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import Toast from '@/components/ui/Toast';
-import { Bell, X } from 'lucide-react';
+import { Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Notification as NotificationType } from '@/types/notification';
 
@@ -55,7 +55,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
     setNotifications(prev => prev.filter(notification => notification._id !== id));
   };
 
-  // Individual Notification Toast Component (moved from NotificationAlert)
+  // Individual Notification Toast Component
   const NotificationToast = ({ notification, onClose }: { notification: NotificationType, onClose: () => void }) => {
     const handleClick = () => {
       if (notification.targetDestination) {
@@ -92,7 +92,9 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
           className="flex-shrink-0 text-gray-400 hover:text-gray-500 focus:outline-none"
           aria-label="Close notification"
         >
-          <X className="h-4 w-4" aria-hidden="true" />
+          <svg className="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
         </button>
       </div>
     );

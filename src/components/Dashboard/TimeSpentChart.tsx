@@ -20,7 +20,7 @@ export function TimeSpent() {
         <YAxis />
         <Tooltip/>
         <Legend />
-        <Line dot={false} dataKey="hour" type="monotone" name="Time Spent" stroke="#0369A1"/>
+        <Line dot={false} dataKey="hour" type="monotone" name="Time Spent" stroke="#026aa1" fill="#99ccee"/>
     </LineChart>
         </ResponsiveContainer>
     )

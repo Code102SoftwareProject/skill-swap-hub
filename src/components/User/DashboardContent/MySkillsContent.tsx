@@ -5,7 +5,7 @@
 
 
 import React, { useState, useEffect } from 'react';
-import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/lib/services/skillService';
+import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/services/skillService';
 import { UserSkill } from '@/types/userSkill';
 import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
