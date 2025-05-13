@@ -71,6 +71,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/crypto-js": "^4.2.2",
     "@types/formidable": "^3.4.5",
+    "@types/lodash": "^4.17.16",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^20.17.17",
     "@types/node-fetch": "^2.6.12",
