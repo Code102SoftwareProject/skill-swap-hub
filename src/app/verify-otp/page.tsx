@@ -11,6 +11,7 @@ const VerifyOTP = () => {
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -55,6 +56,11 @@ const VerifyOTP = () => {
     newOtp[index] = value.slice(0, 1);
     setOtp(newOtp);
     
+    // Clear OTP error if present
+    if (otpError) {
+      setOtpError(null);
+    }
+    
     // Move to next input if a digit was entered
     if (value && index < 5 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1]?.focus();
@@ -86,6 +92,11 @@ const VerifyOTP = () => {
     
     setOtp(newOtp);
     
+    // Clear OTP error if present
+    if (otpError) {
+      setOtpError(null);
+    }
+    
     // Focus the appropriate field
     const newFocusIndex = Math.min(index + digits.length, 5);
     if (inputRefs.current[newFocusIndex]) {
@@ -111,18 +122,27 @@ const VerifyOTP = () => {
     }
   };
 
+  const validateOtp = (): boolean => {
+    const otpString = otp.join('');
+    
+    if (otpString.length !== 6) {
+      setOtpError('Please enter a complete 6-digit OTP');
+      return false;
+    }
+    
+    return true;
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!validateOtp()) {
+      return;
+    }
+    
     setIsLoading(true);
     
     const otpString = otp.join('');
-    
-    // Validate OTP length
-    if (otpString.length !== 6) {
-      showToast('Please enter a complete 6-digit OTP', 'error');
-      setIsLoading(false);
-      return;
-    }
     
     try {
       const response = await fetch('/api/verify-otp', {
@@ -150,6 +170,7 @@ const VerifyOTP = () => {
           router.push('/reset-password');
         }, 1500);
       } else {
+        setOtpError('Invalid OTP. Please check and try again.');
         showToast(data.message || 'Invalid OTP', 'error');
       }
     } catch (error) {
@@ -235,13 +256,17 @@ const VerifyOTP = () => {
                     onKeyDown={(e) => handleKeyDown(e, idx)}
                     onPaste={(e) => handlePaste(e, idx)}
                     ref={(el) => { inputRefs.current[idx] = el }}
-                    className="w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    className={`w-12 h-12 text-center text-xl font-bold border ${otpError ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black`}
                     required
                     autoFocus={idx === 0}
                     disabled={isLoading}
+                    aria-label={`OTP digit ${idx + 1}`}
                   />
                 ))}
               </div>
+              {otpError && (
+                <p className="mt-2 text-sm text-red-600 text-center">{otpError}</p>
+              )}
               <div className="text-center mt-2">
                 <p className="text-sm text-gray-600">
                   Time remaining: <span className="font-medium">{formatTime(countdown)}</span>
