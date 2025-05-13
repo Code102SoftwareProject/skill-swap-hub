@@ -6,7 +6,7 @@ import NotificationAlert from '@/components/notificationSystem/NotificationAlert
 import { Bell, CheckCheck, Loader2, Inbox, History, ArrowDownUp } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/homepage/Navbar';
 import { useSocket } from '@/lib/context/SocketContext';
 import { Notification as NotificationType } from '@/types/notification';
 
@@ -19,16 +19,14 @@ const NotificationPage = () => {
   const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
   const { socket, isConnected } = useSocket();
 
-  // Fetch user notifications when component mounts
+  // ! User Identify
   useEffect(() => {
-    // Redirect if not authenticated
+  
     if (!authLoading && !token) {
       router.push('/login?redirect=/user/notification');
       return;
     }
-
-    // Only fetch notifications if we have a token
-    if (token && user?._id) {
+    if (user?._id) {
       fetchNotifications();
     } else if (!authLoading && !user?._id) {
       setError("Could not identify user. Please log in again.");
@@ -36,7 +34,7 @@ const NotificationPage = () => {
     }
   }, [token, user?._id, authLoading, router]);
 
-  // Listen for real-time notifications
+  // * Listen for real-time notifications
   useEffect(() => {
     if (!socket || !isConnected) return;
 
@@ -56,7 +54,7 @@ const NotificationPage = () => {
       };
 
       setNotifications(prevNotifications => {
-        // Check if we already have this notification to prevent duplicates
+        // prevent duplicates
         const exists = prevNotifications.some(n => 
           n._id === newNotification._id || 
           (n.description === newNotification.description && 
@@ -65,14 +63,14 @@ const NotificationPage = () => {
         
         if (exists) return prevNotifications;
 
-        // Add the new notification at the beginning for immediate visibility
+        // Add the new notification at the beginning 
         return [newNotification, ...prevNotifications];
       });
     };
 
     socket.on('receive_notification', handleNewNotification);
 
-    // Clean up the socket listener when component unmounts
+    // Clean up 
     return () => {
       socket.off('receive_notification', handleNewNotification);
     };
@@ -220,7 +218,7 @@ const NotificationPage = () => {
             <p>Hi {user.firstName}, here are your notifications:</p>
           </div>
         )}
-
+        {/*UnReaded Notifications*/}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
           <div className="flex items-center">
             <Bell className="h-6 w-6 text-[#006699] mr-3" />
@@ -247,7 +245,6 @@ const NotificationPage = () => {
                 <ArrowDownUp className="w-4 h-4 absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" />
               </div>
             )}
-
             {unreadNotifications.length > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
@@ -265,7 +262,8 @@ const NotificationPage = () => {
             {error}
           </div>
         )}
-
+        
+        
         {unreadNotifications.length > 0 && (
           <div className="mb-8">
             <h2 className="flex items-center text-lg font-semibold text-gray-700 mb-3">
@@ -283,6 +281,8 @@ const NotificationPage = () => {
           </div>
         )}
 
+
+        {/* Readed Notification */}
         {readNotifications.length > 0 && (
           <div className="mb-8">
             <h2 className="flex items-center text-lg font-semibold text-gray-700 mb-3">

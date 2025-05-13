@@ -121,8 +121,7 @@ const PostDetail = () => {
           setReplies(repliesData.replies || []);
         } catch (replyErr) {
           console.error('Error fetching replies:', replyErr);
-          // Don't set error state for replies, just log it
-          // We still want to show the post even if replies fail
+          setError('Unable to load replies. Please try again later.');
           setReplies([]);
         }
       } catch (err) {
@@ -403,7 +402,7 @@ const PostDetail = () => {
     setEditTitle(post?.title || '');
     setEditContent(post?.content || '');
     
-    // If post has an image, set it as preview but don't add it to the edit file (only new uploads)
+    
     if (post?.imageUrl) {
       setEditImagePreview(getImageUrl(post.imageUrl));
     } else {

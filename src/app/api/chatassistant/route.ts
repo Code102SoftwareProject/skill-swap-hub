@@ -7,9 +7,10 @@ import VerificationRequestModel from '@/lib/models/VerificationRequest';
  * Agent function to handle skill verification request status
  * @param userId - The user ID to check verification status for
  */
+
 async function checkVerificationStatus(userId: string) {
   try {
-    // Connect directly to the database instead of making an HTTP request
+
     await connect();
     
     // Query database directly instead of making an HTTP call
@@ -39,16 +40,13 @@ async function checkVerificationStatus(userId: string) {
   }
 }
 
-/**
- * Formats verification status data into a readable message
- */
+
 function formatVerificationResponse(requests: any[]) {
   if (!requests || requests.length === 0) {
     return "You don't have any verification requests at the moment.";
   }
 
-  // Sort requests by date (newest first) - they should already be sorted from the API
-  // but we'll ensure it here
+ 
   const sortedRequests = [...requests].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -88,9 +86,7 @@ function formatVerificationResponse(requests: any[]) {
   return statusMessage;
 }
 
-/**
- * Determines intent from user question
- */
+
 function determineIntent(question: string) {
   const lowerQuestion = question.toLowerCase();
   
@@ -114,7 +110,7 @@ function determineIntent(question: string) {
  */
 async function handleTechnicalQuestion(question: string) {
   try {
-    // No need for external search, directly ask Gemini
+    //  directly ask Gemini
     const answer = await getAnswerFromGemini(question);
     
     return {
