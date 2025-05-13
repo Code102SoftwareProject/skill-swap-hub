@@ -149,7 +149,6 @@ export default function ChatPage() {
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
               onToggleSessions={toggleSessionsDisplay}
-              upcomingMeetingsCount={0}
               initialParticipantInfo={selectedParticipantInfo}
               showingSessions={showSessions}
               showingMeetings={showMeetings}
@@ -164,10 +163,7 @@ export default function ChatPage() {
                   onClose={() => setShowMeetings(false)}
                 />
               ) : showSessions ? (
-                <SessionBox
-                  chatRoomId={selectedChatRoomId}
-                  userId={userId}
-                  onClose={() => setShowSessions(false)}
+                <SessionBox    
                 />
               ) : (
                 <MessageBox

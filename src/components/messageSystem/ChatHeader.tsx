@@ -12,7 +12,6 @@ interface ChatHeaderProps {
   userId: string;
   onToggleMeetings: (show: boolean) => void;
   onToggleSessions: (show: boolean) => void;
-  upcomingMeetingsCount?: number;
   initialParticipantInfo?: { id: string, name: string };
   showingMeetings?: boolean;
   showingSessions?: boolean;
@@ -23,7 +22,6 @@ export default function ChatHeader({
   userId, 
   onToggleMeetings,
   onToggleSessions,
-  upcomingMeetingsCount = 0,
   initialParticipantInfo,
   showingMeetings = false,
   showingSessions = false
@@ -234,6 +232,7 @@ export default function ChatHeader({
         </p>
       </div>
       <div className="flex space-x-4">
+        {/* Back to Dashboard*/}
         <button
           onClick={handleBackToDashboard}
           className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
@@ -241,7 +240,7 @@ export default function ChatHeader({
           <ArrowLeft className="h-5 w-5 mb-1" />
           <span className="text-xs">Dashboard</span>
         </button>
-
+        {/* Session Button */}
         <button 
           className={`flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleSessions}
@@ -250,18 +249,14 @@ export default function ChatHeader({
           <span className="text-xs">Sessions</span>
         </button>
 
+        {/* Meetings Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200 text-xs'  : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleMeetings}
         >
           <Calendar className="h-5 w-5 mb-1" />
           <div className="flex items-center">
             <span className="text-xs">Meetings</span>
-            {upcomingMeetingsCount > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full w-4 h-4">
-                {upcomingMeetingsCount}
-              </span>
-            )}
           </div>
         </button>
       </div>

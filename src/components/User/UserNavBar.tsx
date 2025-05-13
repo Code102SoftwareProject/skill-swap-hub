@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bell, MessageSquare, ChevronDown, Search, LogOut, User } from 'lucide-react';
-import SearchPopup from '@/components/SearchPopup';
+import SearchPopup from '@/components/homepage/SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 
