@@ -46,11 +46,10 @@ function SidebarBox({
   );
 }
 /**
- * Sidebar component that displays the user's chat rooms and allows for searching and selecting conversations
- *
- * @param {string} userId - The ID of the current authenticated user
- * @param {function} onChatSelect - Callback function that's triggered when a chat room is selected
- * @returns {TSX.Element} The rendered sidebar component with chat list and search functionality
+ * Sidebar component 
+ * @param {string} userId 
+ * @param {function} onChatSelect 
+ * @returns {TSX.Element} 
  */
 export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
@@ -244,7 +243,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             // Show all rooms when no search query is provided
             if (!profile || !searchQuery.trim()) return true;
 
-            // Filter by name match (case-insensitive)
+            // Filter by name match case insesitve 
             const fullName =
               `${profile.firstName} ${profile.lastName}`.toLowerCase();
             return fullName.includes(searchQuery.toLowerCase());
@@ -261,12 +260,12 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               ? `${profile.firstName} ${profile.lastName}`
               : otherParticipantId.substring(0, 8);
 
-            // Display last message or placeholder text
-            const lastMessage = chat.lastMessage?.content || "No messages yet";
+            // ! Last Message 
+            const lastMessage = chat.lastMessage?.content.substring(0,6) || "No messages yet";
 
             return (
               /*
-                ! Selected Chatroom Color
+                ! Selected Chatroom 
               */
               <li
                 key={chat._id}
