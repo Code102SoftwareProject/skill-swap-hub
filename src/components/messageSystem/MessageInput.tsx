@@ -19,7 +19,6 @@ interface MessageInputProps {
 export default function MessageInput({
   chatRoomId,
   senderId,
-  receiverId,
   replyingTo,
   onCancelReply,
   chatParticipants,
@@ -27,7 +26,7 @@ export default function MessageInput({
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  // Add state for storing the reply sender's name
+  // Astate for storing the reply sender's name
   const [replySenderName, setReplySenderName] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
