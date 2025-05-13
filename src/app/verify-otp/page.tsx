@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, ClipboardEvent, KeyboardEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -43,7 +43,8 @@ const VerifyOTP = () => {
     return () => clearInterval(timer);
   }, [router, showToast]);
 
-  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  // Handle input change for individual digits
+  const handleOtpChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
     const value = e.target.value;
     
     // Allow only digits
@@ -60,10 +61,53 @@ const VerifyOTP = () => {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+  // Handle pasting OTP
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>, index: number) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text/plain').trim();
+    
+    // Check if pasted content contains only digits
+    if (!/^\d+$/.test(pastedData)) {
+      showToast('Please paste numbers only', 'error');
+      return;
+    }
+    
+    // Extract up to 6 digits
+    const digits = pastedData.slice(0, 6).split('');
+    
+    // Fill the OTP array
+    const newOtp = [...otp];
+    
+    digits.forEach((digit, i) => {
+      if (index + i < 6) {
+        newOtp[index + i] = digit;
+      }
+    });
+    
+    setOtp(newOtp);
+    
+    // Focus the appropriate field
+    const newFocusIndex = Math.min(index + digits.length, 5);
+    if (inputRefs.current[newFocusIndex]) {
+      inputRefs.current[newFocusIndex]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
     // Move to previous input on backspace if current input is empty
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
+    }
+    
+    // Handle arrow keys for navigation between inputs
+    if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    }
+    
+    if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
     }
   };
 
@@ -72,6 +116,13 @@ const VerifyOTP = () => {
     setIsLoading(true);
     
     const otpString = otp.join('');
+    
+    // Validate OTP length
+    if (otpString.length !== 6) {
+      showToast('Please enter a complete 6-digit OTP', 'error');
+      setIsLoading(false);
+      return;
+    }
     
     try {
       const response = await fetch('/api/verify-otp', {
@@ -177,10 +228,12 @@ const VerifyOTP = () => {
                   <input
                     key={idx}
                     type="text"
+                    inputMode="numeric"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(e, idx)}
                     onKeyDown={(e) => handleKeyDown(e, idx)}
+                    onPaste={(e) => handlePaste(e, idx)}
                     ref={(el) => { inputRefs.current[idx] = el }}
                     className="w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
                     required
@@ -192,6 +245,9 @@ const VerifyOTP = () => {
               <div className="text-center mt-2">
                 <p className="text-sm text-gray-600">
                   Time remaining: <span className="font-medium">{formatTime(countdown)}</span>
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  You can also paste the entire OTP here
                 </p>
               </div>
             </div>
