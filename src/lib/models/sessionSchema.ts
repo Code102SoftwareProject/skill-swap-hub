@@ -25,10 +25,9 @@ const sessionSchema = new Schema(
     skill2Id: { type: Schema.Types.ObjectId, ref: "UserSkill", required: true },
     descriptionOfService2: { type: String, required: true },
     startDate: { type: Date, required: true },
-    // dueDate field removed as it's now stored in SessionProgress
     isAccepted: { 
       type: Boolean, 
-      required: false, // Changed from required: true
+      required: false, 
       default: null 
     },
     isAmmended: { type: Boolean, default: false },
