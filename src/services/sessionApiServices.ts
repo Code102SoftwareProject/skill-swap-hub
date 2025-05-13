@@ -74,6 +74,7 @@ export async function getUserSkills(userId: string): Promise<Skill[]> {
     throw error;
   }
 }
+
 /**
  * Create a new skill exchange session
  */
@@ -168,5 +169,35 @@ export async function updateSessionProgress(progressId: string, updateData: any)
   } catch (error) {
     console.error('Error updating session progress:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch a user's profile information
+ */
+export async function getSessionUserProfile(userId: string) {
+  try {
+    const response = await fetch(`/api/users/profile?id=${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch user profile: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.user) {
+      return {
+        id: userId,
+        name: `${data.user.firstName} ${data.user.lastName}`,
+        profileImage: data.user.avatar || '/default-avatar.png',
+        firstName: data.user.firstName,
+        lastName: data.user.lastName
+      };
+    }
+    
+    throw new Error('User profile not found');
+  } catch (error) {
+    console.error(`Error fetching user profile for ${userId}:`, error);
+    return null;
   }
 }

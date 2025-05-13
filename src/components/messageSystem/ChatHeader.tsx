@@ -251,7 +251,7 @@ export default function ChatHeader({
 
         {/* Meetings Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200 text-xs'  : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleMeetings}
         >
           <Calendar className="h-5 w-5 mb-1" />
