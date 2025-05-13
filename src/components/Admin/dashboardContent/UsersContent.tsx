@@ -256,18 +256,18 @@ const UserCard: React.FC<UserCardProps> = ({ user, onDelete }) => (
 
 const UserTableRow: React.FC<{ user: User; onDelete: (userId: string) => void }> = ({ user, onDelete }) => (
   <tr className="hover:bg-gray-50 transition-colors border-b last:border-b-0">
-    <td className="px-6 py-4">
+    <td className="px-6 py-3">
       <UserAvatar user={user} />
     </td>
-    <td className="px-6 py-4 font-medium">
+    <td className="px-6 py-3 font-medium">
       {user.firstName} {user.lastName}
       {user.role && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{user.role}</span>}
     </td>
-    <td className="px-6 py-4">{user.email}</td>
-    <td className="px-6 py-4">{formatPhoneNumber(user.phone)}</td>
-    <td className="px-6 py-4">{user.title}</td>
-    <td className="px-6 py-4">{formatDate(user.createdAt)}</td>
-    <td className="px-6 py-4">
+    <td className="px-6 py-3">{user.email}</td>
+    <td className="px-6 py-3">{formatPhoneNumber(user.phone)}</td>
+    <td className="px-6 py-3">{user.title}</td>
+    <td className="px-6 py-3">{formatDate(user.createdAt)}</td>
+    <td className="px-6 py-3">
       <DeleteButton 
         onClick={() => onDelete(user._id)} 
         label={`Delete ${user.firstName} ${user.lastName}`}
@@ -281,16 +281,16 @@ const UserTable: React.FC<UserTableProps> = ({ users, onDelete, loading }) => {
   if (users.length === 0) return <EmptyState />;
 
   return (
-    <table className="min-w-full text-gray-900">
+    <table className="min-w-full text-gray-900 p-12">
       <thead className="bg-gray-100 sticky top-0 z-10">
         <tr>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Avatar</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Name</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Email</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Phone</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Title</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Joined</th>
-          <th className="px-6 py-4 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Action</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Avatar</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Name</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Email</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Phone</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Title</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Joined</th>
+          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Action</th>
         </tr>
       </thead>
       <tbody>
