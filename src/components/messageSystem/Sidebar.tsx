@@ -24,16 +24,23 @@ interface UserProfile {
   avatar?: string; // TODO:Make it display Profile Pic
 }
 
-function SidebarBox({ otherParticipantName, lastMessage }: { 
+function SidebarBox({ 
+  otherParticipantName, 
+  lastMessage, 
+  isSelected 
+}: { 
   otherParticipantName: string; 
-  lastMessage: string 
+  lastMessage: string;
+  isSelected?: boolean;
 }) {
   return (
     <div className="flex flex-row items-center space-x-2">
       <User className="text-2xl" />
       <div className="flex flex-col">
         <span>{otherParticipantName}</span>
-        <span className="text-sm text-gray-400">{lastMessage}</span>
+        <span className={`text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+          {lastMessage}
+        </span>
       </div>
     </div>
   );
@@ -157,8 +164,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
         
         if (!roomExists) {
-          // If we don't have this room yet, trigger a refresh
-          // We'll use a setTimeout to avoid React state setting conflicts
+          // If room not exisits
           setTimeout(() => fetchChatRooms(), 0);
           return prevRooms;
         }
@@ -259,10 +265,13 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             const lastMessage = chat.lastMessage?.content || "No messages yet";
 
             return (
+              /*
+                ! Selected Chatroom Color
+              */
               <li
                 key={chat._id}
                 className={`p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
-                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700" : ""
+                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""
                 }`}
                 onClick={() =>
                   onChatSelect(chat._id, {
@@ -274,6 +283,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                 <SidebarBox
                   otherParticipantName={otherParticipantName}
                   lastMessage={lastMessage}
+                  isSelected={selectedChatRoomId === chat._id}
                 />
               </li>
             );
