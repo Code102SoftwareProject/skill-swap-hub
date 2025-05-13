@@ -11,6 +11,17 @@ const data =[
     }
 ]
 
+// Mock data for Skills Offered
+const offeredData =[
+    {"Coding & Programming" : 8,
+      "Creative Arts & Entertainment" :12,
+      "Home Improvement & DIY" : 9,
+      "Education & Tutoring" : 14,
+      "Culinary & Food Services" : 5,
+      "Lifestyle & Personal Services" : 7
+    }
+]
+
 export function SkillsRequested() {
     return (
         <ResponsiveContainer width = "100%" minHeight={300} >
@@ -20,12 +31,32 @@ export function SkillsRequested() {
         <YAxis />
         <Tooltip/>
         <Legend />
-        <Bar dataKey="Coding & Programming"  fill="#BBEEFF"/>
-        <Bar dataKey="Creative Arts & Entertainment"  fill="#95C8FF"/>
-        <Bar dataKey="Home Improvement & DIY"  fill="#70A3FF"/>
-        <Bar dataKey="Education & Tutoring"  fill="#4A7DFF"/>
-        <Bar dataKey="Culinary & Food Services"  fill="#2457F6"/>
-        <Bar dataKey="Lifestyle & Personal ServicesCoding & Programming"  fill="#0031D0"/>
+        <Bar dataKey="Coding & Programming"  fill="#026aa1"/>
+        <Bar dataKey="Creative Arts & Entertainment"  fill="#1d7fbf"/>
+        <Bar dataKey="Home Improvement & DIY"  fill="#3399d6"/>
+        <Bar dataKey="Education & Tutoring"  fill="#66b3e6"/>
+        <Bar dataKey="Culinary & Food Services"  fill="#99ccee"/>
+        <Bar dataKey="Lifestyle & Personal ServicesCoding & Programming"  fill="#cce6f7"/>
+    </BarChart>
+        </ResponsiveContainer>
+    )
+}
+
+export function SkillsOffered() {
+    return (
+        <ResponsiveContainer width = "100%" minHeight={300} >
+        <BarChart data={offeredData} width={500} height={250}>
+        <CartesianGrid stroke="hsl(var(--muted))"/>
+        <XAxis />
+        <YAxis />
+        <Tooltip/>
+        <Legend />
+        <Bar dataKey="Coding & Programming"  fill="#026aa1"/>
+        <Bar dataKey="Creative Arts & Entertainment"  fill="#1d7fbf"/>
+        <Bar dataKey="Home Improvement & DIY"  fill="#3399d6"/>
+        <Bar dataKey="Education & Tutoring"  fill="#66b3e6"/>
+        <Bar dataKey="Culinary & Food Services"  fill="#99ccee"/>
+        <Bar dataKey="Lifestyle & Personal Services"  fill="#cce6f7"/>
     </BarChart>
         </ResponsiveContainer>
     )
