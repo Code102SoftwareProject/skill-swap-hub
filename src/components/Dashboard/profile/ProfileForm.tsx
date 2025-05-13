@@ -1,18 +1,51 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function ProfileForm() {
   const [formState, setFormState] = useState({
-    userId: '', // put your test user ID here
+    userId: '67e66f9d4c4a95f630b6235c', // Hardcoded test user ID - replace with actual ID
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
     title: '',
+    avatarUrl: ''
   });
   const [avatar, setAvatar] = useState<File | null>(null);
   const [message, setMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const res = await fetch(`/api/users/profile?id=${formState.userId}`);
+        const data = await res.json();
+        
+        if (data.success && data.user) {
+          setFormState(prev => ({
+            ...prev,
+            firstName: data.user.firstName || '',
+            lastName: data.user.lastName || '',
+            email: data.user.email || '',
+            phone: data.user.phone || '',
+            title: data.user.title || '',
+            avatarUrl: data.user.avatar || ''
+          }));
+        } else {
+          setMessage(data.message || 'Failed to fetch user data');
+        }
+      } catch (err) {
+        console.error(err);
+        setMessage('Error while fetching profile data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, [formState.userId]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormState({ ...formState, [e.target.name]: e.target.value });
@@ -26,14 +59,16 @@ export default function ProfileForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setMessage('');
+    setIsLoading(true);
 
     const formData = new FormData();
     formData.append('userId', formState.userId);
-    if (formState.firstName) formData.append('firstName', formState.firstName);
-    if (formState.lastName) formData.append('lastName', formState.lastName);
-    if (formState.email) formData.append('email', formState.email);
-    if (formState.phone) formData.append('phone', formState.phone);
-    if (formState.title) formData.append('title', formState.title);
+    formData.append('firstName', formState.firstName);
+    formData.append('lastName', formState.lastName);
+    formData.append('email', formState.email);
+    formData.append('phone', formState.phone);
+    formData.append('title', formState.title);
     if (avatar) formData.append('avatar', avatar);
 
     try {
@@ -45,31 +80,112 @@ export default function ProfileForm() {
       const data = await res.json();
       if (data.success) {
         setMessage('Profile updated successfully!');
-        console.log('Updated user:', data.user);
+        // Update local state with new avatar URL if it was changed
+        if (data.user.avatar) {
+          setFormState(prev => ({ ...prev, avatarUrl: data.user.avatar }));
+        }
       } else {
         setMessage(data.message || 'Something went wrong');
       }
     } catch (err) {
       console.error(err);
       setMessage('Error while updating profile');
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  if (isLoading) {
+    return <div className="max-w-md mx-auto p-4 text-center">Loading profile...</div>;
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto p-4 border rounded">
-      <input name="userId" placeholder="User ID" value={formState.userId} onChange={handleChange} className="w-full border p-2" required />
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto p-4 border text-gray-800 rounded">
+      <div className="flex items-center space-x-4">
+        {formState.avatarUrl && (
+          <img 
+            src={formState.avatarUrl} 
+            alt="Profile" 
+            className="w-16 h-16 rounded-full object-cover"
+          />
+        )}
+        <div>
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={handleFileChange} 
+            className="w-full text-gray-800"
+          />
+          <p className="text-sm text-gray-500">Click to change profile picture</p>
+        </div>
+      </div>
 
-      <input name="firstName" placeholder="First Name" value={formState.firstName} onChange={handleChange} className="w-full border p-2" />
-      <input name="lastName" placeholder="Last Name" value={formState.lastName} onChange={handleChange} className="w-full border p-2" />
-      <input name="email" placeholder="Email" value={formState.email} onChange={handleChange} className="w-full border p-2" />
-      <input name="phone" placeholder="Phone" value={formState.phone} onChange={handleChange} className="w-full border p-2" />
-      <input name="title" placeholder="Title" value={formState.title} onChange={handleChange} className="w-full border p-2" />
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium mb-1">First Name</label>
+          <input 
+            name="firstName" 
+            value={formState.firstName} 
+            onChange={handleChange} 
+            className="w-full text-gray-800 border p-2 rounded" 
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Last Name</label>
+          <input 
+            name="lastName" 
+            value={formState.lastName} 
+            onChange={handleChange} 
+            className="w-full text-gray-800 border p-2 rounded" 
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Email</label>
+        <input 
+          name="email" 
+          type="email"
+          value={formState.email} 
+          onChange={handleChange} 
+          className="w-full text-gray-800 border p-2 rounded" 
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Phone</label>
+        <input 
+          name="phone" 
+          type="tel"
+          value={formState.phone} 
+          onChange={handleChange} 
+          className="w-full text-gray-800 border p-2 rounded" 
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Title</label>
+        <input 
+          name="title" 
+          value={formState.title} 
+          onChange={handleChange} 
+          className="w-full text-gray-800 border p-2 rounded" 
+        />
+      </div>
       
-      <input type="file" accept="image/*" onChange={handleFileChange} className="w-full border p-2" />
+      <button 
+        type="submit" 
+        disabled={isLoading}
+        className={`w-full bg-blue-500 text-white px-4 py-2 rounded ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-600'}`}
+      >
+        {isLoading ? 'Updating...' : 'Update Profile'}
+      </button>
 
-      <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">Update Profile</button>
-
-      {message && <p className="text-green-600 mt-2">{message}</p>}
+      {message && (
+        <p className={`mt-2 text-center ${message.includes('success') ? 'text-green-600' : 'text-red-600'}`}>
+          {message}
+        </p>
+      )}
     </form>
   );
 }
