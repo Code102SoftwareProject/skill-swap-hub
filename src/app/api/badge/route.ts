@@ -3,27 +3,7 @@ import { NextResponse } from "next/server";
 import Badge from "@/lib/models/badgeSchema";
 import { NextRequest } from "next/server";
 import { Types } from "mongoose";
-
-/**
- * Interface for badge input validation
- */
-interface BadgeInput {
-  badgeName: string;
-  badgeImage: string;
-  criteria: string;
-  description: string;
-}
-
-/**
- * Interface for badge update validation with optional fields
- */
-interface BadgeUpdateInput {
-  badgeId: string;
-  badgeName?: string;
-  badgeImage?: string;
-  criteria?: string;
-  description?: string;
-}
+import type { BadgeInput, BadgeUpdateInput } from "@/services/badgeService";
 
 /**
  * Helper function to validate badge ID
@@ -211,30 +191,3 @@ export const DELETE = async (req: NextRequest) => {
     );
   }
 };
-
-/**
- * Example of calling badge endpoint
- * @param badgeData - The badge data to create
- */
-export async function createBadge(badgeData: BadgeInput) {
-  try {
-    const response = await fetch("/api/badge", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(badgeData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || "Failed to create badge");
-    }
-
-    return data;
-  } catch (error) {
-    console.error("Error creating badge:", error);
-    throw error;
-  }
-}
