@@ -139,7 +139,7 @@ export async function checkSearchIndex(): Promise<boolean> {
 
     const indexes = await Forum.collection.indexInformation();
     console.log('Index info:', indexes);
-    return true; // We assume Atlas Search works if connection succeeds
+    return true; // assume Atlas Search works if connection succeeds
   } catch (error) {
     console.error('Search system check failed:', error);
     return false;
