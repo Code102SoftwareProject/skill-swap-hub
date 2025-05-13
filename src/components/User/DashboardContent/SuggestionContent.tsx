@@ -27,12 +27,15 @@ export default function SuggestionContent() {
     setError("");
     try {
       const res = await fetch("/api/suggestions");
-      if (!res.ok) throw new Error(`Error: ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(`Error ${res.status}: ${errorData.details || errorData.error || 'Unknown error'}`);
+      }
       const data = await res.json();
       setSuggestions(data);
     } catch (err) {
-      console.error(err);
-      setError("Failed to fetch suggestions.");
+      console.error('Detailed error:', err);
+      setError(err instanceof Error ? err.message : "Failed to fetch suggestions.");
     } finally {
       setLoading(false);
     }
