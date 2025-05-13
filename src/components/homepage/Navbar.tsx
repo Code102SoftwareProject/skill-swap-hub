@@ -8,7 +8,12 @@ import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 
-const Navbar: React.FC = () => {
+interface NavbarProps {
+  onSidebarToggle?: () => void; // Callback for toggling sidebar
+  showSidebarToggle?: boolean; // Whether to show the sidebar toggle button
+}
+
+const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = false }) => {
   const { user, logout, isLoading } = useAuth();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -78,8 +83,19 @@ const Navbar: React.FC = () => {
     <>
       {/* Fixed height navbar with h-16 */}
       <nav className="bg-[#006699] px-4 md:px-6 h-16 flex items-center justify-between relative">
-        {/* Logo */}
+        {/* Logo and sidebar toggle */}
         <div className="flex items-center">
+          {/* Sidebar toggle button - only shown on mobile if enabled */}
+          {showSidebarToggle && (
+            <button
+              className="text-white mr-3"
+              onClick={onSidebarToggle}
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
+          )}
+          
           <Link href="/" className="w-10">
             <div className="w-8 h-8">
               <Image

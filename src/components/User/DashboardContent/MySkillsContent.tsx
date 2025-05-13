@@ -1,8 +1,4 @@
-
-
-
 'use client';
-
 
 import React, { useState, useEffect } from 'react';
 import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/services/skillService';
@@ -11,7 +7,7 @@ import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
 import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
-import { Badge } from 'lucide-react';
+import { Info } from 'lucide-react';
 
 const SkillsPage = () => {
   const { showToast } = useToast();
@@ -19,6 +15,7 @@ const SkillsPage = () => {
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingSkill, setEditingSkill] = useState<UserSkill | null>(null);
+  const [viewingSkill, setViewingSkill] = useState<UserSkill | null>(null);
   
   // Delete confirmation state
   const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
@@ -84,10 +81,7 @@ const SkillsPage = () => {
     }
     
     try {
-      console.log('Deleting skill with ID:', deletingSkillId);
-      
       const response = await deleteUserSkill(deletingSkillId);
-      console.log('Delete response:', response);
       
       if (response.success) {
         showToast('Skill deleted successfully', 'success');
@@ -130,25 +124,34 @@ const SkillsPage = () => {
       return;
     }
     
-    console.log('Edit button clicked for skill:', skill.id);
     setEditingSkill(skill);
   };
 
-  // Render skill card
+  // View skill details
+  const viewSkillDetails = (skill: UserSkill) => {
+    setViewingSkill(skill);
+  };
+
+  // Truncate text
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.slice(0, maxLength) + '...';
+  };
+
+  // Render skill card - matching your screenshot exactly
   const renderSkillCard = (skill: UserSkill) => {
-    console.log('Rendering skill card:', skill);
     const isUsed = isSkillUsedInListing(skill.id);
     
     return (
       <div 
         key={skill.id} 
-        className={`bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg ${isUsed ? 'border-l-4 border-blue-500' : ''}`}
+        className={`bg-white rounded-lg shadow-sm w-full h-[150px] ${isUsed ? 'border-l-4 border-l-blue-500' : 'border border-gray-100'}`}
       >
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-2">
-            <h3 className="text-xl font-semibold text-blue-800">{skill.skillTitle}</h3>
-            <div className="flex items-center">
-              <span className={`px-2 py-1 text-xs rounded-full ${
+        <div className="px-5 py-5 h-full flex flex-col justify-between">
+          <div className="flex justify-between items-start">
+            <h3 className="text-lg font-semibold text-blue-700">{truncateText(skill.skillTitle, 14)}</h3>
+            <div className="flex items-center gap-2">
+              <span className={`inline-block px-2.5 py-0.5 text-xs rounded-full font-medium ${
                 skill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
                 skill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
                 'bg-yellow-100 text-yellow-800'
@@ -157,38 +160,46 @@ const SkillsPage = () => {
               </span>
               
               {isUsed && (
-                <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full flex items-center">
-                  <Badge className="w-3 h-3 mr-1" />
-                  Used in Listing
-                </span>
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
               )}
             </div>
           </div>
           
-          <div className="text-sm text-blue-600 mb-3">
-            {skill.categoryName}
+          <div className="flex items-center justify-between w-full">
+            <button
+              onClick={() => viewSkillDetails(skill)}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+            >
+              <Info className="w-4 h-4 mr-1" /> View Details
+            </button>
+            
+            {!isUsed ? (
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => attemptToEditSkill(skill)}
+                  className="w-8 h-8 bg-blue-500 text-white rounded flex items-center justify-center hover:bg-blue-600"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                </button>
+                <button
+                  onClick={() => confirmDeleteSkill(skill.id)}
+                  className="w-8 h-8 bg-red-500 text-white rounded flex items-center justify-center hover:bg-red-600"
+                >
+                  <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none">
+                    <polyline points="3 6 5 6 21 6"></polyline>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                  </svg>
+                </button>
+              </div>
+            ) : null}
           </div>
-          
-          <p className="text-gray-700 mb-4">
-            {skill.description}
-          </p>
-          
-          {!isUsed && (
-            <div className="flex justify-end space-x-2">
-              <button
-                onClick={() => attemptToEditSkill(skill)}
-                className="px-4 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => confirmDeleteSkill(skill.id)}
-                className="px-4 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          )}
         </div>
       </div>
     );
@@ -225,12 +236,88 @@ const SkillsPage = () => {
         <div className="space-y-8">
           {Object.entries(skillsByCategory).map(([category, categorySkills]) => (
             <div key={category}>
-              <h2 className="text-xl font-semibold text-gray-700 mb-4">{category}</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b">{category}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                 {categorySkills.map(skill => renderSkillCard(skill))}
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* View Skill Details Modal */}
+      {viewingSkill && (
+        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-gray-800">Skill Details</h2>
+                <button 
+                  onClick={() => setViewingSkill(null)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="border-b pb-3 mb-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-xl font-semibold text-blue-700">{viewingSkill.skillTitle}</h3>
+                  <span className={`px-3 py-1 text-sm rounded-full font-medium ${
+                    viewingSkill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
+                    viewingSkill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {viewingSkill.proficiencyLevel}
+                  </span>
+                </div>
+                <div className="text-sm text-blue-600 mb-1">
+                  {viewingSkill.categoryName}
+                </div>
+                
+                {isSkillUsedInListing(viewingSkill.id) && (
+                  <div className="mt-2 flex items-center text-sm text-blue-700">
+                    <span className="w-4 h-4 bg-blue-500 rounded-full mr-2 flex items-center justify-center">
+                      <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                    </span>
+                    This skill is being used in an active listing
+                  </div>
+                )}
+              </div>
+              
+              <div className="mb-6">
+                <h4 className="text-md font-medium text-gray-700 mb-2">Description</h4>
+                <p className="text-gray-600 whitespace-pre-line">{viewingSkill.description}</p>
+              </div>
+              
+              <div className="flex justify-end space-x-3 pt-3 border-t">
+                <button
+                  onClick={() => setViewingSkill(null)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+                
+                {!isSkillUsedInListing(viewingSkill.id) && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setViewingSkill(null);
+                        attemptToEditSkill(viewingSkill);
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" className="mr-1.5">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      Edit Skill
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -243,9 +330,9 @@ const SkillsPage = () => {
                 <h2 className="text-2xl font-bold text-gray-800">Add My Skills</h2>
                 <button 
                   onClick={() => setShowAddForm(false)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 >
-                  &times;
+                  ×
                 </button>
               </div>
               <AddSkillForm 
@@ -266,9 +353,9 @@ const SkillsPage = () => {
                 <h2 className="text-2xl font-bold text-gray-800">Edit Skill</h2>
                 <button 
                   onClick={() => setEditingSkill(null)}
-                  className="text-gray-500 hover:text-gray-700"
+                  className="w-8 h-8 flex items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 >
-                  &times;
+                  ×
                 </button>
               </div>
               <EditSkillForm 
@@ -299,4 +386,3 @@ const SkillsPage = () => {
 };
 
 export default SkillsPage;
-

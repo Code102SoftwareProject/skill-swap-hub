@@ -24,26 +24,32 @@ interface UserProfile {
   avatar?: string; // TODO:Make it display Profile Pic
 }
 
-function SidebarBox({ otherParticipantName, lastMessage }: { 
+function SidebarBox({ 
+  otherParticipantName, 
+  lastMessage, 
+  isSelected 
+}: { 
   otherParticipantName: string; 
-  lastMessage: string 
+  lastMessage: string;
+  isSelected?: boolean;
 }) {
   return (
     <div className="flex flex-row items-center space-x-2">
       <User className="text-2xl" />
       <div className="flex flex-col">
         <span>{otherParticipantName}</span>
-        <span className="text-sm text-gray-400">{lastMessage}</span>
+        <span className={`text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+          {lastMessage}
+        </span>
       </div>
     </div>
   );
 }
 /**
- * Sidebar component that displays the user's chat rooms and allows for searching and selecting conversations
- *
- * @param {string} userId - The ID of the current authenticated user
- * @param {function} onChatSelect - Callback function that's triggered when a chat room is selected
- * @returns {TSX.Element} The rendered sidebar component with chat list and search functionality
+ * Sidebar component 
+ * @param {string} userId 
+ * @param {function} onChatSelect 
+ * @returns {TSX.Element} 
  */
 export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
@@ -157,8 +163,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
         
         if (!roomExists) {
-          // If we don't have this room yet, trigger a refresh
-          // We'll use a setTimeout to avoid React state setting conflicts
+          // If room not exisits
           setTimeout(() => fetchChatRooms(), 0);
           return prevRooms;
         }
@@ -238,7 +243,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             // Show all rooms when no search query is provided
             if (!profile || !searchQuery.trim()) return true;
 
-            // Filter by name match (case-insensitive)
+            // Filter by name match case insesitve 
             const fullName =
               `${profile.firstName} ${profile.lastName}`.toLowerCase();
             return fullName.includes(searchQuery.toLowerCase());
@@ -255,14 +260,17 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               ? `${profile.firstName} ${profile.lastName}`
               : otherParticipantId.substring(0, 8);
 
-            // Display last message or placeholder text
-            const lastMessage = chat.lastMessage?.content || "No messages yet";
+            // ! Last Message 
+            const lastMessage = chat.lastMessage?.content.substring(0,6) || "No messages yet";
 
             return (
+              /*
+                ! Selected Chatroom 
+              */
               <li
                 key={chat._id}
                 className={`p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
-                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700" : ""
+                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""
                 }`}
                 onClick={() =>
                   onChatSelect(chat._id, {
@@ -274,6 +282,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                 <SidebarBox
                   otherParticipantName={otherParticipantName}
                   lastMessage={lastMessage}
+                  isSelected={selectedChatRoomId === chat._id}
                 />
               </li>
             );

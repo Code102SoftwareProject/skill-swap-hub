@@ -3,7 +3,6 @@
 import React, { useEffect } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
 import { useAuth } from '@/lib/context/AuthContext';
-import { Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Notification as NotificationType } from '@/types/notification';
 import { useToast } from '@/lib/context/ToastContext';
@@ -29,10 +28,10 @@ export default function NotificationAlert() {
     const handleNewNotification = (notificationData: any) => {
       console.log('Alert received notification:', notificationData);
       
-      // Only process notifications that have the required data
+      // Only process notifications which the required data
       if (!notificationData.description) return;
       
-      // Create standardized notification object
+      //  notification object
       const newNotification: NotificationType = {
         _id: notificationData._id || `temp-${Date.now()}`,
         typename: notificationData.type || 'Notification',
@@ -56,6 +55,6 @@ export default function NotificationAlert() {
     };
   }, [socket, isConnected, user, showNotification]);
 
-  // Component doesn't render anything directly - just handles socket events
+  // Component doesn't render  just handles socket events
   return null;
 }
