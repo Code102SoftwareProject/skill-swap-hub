@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import UserSidebar from '@/components/User/UserSidebar';
-import NavBar from '@/components/Navbar';
+import NavBar from '@/components/homepage/Navbar';
 
 import UserDashboardContent from '@/components/User/DashboardContent/UserDashboardContent';
 import MySkillsContent from '@/components/User/DashboardContent/MySkillsContent';
@@ -16,6 +16,8 @@ import SettingContent from '@/components/User/DashboardContent/SettingContent';
 
 export default function UserDashboardPage() {
   const [activeComponent, setActiveComponent] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Load from localStorage when the component mounts
   useEffect(() => {
@@ -23,12 +25,38 @@ export default function UserDashboardPage() {
     if (savedComponent) {
       setActiveComponent(savedComponent);
     }
+    
+    // Check if we're in mobile view
+    const checkMobile = () => {
+      const isMobileView = window.innerWidth < 768;
+      setIsMobile(isMobileView);
+      setIsSidebarOpen(!isMobileView); // Close sidebar by default on mobile
+    };
+    
+    // Run on mount
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Save to localStorage when activeComponent changes
   useEffect(() => {
     localStorage.setItem('activeComponent', activeComponent);
   }, [activeComponent]);
+
+  const handleNavigate = (component: string) => {
+    setActiveComponent(component);
+    // Close sidebar automatically on mobile after navigation
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
 
   const renderContent = () => {
     switch (activeComponent) {
@@ -57,13 +85,29 @@ export default function UserDashboardPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <NavBar />
-      <div className="flex flex-1 overflow-hidden">
-        <UserSidebar
-          onNavigate={setActiveComponent}
-          activeComponent={activeComponent}
-        />
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={isMobile} />
+      
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Dark overlay when sidebar is open on mobile */}
+        {isMobile && isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        <div className={`${isMobile ? (isSidebarOpen ? 'block' : 'hidden') : 'block'} ${isMobile ? 'fixed z-40 left-0 top-0 h-full' : ''}`}>
+          <UserSidebar
+            onNavigate={handleNavigate}
+            activeComponent={activeComponent}
+            isMobile={isMobile}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        </div>
+        
+        {/* Main content */}
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
           {renderContent()}
         </main>
       </div>

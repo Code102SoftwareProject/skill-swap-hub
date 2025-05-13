@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getSkillCategories, getSkillsByCategory, addUserSkill } from '@/lib/services/skillService';
+import { getSkillCategories, getSkillsByCategory, addUserSkill } from '@/services/skillService';
 import { useToast } from '@/lib/context/ToastContext';
 
 interface AddSkillFormProps {

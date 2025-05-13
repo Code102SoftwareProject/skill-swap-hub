@@ -6,7 +6,7 @@ import NotificationAlert from '@/components/notificationSystem/NotificationAlert
 import { Bell, CheckCheck, Loader2, Inbox, History, ArrowDownUp } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import Navbar from '@/components/Navbar';
+import Navbar from '@/components/homepage/Navbar';
 import { useSocket } from '@/lib/context/SocketContext';
 import { Notification as NotificationType } from '@/types/notification';
 

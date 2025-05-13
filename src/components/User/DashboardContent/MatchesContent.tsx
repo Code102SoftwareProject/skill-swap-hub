@@ -1,11 +1,8 @@
-
-
 'use client';
-
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/lib/context/ToastContext';
-import { findMatches, getMatches } from '@/lib/services/matchService';
+import { findMatches, getMatches } from '@/services/matchService';
 import { SkillMatch, MatchFilters } from '@/types/skillMatch';
 import MatchCard from '@/components/Dashboard/matches/MatchCard';
 import MatchDetailsModal from '@/components/Dashboard/matches/MatchDetailsModal';
