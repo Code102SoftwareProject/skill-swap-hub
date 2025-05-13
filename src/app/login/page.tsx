@@ -1,15 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 
+
+function LoginWithSearchParams() {
+  const { useSearchParams } = require('next/navigation');
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const redirect = searchParams?.get('redirect');
+    if (redirect) {
+       sessionStorage.setItem('redirectAfterLogin', redirect);
+    }
+  }, [searchParams]);
+  
+  return null;
+}
+
 const Login = () => {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { login } = useAuth();
   const { showToast } = useToast();
   
@@ -24,15 +38,6 @@ const Login = () => {
     password?: string;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
-
-  // Check for redirect parameter
-  useEffect(() => {
-    const redirect = searchParams?.get('redirect');
-    if (redirect) {
-      // Store it for later use after login
-      sessionStorage.setItem('redirectAfterLogin', redirect);
-    }
-  }, [searchParams]);
 
   const validateForm = () => {
     const newErrors: {
@@ -109,6 +114,11 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
+      {/* Wrap the component using useSearchParams in Suspense */}
+      <Suspense fallback={null}>
+        <LoginWithSearchParams />
+      </Suspense>
+      
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
         
         <div className="w-full md:w-1/2 p-4 bg-white">
