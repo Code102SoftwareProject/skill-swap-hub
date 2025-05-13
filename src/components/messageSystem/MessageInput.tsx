@@ -76,6 +76,7 @@ export default function MessageInput({
     setMessage("");
   };
 
+  // ! Upload Files
   const uploadFile = async () => {
     if (!file) return;
 
@@ -83,7 +84,7 @@ export default function MessageInput({
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("folder", "chat"); // Add folder parameter
+    formData.append("folder", "chat"); //folder parameter
 
     try {
       const response = await fetch("/api/file/upload", {
