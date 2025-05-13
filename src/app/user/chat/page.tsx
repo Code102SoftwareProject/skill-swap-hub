@@ -149,7 +149,6 @@ export default function ChatPage() {
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
               onToggleSessions={toggleSessionsDisplay}
-              upcomingMeetingsCount={0}
               initialParticipantInfo={selectedParticipantInfo}
               showingSessions={showSessions}
               showingMeetings={showMeetings}
