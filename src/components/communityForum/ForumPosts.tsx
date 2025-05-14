@@ -39,7 +39,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const [error, setError] = useState<string | null>(null);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   
-  // Mock user ID - in a real app, get this from authentication
+  
   const currentUserId = user ? user._id : 'current-user-id';
 
   const fetchPosts = async () => {

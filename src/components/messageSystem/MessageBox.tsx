@@ -58,7 +58,7 @@ function TypingIndicator() {
   );
 }
 
-// Reply Message 
+//  ! Reply Message 
 function ReplyMessage({ 
   replyInfo, 
   isMine, 
@@ -105,13 +105,13 @@ export default function MessageBox({
   const [lastMessageId, setLastMessageId] = useState<string | null>(null);
   const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
 
-  // Add state to store all participant names
+  //  state to store all participant names
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 
-  // Add state for highlighted message
+  // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
-  // Add state for last user message index
+  // state for last user message index
   const [lastUserMessageIndex, setLastUserMessageIndex] = useState<number>(-1);
 
   // Helper function to check if two dates are from different days
@@ -126,7 +126,7 @@ export default function MessageBox({
           d1.getDate() !== d2.getDate();
   };
 
-  // Fetch participant names when component mounts or chatRoomId changes
+  // ! Fetch participant names when component mounts or chatRoomId changes
   useEffect(() => {
     async function fetchParticipantNames() {
       try {
@@ -160,7 +160,7 @@ export default function MessageBox({
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
 
-  // Fetch chat history on mount
+  // ! Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
       // Clear existing messages FIRST to prevent showing old messages
@@ -190,17 +190,7 @@ export default function MessageBox({
 
     // Reset typing status when chat changes
     setIsTyping(false);
-
-    // Add additional logging to track socket events
-    console.log("Setting up all message listeners for chatRoomId:", chatRoomId);
-
-    // Add explicit debug event to check socket connectivity
-    socket.emit("debug_connection", {
-      userId,
-      chatRoomId,
-      timestamp: new Date().toISOString(),
-    });
-
+    
     const handleUserTyping = (data: { userId: string; chatRoomId: string }) => {
       // Only show typing indicator if it's for the current chat room
       if (data.chatRoomId === chatRoomId && data.userId !== userId) {
@@ -227,10 +217,10 @@ export default function MessageBox({
     };
   }, [socket, chatRoomId, userId]);
 
-  // Auto-scroll to the bottom when messages update
+  // ! Auto-scroll to the bottom when messages update
   useEffect(() => {
     if (containerRef.current) {
-      // Add a small delay to ensure complete rendering
+      // delay for complete render
       setTimeout(() => {
         containerRef.current?.scrollTo({
           top: containerRef.current.scrollHeight,
@@ -240,7 +230,7 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // Optimize by combining multiple message processing operations
+  // ! Multiple Message Processing
   useEffect(() => {
     if (messages.length === 0) return;
     
@@ -259,7 +249,7 @@ export default function MessageBox({
         unreadMessages.push(msg);
       }
       
-      // Find last user message (only once)
+      // Find last user message 
       if (lastUserMsgIdx === -1 && msg.senderId === userId) {
         lastUserMsgIdx = i;
       }
@@ -270,9 +260,9 @@ export default function MessageBox({
       setLastUserMessageIndex(lastUserMsgIdx);
     }
     
-    // Handle unread messages...
+    // Handle unread messages
     if (unreadMessages.length > 0) {
-      // Extract just the IDs and filter out any undefined values
+      // Extract just the IDs
       const unreadIds = unreadMessages
         .map(msg => msg._id)
         .filter((id): id is string => id !== undefined);
@@ -291,7 +281,7 @@ export default function MessageBox({
     }
   }, [messages, userId, processedMessageIds, markMessageAsRead, chatRoomId]);
 
-  // Function to scroll to a particular message (used for reply clicks)
+  // ! unction to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
@@ -303,11 +293,11 @@ export default function MessageBox({
     }
   };
 
-  // Replace the getReplyContent function with this improved version
+
   const getReplyContent = (
     replyFor: string | { _id?: string; senderId?: string; content?: string }
   ): ReplyContent => {
-    // Case 1: replyFor is a complete message object
+    
     if (typeof replyFor === "object" && replyFor !== null) {
       if ("content" in replyFor && "senderId" in replyFor) {
         let senderName: string;
@@ -378,7 +368,7 @@ export default function MessageBox({
                   <CornerUpLeft className="w-3 h-3" />
                 </button>
 
-                {/* Reply box (if applicable) */}
+                {/* Reply box for Reply Messages */}
                 <ReplyMessage 
                   replyInfo={replyInfo} 
                   isMine={isMine} 
@@ -397,29 +387,17 @@ export default function MessageBox({
 
                 {/* Main message content or File */}
                 {msg.content.startsWith("File:") ? (
-                  <FileMessage fileInfo={msg.content} />
+                  <FileMessage fileInfo={msg.content} sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} isMine={isMine} />
                 ) : (
-                  <TextMessage content={msg.content} />
+                  <TextMessage content={msg.content} sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} isMine={isMine} />
                 )}
-
-                {/* Timestamp inside bubble */}
-                <div className="flex justify-end items-center mt-1">
-                  <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
-                    {msg.sentAt
-                      ? new Date(msg.sentAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : ""}
-                  </div>
-                </div>
               </div>
             </div>
           </React.Fragment>
         );
       })}
 
-      {/* Typing indicator */}
+      {/* ! IMPORTANT: Typing indicator section */}
       {isTyping && (
         <div className="mb-3 text-left">
           <TypingIndicator />

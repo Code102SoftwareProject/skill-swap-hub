@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/r2";
-import { systemApiAuth } from "@/lib/middleware/systemApiAuth";
+
 
 /**
  ** GET handler - Retrieves a file from Cloudflare R2 storage
