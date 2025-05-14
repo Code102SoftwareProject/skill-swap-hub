@@ -37,14 +37,15 @@ export default function MessageInput({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Focus on input when replying to a message
+
+  // ! Focus on input when replying to a message
   useEffect(() => {
     if (replyingTo && inputRef.current) {
       inputRef.current.focus();
     }
   }, [replyingTo]);
 
-  // Fetch user profile for the message being replied to
+  // ! Fetch user profile for the message being replied to
   useEffect(() => {
     const fetchReplyUserName = async () => {
       if (replyingTo && replyingTo.senderId) {
@@ -80,10 +81,12 @@ export default function MessageInput({
     if (!file) return;
 
     setUploading(true);
+    
 
+    // ! Form Data for Api call
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("folder", "chat"); //folder parameter
+    formData.append("folder", "chat"); 
 
     try {
       const response = await fetch("/api/file/upload", {
@@ -123,7 +126,10 @@ export default function MessageInput({
   }, []);
 
   const sendMessage = async (fileUrl: string = "") => {
-    if (!fileUrl && !message.trim()) return;
+    // ! Need either one
+    if (!fileUrl && !message.trim()){
+      return;
+    }
     if (!socket) return;
 
     setLoading(true);

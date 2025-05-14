@@ -185,7 +185,7 @@ export async function sendMessage(messageData: any) {
           `${senderProfile.firstName} ${senderProfile.lastName}` : 
           "Someone";
         
-        // Create notification 
+        //  ! Create notification 
         await fetch("/api/notification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -134,6 +134,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   };
 
+
+
+  // * Create Meeting Function
+
   const handleCreateMeeting = async (meetingData: any) => {
     if (!otherUserId) return;
     
@@ -260,4 +264,3 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     </div>
   );
 }
-
