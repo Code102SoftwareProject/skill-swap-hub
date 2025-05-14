@@ -38,7 +38,7 @@ function DateBadge({ date }: { date: Date }) {
   
   return (
     <div className="flex items-center justify-center my-4 w-full">
-      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1">
+      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1 font-body">
         {formattedDate}
       </div>
     </div>
@@ -76,10 +76,10 @@ function ReplyMessage({
         ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
       onClick={onReplyClick}
     >
-      <span className={`text-xs font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
+      <span className={`text-xs font-body font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
         {replyInfo.sender}
       </span>
-      <span className="text-sm text-gray-700 truncate block">
+      <span className="text-sm font-body text-gray-700 truncate block">
         {replyInfo.content}
       </span>
     </div>
@@ -93,7 +93,7 @@ export default function MessageBox({
   onReplySelect,
   participantInfo,
 }: MessageBoxProps) {
-  const { socket, markMessageAsRead } = useSocket();
+  const { socket } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -101,18 +101,12 @@ export default function MessageBox({
 
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
-  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
-  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
-
+ 
   //  state to store all participant names
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 
   // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-
-  // state for last user message index
-  const [lastUserMessageIndex, setLastUserMessageIndex] = useState<number>(-1);
 
   // Helper function to check if two dates are from different days
   const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
@@ -141,7 +135,7 @@ export default function MessageBox({
         if (chatRoom?.participants) {
           // For each participant we don't already have info for
           for (const participantId of chatRoom.participants) {
-            // Skip current user and participants we already have
+            // Skip current user
             if (participantId !== userId && !namesMap[participantId]) {
               const userData = await fetchUserProfile(participantId);
               if (userData) {
@@ -230,57 +224,6 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // ! Multiple Message Processing
-  useEffect(() => {
-    if (messages.length === 0) return;
-    
-    // Track both unread messages and last user message in one pass
-    const unreadMessages: IMessage[] = [];
-    let lastUserMsgIdx = -1;
-    
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      
-      // Check for unread messages
-      if (msg.senderId !== userId && 
-          msg._id && 
-          !processedMessageIds.has(msg._id) &&
-          msg.readStatus === false) {
-        unreadMessages.push(msg);
-      }
-      
-      // Find last user message 
-      if (lastUserMsgIdx === -1 && msg.senderId === userId) {
-        lastUserMsgIdx = i;
-      }
-    }
-    
-    // Update last user message index
-    if (lastUserMsgIdx !== -1) {
-      setLastUserMessageIndex(lastUserMsgIdx);
-    }
-    
-    // Handle unread messages
-    if (unreadMessages.length > 0) {
-      // Extract just the IDs
-      const unreadIds = unreadMessages
-        .map(msg => msg._id)
-        .filter((id): id is string => id !== undefined);
-      
-      // Update local tracking state immediately to prevent duplicate requests
-      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
-      setProcessedMessageIds(newProcessedIds);
-      
-      // Use markMessageAsRead from context for each message ID
-      Promise.all(unreadIds.map(messageId => 
-        markMessageAsRead(messageId, chatRoomId, userId)
-      ))
-      .catch((error: unknown) => {
-        console.error('Error marking messages as read:', error);
-      });
-    }
-  }, [messages, userId, processedMessageIds, markMessageAsRead, chatRoomId]);
-
   // ! unction to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
@@ -331,7 +274,6 @@ export default function MessageBox({
     >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
-        const isLastUserMessage = i === lastUserMessageIndex;
         
         // Get current message date
         const currentDate = msg.sentAt ? new Date(msg.sentAt) : undefined;

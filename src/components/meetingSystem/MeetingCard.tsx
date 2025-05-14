@@ -17,7 +17,7 @@ interface MeetingCardProps {
   onCancel?: (meetingId: string) => void;
 }
 
-// Utility functions
+//!Utility function Date format Time Format
 export const formatDate = (date: Date | string) => {
   const dateObj = new Date(date);
   return format(dateObj, 'MMM d, yyyy');
@@ -48,7 +48,7 @@ export const getStatusLabel = (meeting: Meeting, userId: string) => {
     : meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
 };
 
-// Component definition separated from props and functions
+// Component definition
 const MeetingCard = ({
   meeting,
   userId,
@@ -66,7 +66,7 @@ const MeetingCard = ({
       {/* Header section title badge */}
       <div className="flex justify-between items-start">
         {/* Meeting title */}
-        <h3 className="font-semibold text-lg">
+        <h3 className="font-semibold text-lg font-heading">
           {isPending 
             ? `Meeting Request from ${userName}` 
             : `Meeting with ${userName}`}
@@ -102,25 +102,25 @@ const MeetingCard = ({
       
       {/* Meeting description - only shows if available */}
       {meeting.description && (
-        <p className="mt-2 text-gray-700">{meeting.description}</p>
+        <p className="mt-2 text-gray-700 font-body">{meeting.description}</p>
       )}
       
-      {/* Action buttons section - different buttons based on meeting state */}
+      {/* Action buttons section - */}
       <div className="mt-4 flex justify-end space-x-2">
         {/* Accept/Decline buttons - only for pending meetings */}
         {isPending && onAccept && onReject && (
           <>
-            {/* Accept button - green with check icon */}
+            {/* Accept button*/}
             <button 
-              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center"
+              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center font-body"
               onClick={() => onAccept(meeting._id)}
             >
               <Check className="w-4 h-4 mr-1" />
               Accept
             </button>
-            {/* Decline button - red with X icon */}
+            {/* Decline Button*/}
             <button 
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center"
+              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center font-body"
               onClick={() => onReject(meeting._id)}
             >
               <XMark className="w-4 h-4 mr-1" />
@@ -129,7 +129,7 @@ const MeetingCard = ({
           </>
         )}
         
-        {/* Join Zoom Meeting button - only for accepted meetings with links */}
+        {/* Join Zoom Meeting button */}
         {(isUpcoming || isPast) && meeting.state === 'accepted' && meeting.meetingLink && (
           <a 
             href={meeting.meetingLink} 

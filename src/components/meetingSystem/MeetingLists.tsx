@@ -1,6 +1,7 @@
 import React from 'react';
 import MeetingCard from './MeetingCard';
 import Meeting  from '@/types/meeting';
+
 interface MeetingListsProps {
   type: 'past' | 'cancelled';
   meetings: Meeting[];
@@ -8,12 +9,12 @@ interface MeetingListsProps {
   userProfiles: {[key: string]: {firstName: string, lastName: string}};
 }
 
-const MeetingLists: React.FC<MeetingListsProps> = ({ 
+export default function MeetingLists({
   type, 
   meetings, 
   userId, 
   userProfiles
-}) => {
+}: MeetingListsProps) {
   if (meetings.length === 0) return null;
 
   const title = type === 'past' ? 'Past Meetings' : 'Cancelled Meetings';
@@ -37,6 +38,4 @@ const MeetingLists: React.FC<MeetingListsProps> = ({
       </div>
     </div>
   );
-};
-
-export default MeetingLists;
+}

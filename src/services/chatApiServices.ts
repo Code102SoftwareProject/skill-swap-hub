@@ -169,23 +169,23 @@ export async function sendMessage(messageData: any) {
 
     const data = await response.json();
     
-    // After sending the message, get chat room details to find recipient
+    // get chat room details to find recipient
     const chatRoom = await fetchChatRoom(messageData.chatRoomId);
     
     if (chatRoom && chatRoom.participants) {
-      // Determine recipient(s) (everyone in chat except sender)
-      const recipients = chatRoom.participants.filter(
+      // Get recipient
+      const recipientId = chatRoom.participants.find(
         (participant) => participant.toString() !== messageData.senderId
       );
       
-      // Get sender user profile to include name in notification
-      const senderProfile = await fetchUserProfile(messageData.senderId);
-      const senderName = senderProfile ? 
-        `${senderProfile.firstName} ${senderProfile.lastName}` : 
-        "Someone";
-      
-      // Create notifications for each recipient
-      for (const recipientId of recipients) {
+      if (recipientId) {
+        // Get sender user profile 
+        const senderProfile = await fetchUserProfile(messageData.senderId);
+        const senderName = senderProfile ? 
+          `${senderProfile.firstName} ${senderProfile.lastName}` : 
+          "Someone";
+        
+        // Create notification 
         await fetch("/api/notification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

@@ -50,7 +50,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   }, [userProfiles]);
 
-  // Fetch chat room to get other user ID
+  // ! Fetch chat room to get other user ID
   useEffect(() => {
     const fetchChatRoom = async () => {
       try {
@@ -76,7 +76,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     fetchChatRoom();
   }, [chatRoomId, userId, fetchUserProfile]);
 
-  // Fetch meetings
+  // ! Fetch meetings
   const fetchMeetingsData = useCallback(async (otherUserID: string) => {
     try {
       setLoading(true);
@@ -89,7 +89,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   }, [userId]);
 
-  // Fetch meetings when otherUserId is available
+  // ! Fetch meetings when otherUserId is available
   useEffect(() => {
     if (!otherUserId) return;
     fetchMeetingsData(otherUserId);
@@ -108,7 +108,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     uniqueUserIds.forEach(id => fetchUserProfile(id));
   }, [meetings, fetchUserProfile]);
 
-  // Generic meeting action handler (accept, reject, cancel)
+  // meeting action handler
   const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
     try {
       setLoading(true);
@@ -157,7 +157,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   };
 
-  // Filter meetings by type
+  // ! Filter meetings by type
   const pendingRequests = meetings.filter(m => 
     m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
   );
@@ -186,8 +186,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
 
   return (
     <div className="flex-1 overflow-auto bg-white p-4 relative">
+      {/* Heading*/}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-primary">Meetings</h2>
+        <h2 className="text-xl font-bold text-primary font-heading">Meetings</h2>
         <div className="flex items-center space-x-2">
           <button 
             onClick={() => setShowCreateModal(true)}
@@ -207,7 +208,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
 
       {meetings.length === 0 ? (
         <div className="text-center p-8">
-          <p className="text-gray-500">No meetings scheduled yet</p>
+          <p className="text-gray-500 font-body">No meetings scheduled yet</p>
           <button 
             className="mt-4 bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center mx-auto"
             onClick={() => setShowCreateModal(true)}

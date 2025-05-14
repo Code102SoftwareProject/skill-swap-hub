@@ -122,3 +122,26 @@ export async function fetchUpcomingMeetingsCount(userId: string, otherUserId: st
     return 0;
   }
 }
+
+/**
+ ** Fetch all meetings for a specific user
+ * 
+ * @param userId - ID of the user
+ * @returns Promise that resolves to an array of Meeting objects for the specified user,
+ *          or an empty array if the request fails
+ */
+export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> => {
+  try {
+    const response = await fetch(`/api/meeting?userId=${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchAllUserMeetings:', error);
+    return [];
+  }
+};

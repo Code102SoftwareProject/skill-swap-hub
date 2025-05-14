@@ -218,10 +218,10 @@ export default function ChatHeader({
   return (
     <header className="flex items-center justify-between p-4 bg-primary border-b">
       <div>
-        <h1 className="text-lg font-semibold text-white">
+        <h1 className="text-lg font-semibold text-white font-heading">
           {otherUserName || `Chat ${chatRoomId.substring(0, 8)}`}
         </h1>
-        <p className="text-sm text-blue-100">
+        <p className="text-sm text-blue-100 font-body">
           {isTyping ? 'Typing...' : (
             isOnline ? 'Online' : (
               lastOnline instanceof Date && !isNaN(lastOnline.getTime())
@@ -238,7 +238,7 @@ export default function ChatHeader({
           className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mb-1" />
-          <span className="text-xs">Dashboard</span>
+          <span className="text-xs font-body">Dashboard</span>
         </button>
         {/* Session Button */}
         <button 
@@ -246,7 +246,7 @@ export default function ChatHeader({
           onClick={handleToggleSessions}
         >
           <BookOpen className="h-5 w-5 mb-1" />
-          <span className="text-xs">Sessions</span>
+          <span className="text-xs font-body">Sessions</span>
         </button>
 
         {/* Meetings Button */}
@@ -256,7 +256,7 @@ export default function ChatHeader({
         >
           <Calendar className="h-5 w-5 mb-1" />
           <div className="flex items-center">
-            <span className="text-xs">Meetings</span>
+            <span className="text-xs font-body">Meetings</span>
           </div>
         </button>
       </div>

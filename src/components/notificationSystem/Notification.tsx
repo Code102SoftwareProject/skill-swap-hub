@@ -1,11 +1,10 @@
 import React from 'react';
-import { IoMdInformationCircle } from 'react-icons/io';
 import { format } from 'date-fns';
 import { NotificationProps} from '@/types/notification';
-import { Check, Eye } from 'lucide-react'; // Import icons for buttons
+import { Check, Eye, Info } from 'lucide-react'; 
 
 const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead }) => {
-  // Get the values from the direct properties now, with fallbacks
+  // Get the values from the direct properties 
   const typeName = notification.typename || 'Notification';
   const typeColor = notification.color || '#3B82F6';
   
@@ -31,30 +30,30 @@ const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead 
       style={{ borderLeftColor: notification.isRead ? '#e5e7eb' : typeColor }}
     >
       <div className="mr-3 mt-0.5">
-        <IoMdInformationCircle className="text-xl" style={{ color: typeColor }} />
+        <Info className="text-xl" style={{ color: typeColor }} />
       </div>
 
       <div className="flex-1">
         <div className="flex items-center">
           <span 
-            className="text-xs font-medium px-2 py-0.5 rounded-full mr-2"
+            className="text-xs font-medium px-2 py-0.5 rounded-full mr-2 font-heading"
             style={{ 
-              backgroundColor: `${typeColor}20`, // 20% opacity version of the color
+              backgroundColor: `${typeColor}20`, // 20% opacity version
               color: typeColor 
             }}
           >
             {typeName}
           </span>
         </div>
-        <p className="text-sm font-medium text-gray-900 mt-1">{notification.description}</p>
-        <p className="text-xs text-gray-500 mt-1">{formattedDate}</p>
+        <p className="text-sm font-medium text-gray-900 mt-1 font-body">{notification.description}</p>
+        <p className="text-xs text-gray-500 mt-1 font-body">{formattedDate}</p>
       </div>
 
       <div className="ml-3 flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
         {!notification.isRead && (
           <button
             onClick={handleMarkReadClick}
-            className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-md transition-colors"
+            className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-md transition-colors font-body"
             aria-label="Mark as read"
           >
             <Check className="w-3 h-3 mr-1" />
@@ -64,7 +63,7 @@ const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead 
         {notification.targetDestination && (
           <button
             onClick={handleViewClick}
-            className="flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
+            className="flex  font-body items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
             aria-label="View details"
           >
             <Eye className="w-3 h-3 mr-1" />

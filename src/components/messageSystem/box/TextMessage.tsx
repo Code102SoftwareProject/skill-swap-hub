@@ -17,11 +17,13 @@ interface TextMessageProps {
  */
 const TextMessage = ({ content, sentAt, isMine = false }: TextMessageProps) => {
   return (
+    
     <div className="flex flex-col">
-      <span className="block">{content}</span>
+      {/* Message bubble */}
+      <span className="block font-body">{content}</span>
       
       {/* Timestamp inside bubble */}
-      <div className="flex justify-end items-center mt-1">
+      <div className="flex justify-end items-center mt-1 ">
         <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
           {sentAt
             ? new Date(sentAt).toLocaleTimeString([], {
