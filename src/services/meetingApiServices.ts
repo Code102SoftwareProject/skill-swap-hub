@@ -71,12 +71,28 @@ export async function createMeeting(meetingData: {
  */
 export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel'): Promise<Meeting | null> {
   try {
+    // Use dedicated reject endpoint for rejections
+    if (action === 'reject') {
+      const response = await fetch('/api/meeting/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error rejecting meeting: ${response.status}`);
+      }
+      
+      return await response.json();
+    }
+    
+    // For other actions, use the existing PATCH endpoint
     const body: any = { _id: meetingId };
     
     if (action === 'accept') {
       body.acceptStatus = true;
-    } else if (action === 'reject' || action === 'cancel') {
-      body.state = action === 'reject' ? 'rejected' : 'cancelled';
+    } else if (action === 'cancel') {
+      body.state = 'cancelled';
     }
     
     const response = await fetch('/api/meeting', {

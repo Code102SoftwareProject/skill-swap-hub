@@ -24,7 +24,7 @@ export default function ChatPage() {
   const userId = user?._id;
 
   // * Get socket from context instead of managing it locally
-  const { socket, joinRoom, sendMessage, startTyping, stopTyping, markMessageAsRead } = useSocket();
+  const { socket, joinRoom, sendMessage, startTyping, stopTyping} = useSocket();
   
   // ! Core state for chat functionality
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);

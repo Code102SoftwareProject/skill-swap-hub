@@ -16,7 +16,6 @@ interface SocketContextType {
   sendNotification: (notification: NotificationData) => void;
   startTyping: (chatRoomId: string) => void;
   stopTyping: (chatRoomId: string) => void;
-  markMessageAsRead: (messageId: string, chatRoomId: string, senderId: string) => void;
 }
 
 interface NotificationData {
@@ -180,17 +179,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Mark message as read
-  const markMessageAsRead = (messageId: string, chatRoomId: string, senderId: string) => {
-    if (socket && userId) {
-      socket.emit('message_read', {
-        messageId,
-        chatRoomId,
-        readerId: userId,
-        senderId
-      });
-    }
-  };
+  
 
   // Context value
   const value: SocketContextType = {
@@ -202,8 +191,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     sendMessage,
     sendNotification,
     startTyping,
-    stopTyping,
-    markMessageAsRead
+    stopTyping
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;

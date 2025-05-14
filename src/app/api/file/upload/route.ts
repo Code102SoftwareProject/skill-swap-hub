@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
     console.log("Uploading file:", filePath, "Type:", mimeType);
 
-    // Upload to Cloudflare R2 with folder path
+    //  ! Upload to Cloudflare R2 with folder path
     const uploadResponse = await uploadFileToR2(fileBuffer, filePath, mimeType);
 
     if (uploadResponse.success) {

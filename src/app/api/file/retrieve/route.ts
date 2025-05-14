@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     
     console.log("File download request:", { fileName, fileUrl, fileContent });
     
-    // Determine the key (filename) to retrieve
+    // Determine the filename to retrieve
     let key;
     
     if (fileName) {
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       }
     } else if (fileUrl) {
       try {
-        // For R2 URLs, extract the path including folder structure
+        // Format: "https://example.com/path/to/file.ext"
         if (fileUrl.includes('r2.cloudflarestorage.com')) {
           const bucketName = process.env.R2_BUCKET_NAME || "skillswaphub";
           const bucketIndex = fileUrl.indexOf(bucketName);
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
           response = await s3Client.send(command);
           key = altKey; // Update key for later use
         } else {
-          // Re-throw if we can't try an alternative
+          // No Way Home
           throw error;
         }
       }
