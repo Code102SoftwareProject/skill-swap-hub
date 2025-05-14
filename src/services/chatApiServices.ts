@@ -235,17 +235,4 @@ export async function fetchChatMessages(chatRoomId: string) {
  * @param messageIds - Array of message IDs to mark as read
  * @returns Promise with the response data
  */
-export async function markMultipleMessagesAsRead(messageIds: string[]) {
-  try {
-    const response = await fetch("/api/messages/read-status", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messageIds }),
-    });
 
-    return await response.json();
-  } catch (error) {
-    console.error("Error marking messages as read:", error);
-    throw error;
-  }
-}

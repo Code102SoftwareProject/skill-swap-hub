@@ -7,7 +7,6 @@ interface ResponseData {
 }
 
 /**
- * Sends a message to the chatbot API and formats the response
  * @param message - User's message to send to the chatbot
  * @param userId - Optional user ID to include in the request
  * @returns Properly formatted response for display
