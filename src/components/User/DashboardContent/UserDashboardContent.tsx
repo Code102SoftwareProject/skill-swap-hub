@@ -1,3 +1,4 @@
+// User Dashboard Content Component
 'use client';
 
 import React from 'react';
@@ -5,10 +6,10 @@ import { Edit2 } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 
 // Components
-//import SkillCard from "@/components/Dashboard/SkillCard";
+/* import SkillCard from "@/components/Dashboard/SkillCard";
 import SkillsProgress from "@/components/Dashboard/SkillsProgress";
 import RecentActivity from "@/components/Dashboard/RecentActivity";
-import StatsChart from "@/components/Dashboard/StatsChart";
+import StatsChart from "@/components/Dashboard/StatsChart"; */
 import ProfileCard from "@/components/Dashboard/ProfileCard";
 import { SkillsRequested, SkillsOffered } from "@/components/Dashboard/SkillsRequested";
 import { TimeSpent } from "@/components/Dashboard/TimeSpentChart";

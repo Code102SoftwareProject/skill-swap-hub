@@ -1,3 +1,6 @@
+/*
+  A form to submit user suggestions including title, description, and category.
+ */
 import { useState } from 'react';
 
 type SuggestionFormProps = {
