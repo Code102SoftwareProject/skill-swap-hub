@@ -30,7 +30,6 @@ const sessionSchema = new Schema(
       required: false, 
       default: null 
     },
-    isAmmended: { type: Boolean, default: false },
     status: {
       type: String,
       enum: ["active", "completed", "canceled","pending"],
