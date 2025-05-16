@@ -40,6 +40,7 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder='Write your description here'
           className="min-h-[120px] mt-1 p-2 w-full border rounded"
+          minLength={200}
           required
         />
       </div>

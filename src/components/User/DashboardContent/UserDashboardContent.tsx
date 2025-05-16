@@ -50,7 +50,7 @@ export default function UserDashboardContent() {
       </div>
 
       {/* Skills Section */}
-      <div className="bg-white p-6 rounded-lg shadow-sm mb-6">
+      <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">My Skills</h2>
           <button className="text-blue-600 hover:text-blue-800" aria-label="Edit Skills">
@@ -87,17 +87,17 @@ export default function UserDashboardContent() {
         {/* Left/Main Column */}
         <div className="lg:col-span-2 space-y-6">
           {/* Skills Requested */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Skills Requested</h3>
             <SkillsRequested />
           </div>
           {/* Skills Offered */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Skills Offered</h3>
             <SkillsOffered />
           </div>
           {/* Badges */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Badges</h3>
             <div className="flex space-x-6">
               {/* Placeholder badges */}
@@ -123,14 +123,14 @@ export default function UserDashboardContent() {
 
         {/* Right/Sidebar Column */}
         <div className="lg:col-span-1 space-y-6">
-          <ProfileCard />
+          <ProfileCard userId="67e66f9d4c4a95f630b6235c" />
           {/* Calendar and Time Spent */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Time Spent</h3>
             <TimeSpent />
           </div>
           {/* Skill Matches */}
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Skill Matches</h3>
             <ul className="space-y-2">
               <li className="flex justify-between items-center">
