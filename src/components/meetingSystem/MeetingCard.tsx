@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, Clock, Check, X as XMark, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import Meeting from '@/types/meeting';
+import CancellationDetails from './CancellationDetails';
 
 // Props interface definition
 interface MeetingCardProps {
@@ -12,9 +13,18 @@ interface MeetingCardProps {
   isUpcoming?: boolean;
   isPast?: boolean;
   isCancelled?: boolean;
+  cancellationInfo?: {
+    _id: string;
+    reason: string;
+    cancelledAt: string;
+    acknowledged: boolean;
+    acknowledgedAt: string | null;
+    cancelledBy: string;
+  };
   onAccept?: (meetingId: string) => void;
   onReject?: (meetingId: string) => void;
   onCancel?: (meetingId: string) => void;
+  onAcknowledgeCancellation?: (cancellationId: string) => void;
 }
 
 //!Utility function Date format Time Format
@@ -57,9 +67,11 @@ const MeetingCard = ({
   isUpcoming = false,
   isPast = false,
   isCancelled = false,
+  cancellationInfo,
   onAccept,
   onReject,
-  onCancel
+  onCancel,
+  onAcknowledgeCancellation
 }: MeetingCardProps) => {
   return (
     <div className="border rounded-lg p-4 shadow-sm hover:shadow">
@@ -103,6 +115,16 @@ const MeetingCard = ({
       {/* Meeting description - only shows if available */}
       {meeting.description && (
         <p className="mt-2 text-gray-700 font-body">{meeting.description}</p>
+      )}
+
+      {/* Cancellation details */}
+      {isCancelled && cancellationInfo && (
+        <CancellationDetails
+          cancellation={cancellationInfo}
+          cancelledByName={userName}
+          isCurrentUser={cancellationInfo.cancelledBy === userId}
+          onAcknowledge={onAcknowledgeCancellation}
+        />
       )}
       
       {/* Action buttons section - */}
