@@ -72,13 +72,12 @@ export async function POST(req: Request) {
 
     // Send the notification to the socket server
     try {
-      const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET || 'https://valuable-iona-arlogic-b975dfc8.koyeb.app/';
+      const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET;
       
       await fetch(`${socketServerUrl}emit-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Add any authentication headers if needed
         },
         body: JSON.stringify({
           userId: userId,
@@ -94,7 +93,7 @@ export async function POST(req: Request) {
       console.log('Notification sent to socket server');
     } catch (socketError) {
       console.error('Error sending notification to socket server:', socketError);
-      // Continue execution - we don't want to fail the API response if socket delivery fails
+      // Continue even if the socket server fails
     }
 
     return NextResponse.json({ success: true, notification }, { status: 201 });
@@ -129,15 +128,15 @@ export async function GET(req: Request){
 
     const userObjectId = new mongoose.Types.ObjectId(userId);
     
-    // Find both user-specific notifications AND broadcast notifications (where userId is null)
+    // Find both user-specific notifications AND broadcast notifications 
     const notifications = await Notification.find({ 
       $or: [
         { userId: userObjectId },
-        { userId: null }  // Include broadcast notifications
+        { userId: null } 
       ]
     })
       .populate('typeId')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 });//newest
 
     if(!notifications || notifications.length === 0){
       return NextResponse.json(
@@ -154,8 +153,6 @@ export async function GET(req: Request){
       notificationObj.typename = notificationObj.typeId.name;
       notificationObj.color = notificationObj.typeId.color;
       
-      // Optional: Remove or keep the typeId object depending on your needs
-      // If you want to remove the nested typeId object:
       delete notificationObj.typeId;
       
       return notificationObj;

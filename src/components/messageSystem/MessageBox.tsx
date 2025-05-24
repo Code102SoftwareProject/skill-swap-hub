@@ -93,7 +93,7 @@ export default function MessageBox({
   onReplySelect,
   participantInfo,
 }: MessageBoxProps) {
-  const { socket, markMessageAsRead } = useSocket();
+  const { socket } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -230,57 +230,6 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // ! Multiple Message Processing
-  useEffect(() => {
-    if (messages.length === 0) return;
-    
-    // Track both unread messages and last user message in one pass
-    const unreadMessages: IMessage[] = [];
-    let lastUserMsgIdx = -1;
-    
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      
-      // Check for unread messages
-      if (msg.senderId !== userId && 
-          msg._id && 
-          !processedMessageIds.has(msg._id) &&
-          msg.readStatus === false) {
-        unreadMessages.push(msg);
-      }
-      
-      // Find last user message 
-      if (lastUserMsgIdx === -1 && msg.senderId === userId) {
-        lastUserMsgIdx = i;
-      }
-    }
-    
-    // Update last user message index
-    if (lastUserMsgIdx !== -1) {
-      setLastUserMessageIndex(lastUserMsgIdx);
-    }
-    
-    // Handle unread messages
-    if (unreadMessages.length > 0) {
-      // Extract just the IDs
-      const unreadIds = unreadMessages
-        .map(msg => msg._id)
-        .filter((id): id is string => id !== undefined);
-      
-      // Update local tracking state immediately to prevent duplicate requests
-      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
-      setProcessedMessageIds(newProcessedIds);
-      
-      // Use markMessageAsRead from context for each message ID
-      Promise.all(unreadIds.map(messageId => 
-        markMessageAsRead(messageId, chatRoomId, userId)
-      ))
-      .catch((error: unknown) => {
-        console.error('Error marking messages as read:', error);
-      });
-    }
-  }, [messages, userId, processedMessageIds, markMessageAsRead, chatRoomId]);
-
   // ! unction to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
@@ -317,10 +266,35 @@ export default function MessageBox({
         };
       }
     }
+    
+    // NEW: Handle case where replyFor is just a message ID string
+    if (typeof replyFor === "string") {
+      // Find the original message in the current messages array
+      const originalMessage = messages.find(msg => msg._id === replyFor);
+      
+      if (originalMessage) {
+        let senderName: string;
+        
+        if (originalMessage.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to a generic name
+          senderName = originalMessage.senderId && participantNames[originalMessage.senderId] 
+            ? participantNames[originalMessage.senderId] 
+            : "Chat Partner";
+        }
+        
+        return {
+          sender: senderName,
+          content: originalMessage.content || "No content available"
+        };
+      }
+    }
+    
     // Fallback
     return {
       sender: "Unknown",
-      content: typeof replyFor === "string" ? replyFor : "Message unavailable"
+      content: typeof replyFor === "string" ? "Message not found" : "Message unavailable"
     };
   };
 

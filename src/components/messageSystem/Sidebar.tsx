@@ -37,8 +37,8 @@ function SidebarBox({
     <div className="flex flex-row items-center space-x-2">
       <User className="text-2xl" />
       <div className="flex flex-col">
-        <span>{otherParticipantName}</span>
-        <span className={`text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+        <span className="font-heading">{otherParticipantName}</span>
+        <span className={`font-body text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
           {lastMessage}
         </span>
       </div>
@@ -210,9 +210,9 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
    */
   return (
     <div className="w-64 bg-bgcolor text-white h-screen p-4 border-solid border-r border-gray-600">
-      <h2 className="text-xl font-bold mb-4 text-textcolor">Messages</h2>
+      <h2 className="text-xl font-bold mb-4 text-textcolor font-body">Messages</h2>
       
-      {/* Search input */}
+      {/* Search bar */}
       <div className="mb-4 relative bg-primary">
         <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
           <Search className="text-bgcolor" />
@@ -220,7 +220,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         <input
           type="text"
           placeholder="Search by name..."
-          className="w-full pl-8 pr-2 py-2 bg-primary text-bgcolor rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full pl-8 pr-2 py-2 bg-primary text-bgcolor rounded focus:outline-none focus:ring-1 focus:ring-primary font-body"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -236,6 +236,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
           })
           // Filter chat rooms based on search query
           .filter((chat) => {
+            // ! 2 Paticipants  in chat
             const otherParticipantId =
               chat.participants.find((id) => id !== userId) || "";
             const profile = userProfiles[otherParticipantId];

@@ -24,7 +24,7 @@ export default function ChatPage() {
   const userId = user?._id;
 
   // * Get socket from context instead of managing it locally
-  const { socket, joinRoom, sendMessage, startTyping, stopTyping, markMessageAsRead } = useSocket();
+  const { socket, joinRoom, sendMessage, startTyping, stopTyping} = useSocket();
   
   // ! Core state for chat functionality
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export default function ChatPage() {
 
   const toggleSessionsDisplay = (show: boolean) => {
     setShowSessions(show);
-    if (show) setShowMeetings(false); // Hide meetings when showing sessions
+    if (show) setShowMeetings(false); //! Hide meetings 
   };
 
   const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
@@ -67,7 +67,7 @@ export default function ChatPage() {
 
   /**
    * * Fetch chat participants whenever selected chat room changes
-   * Also resets UI view modes
+   * resets UI view modes
    */
   useEffect(() => {
     if (!selectedChatRoomId) return;
@@ -108,7 +108,7 @@ export default function ChatPage() {
       }
     };
 
-    // Still need to set up the message listener locally
+    // ! set up the message listener locally
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
