@@ -10,36 +10,26 @@ import MessageInput from "@/components/messageSystem/MessageInput";
 import MeetingBox from "@/components/messageSystem/MeetingBox";
 import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
-import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
+import { useSocket } from "@/lib/context/SocketContext";
 import { fetchChatRoom } from "@/services/chatApiServices";
 
-/**
- * * ChatPage Component
- * Main component for handling user messaging functionality
- * Uses centralized socket context for connection management
- */
 export default function ChatPage() {
-  // * Authentication state from context
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
 
-  // * Get socket from context instead of managing it locally
   const { socket, joinRoom, sendMessage, startTyping, stopTyping} = useSocket();
   
-  // ! Core state for chat functionality
   const [selectedChatRoomId, setSelectedChatRoomId] = useState<string | null>(null);
   const [selectedParticipantInfo, setSelectedParticipantInfo] = useState<any>(null);
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
   
-  // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
+  // Add mobile sidebar toggle state
+  const [showSidebar, setShowSidebar] = useState<boolean>(false);
 
-  /**
-   * * Event Handlers
-   */
   const handleReplySelect = (message: IMessage) => {
     setReplyingTo(message);
   };
@@ -54,21 +44,19 @@ export default function ChatPage() {
 
   const toggleSessionsDisplay = (show: boolean) => {
     setShowSessions(show);
-    if (show) setShowMeetings(false); //! Hide meetings 
+    if (show) setShowMeetings(false);
   };
 
   const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
-    setNewMessage(null); // Reset new message state when changing chats
+    setNewMessage(null);
     if (participantInfo) {
       setSelectedParticipantInfo(participantInfo);
     }
+    // Hide sidebar on mobile after selecting a chat
+    setShowSidebar(false);
   };
 
-  /**
-   * * Fetch chat participants whenever selected chat room changes
-   * resets UI view modes
-   */
   useEffect(() => {
     if (!selectedChatRoomId) return;
 
@@ -84,13 +72,9 @@ export default function ChatPage() {
     setShowSessions(false);
   }, [selectedChatRoomId, userId]);
 
-  /**
-   * * Join chat room when selected and socket is available
-   */
   useEffect(() => {
     if (!socket || !selectedChatRoomId || !userId) return;
 
-    // Use the joinRoom function from the context
     joinRoom(selectedChatRoomId);
 
     interface IReceivedMessage {
@@ -108,7 +92,6 @@ export default function ChatPage() {
       }
     };
 
-    // ! set up the message listener locally
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
@@ -116,34 +99,44 @@ export default function ChatPage() {
     };
   }, [socket, selectedChatRoomId, userId, joinRoom]);
 
-  /**
-   * * Loading and authentication state handlers
-   */
   if (authLoading) {
-    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+    return <div className="flex h-screen items-center justify-center text-sm sm:text-base">Loading...</div>;
   }
 
   if (!user || !userId) {
-    return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
+    return <div className="flex h-screen items-center justify-center text-sm sm:text-base px-4 text-center">Please log in to access chat</div>;
   }
 
-  /**
-   * * Main component render
-   * Structured with sidebar and main content area
-   */
   return (
-    <div className="flex h-screen">
-      {/* * Chat sidebar with conversation list */}
-      <Sidebar 
-        userId={userId} 
-        selectedChatRoomId={selectedChatRoomId} 
-        onChatSelect={handleChatSelect} 
-      />
+    <div className="flex h-screen relative">
+      {/* Mobile Sidebar Overlay */}
+      {showSidebar && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={() => setShowSidebar(false)}
+        />
+      )}
 
-      <div className="flex-1 flex flex-col">
+      {/* Sidebar - responsive positioning */}
+      <div className={`
+        ${showSidebar ? 'translate-x-0' : '-translate-x-full'} 
+        md:translate-x-0 
+        fixed md:static 
+        z-50 md:z-auto 
+        transition-transform duration-300 ease-in-out
+        h-full
+      `}>
+        <Sidebar 
+          userId={userId} 
+          selectedChatRoomId={selectedChatRoomId} 
+          onChatSelect={handleChatSelect}
+          onCloseMobile={() => setShowSidebar(false)}
+        />
+      </div>
+
+      <div className="flex-1 flex flex-col min-w-0 h-screen">
         {selectedChatRoomId ? (
           <>
-            {/* * Chat header with participant info and controls */}
             <ChatHeader
               chatRoomId={selectedChatRoomId}
               userId={userId}
@@ -152,10 +145,10 @@ export default function ChatPage() {
               initialParticipantInfo={selectedParticipantInfo}
               showingSessions={showSessions}
               showingMeetings={showMeetings}
+              onToggleSidebar={() => setShowSidebar(!showSidebar)}
             />
 
-            {/* * Main content area - conditionally renders messages, meetings or sessions */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto min-h-0">
               {showMeetings ? (
                 <MeetingBox
                   chatRoomId={selectedChatRoomId}
@@ -163,22 +156,20 @@ export default function ChatPage() {
                   onClose={() => setShowMeetings(false)}
                 />
               ) : showSessions ? (
-                <SessionBox    
-                />
+                <SessionBox />
               ) : (
                 <MessageBox
                   chatRoomId={selectedChatRoomId}
                   userId={userId}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
-                  participantInfo={selectedParticipantInfo}  // Add this prop
+                  participantInfo={selectedParticipantInfo}
                 />
               )}
             </div>
 
-            {/* * Message input area - only shown when not in meetings/sessions view */}
             {!showMeetings && !showSessions && (
-              <div className="border-t p-2 bg-white">
+              <div className="border-t bg-white flex-shrink-0">
                 <MessageInput
                   chatRoomId={selectedChatRoomId}
                   senderId={userId}
@@ -190,8 +181,14 @@ export default function ChatPage() {
             )}
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <p>Select a chat room from the sidebar</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-4">
+            <p className="text-center mb-4 text-sm sm:text-base">Select a chat room to start messaging</p>
+            <button 
+              className="md:hidden bg-primary text-white px-3 py-2 sm:px-4 sm:py-2 rounded text-sm sm:text-base"
+              onClick={() => setShowSidebar(true)}
+            >
+              Show Conversations
+            </button>
           </div>
         )}
       </div>

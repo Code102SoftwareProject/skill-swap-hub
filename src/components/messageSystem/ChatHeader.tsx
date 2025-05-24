@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, BookOpen, Menu } from 'lucide-react';
 import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
 
 interface ChatHeaderProps {
@@ -15,6 +15,7 @@ interface ChatHeaderProps {
   initialParticipantInfo?: { id: string, name: string };
   showingMeetings?: boolean;
   showingSessions?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export default function ChatHeader({ 
@@ -24,7 +25,8 @@ export default function ChatHeader({
   onToggleSessions,
   initialParticipantInfo,
   showingMeetings = false,
-  showingSessions = false
+  showingSessions = false,
+  onToggleSidebar
 }: ChatHeaderProps) {
   const { socket } = useSocket();
   
@@ -130,11 +132,9 @@ export default function ChatHeader({
       const isOtherUserOnline = users.includes(otherUserId);
       setIsOnline(isOtherUserOnline);
       
-      // If user is not online, fetch their last online time
       if (!isOtherUserOnline) {
         fetchUserLastOnline(otherUserId);
       } else {
-        // Clear last online when user comes online
         setLastOnline(null);
       }
     };
@@ -142,17 +142,16 @@ export default function ChatHeader({
     const handleUserOnline = (data: { userId: string }) => {
       if (data.userId === otherUserId) {
         setIsOnline(true);
-        setLastOnline(null); // Clear last online when user comes online
+        setLastOnline(null);
       }
     };
 
     const handleUserOffline = async (data: { userId: string }) => {
       if (data.userId === otherUserId) {
         setIsOnline(false);
-        // Immediately fetch the updated last online status when user goes offline
         setTimeout(() => {
           fetchUserLastOnline(otherUserId);
-        }, 1000); // Small delay to ensure the server has updated the last online time
+        }, 1000);
       }
     };
 
@@ -191,7 +190,6 @@ export default function ChatHeader({
     };
   }, [socket, otherUserId, chatRoomId]);
 
-  // Function to get the status text
   const getStatusText = () => {
     if (isTyping) {
       return 'Typing...';
@@ -201,12 +199,10 @@ export default function ChatHeader({
       return 'Online';
     }
     
-    // User is offline, show last seen if available
     if (lastOnline instanceof Date && !isNaN(lastOnline.getTime())) {
       return `Last seen ${formatDistanceToNow(lastOnline, { addSuffix: true })}`;
     }
     
-    // Fallback to "Offline" only if no last online data is available
     return 'Offline';
   };
 
@@ -223,42 +219,54 @@ export default function ChatHeader({
   };
 
   return (
-    <header className="flex items-center justify-between p-4 bg-primary border-b">
-      <div>
-        <h1 className="text-lg font-semibold text-white font-heading">
-          {otherUserName || `Chat ${chatRoomId.substring(0, 8)}`}
-        </h1>
-        <p className="text-sm text-blue-100 font-body">
-          {getStatusText()}
-        </p>
+    <header className="flex items-center justify-between p-2 sm:p-3 md:p-4 bg-primary border-b">
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+        {/* Mobile hamburger menu */}
+        {onToggleSidebar && (
+          <button
+            onClick={onToggleSidebar}
+            className="md:hidden text-white hover:text-blue-200 transition-colors p-1 flex-shrink-0"
+          >
+            <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
+        )}
+        
+        <div className="min-w-0 flex-1">
+          <h1 className="text-sm sm:text-base md:text-lg font-semibold text-white font-heading truncate">
+            {otherUserName || `Chat ${chatRoomId.substring(0, 8)}`}
+          </h1>
+          <p className="text-xs sm:text-sm text-blue-100 font-body truncate">
+            {getStatusText()}
+          </p>
+        </div>
       </div>
-      <div className="flex space-x-4">
-        {/* Back to Dashboard*/}
+
+      <div className="flex space-x-1 sm:space-x-2 md:space-x-4 flex-shrink-0">
+        {/* Back to Dashboard - Hidden on small mobile */}
         <button
           onClick={handleBackToDashboard}
-          className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
+          className="hidden sm:flex flex-col items-center text-white hover:text-blue-200 transition-colors px-1"
         >
-          <ArrowLeft className="h-5 w-5 mb-1" />
+          <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mb-0.5 sm:mb-1" />
           <span className="text-xs font-body">Dashboard</span>
         </button>
+
         {/* Session Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          className={`flex flex-col items-center text-white px-1 sm:px-2 ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleSessions}
         >
-          <BookOpen className="h-5 w-5 mb-1" />
-          <span className="text-xs font-body">Sessions</span>
+          <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mb-0.5 sm:mb-1" />
+          <span className="text-xs font-body hidden sm:block">Sessions</span>
         </button>
 
         {/* Meetings Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200 text-xs'  : 'hover:text-blue-200'} transition-colors`}
+          className={`flex flex-col items-center text-white px-1 sm:px-2 ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleMeetings}
         >
-          <Calendar className="h-5 w-5 mb-1" />
-          <div className="flex items-center">
-            <span className="text-xs font-body">Meetings</span>
-          </div>
+          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mb-0.5 sm:mb-1" />
+          <span className="text-xs font-body hidden sm:block">Meetings</span>
         </button>
       </div>
     </header>

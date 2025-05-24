@@ -73,9 +73,9 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: otherUserId,
-          typeno: 4, // Assuming 4 is for meeting cancellation notifications
+          typeno: 10, // MEETING_CANCELLED
           description: notificationDescription,
-          targetDestination: `/messages`, // Or wherever meetings are managed
+          targetDestination: `/messages`,
           broadcast: false
         }),
       });

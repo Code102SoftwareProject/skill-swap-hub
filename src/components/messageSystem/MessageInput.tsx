@@ -6,7 +6,6 @@ import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
-import { set } from "lodash";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -27,7 +26,6 @@ export default function MessageInput({
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  // Astate for storing the reply sender's name
   const [replySenderName, setReplySenderName] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
@@ -39,14 +37,12 @@ export default function MessageInput({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ! Focus on input when replying to a message
   useEffect(() => {
     if (replyingTo && inputRef.current) {
       inputRef.current.focus();
     }
   }, [replyingTo]);
 
-  // ! Fetch user profile for the message being replied to
   useEffect(() => {
     const fetchReplyUserName = async () => {
       if (replyingTo && replyingTo.senderId) {
@@ -77,14 +73,11 @@ export default function MessageInput({
     setMessage("");
   };
 
-  // ! Upload Files
   const uploadFile = async () => {
     if (!file) return;
 
     setUploading(true);
-    
 
-    // ! Form Data for Api call
     const formData = new FormData();
     formData.append("file", file);
     formData.append("folder", "chat"); 
@@ -127,7 +120,6 @@ export default function MessageInput({
   }, []);
 
   const sendMessage = async (fileUrl: string = "") => {
-    // ! Need either one
     if (!fileUrl && !message.trim()){
       setError("Please enter a message or select a file.");
       
@@ -161,31 +153,30 @@ export default function MessageInput({
     setFile(null);
     setLoading(false);
 
-    // Reset reply if onCancelReply exists
     if (onCancelReply) {
       onCancelReply();
     }
   };
 
   return (
-    <div className="p-3 border-t bg-white">
-      {/* Reply Preview with user name  */}
+    <div className="p-2 sm:p-3 border-t bg-white">
       {error && (
-        <div className="mb-2 p-2 bg-red-100 text-red-700 rounded">
+        <div className="mb-2 p-2 bg-red-100 text-red-700 rounded text-xs sm:text-sm">
           {error}
         </div>
       )}
-      {/* Displaying the reply message */}
+      
+      {/* Reply Preview */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-gray-100 rounded flex items-start font-body">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center mb-1">
-              <CornerUpLeft className="w-3 h-3 mr-1" />
-              <span className="text-xs font-semibold text-blue-600">
+              <CornerUpLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-1 flex-shrink-0" />
+              <span className="text-xs font-semibold text-blue-600 truncate">
                 Replying to {replySenderName}
               </span>
             </div>
-            <p className="text-sm text-gray-700 truncate">
+            <p className="text-xs sm:text-sm text-gray-700 truncate">
               {replyingTo.content.startsWith("File:")
                 ? "📎 File attachment"
                 : replyingTo.content}
@@ -193,30 +184,30 @@ export default function MessageInput({
           </div>
           <button
             onClick={onCancelReply}
-            aria-label="To remove reply select"
-            className="text-gray-500 hover:text-gray-700"
+            aria-label="Cancel reply"
+            className="text-gray-500 hover:text-gray-700 ml-2 flex-shrink-0 p-0.5"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
         </div>
       )}
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1 sm:space-x-2">
         {file ? (
-          <div className="flex items-center border p-2 rounded bg-gray-100">
-            <span className="mr-2">{file.name}</span>
+          <div className="flex items-center border p-2 rounded bg-gray-100 flex-1 min-w-0">
+            <span className="mr-2 truncate text-xs sm:text-sm">{file.name}</span>
             <button
               onClick={removeFile}
-              className="p-1 text-red-500 hover:text-red-700"
-              aria-label="Delete File Selected"
+              className="p-0.5 sm:p-1 text-red-500 hover:text-red-700 flex-shrink-0"
+              aria-label="Remove file"
             >
-              <X className="w-5 h-5" />
+              <X className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           </div>
         ) : (
           <input
             ref={inputRef}
-            className="flex-grow border p-2 rounded font-body"
+            className="flex-1 border p-2 rounded font-body text-sm md:text-base min-w-0"
             type="text"
             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
             value={message}
@@ -227,6 +218,7 @@ export default function MessageInput({
             disabled={loading || file !== null}
           />
         )}
+        
         <input
           type="file"
           ref={fileInputRef}
@@ -235,16 +227,18 @@ export default function MessageInput({
           accept="image/*"
           aria-label="File Input"
         />
+        
         <button
-          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300"
+          className="p-1.5 sm:p-2 bg-gray-200 rounded-full hover:bg-gray-300 flex-shrink-0"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || file !== null}
-          aria-label="File Upload Paper Clip"
+          aria-label="Attach file"
         >
-          <Paperclip className="w-5 h-5 text-gray-600" />
+          <Paperclip className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
         </button>
+        
         <button
-          className="bg-primary text-white px-3 py-1 rounded font-body"
+          className="bg-primary text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded font-body text-xs sm:text-sm md:text-base flex-shrink-0"
           onClick={() => (file ? uploadFile() : sendMessage())}
           disabled={loading || uploading}
         >

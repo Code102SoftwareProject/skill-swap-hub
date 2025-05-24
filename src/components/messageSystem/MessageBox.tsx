@@ -37,8 +37,8 @@ function DateBadge({ date }: { date: Date }) {
   }).format(date);
   
   return (
-    <div className="flex items-center justify-center my-4 w-full">
-      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1">
+    <div className="flex items-center justify-center my-3 sm:my-4 w-full">
+      <div className="bg-gray-100 text-gray-500 text-xs sm:text-sm font-medium rounded-full px-2 py-1 sm:px-3">
         {formattedDate}
       </div>
     </div>
@@ -50,10 +50,10 @@ function DateBadge({ date }: { date: Date }) {
  */
 function TypingIndicator() {
   return (
-    <div className="flex gap-1 my-2.5">
-      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce"></span>
-      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-75"></span>
-      <span className="w-2 h-2 bg-gray-300 rounded-full animate-bounce delay-150"></span>
+    <div className="flex gap-1 my-2 sm:my-2.5 pl-2 sm:pl-0">
+      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-300 rounded-full animate-bounce"></span>
+      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-300 rounded-full animate-bounce delay-75"></span>
+      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gray-300 rounded-full animate-bounce delay-150"></span>
     </div>
   );
 }
@@ -72,14 +72,14 @@ function ReplyMessage({
   
   return (
     <div
-      className={`reply-box rounded-md p-2 mb-1 cursor-pointer bg-gray-100
+      className={`reply-box rounded-md p-1.5 sm:p-2 mb-1 cursor-pointer bg-gray-100
         ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
       onClick={onReplyClick}
     >
       <span className={`text-xs font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
         {replyInfo.sender}
       </span>
-      <span className="text-sm text-gray-700 truncate block">
+      <span className="text-xs sm:text-sm text-gray-700 truncate block">
         {replyInfo.content}
       </span>
     </div>
@@ -301,7 +301,7 @@ export default function MessageBox({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+      className="flex flex-col w-full h-full bg-white overflow-y-auto p-1 sm:p-2 md:p-4"
     >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
@@ -325,21 +325,21 @@ export default function MessageBox({
               ref={(el) => {
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
-              className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
+              className={`mb-1.5 sm:mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
                 ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
             >
               <div
-                className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
+                className={`p-2 sm:p-2.5 md:p-3 rounded-lg max-w-[90%] sm:max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
                   ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
                   relative group`}
               >
-                {/* Reply button - show on hover */}
+                {/* Reply button - show on hover, smaller on mobile */}
                 <button
                   onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
-                  className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-0.5 right-0.5 sm:top-1 sm:right-1 bg-white/80 p-0.5 sm:p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Reply"
                 >
-                  <CornerUpLeft className="w-3 h-3" />
+                  <CornerUpLeft className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                 </button>
 
                 {/* Reply box for Reply Messages */}
@@ -373,7 +373,7 @@ export default function MessageBox({
 
       {/* ! IMPORTANT: Typing indicator section */}
       {isTyping && (
-        <div className="mb-3 text-left">
+        <div className="mb-2 sm:mb-3 text-left">
           <TypingIndicator />
         </div>
       )}

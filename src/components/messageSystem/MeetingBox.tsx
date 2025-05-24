@@ -359,8 +359,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
 
   if (loading && meetings.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <p>Loading meetings...</p>
+      <div className="flex-1 flex items-center justify-center p-2 sm:p-4">
+        <p className="text-sm sm:text-base">Loading meetings...</p>
       </div>
     );
   }
@@ -368,23 +368,23 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   const recentCancellations = getRecentCancellations();
 
   return (
-    <div className="flex-1 overflow-auto bg-white p-4 relative">
+    <div className="flex-1 overflow-auto bg-white p-2 sm:p-4 relative">
       {/* Heading*/}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-primary font-heading">Meetings</h2>
-        <div className="flex items-center space-x-2">
+      <div className="flex justify-between items-center mb-3 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-primary font-heading">Meetings</h2>
+        <div className="flex items-center space-x-1 sm:space-x-2">
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="bg-primary text-white p-2 rounded-full hover:bg-blue-700"
+            className="bg-primary text-white p-1.5 sm:p-2 rounded-full hover:bg-blue-700"
             title="Schedule New Meeting"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-800 p-2"
+            className="text-gray-500 hover:text-gray-800 p-1.5 sm:p-2"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
         </div>
       </div>
@@ -398,18 +398,18 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
       />
 
       {meetings.length === 0 ? (
-        <div className="text-center p-8">
-          <p className="text-gray-500 font-body">No meetings scheduled yet</p>
+        <div className="text-center p-4 sm:p-8">
+          <p className="text-gray-500 font-body text-sm sm:text-base">No meetings scheduled yet</p>
           <button 
-            className="mt-4 bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center mx-auto"
+            className="mt-3 sm:mt-4 bg-primary text-white px-3 py-2 sm:px-4 text-sm sm:text-base rounded hover:bg-blue-700 flex items-center mx-auto"
             onClick={() => setShowCreateModal(true)}
           >
-            <Plus className="w-4 h-4 mr-2" />
+            <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
             Schedule New Meeting
           </button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <PendingMeetingList
             meetings={pendingRequests}
             userId={userId}

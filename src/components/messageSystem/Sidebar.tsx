@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IChatRoom } from "@/types/chat";
-import { User, Search } from "lucide-react";
+import { User, Search, X } from "lucide-react";
 import {
   fetchUserChatRooms,
   fetchUserProfile,
@@ -11,17 +11,18 @@ import {useSocket} from "@/lib/context/SocketContext";
 
 interface SidebarProps {
   userId: string;
-  selectedChatRoomId?: string | null; // Add this prop
+  selectedChatRoomId?: string | null;
   onChatSelect: (
     chatRoomId: string,
     participantInfo?: { id: string; name: string }
   ) => void;
+  onCloseMobile?: () => void;
 }
 
 interface UserProfile {
   firstName: string;
   lastName: string;
-  avatar?: string; // TODO:Make it display Profile Pic
+  avatar?: string;
 }
 
 function SidebarBox({ 
@@ -35,23 +36,18 @@ function SidebarBox({
 }) {
   return (
     <div className="flex flex-row items-center space-x-2">
-      <User className="text-2xl" />
-      <div className="flex flex-col">
-        <span className="font-heading">{otherParticipantName}</span>
-        <span className={`font-body text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+      <User className="text-lg sm:text-xl md:text-2xl flex-shrink-0" />
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className="font-heading truncate text-sm sm:text-base">{otherParticipantName}</span>
+        <span className={`font-body text-xs sm:text-sm truncate ${isSelected ? 'text-white' : 'text-gray-400'}`}>
           {lastMessage}
         </span>
       </div>
     </div>
   );
 }
-/**
- * Sidebar component 
- * @param {string} userId 
- * @param {function} onChatSelect 
- * @returns {TSX.Element} 
- */
-export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
+
+export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, onCloseMobile }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<{
@@ -60,14 +56,6 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
   const [searchQuery, setSearchQuery] = useState("");
   const {socket}= useSocket();
 
-  //* Component Specific Functions
-
-  /**
-   * Fetches all chat rooms for the current user from the API
-   * @async
-   * @function fetchChatRooms
-   * @returns {Promise<void>}
-   */
   async function fetchChatRooms() {
     try {
       setLoading(true);
@@ -82,15 +70,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
     }
   }
 
-  /**
-   * Fetches profile information for all unique users in the chat rooms
-   *
-   * @async
-   * @function fetchUserProfiles
-   * @returns {Promise<void>}
-   */
   async function fetchUserProfiles() {
-    // Extract unique participant IDs excepts Me
     const uniqueUserIds = new Set<string>();
     chatRooms.forEach((chat) => {
       chat.participants.forEach((participantId) => {
@@ -100,7 +80,6 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
       });
     });
 
-    // Fetch profile data for each unique user
     for (const id of uniqueUserIds) {
       try {
         const userData = await fetchUserProfile(id);
@@ -125,50 +104,30 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
     }
   }
 
-  /**
-   * Effect hook that triggers chat room data fetching when component mounts
-   * or when the userId dependency changes
-   *
-   * @dependency [userId]
-   */
   useEffect(() => {
     if (userId) {
       fetchChatRooms();
     }
   }, [userId]);
 
-  /**
-   * Effect hook that fetches user profile data whenever the chat rooms list changes
-   * Ensures we have profile information for all participants in the conversations
-   *
-   * @dependency [chatRooms, userId]
-   */
   useEffect(() => {
     if (chatRooms.length > 0) {
       fetchUserProfiles();
     }
   }, [chatRooms, userId]);
 
-  /**
-   * Effect hook that listens for new messages and updates the sidebar
-   * 
-   * @dependency [socket, userId, fetchChatRooms]
-   */
   useEffect(() => {
     if (!socket) return;
 
     const handleReceiveMessage = (messageData: any) => {
       setChatRooms(prevRooms => {
-        // Check if this room exists in our list
         const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
         
         if (!roomExists) {
-          // If room not exisits
           setTimeout(() => fetchChatRooms(), 0);
           return prevRooms;
         }
         
-        // Update the existing room with new message
         return prevRooms.map(room => {
           if (room._id === messageData.chatRoomId) {
             return {
@@ -185,110 +144,114 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
       });
     };
 
-    // Set up the listener
     socket.on("receive_message", handleReceiveMessage);
 
-    // Clean up
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, userId, fetchChatRooms]);
 
-  /**
-   * * Renders a loading state while fetching initial data
-   */
   if (loading) {
     return (
-      <div className="w-64 bg-grayfill border-solid border-gray-900 text-white p-4">
-        <h2 className="text-xl font-bold mb-4">Messages</h2>
-        <p>Loading chats...</p>
+      <div className="w-full sm:w-64 md:w-64 max-w-sm bg-grayfill border-solid border-gray-900 text-white p-3 sm:p-4 h-full">
+        <div className="flex justify-between items-center mb-3 sm:mb-4">
+          <h2 className="text-lg sm:text-xl font-bold">Messages</h2>
+          {onCloseMobile && (
+            <button 
+              onClick={onCloseMobile}
+              className="md:hidden text-white p-1"
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+          )}
+        </div>
+        <p className="text-sm sm:text-base">Loading chats...</p>
       </div>
     );
   }
-  /**
-   * * Shows all chatrooms with seqrch box
-   */
+
   return (
-    <div className="w-64 bg-bgcolor text-white h-screen p-4 border-solid border-r border-gray-600">
-      <h2 className="text-xl font-bold mb-4 text-textcolor font-body">Messages</h2>
+    <div className="w-full sm:w-64 md:w-64 max-w-sm bg-bgcolor text-white h-full p-3 sm:p-4 border-solid border-r border-gray-600 flex flex-col">
+      <div className="flex justify-between items-center mb-3 sm:mb-4">
+        <h2 className="text-lg sm:text-xl font-bold text-textcolor font-body">Messages</h2>
+        {onCloseMobile && (
+          <button 
+            onClick={onCloseMobile}
+            className="md:hidden text-textcolor p-1 hover:text-white"
+          >
+            <X className="w-4 h-4 sm:w-5 sm:h-5" />
+          </button>
+        )}
+      </div>
       
       {/* Search bar */}
-      <div className="mb-4 relative bg-primary">
+      <div className="mb-3 sm:mb-4 relative bg-primary flex-shrink-0">
         <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-          <Search className="text-bgcolor" />
+          <Search className="text-bgcolor w-3 h-3 sm:w-4 sm:h-4" />
         </div>
         <input
           type="text"
           placeholder="Search by name..."
-          className="w-full pl-8 pr-2 py-2 bg-primary text-bgcolor rounded focus:outline-none focus:ring-1 focus:ring-primary font-body"
+          className="w-full pl-6 sm:pl-8 pr-2 py-1.5 sm:py-2 bg-primary text-bgcolor rounded focus:outline-none focus:ring-1 focus:ring-primary font-body text-xs sm:text-sm"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <ul className="space-y-2">
-        {chatRooms
-          // Sort by most recent message
-          .sort((a, b) => {
-            const dateA = a.lastMessage?.sentAt ? new Date(a.lastMessage.sentAt) : new Date(0);
-            const dateB = b.lastMessage?.sentAt ? new Date(b.lastMessage.sentAt) : new Date(0);
-            return dateB.getTime() - dateA.getTime();
-          })
-          // Filter chat rooms based on search query
-          .filter((chat) => {
-            // ! 2 Paticipants  in chat
-            const otherParticipantId =
-              chat.participants.find((id) => id !== userId) || "";
-            const profile = userProfiles[otherParticipantId];
+      <div className="flex-1 overflow-y-auto">
+        <ul className="space-y-1 sm:space-y-2">
+          {chatRooms
+            .sort((a, b) => {
+              const dateA = a.lastMessage?.sentAt ? new Date(a.lastMessage.sentAt) : new Date(0);
+              const dateB = b.lastMessage?.sentAt ? new Date(b.lastMessage.sentAt) : new Date(0);
+              return dateB.getTime() - dateA.getTime();
+            })
+            .filter((chat) => {
+              const otherParticipantId =
+                chat.participants.find((id) => id !== userId) || "";
+              const profile = userProfiles[otherParticipantId];
 
-            // Show all rooms when no search query is provided
-            if (!profile || !searchQuery.trim()) return true;
+              if (!profile || !searchQuery.trim()) return true;
 
-            // Filter by name match case insesitve 
-            const fullName =
-              `${profile.firstName} ${profile.lastName}`.toLowerCase();
-            return fullName.includes(searchQuery.toLowerCase());
-          })
-          .map((chat) => {
-            // Find the other participant in the conversation
-            const otherParticipantId =
-              chat.participants.find((id) => id !== userId) || "";
+              const fullName =
+                `${profile.firstName} ${profile.lastName}`.toLowerCase();
+              return fullName.includes(searchQuery.toLowerCase());
+            })
+            .map((chat) => {
+              const otherParticipantId =
+                chat.participants.find((id) => id !== userId) || "";
 
-            const profile = userProfiles[otherParticipantId];
+              const profile = userProfiles[otherParticipantId];
 
-            // Format display name with fallback to ID substring
-            const otherParticipantName = profile
-              ? `${profile.firstName} ${profile.lastName}`
-              : otherParticipantId.substring(0, 8);
+              const otherParticipantName = profile
+                ? `${profile.firstName} ${profile.lastName}`
+                : otherParticipantId.substring(0, 8);
 
-            // ! Last Message 
-            const lastMessage = chat.lastMessage?.content.substring(0,6) || "No messages yet";
+              const lastMessage = chat.lastMessage?.content.substring(0,20) || "No messages yet";
 
-            return (
-              /*
-                ! Selected Chatroom 
-              */
-              <li
-                key={chat._id}
-                className={`p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
-                  selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""
-                }`}
-                onClick={() =>
-                  onChatSelect(chat._id, {
-                    id: otherParticipantId,
-                    name: otherParticipantName,
-                  })
-                }
-              >
-                <SidebarBox
-                  otherParticipantName={otherParticipantName}
-                  lastMessage={lastMessage}
-                  isSelected={selectedChatRoomId === chat._id}
-                />
-              </li>
-            );
-          })}
-      </ul>
+              return (
+                <li
+                  key={chat._id}
+                  className={`p-2 sm:p-3 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 rounded transition-colors ${
+                    selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""
+                  }`}
+                  onClick={() =>
+                    onChatSelect(chat._id, {
+                      id: otherParticipantId,
+                      name: otherParticipantName,
+                    })
+                  }
+                >
+                  <SidebarBox
+                    otherParticipantName={otherParticipantName}
+                    lastMessage={lastMessage}
+                    isSelected={selectedChatRoomId === chat._id}
+                  />
+                </li>
+              );
+            })}
+        </ul>
+      </div>
     </div>
   );
 }
