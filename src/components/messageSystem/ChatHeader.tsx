@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
@@ -57,7 +57,6 @@ export default function ChatHeader({
         if (!isMounted) return;
 
         if (roomInfo) {
-          
           const foundOtherUserId = roomInfo.participants?.find((id: string) => id !== userId);
           if (foundOtherUserId) {
             setOtherUserId(foundOtherUserId);
@@ -89,51 +88,36 @@ export default function ChatHeader({
     }
   };
 
-  // Add a useRef to track if we've already fetched last online status
-  const lastOnlineFetchedRef = useRef<boolean>(false);
-  
   const fetchUserLastOnline = async (id: string) => {
     if (!id) {
       console.log('No other user ID provided to fetchLastOnline');
       return;
     }
     
-    // Prevent repeated fetches for the same user
-    if (lastOnlineFetchedRef.current) return;
-    
-    lastOnlineFetchedRef.current = true;
-    
-    const lastOnlineData = await fetchLastOnline(id);
+    try {
+      const lastOnlineData = await fetchLastOnline(id);
 
-    if (lastOnlineData) {
-      try {
+      if (lastOnlineData) {
         const parsedDate = parseISO(lastOnlineData);
         if (!isNaN(parsedDate.getTime())) {
           setLastOnline(parsedDate);
         } else {
+          console.error('Invalid date received:', lastOnlineData);
           setLastOnline(null);
         }
-      } catch (parseError) {
-        console.error('Error parsing date with parseISO:', parseError);
+      } else {
+        console.log('No last online data received for user:', id);
         setLastOnline(null);
       }
-    } else {
+    } catch (parseError) {
+      console.error('Error parsing date with parseISO:', parseError);
       setLastOnline(null);
     }
   };
 
   useEffect(() => {
-    if (otherUserId) {
-      // Reset the fetch tracker whenever user ID changes
-      lastOnlineFetchedRef.current = false;
-      
-      if (!isOnline && !lastOnlineFetchedRef.current) {
-        fetchUserLastOnline(otherUserId);
-      }
-      
-      if (socket) {
-        socket.emit("get_online_users");
-      }
+    if (otherUserId && socket) {
+      socket.emit("get_online_users");
     }
   }, [otherUserId, socket]);
 
@@ -145,9 +129,12 @@ export default function ChatHeader({
     const handleOnlineUsers = (users: string[]) => {
       const isOtherUserOnline = users.includes(otherUserId);
       setIsOnline(isOtherUserOnline);
+      
+      // If user is not online, fetch their last online time
       if (!isOtherUserOnline) {
         fetchUserLastOnline(otherUserId);
       } else {
+        // Clear last online when user comes online
         setLastOnline(null);
       }
     };
@@ -155,14 +142,17 @@ export default function ChatHeader({
     const handleUserOnline = (data: { userId: string }) => {
       if (data.userId === otherUserId) {
         setIsOnline(true);
-        setLastOnline(null);
+        setLastOnline(null); // Clear last online when user comes online
       }
     };
 
     const handleUserOffline = async (data: { userId: string }) => {
       if (data.userId === otherUserId) {
         setIsOnline(false);
-        await fetchUserLastOnline(otherUserId);
+        // Immediately fetch the updated last online status when user goes offline
+        setTimeout(() => {
+          fetchUserLastOnline(otherUserId);
+        }, 1000); // Small delay to ensure the server has updated the last online time
       }
     };
 
@@ -179,8 +169,6 @@ export default function ChatHeader({
 
   useEffect(() => {
     if (!socket || !otherUserId) return;
-
-    socket.emit("get_online_users");
 
     const handleUserTyping = (data: { userId: string, chatRoomId: string }) => {
       if (data.userId === otherUserId && data.chatRoomId === chatRoomId) {
@@ -203,6 +191,25 @@ export default function ChatHeader({
     };
   }, [socket, otherUserId, chatRoomId]);
 
+  // Function to get the status text
+  const getStatusText = () => {
+    if (isTyping) {
+      return 'Typing...';
+    }
+    
+    if (isOnline) {
+      return 'Online';
+    }
+    
+    // User is offline, show last seen if available
+    if (lastOnline instanceof Date && !isNaN(lastOnline.getTime())) {
+      return `Last seen ${formatDistanceToNow(lastOnline, { addSuffix: true })}`;
+    }
+    
+    // Fallback to "Offline" only if no last online data is available
+    return 'Offline';
+  };
+
   const handleBackToDashboard = () => {
     router.push('/dashboard');
   };
@@ -222,13 +229,7 @@ export default function ChatHeader({
           {otherUserName || `Chat ${chatRoomId.substring(0, 8)}`}
         </h1>
         <p className="text-sm text-blue-100 font-body">
-          {isTyping ? 'Typing...' : (
-            isOnline ? 'Online' : (
-              lastOnline instanceof Date && !isNaN(lastOnline.getTime())
-                ? `Last seen ${formatDistanceToNow(lastOnline, { addSuffix: true })}`
-                : 'Offline'
-            )
-          )}
+          {getStatusText()}
         </p>
       </div>
       <div className="flex space-x-4">

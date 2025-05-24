@@ -1,4 +1,5 @@
 import { IChatRoom, IMessage } from "@/types/chat";
+import { method } from "lodash";
 
 interface ChatRoomResponse {
   success: boolean;
@@ -228,11 +229,4 @@ export async function fetchChatMessages(chatRoomId: string) {
     return [];
   }
 }
-
-/**
- * Mark multiple messages as read in a single request
- * 
- * @param messageIds - Array of message IDs to mark as read
- * @returns Promise with the response data
- */
 

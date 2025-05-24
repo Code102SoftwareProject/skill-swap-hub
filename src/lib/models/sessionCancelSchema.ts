@@ -27,7 +27,7 @@ const sessionCancelSchema = new Schema(
     initiatorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     reason: { type: String, required: true },
     description: { type: String, required: true },
-    evidenceFiles: [{ type: String }], // Array of photo file URLs
+    evidenceFiles: [{ type: String }], 
     
     // Response from other user
     responseStatus: {

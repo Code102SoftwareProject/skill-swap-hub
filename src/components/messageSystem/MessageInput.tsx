@@ -6,6 +6,7 @@ import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
+import { set } from "lodash";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -36,7 +37,7 @@ export default function MessageInput({
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
+  const [error, setError] = useState<string | null>(null);
 
   // ! Focus on input when replying to a message
   useEffect(() => {
@@ -128,6 +129,11 @@ export default function MessageInput({
   const sendMessage = async (fileUrl: string = "") => {
     // ! Need either one
     if (!fileUrl && !message.trim()){
+      setError("Please enter a message or select a file.");
+      
+      setTimeout(()=>{
+        setError(null);
+      },5000)
       return;
     }
     if (!socket) return;
@@ -164,6 +170,12 @@ export default function MessageInput({
   return (
     <div className="p-3 border-t bg-white">
       {/* Reply Preview with user name  */}
+      {error && (
+        <div className="mb-2 p-2 bg-red-100 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+      {/* Displaying the reply message */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-gray-100 rounded flex items-start font-body">
           <div className="flex-1">
