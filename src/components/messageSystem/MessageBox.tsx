@@ -266,10 +266,35 @@ export default function MessageBox({
         };
       }
     }
+    
+    // NEW: Handle case where replyFor is just a message ID string
+    if (typeof replyFor === "string") {
+      // Find the original message in the current messages array
+      const originalMessage = messages.find(msg => msg._id === replyFor);
+      
+      if (originalMessage) {
+        let senderName: string;
+        
+        if (originalMessage.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to a generic name
+          senderName = originalMessage.senderId && participantNames[originalMessage.senderId] 
+            ? participantNames[originalMessage.senderId] 
+            : "Chat Partner";
+        }
+        
+        return {
+          sender: senderName,
+          content: originalMessage.content || "No content available"
+        };
+      }
+    }
+    
     // Fallback
     return {
       sender: "Unknown",
-      content: typeof replyFor === "string" ? replyFor : "Message unavailable"
+      content: typeof replyFor === "string" ? "Message not found" : "Message unavailable"
     };
   };
 
