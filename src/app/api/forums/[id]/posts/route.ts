@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     // Extract the forum ID from the URL path
     const url = request.url;
     const pathParts = url.split('/');
-    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
+    const forumId = pathParts[pathParts.length - 2]; 
     
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     // Extract the forum ID from the URL path
     const url = request.url;
     const pathParts = url.split('/');
-    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
+    const forumId = pathParts[pathParts.length - 2]; 
     
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(forumId)) {
@@ -102,9 +102,8 @@ export async function POST(request: NextRequest) {
       forumId,
       title: data.title,
       content: data.content,
-      imageUrl: data.imageUrl || null, // Include image URL if provided
+      imageUrl: data.imageUrl || null,
       author: {
-        // Generate a valid ObjectId instead of using the string
         _id: data.author?._id || new mongoose.Types.ObjectId(),
         name: data.author?.name || 'Anonymous User',
         avatar: data.author?.avatar || '/default-avatar.png',
