@@ -93,7 +93,7 @@ export default function MessageBox({
   onReplySelect,
   participantInfo,
 }: MessageBoxProps) {
-  const { socket } = useSocket();
+  const { socket, markMessageAsRead, onlineUsers } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -107,6 +107,9 @@ export default function MessageBox({
 
   // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // State to track message delivery status
+  const [messageDeliveryStatus, setMessageDeliveryStatus] = useState<Record<string, 'sent' | 'delivered' | 'read'>>({});
 
   // Helper function to check if two dates are from different days
   const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
@@ -170,13 +173,28 @@ export default function MessageBox({
       }
     }
     fetchMessages();
-  }, [chatRoomId, userId]);
-
-  // Append new messages if they arrive
+  }, [chatRoomId, userId]);  // Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
+    
     setMessages((prev) => [...prev, newMessage]);
-  }, [newMessage, chatRoomId, userId]);
+    
+    // If this user received a message (not sent by them), mark it as delivered immediately
+    if (newMessage.senderId.toString() !== userId && socket && newMessage._id) {
+      // Mark as delivered since user is online to receive it
+      socket.emit('message_delivered', {
+        messageId: newMessage._id.toString(),
+        chatRoomId: newMessage.chatRoomId,
+        senderId: newMessage.senderId.toString()
+      });
+      
+      // Update local delivery status
+      setMessageDeliveryStatus(prev => ({
+        ...prev,
+        [newMessage._id!.toString()]: 'delivered'
+      }));
+    }
+  }, [newMessage, chatRoomId, userId, socket]);
 
   // Add/update typing event listeners
   useEffect(() => {
@@ -200,9 +218,7 @@ export default function MessageBox({
       if (data.chatRoomId === chatRoomId && data.userId !== userId) {
         setIsTyping(false);
       }
-    };
-
-    socket.on("user_typing", handleUserTyping);
+    };    socket.on("user_typing", handleUserTyping);
     socket.on("user_stopped_typing", handleUserStoppedTyping);
 
     return () => {
@@ -210,6 +226,50 @@ export default function MessageBox({
       socket.off("user_stopped_typing", handleUserStoppedTyping);
     };
   }, [socket, chatRoomId, userId]);
+
+  // Handle message delivery status updates
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDeliveryUpdate = (data: {
+      messageId: string;
+      deliveryStatus: 'sent' | 'delivered' | 'read';
+      chatRoomId: string;
+    }) => {
+      if (data.chatRoomId === chatRoomId) {
+        setMessageDeliveryStatus(prev => ({
+          ...prev,
+          [data.messageId]: data.deliveryStatus
+        }));
+      }
+    };
+
+    socket.on("message_delivery_update", handleDeliveryUpdate);
+
+    return () => {
+      socket.off("message_delivery_update", handleDeliveryUpdate);
+    };
+  }, [socket, chatRoomId]);
+
+  // Mark messages as read when entering chat room
+  useEffect(() => {
+    if (!socket || !chatRoomId || !userId || messages.length === 0) return;
+
+    // Mark unread messages as read when viewing the chat
+    const unreadMessages = messages.filter(msg => 
+      msg.senderId.toString() !== userId && !msg.readStatus
+    );    unreadMessages.forEach(msg => {
+      if (msg._id) {
+        markMessageAsRead(msg._id.toString(), chatRoomId, msg.senderId.toString());
+        
+        // Update local delivery status to 'read'
+        setMessageDeliveryStatus(prev => ({
+          ...prev,
+          [msg._id!.toString()]: 'read'
+        }));
+      }
+    });
+  }, [messages, chatRoomId, userId, socket, markMessageAsRead]);
 
   // ! Auto-scroll to the bottom when messages update
   useEffect(() => {
@@ -266,6 +326,30 @@ export default function MessageBox({
       content: typeof replyFor === "string" ? replyFor : "Message unavailable"
     };
   };
+
+  // Update delivery status when users come online
+  useEffect(() => {
+    if (!socket || !chatRoomId || messages.length === 0) return;
+
+    // When online users change, check if any message recipients are now online
+    messages.forEach(msg => {
+      if (msg._id && msg.senderId.toString() === userId) {
+        // This is a message sent by current user
+        const currentStatus = messageDeliveryStatus[msg._id.toString()] || msg.deliveryStatus || 'sent';
+        
+        // If message is still 'sent' and recipient is now online, mark as delivered
+        if (currentStatus === 'sent') {
+          // We need to determine who the recipient is - this depends on your chat room structure
+          // For now, we'll emit an event to check delivery status
+          socket.emit('check_delivery_status', {
+            messageId: msg._id.toString(),
+            chatRoomId: chatRoomId,
+            senderId: userId
+          });
+        }
+      }
+    });
+  }, [messages, chatRoomId, userId, socket, messageDeliveryStatus]);
 
   return (
     <div
@@ -325,13 +409,21 @@ export default function MessageBox({
                       scrollToMessage(msg.replyFor);
                     }
                   }}
-                />
-
-                {/* Main message content or File */}
+                />                {/* Main message content or File */}
                 {msg.content.startsWith("File:") ? (
-                  <FileMessage fileInfo={msg.content} sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} isMine={isMine} />
+                  <FileMessage 
+                    fileInfo={msg.content} 
+                    sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} 
+                    isMine={isMine}
+                    deliveryStatus={msg._id ? (messageDeliveryStatus[msg._id.toString()] || msg.deliveryStatus || 'sent') : 'sent'}
+                  />
                 ) : (
-                  <TextMessage content={msg.content} sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} isMine={isMine} />
+                  <TextMessage 
+                    content={msg.content} 
+                    sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} 
+                    isMine={isMine}
+                    deliveryStatus={msg._id ? (messageDeliveryStatus[msg._id.toString()] || msg.deliveryStatus || 'sent') : 'sent'}
+                  />
                 )}
               </div>
             </div>

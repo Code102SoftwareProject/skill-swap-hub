@@ -2,14 +2,16 @@
 
 import React from "react";
 import { Download } from "lucide-react";
+import MessageStatusIndicator from "../MessageStatusIndicator";
 
 interface FileMessageProps {
   fileInfo: string; // Format: "File:filename.ext:url"
   sentAt?: string | Date;
   isMine?: boolean;
+  deliveryStatus?: 'sent' | 'delivered' | 'read';
 }
 
-export default function FileMessage({ fileInfo, sentAt, isMine = false }: FileMessageProps) {
+export default function FileMessage({ fileInfo, sentAt, isMine = false, deliveryStatus }: FileMessageProps) {
   // Parse the file info string
   const parseFileInfo = () => {
     try {
@@ -76,10 +78,8 @@ export default function FileMessage({ fileInfo, sentAt, isMine = false }: FileMe
         >
           <Download size={18} />
         </button>
-      </div>
-
-      {/* Timestamp inside bubble */}
-      <div className="flex justify-end items-center mt-1">
+      </div>      {/* Timestamp inside bubble */}
+      <div className="flex justify-end items-center mt-1 gap-1">
         <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
           {sentAt
             ? new Date(sentAt).toLocaleTimeString([], {
@@ -88,6 +88,12 @@ export default function FileMessage({ fileInfo, sentAt, isMine = false }: FileMe
               })
             : ""}
         </div>
+        
+        {/* Message status indicator */}
+        <MessageStatusIndicator 
+          deliveryStatus={deliveryStatus} 
+          isMine={isMine} 
+        />
       </div>
     </div>
   );
