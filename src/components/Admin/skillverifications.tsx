@@ -222,7 +222,7 @@ export default function VerificationRequests() {
       // Open document in new window/tab
       window.open(url, '_blank');
 
-      // Clean up the blob URL after opening
+      // Clean up the blob URL after opening                             
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error viewing document:', error);
@@ -293,8 +293,8 @@ export default function VerificationRequests() {
       )}
 
       {/* Left side - Requests List */}
-      <div className="w-1/2 p-8 overflow-y-auto border-r "> {/* Slightly transparent border */}
-        <h1 className="text-3xl text-gray-900 font-bold mb-8 tracking-tight">Skill Verification Requests</h1> {/* Adjusted text color and tracking */}
+      <div className="w-1/2 p-8 overflow-y-auto border-r "> 
+        <h1 className="text-3xl text-gray-900 font-bold mb-8 tracking-tight">Skill Verification Requests</h1> 
         
         <div className="mb-8 space-y-4">
           <div className="relative">
@@ -314,7 +314,7 @@ export default function VerificationRequests() {
           
           <div className="flex space-x-2">
             {[
-              { label: 'All', value: 'all', color: 'indigo' }, // Changed blue to indigo
+              { label: 'All', value: 'all', color: 'indigo' }, 
               { label: 'Pending', value: 'pending', color: 'yellow' },
               { label: 'Approved', value: 'approved', color: 'green' },
               { label: 'Rejected', value: 'rejected', color: 'red' },
@@ -324,7 +324,7 @@ export default function VerificationRequests() {
                 onClick={() => setStatusFilter(filter.value)} 
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ease-in-out transform hover:scale-105 ${
                   statusFilter === filter.value 
-                    ? `bg-${filter.color}-600 text-white shadow-lg` // Enhanced shadow
+                    ? `bg-${filter.color}-600 text-white shadow-lg`
                     : `bg-white text-gray-700 border border-gray-300 hover:bg-gray-100 hover:border-gray-400`
                 }`}
               >
@@ -340,7 +340,7 @@ export default function VerificationRequests() {
           </span>
           <button 
             onClick={fetchRequests}
-            className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center font-medium p-1 rounded hover:bg-indigo-50 transition-colors" // Changed blue to indigo
+            className="text-sm text-indigo-600 hover:text-indigo-800 flex items-center font-medium p-1 rounded hover:bg-indigo-50 transition-colors" 
             disabled={loading}
           >
             <svg className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -359,14 +359,14 @@ export default function VerificationRequests() {
 
         {loading ? (
           <div className="flex items-center justify-center h-40">
-            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div> {/* Larger spinner, indigo color */}
+            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div> 
           </div>
         ) : filteredRequests.length === 0 ? (
-          <div className="text-center text-gray-500 py-16"> {/* Increased padding */}
-            <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> {/* Larger icon */}
+          <div className="text-center text-gray-500 py-16"> 
+            <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"> 
               <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
             </svg>
-            <h3 className="mt-4 text-lg font-semibold text-gray-700"> {/* Increased font size/weight */}
+            <h3 className="mt-4 text-lg font-semibold text-gray-700"> 
               {error ? 'Unable to load requests' : 'No requests found'}
             </h3>
             <p className="mt-2 text-sm text-gray-500">
@@ -384,13 +384,13 @@ export default function VerificationRequests() {
                 }}
                 className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ease-in-out border ${
                   selectedRequest?.id === request.id
-                    ? 'bg-indigo-100 border-indigo-300 shadow-lg scale-[1.02]' // Enhanced selected state
-                    : 'bg-white border-gray-200 hover:bg-gray-50 hover:shadow-md hover:border-gray-300' // Enhanced hover state
+                    ? 'bg-indigo-100 border-indigo-300 shadow-lg scale-[1.02]' 
+                    : 'bg-white border-gray-200 hover:bg-gray-50 hover:shadow-md hover:border-gray-300' 
                 }`}
               >
                 <div className="flex text-gray-800 items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="w-11 h-11 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 shadow-inner border-2 border-white"> {/* Added border */}
+                    <div className="w-11 h-11 bg-gray-200 rounded-full overflow-hidden flex-shrink-0 shadow-inner border-2 border-white"> 
                       {request.user?.avatar ? (
                         <img
                           src={request.user.avatar}
@@ -398,13 +398,13 @@ export default function VerificationRequests() {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 to-purple-200 text-indigo-700 font-semibold text-lg"> {/* Adjusted gradient */}
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 to-purple-200 text-indigo-700 font-semibold text-lg"> 
                           {getUserDisplayName(request).charAt(0).toUpperCase()}
                         </div>
                       )}
                     </div>
                     <div className="flex-grow">
-                      <h3 className="font-semibold text-base text-gray-900">{request.skillName}</h3> {/* Darker text */}
+                      <h3 className="font-semibold text-base text-gray-900">{request.skillName}</h3> 
                       <p className="text-sm text-gray-600">
                         {getUserDisplayName(request)}
                       </p>
@@ -413,7 +413,7 @@ export default function VerificationRequests() {
                       </p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full shadow-sm ${ // Added shadow
+                  <span className={`px-3 py-1 text-xs font-medium rounded-full shadow-sm ${
                     request.status === 'pending'
                       ? 'bg-yellow-100 text-yellow-800 border border-yellow-200'
                       : request.status === 'approved'
@@ -432,12 +432,12 @@ export default function VerificationRequests() {
       {/* Right side - Request Details */}
       <div className="w-1/2 p-8">
         {selectedRequest ? (
-          <div className="bg-white rounded-xl text-gray-800 shadow-xl p-8 sticky top-8 border border-gray-100"> {/* Enhanced shadow and border */}
-            <h2 className="text-2xl font-bold mb-8 border-b pb-4 border-gray-200 text-gray-900 tracking-tight">Verification Request Details</h2> {/* Darker text, tracking */}
+          <div className="bg-white rounded-xl text-gray-800 shadow-xl p-8 sticky top-8 border border-gray-100"> 
+            <h2 className="text-2xl font-bold mb-8 border-b pb-4 border-gray-200 text-gray-900 tracking-tight">Verification Request Details</h2> 
             
             <div className="space-y-6">
               <div className="flex items-center mb-6">
-                <div className="w-20 h-20 bg-gray-200 rounded-full overflow-hidden mr-5 shadow-lg border-4 border-white"> {/* Enhanced shadow/border */}
+                <div className="w-20 h-20 bg-gray-200 rounded-full overflow-hidden mr-5 shadow-lg border-4 border-white"> 
                   {selectedRequest.user?.avatar ? (
                     <img
                       src={selectedRequest.user.avatar}
@@ -445,13 +445,13 @@ export default function VerificationRequests() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 to-purple-200 text-indigo-700 font-semibold text-2xl"> {/* Adjusted gradient */}
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-200 to-purple-200 text-indigo-700 font-semibold text-2xl"> 
                       {getUserDisplayName(selectedRequest).charAt(0).toUpperCase()}
                     </div>
                   )}
                 </div>
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900">{getUserDisplayName(selectedRequest)}</h3> {/* Darker text */}
+                  <h3 className="text-xl font-semibold text-gray-900">{getUserDisplayName(selectedRequest)}</h3>
                   {selectedRequest.user?.email && (
                     <p className="text-sm text-gray-500 hover:text-indigo-600 transition-colors"><a href={`mailto:${selectedRequest.user.email}`}>{selectedRequest.user.email}</a></p> 
                   )}
@@ -461,15 +461,15 @@ export default function VerificationRequests() {
               <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</label>
-                  <p className="mt-1 text-sm text-gray-700 font-mono">{selectedRequest.userId}</p> {/* Monospace for ID */}
+                  <p className="mt-1 text-sm text-gray-700 font-mono">{selectedRequest.userId}</p> 
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Skill Name</label>
-                  <p className="mt-1 font-semibold text-base text-indigo-700">{selectedRequest.skillName}</p> {/* Indigo color */}
+                  <p className="mt-1 font-semibold text-base text-indigo-700">{selectedRequest.skillName}</p> 
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Skill ID</label>
-                  <p className="mt-1 text-sm text-gray-700 font-mono">{selectedRequest.skillId}</p> {/* Monospace for ID */}
+                  <p className="mt-1 text-sm text-gray-700 font-mono">{selectedRequest.skillId}</p> 
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider">Status</label>
@@ -494,17 +494,17 @@ export default function VerificationRequests() {
                 {selectedRequest.documents.length > 0 ? (
                   <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-3">
                     {selectedRequest.documents.map((doc, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:border-indigo-200 transition-colors group"> {/* Indigo hover */}
+                      <div key={index} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:border-indigo-200 transition-colors group"> 
                         <div className="flex items-center overflow-hidden mr-2">
-                          <svg className="w-5 h-5 text-indigo-500 mr-2 flex-shrink-0 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"> {/* Indigo color */}
+                          <svg className="w-5 h-5 text-indigo-500 mr-2 flex-shrink-0 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"> 
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
-                          <span className="text-sm text-gray-700 truncate group-hover:text-indigo-800 transition-colors">Document {index + 1}</span> {/* Indigo hover */}
+                          <span className="text-sm text-gray-700 truncate group-hover:text-indigo-800 transition-colors">Document {index + 1}</span> 
                         </div>
                         <button
                           onClick={() => handleViewDocument(doc)}
                           disabled={documentLoading}
-                          className="px-3 py-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed rounded hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-all" // Indigo colors
+                          className="px-3 py-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 disabled:cursor-not-allowed rounded hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 transition-all" 
                         >
                           {documentLoading ? (
                             <svg className="animate-spin h-4 w-4 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -524,7 +524,7 @@ export default function VerificationRequests() {
               {selectedRequest.description && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Description/Notes</label>
-                  <p className="mt-2 text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{selectedRequest.description}</p> {/* Added leading-relaxed */}
+                  <p className="mt-2 text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{selectedRequest.description}</p> 
                 </div>
               )}
 
@@ -532,7 +532,7 @@ export default function VerificationRequests() {
               {selectedRequest.status === 'rejected' && selectedRequest.feedback && (
                 <div>
                   <label className="block text-sm font-medium text-red-700">Admin Feedback (Rejection Reason)</label>
-                  <p className="mt-2 text-red-800 bg-red-50 p-4 rounded-lg border border-red-200 text-sm whitespace-pre-wrap leading-relaxed">{selectedRequest.feedback}</p> {/* Added leading-relaxed */}
+                  <p className="mt-2 text-red-800 bg-red-50 p-4 rounded-lg border border-red-200 text-sm whitespace-pre-wrap leading-relaxed">{selectedRequest.feedback}</p> 
                 </div>
               )}
 
@@ -545,7 +545,7 @@ export default function VerificationRequests() {
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     placeholder="Provide clear feedback, especially if rejecting the request."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-28 shadow-sm text-sm transition-shadow duration-150 focus:shadow-md" // Enhanced focus
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 min-h-28 shadow-sm text-sm transition-shadow duration-150 focus:shadow-md" 
                     rows={4}
                   />
                   <p className="mt-1 text-xs text-gray-500">This feedback will be shown to the user if the request is rejected.</p>
@@ -556,7 +556,7 @@ export default function VerificationRequests() {
                 <div className="flex space-x-4 pt-4 border-t border-gray-200">
                   <button
                     onClick={() => handleUpdateStatus(selectedRequest.id, 'approved')}
-                    className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150 ease-in-out transform hover:scale-105" // Enhanced styles
+                    className="flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-150 ease-in-out transform hover:scale-105" 
                   >
                     <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -568,7 +568,7 @@ export default function VerificationRequests() {
                     disabled={!feedback.trim()} // Disable if feedback is empty
                     className={`flex-1 inline-flex justify-center items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-md text-white transition-all duration-150 ease-in-out transform hover:scale-105 ${
                       !feedback.trim() 
-                        ? 'bg-red-300 cursor-not-allowed opacity-70' // Adjusted disabled style
+                        ? 'bg-red-300 cursor-not-allowed opacity-70' 
                         : 'bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
                     }`}
                   >
@@ -582,11 +582,11 @@ export default function VerificationRequests() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-white/60 rounded-xl border-2 border-dashed border-gray-300 p-12"> {/* Adjusted background, border, padding */}
-            <svg className="w-24 h-24 text-gray-300 mb-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"> {/* Larger icon */}
+          <div className="flex flex-col items-center justify-center h-full text-gray-500 bg-white/60 rounded-xl border-2 border-dashed border-gray-300 p-12"> 
+            <svg className="w-24 h-24 text-gray-300 mb-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"> 
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <p className="text-xl font-medium text-gray-600">Select a request from the list</p> {/* Larger text */}
+            <p className="text-xl font-medium text-gray-600">Select a request from the list</p> 
             <p className="text-sm text-gray-500 mt-2">Details will be shown here once a request is selected.</p>
           </div>
         )}
