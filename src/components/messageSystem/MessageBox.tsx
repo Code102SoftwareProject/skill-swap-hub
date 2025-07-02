@@ -8,7 +8,7 @@ import { CornerUpLeft } from "lucide-react";
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
 
-import { fetchChatMessages, fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
+import { fetchChatMessages, fetchChatRoom, fetchUserProfile, fetchMessageDeliveryStatus } from "@/services/chatApiServices";
 
 
 interface MessageBoxProps {
@@ -37,8 +37,8 @@ function DateBadge({ date }: { date: Date }) {
   }).format(date);
   
   return (
-    <div className="flex items-center justify-center my-4 w-full">
-      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1 font-body">
+    <div className="flex items-center justify-center my-2 md:my-4 w-full">
+      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-2 md:px-3 py-1 font-body">
         {formattedDate}
       </div>
     </div>
@@ -72,14 +72,14 @@ function ReplyMessage({
   
   return (
     <div
-      className={`reply-box rounded-md p-2 mb-1 cursor-pointer bg-gray-100
+      className={`reply-box rounded-md p-1 md:p-2 mb-1 cursor-pointer bg-gray-100
         ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
       onClick={onReplyClick}
     >
       <span className={`text-xs font-body font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
         {replyInfo.sender}
       </span>
-      <span className="text-sm font-body text-gray-700 truncate block">
+      <span className="text-xs md:text-sm font-body text-gray-700 truncate block">
         {replyInfo.content}
       </span>
     </div>
@@ -156,7 +156,6 @@ export default function MessageBox({
     
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
-
   // ! Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
@@ -173,7 +172,27 @@ export default function MessageBox({
       }
     }
     fetchMessages();
-  }, [chatRoomId, userId]);  // Append new messages if they arrive
+  }, [chatRoomId, userId]);
+
+  // Fetch delivery status from database after messages are loaded
+  useEffect(() => {
+    async function fetchDeliveryStatus() {
+      if (messages.length === 0) return;
+      
+      try {
+        const deliveryStatusFromDB = await fetchMessageDeliveryStatus(chatRoomId);
+        if (deliveryStatusFromDB) {
+          setMessageDeliveryStatus(prev => ({
+            ...prev,
+            ...deliveryStatusFromDB
+          }));
+        }
+      } catch (err) {
+        console.error("Error fetching delivery status:", err);
+      }
+    }
+    fetchDeliveryStatus();
+  }, [messages, chatRoomId]);// Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     
@@ -349,12 +368,10 @@ export default function MessageBox({
         }
       }
     });
-  }, [messages, chatRoomId, userId, socket, messageDeliveryStatus]);
-
-  return (
+  }, [messages, chatRoomId, userId, socket, messageDeliveryStatus]);  return (
     <div
       ref={containerRef}
-      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+      className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
     >
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
@@ -372,16 +389,14 @@ export default function MessageBox({
 
         return (
           <React.Fragment key={msg._id || `msg-${i}`}>
-            {showDateBadge && currentDate && <DateBadge date={currentDate} />}
-            <div
+            {showDateBadge && currentDate && <DateBadge date={currentDate} />}            <div
               ref={(el) => {
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
-              className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
+              className={`mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
                 ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
-            >
-              <div
-                className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
+            >              <div
+                className={`p-2 md:p-3 rounded-lg max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words word-wrap overflow-wrap-anywhere
                   ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
                   relative group`}
               >
@@ -429,11 +444,9 @@ export default function MessageBox({
             </div>
           </React.Fragment>
         );
-      })}
-
-      {/* ! IMPORTANT: Typing indicator section */}
+      })}      {/* ! IMPORTANT: Typing indicator section */}
       {isTyping && (
-        <div className="mb-3 text-left">
+        <div className="mb-2 md:mb-3 text-left">
           <TypingIndicator />
         </div>
       )}

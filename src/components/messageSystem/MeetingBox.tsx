@@ -179,46 +179,44 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   const cancelledMeetings = meetings.filter(m => 
     m.state === 'cancelled' || m.state === 'rejected'
   );
-
   if (loading && meetings.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <p>Loading meetings...</p>
+      <div className="flex-1 flex items-center justify-center p-2 md:p-4">
+        <p className="text-sm md:text-base">Loading meetings...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-auto bg-white p-4 relative">
+    <div className="flex-1 overflow-auto bg-white p-2 md:p-4 relative">
       {/* Heading*/}
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-primary font-heading">Meetings</h2>
-        <div className="flex items-center space-x-2">
+        <h2 className="text-lg md:text-xl font-bold text-primary font-heading truncate">Meetings</h2>
+        <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
           <button 
             onClick={() => setShowCreateModal(true)}
             className="bg-primary text-white p-2 rounded-full hover:bg-blue-700"
             title="Schedule New Meeting"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4 md:w-5 md:h-5" />
           </button>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-800 p-2"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         </div>
-      </div>
-
-      {meetings.length === 0 ? (
-        <div className="text-center p-8">
-          <p className="text-gray-500 font-body">No meetings scheduled yet</p>
+      </div>      {meetings.length === 0 ? (
+        <div className="text-center p-4 md:p-8">
+          <p className="text-gray-500 font-body text-sm md:text-base">No meetings scheduled yet</p>
           <button 
-            className="mt-4 bg-primary text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center mx-auto"
+            className="mt-4 bg-primary text-white px-3 py-2 md:px-4 md:py-2 rounded hover:bg-blue-700 flex items-center mx-auto text-sm md:text-base"
             onClick={() => setShowCreateModal(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
-            Schedule New Meeting
+            <span className="hidden sm:inline">Schedule New Meeting</span>
+            <span className="sm:hidden">New Meeting</span>
           </button>
         </div>
       ) : (
