@@ -33,7 +33,8 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState<any>(null);
   const [replyingTo, setReplyingTo] = useState<IMessage | null>(null);
   const [chatParticipants, setChatParticipants] = useState<string[]>([]);
-    // * UI state for different view modes
+  
+  // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -56,7 +57,9 @@ export default function ChatPage() {
   const toggleSessionsDisplay = (show: boolean) => {
     setShowSessions(show);
     if (show) setShowMeetings(false); // Hide meetings when showing sessions
-  };  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+  };
+
+  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
     setNewMessage(null); // Reset new message state when changing chats
     setSidebarOpen(false); // Close sidebar on mobile when chat is selected
@@ -64,6 +67,7 @@ export default function ChatPage() {
       setSelectedParticipantInfo(participantInfo);
     }
   };
+
   const handleBackToSidebar = () => {
     setSelectedChatRoomId(null);
     setSelectedParticipantInfo(null);
@@ -77,7 +81,7 @@ export default function ChatPage() {
 
   /**
    * * Fetch chat participants whenever selected chat room changes
-   * Also resets UI view modes
+   * resets UI view modes
    */
   useEffect(() => {
     if (!selectedChatRoomId) return;
@@ -118,7 +122,7 @@ export default function ChatPage() {
       }
     };
 
-    // Still need to set up the message listener locally
+    // ! set up the message listener locally
     socket.on("receive_message", handleReceiveMessage);
 
     return () => {
@@ -135,10 +139,13 @@ export default function ChatPage() {
 
   if (!user || !userId) {
     return <div className="flex h-screen items-center justify-center">Please log in to access chat</div>;
-  }  /**
+  }
+
+  /**
    * * Main component render
    * Structured with sidebar and main content area
-   */  return (
+   */
+  return (
     <div className="flex h-screen relative overflow-hidden">
       {/* * Sidebar Overlay for mobile - appears when sidebarOpen is true */}
       {sidebarOpen && (
@@ -159,7 +166,9 @@ export default function ChatPage() {
         >
           <ChevronRight className="w-4 h-4 text-gray-600" />
         </button>
-      )}      {/* * Chat sidebar with conversation list - responsive behavior with slide-out */}
+      )}
+
+      {/* * Chat sidebar with conversation list - responsive behavior with slide-out */}
       <div className={`
         ${selectedChatRoomId && !sidebarOpen ? 'hidden md:block' : 'block'} 
         ${sidebarOpen ? 'translate-x-0' : selectedChatRoomId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
@@ -176,7 +185,8 @@ export default function ChatPage() {
       <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${!selectedChatRoomId ? 'hidden md:flex' : 'flex'}`}>
         {selectedChatRoomId ? (
           <>
-            {/* * Chat header with participant info and controls */}            <ChatHeader
+            {/* * Chat header with participant info and controls */}
+            <ChatHeader
               chatRoomId={selectedChatRoomId}
               userId={userId}
               onToggleMeetings={toggleMeetingsDisplay}
@@ -184,7 +194,9 @@ export default function ChatPage() {
               initialParticipantInfo={selectedParticipantInfo}
               showingSessions={showSessions}
               showingMeetings={showMeetings}
-            />{/* * Main content area - conditionally renders messages, meetings or sessions */}
+            />
+
+            {/* * Main content area - conditionally renders messages, meetings or sessions */}
             <div className="flex-1 overflow-auto min-w-0">
               {showMeetings ? (
                 <MeetingBox
@@ -205,7 +217,7 @@ export default function ChatPage() {
                   userId={userId}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
-                  participantInfo={selectedParticipantInfo}  // Add this prop
+                  participantInfo={selectedParticipantInfo}
                 />
               )}
             </div>

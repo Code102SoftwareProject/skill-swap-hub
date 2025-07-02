@@ -26,7 +26,7 @@ export default function MessageInput({
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  // Astate for storing the reply sender's name
+  // State for storing the reply sender's name
   const [replySenderName, setReplySenderName] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
@@ -36,7 +36,7 @@ export default function MessageInput({
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-
+  const [error, setError] = useState<string | null>(null);
 
   // ! Focus on input when replying to a message
   useEffect(() => {
@@ -81,7 +81,6 @@ export default function MessageInput({
     if (!file) return;
 
     setUploading(true);
-    
 
     // ! Form Data for Api call
     const formData = new FormData();
@@ -127,7 +126,12 @@ export default function MessageInput({
 
   const sendMessage = async (fileUrl: string = "") => {
     // ! Need either one
-    if (!fileUrl && !message.trim()){
+    if (!fileUrl && !message.trim()) {
+      setError("Please enter a message or select a file.");
+      
+      setTimeout(() => {
+        setError(null);
+      }, 5000);
       return;
     }
     if (!socket) return;
@@ -160,9 +164,17 @@ export default function MessageInput({
       onCancelReply();
     }
   };
+
   return (
     <div className="p-2 md:p-3 border-t bg-white">
-      {/* Reply Preview with user name  */}
+      {/* Error message display */}
+      {error && (
+        <div className="mb-2 p-2 bg-red-100 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+      
+      {/* Reply Preview with user name */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-gray-100 rounded flex items-start font-body">
           <div className="flex-1 min-w-0">
@@ -186,7 +198,9 @@ export default function MessageInput({
             <X className="w-4 h-4" />
           </button>
         </div>
-      )}      <div className="flex items-center space-x-1 md:space-x-2">
+      )}
+
+      <div className="flex items-center space-x-1 md:space-x-2">
         {file ? (
           <div className="flex items-center border p-2 rounded bg-gray-100 flex-1 min-w-0">
             <span className="mr-2 text-sm md:text-base truncate">{file.name}</span>

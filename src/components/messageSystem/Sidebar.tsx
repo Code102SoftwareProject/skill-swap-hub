@@ -45,6 +45,7 @@ function SidebarBox({
     </div>
   );
 }
+
 /**
  * Sidebar component 
  * @param {string} userId 
@@ -163,7 +164,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
         
         if (!roomExists) {
-          // If room not exisits
+          // If room not exists
           setTimeout(() => fetchChatRooms(), 0);
           return prevRooms;
         }
@@ -195,8 +196,9 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
   }, [socket, userId, fetchChatRooms]);
 
   /**
-   * * Renders a loading state while fetching initial data
-   */  if (loading) {
+   * Renders a loading state while fetching initial data
+   */
+  if (loading) {
     return (
       <div className="w-full md:w-64 bg-grayfill border-solid border-gray-900 text-white p-2 md:p-4">
         <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4">Messages</h2>
@@ -204,9 +206,11 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
       </div>
     );
   }
+
   /**
-   * * Shows all chatrooms with seqrch box
-   */  return (
+   * Shows all chatrooms with search box
+   */
+  return (
     <div className="w-full md:w-64 bg-bgcolor text-white h-screen p-2 md:p-4 border-solid border-r border-gray-600 flex-shrink-0">
       <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4 text-textcolor font-body">Messages</h2>
       
@@ -234,7 +238,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
           })
           // Filter chat rooms based on search query
           .filter((chat) => {
-            // ! 2 Paticipants  in chat
+            // ! 2 Participants in chat
             const otherParticipantId =
               chat.participants.find((id) => id !== userId) || "";
             const profile = userProfiles[otherParticipantId];
@@ -242,7 +246,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             // Show all rooms when no search query is provided
             if (!profile || !searchQuery.trim()) return true;
 
-            // Filter by name match case insesitve 
+            // Filter by name match case insensitive 
             const fullName =
               `${profile.firstName} ${profile.lastName}`.toLowerCase();
             return fullName.includes(searchQuery.toLowerCase());
@@ -260,12 +264,13 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               : otherParticipantId.substring(0, 8);
 
             // ! Last Message 
-            const lastMessage = chat.lastMessage?.content.substring(0,6) || "No messages yet";
+            const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
 
             return (
               /*
                 ! Selected Chatroom 
-              */              <li
+              */
+              <li
                 key={chat._id}
                 className={`p-1 md:p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
                   selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""

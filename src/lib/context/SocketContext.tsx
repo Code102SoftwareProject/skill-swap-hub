@@ -160,6 +160,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       socket.emit('leave_room', { chatRoomId, userId });
     }
   };
+
   // Send a message
   const sendMessage = (messageData: any) => {
     if (socket) {
@@ -193,6 +194,7 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       socket.emit('typing', { chatRoomId, userId });
     }
   };
+
   // Signal user stopped typing
   const stopTyping = (chatRoomId: string) => {
     if (socket && userId) {
@@ -212,7 +214,6 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  
   // Context value
   const value: SocketContextType = {
     socket,

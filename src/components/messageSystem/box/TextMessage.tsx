@@ -1,5 +1,4 @@
 "use client";
-
 import React from "react";
 import MessageStatusIndicator from "../MessageStatusIndicator";
 
@@ -18,8 +17,8 @@ interface TextMessageProps {
  * @param deliveryStatus - Message delivery status (sent/delivered/read)
  * @description A component to display regular text messages with timestamp and delivery status
  */
-const TextMessage = ({ content, sentAt, isMine = false, deliveryStatus }: TextMessageProps) => {  return (
-    
+const TextMessage = ({ content, sentAt, isMine = false, deliveryStatus }: TextMessageProps) => {
+  return (
     <div className="flex flex-col">
       {/* Message bubble */}
       <span className="block font-body">{content}</span>

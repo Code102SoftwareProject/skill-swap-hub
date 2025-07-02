@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X, Plus } from 'lucide-react';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
+import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
+import CancellationAlert from '@/components/meetingSystem/CancellationAlert';
 import PendingMeetingList from '@/components/meetingSystem/PendingMeetingList';
 import UpcomingMeetingList from '@/components/meetingSystem/UpcomingMeetingList';
 import MeetingLists from '@/components/meetingSystem/MeetingLists';
@@ -15,6 +17,18 @@ interface UserProfile {
 interface UserProfiles {
   [userId: string]: UserProfile;
 }
+
+interface CancellationInfo {
+  [meetingId: string]: {
+    _id: string;
+    reason: string;
+    cancelledAt: string;
+    acknowledged: boolean;
+    acknowledgedAt: string | null;
+    cancelledBy: string;
+  };
+}
+
 interface MeetingBoxProps {
   chatRoomId: string;
   userId: string;
@@ -25,8 +39,31 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
+  const [cancellationInfo, setCancellationInfo] = useState<CancellationInfo>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [meetingToCancel, setMeetingToCancel] = useState<string | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [dismissedCancellations, setDismissedCancellations] = useState<Set<string>>(new Set());
+
+  // ! Filter meetings by type - Move this to the top before using them
+  const pendingRequests = meetings.filter(m => 
+    m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
+  );
+  
+  const upcomingMeetings = meetings.filter(m => 
+    (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
+    new Date(m.meetingTime) > new Date()
+  );
+  
+  const pastMeetings = meetings.filter(m => 
+    (m.state === 'completed' || m.state === 'accepted') && 
+    new Date(m.meetingTime) <= new Date()
+  );
+  
+  const cancelledMeetings = meetings.filter(m => 
+    m.state === 'cancelled' || m.state === 'rejected'
+  );
 
   // Fetch user profile by ID
   const fetchUserProfile = useCallback(async (id: string) => {
@@ -76,18 +113,54 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     fetchChatRoom();
   }, [chatRoomId, userId, fetchUserProfile]);
 
+  // Fetch cancellation details for cancelled meetings
+  const fetchCancellationDetails = useCallback(async (meetingIds: string[]) => {
+    try {
+      const cancellationPromises = meetingIds.map(async (meetingId) => {
+        const response = await fetch(`/api/meeting/cancellation?meetingId=${meetingId}`);
+        if (response.ok) {
+          const data = await response.json();
+          return { meetingId, data };
+        }
+        return null;
+      });
+
+      const results = await Promise.all(cancellationPromises);
+      const newCancellationInfo: CancellationInfo = {};
+
+      results.forEach((result) => {
+        if (result?.data) {
+          newCancellationInfo[result.meetingId] = result.data;
+        }
+      });
+
+      setCancellationInfo(prev => ({ ...prev, ...newCancellationInfo }));
+    } catch (error) {
+      console.error('Error fetching cancellation details:', error);
+    }
+  }, []);
+
   // ! Fetch meetings
   const fetchMeetingsData = useCallback(async (otherUserID: string) => {
     try {
       setLoading(true);
       const data = await fetchMeetings(userId, otherUserID);
       setMeetings(data);
+
+      // Fetch cancellation details for cancelled meetings
+      const cancelledMeetingIds = data
+        .filter(m => m.state === 'cancelled')
+        .map(m => m._id);
+      
+      if (cancelledMeetingIds.length > 0) {
+        fetchCancellationDetails(cancelledMeetingIds);
+      }
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
       setLoading(false);
     }
-  }, [userId]);
+  }, [userId, fetchCancellationDetails]);
 
   // ! Fetch meetings when otherUserId is available
   useEffect(() => {
@@ -134,10 +207,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   };
 
-
-
   // * Create Meeting Function
-
   const handleCreateMeeting = async (meetingData: any) => {
     if (!otherUserId) return;
     
@@ -161,24 +231,132 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
     }
   };
 
-  // ! Filter meetings by type
-  const pendingRequests = meetings.filter(m => 
-    m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
-  );
-  
-  const upcomingMeetings = meetings.filter(m => 
-    (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
-    new Date(m.meetingTime) > new Date()
-  );
-  
-  const pastMeetings = meetings.filter(m => 
-    (m.state === 'completed' || m.state === 'accepted') && 
-    new Date(m.meetingTime) <= new Date()
-  );
-  
-  const cancelledMeetings = meetings.filter(m => 
-    m.state === 'cancelled' || m.state === 'rejected'
-  );
+  // Handle meeting cancellation with reason
+  const handleCancelMeeting = async (meetingId: string, reason: string) => {
+    try {
+      setLoading(true);
+
+      const response = await fetch('/api/meeting/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          meetingId,
+          cancelledBy: userId,
+          reason
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error cancelling meeting: ${response.status}`);
+      }
+
+      const { meeting, cancellation } = await response.json();
+
+      // Update meetings state
+      setMeetings(prevMeetings =>
+        prevMeetings.map(m => m._id === meetingId ? meeting : m)
+      );
+
+      // Update cancellation info
+      setCancellationInfo(prev => ({
+        ...prev,
+        [meetingId]: cancellation
+      }));
+
+      setShowCancelModal(false);
+      setMeetingToCancel(null);
+    } catch (error) {
+      console.error('Error cancelling meeting:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle acknowledgment of cancellation
+  const handleAcknowledgeCancellation = async (cancellationId: string) => {
+    try {
+      const response = await fetch('/api/meeting/cancellation', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cancellationId,
+          acknowledgedBy: userId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Error acknowledging cancellation: ${response.status}`);
+      }
+
+      const updatedCancellation = await response.json();
+
+      // Update cancellation info
+      setCancellationInfo(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(meetingId => {
+          if (updated[meetingId]._id === cancellationId) {
+            updated[meetingId] = updatedCancellation;
+          }
+        });
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error acknowledging cancellation:', error);
+    }
+  };
+
+  // Show cancel modal
+  const showCancelMeetingModal = (meetingId: string) => {
+    setMeetingToCancel(meetingId);
+    setShowCancelModal(true);
+  };
+
+  // Get recent cancellations for alert display (last 7 days, not dismissed)
+  const getRecentCancellations = useCallback(() => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    return cancelledMeetings
+      .filter(meeting => {
+        const cancellation = cancellationInfo[meeting._id];
+        if (!cancellation) return false;
+        
+        const cancelledDate = new Date(cancellation.cancelledAt);
+        const isRecent = cancelledDate > sevenDaysAgo;
+        const notDismissed = !dismissedCancellations.has(meeting._id);
+        
+        return isRecent && notDismissed;
+      })
+      .map(meeting => {
+        const cancellation = cancellationInfo[meeting._id];
+        const cancellerName = userProfiles[cancellation.cancelledBy]?.firstName || 'Someone';
+        
+        return {
+          meetingId: meeting._id,
+          reason: cancellation.reason,
+          cancelledAt: cancellation.cancelledAt,
+          cancelledBy: cancellation.cancelledBy,
+          cancellerName,
+          meetingTime: meeting.meetingTime.toString(),
+          acknowledged: cancellation.acknowledged
+        };
+      });
+  }, [cancelledMeetings, cancellationInfo, dismissedCancellations, userProfiles]);
+
+  // Handle dismissing cancellation alert
+  const handleDismissCancellation = (meetingId: string) => {
+    setDismissedCancellations(prev => new Set([...prev, meetingId]));
+  };
+
+  // Handle acknowledging cancellation from alert
+  const handleAcknowledgeCancellationFromAlert = async (meetingId: string) => {
+    const cancellation = cancellationInfo[meetingId];
+    if (cancellation) {
+      await handleAcknowledgeCancellation(cancellation._id);
+      handleDismissCancellation(meetingId);
+    }
+  };
+
   if (loading && meetings.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-2 md:p-4">
@@ -186,6 +364,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
       </div>
     );
   }
+
+  const recentCancellations = getRecentCancellations();
 
   return (
     <div className="flex-1 overflow-auto bg-white p-2 md:p-4 relative">
@@ -207,7 +387,17 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
             <X className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         </div>
-      </div>      {meetings.length === 0 ? (
+      </div>
+
+      {/* Cancellation Alerts */}
+      <CancellationAlert
+        cancellations={recentCancellations}
+        currentUserId={userId}
+        onDismiss={handleDismissCancellation}
+        onAcknowledge={handleAcknowledgeCancellationFromAlert}
+      />
+
+      {meetings.length === 0 ? (
         <div className="text-center p-4 md:p-8">
           <p className="text-gray-500 font-body text-sm md:text-base">No meetings scheduled yet</p>
           <button 
@@ -233,7 +423,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
             meetings={upcomingMeetings}
             userId={userId}
             userProfiles={userProfiles}
-            onCancel={(id) => handleMeetingAction(id, 'cancel')}
+            onCancel={showCancelMeetingModal}
           />
           
           <MeetingLists
@@ -248,6 +438,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
             meetings={cancelledMeetings}
             userId={userId}
             userProfiles={userProfiles}
+            cancellationInfo={cancellationInfo}
+            onAcknowledgeCancellation={handleAcknowledgeCancellation}
           />
         </div>
       )}
@@ -257,6 +449,18 @@ export default function MeetingBox({ chatRoomId, userId, onClose }: MeetingBoxPr
           onClose={() => setShowCreateModal(false)}
           onCreate={handleCreateMeeting}
           receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
+        />
+      )}
+
+      {showCancelModal && meetingToCancel && (
+        <CancelMeetingModal
+          meetingId={meetingToCancel}
+          onClose={() => {
+            setShowCancelModal(false);
+            setMeetingToCancel(null);
+          }}
+          onCancel={handleCancelMeeting}
+          userName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'User'}
         />
       )}
     </div>

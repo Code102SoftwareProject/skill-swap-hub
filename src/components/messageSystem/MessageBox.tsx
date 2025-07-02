@@ -156,6 +156,7 @@ export default function MessageBox({
     
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
+  
   // ! Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
@@ -192,7 +193,9 @@ export default function MessageBox({
       }
     }
     fetchDeliveryStatus();
-  }, [messages, chatRoomId]);// Append new messages if they arrive
+  }, [messages, chatRoomId]);
+  
+  // Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     
@@ -237,7 +240,9 @@ export default function MessageBox({
       if (data.chatRoomId === chatRoomId && data.userId !== userId) {
         setIsTyping(false);
       }
-    };    socket.on("user_typing", handleUserTyping);
+    };
+    
+    socket.on("user_typing", handleUserTyping);
     socket.on("user_stopped_typing", handleUserStoppedTyping);
 
     return () => {
@@ -277,7 +282,9 @@ export default function MessageBox({
     // Mark unread messages as read when viewing the chat
     const unreadMessages = messages.filter(msg => 
       msg.senderId.toString() !== userId && !msg.readStatus
-    );    unreadMessages.forEach(msg => {
+    );
+    
+    unreadMessages.forEach(msg => {
       if (msg._id) {
         markMessageAsRead(msg._id.toString(), chatRoomId, msg.senderId.toString());
         
@@ -303,7 +310,7 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // ! unction to scroll to a particular message 
+  // ! Function to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
@@ -314,7 +321,6 @@ export default function MessageBox({
       }, 800);
     }
   };
-
 
   const getReplyContent = (
     replyFor: string | { _id?: string; senderId?: string; content?: string }
@@ -339,10 +345,35 @@ export default function MessageBox({
         };
       }
     }
+    
+    // NEW: Handle case where replyFor is just a message ID string
+    if (typeof replyFor === "string") {
+      // Find the original message in the current messages array
+      const originalMessage = messages.find(msg => msg._id === replyFor);
+      
+      if (originalMessage) {
+        let senderName: string;
+        
+        if (originalMessage.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to a generic name
+          senderName = originalMessage.senderId && participantNames[originalMessage.senderId] 
+            ? participantNames[originalMessage.senderId] 
+            : "Chat Partner";
+        }
+        
+        return {
+          sender: senderName,
+          content: originalMessage.content || "No content available"
+        };
+      }
+    }
+    
     // Fallback
     return {
       sender: "Unknown",
-      content: typeof replyFor === "string" ? replyFor : "Message unavailable"
+      content: typeof replyFor === "string" ? "Message not found" : "Message unavailable"
     };
   };
 
@@ -368,7 +399,9 @@ export default function MessageBox({
         }
       }
     });
-  }, [messages, chatRoomId, userId, socket, messageDeliveryStatus]);  return (
+  }, [messages, chatRoomId, userId, socket, messageDeliveryStatus]);
+
+  return (
     <div
       ref={containerRef}
       className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
@@ -389,13 +422,16 @@ export default function MessageBox({
 
         return (
           <React.Fragment key={msg._id || `msg-${i}`}>
-            {showDateBadge && currentDate && <DateBadge date={currentDate} />}            <div
+            {showDateBadge && currentDate && <DateBadge date={currentDate} />}
+            
+            <div
               ref={(el) => {
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
               className={`mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
                 ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
-            >              <div
+            >
+              <div
                 className={`p-2 md:p-3 rounded-lg max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words word-wrap overflow-wrap-anywhere
                   ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
                   relative group`}
@@ -424,7 +460,9 @@ export default function MessageBox({
                       scrollToMessage(msg.replyFor);
                     }
                   }}
-                />                {/* Main message content or File */}
+                />
+
+                {/* Main message content or File */}
                 {msg.content.startsWith("File:") ? (
                   <FileMessage 
                     fileInfo={msg.content} 
@@ -444,7 +482,9 @@ export default function MessageBox({
             </div>
           </React.Fragment>
         );
-      })}      {/* ! IMPORTANT: Typing indicator section */}
+      })}
+
+      {/* ! IMPORTANT: Typing indicator section */}
       {isTyping && (
         <div className="mb-2 md:mb-3 text-left">
           <TypingIndicator />

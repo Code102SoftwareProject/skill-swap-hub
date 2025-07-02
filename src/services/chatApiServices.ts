@@ -1,4 +1,5 @@
 import { IChatRoom, IMessage } from "@/types/chat";
+import { method } from "lodash";
 
 interface ChatRoomResponse {
   success: boolean;
@@ -273,4 +274,3 @@ export async function fetchMessageDeliveryStatus(
     return null;
   }
 }
-
