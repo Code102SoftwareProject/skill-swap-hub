@@ -12,7 +12,7 @@ function getIdFromPathname(pathname: string): string {
 // GET a specific skill list by ID
 export async function GET(request: NextRequest) {
   try {
-    // Get ID from the URL pathname
+   
     const requestId = getIdFromPathname(request.nextUrl.pathname);
     
     await connect();
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
 // PUT update a skill list
 export async function PUT(request: NextRequest) {
   try {
-    // Get ID from the URL pathname
+
     const requestId = getIdFromPathname(request.nextUrl.pathname);
     const body = await request.json();
     
@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest) {
       // Process incoming skills to ensure they have skillId
       const processSkill = (skill: any) => {
         if (typeof skill === 'string') {
-          // Convert string to skill object
+        
           return { skillId: uuidv4(), name: skill };
         } else if (typeof skill === 'object') {
           // Ensure skill object has skillId
@@ -123,7 +123,7 @@ export async function PUT(request: NextRequest) {
 // DELETE a skill list
 export async function DELETE(request: NextRequest) {
   try {
-    // Get ID from the URL pathname
+    
     const requestId = getIdFromPathname(request.nextUrl.pathname);
     
     await connect();

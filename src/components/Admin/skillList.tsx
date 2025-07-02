@@ -26,7 +26,6 @@ interface SkillFormData {
 }
 
 const SkillLists = () => {
-  // State
   const [skillLists, setSkillLists] = useState<ISkillList[]>([]);
   const [newCategory, setNewCategory] = useState<CategoryFormData>({ categoryName: '' });
   const [selectedCategory, setSelectedCategory] = useState<ISkillList | null>(null);
@@ -126,7 +125,7 @@ const SkillLists = () => {
       const response = await axios.put(`/api/admin/skillLists/${selectedCategory.categoryId}`, {
         categoryName: selectedCategory.categoryName,
         skills: skillsArray,
-        appendSkills: true // Use our API feature to append skills instead of replacing
+        appendSkills: true // Append new skills to existing ones
       });
 
       // Update the skill list in the state
@@ -329,7 +328,7 @@ const SkillLists = () => {
                   id="categoryName"
                   value={newCategory.categoryName}
                   onChange={(e) => setNewCategory({categoryName: e.target.value})}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                  className="w-full px-4 text-black py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
@@ -353,7 +352,7 @@ const SkillLists = () => {
             ) : (
               <>
                 <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
-                  <h3 className="font-medium text-lg">Selected Category: <span className="font-bold text-green-700">{selectedCategory.categoryName}</span></h3>
+                  <h3 className="font-medium text-black text-lg">Selected Category: <span className="font-bold text-green-700">{selectedCategory.categoryName}</span></h3>
                 </div>
                 <form onSubmit={addSkillsToCategory}>
                   <div className="mb-4">
@@ -367,7 +366,7 @@ const SkillLists = () => {
                       id="skills"
                       value={newSkill.skills}
                       onChange={(e) => setNewSkill({skills: e.target.value})}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 h-32"
+                      className="w-full px-4 text-black py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 h-32"
                       placeholder="e.g. JavaScript, React, Node.js"
                       required
                     />
