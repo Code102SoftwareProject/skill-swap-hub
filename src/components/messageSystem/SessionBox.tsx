@@ -31,6 +31,13 @@ interface Session {
   createdAt: string;
   progress1?: any;
   progress2?: any;
+  completionRequestedBy?: any;
+  completionRequestedAt?: string;
+  completionApprovedBy?: any;
+  completionApprovedAt?: string;
+  completionRejectedBy?: any;
+  completionRejectedAt?: string;
+  completionRejectionReason?: string;
 }
 
 interface CounterOffer {
@@ -65,6 +72,14 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   const [sessionToCounterOffer, setSessionToCounterOffer] = useState<Session | null>(null);
   const [processingSession, setProcessingSession] = useState<string | null>(null);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [sessionForRejection, setSessionForRejection] = useState<string | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [sessionToRate, setSessionToRate] = useState<Session | null>(null);
+  const [rating, setRating] = useState(0);
+  const [ratingComment, setRatingComment] = useState('');
+  const [submittingRating, setSubmittingRating] = useState(false);
 
   useEffect(() => {
     fetchSessions();
@@ -72,19 +87,14 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
 
   const fetchSessions = async () => {
     try {
-      const response = await fetch(`/api/session/user/${userId}`);
+      const response = await fetch(`/api/session/between-users?user1Id=${userId}&user2Id=${otherUserId}`);
       const data = await response.json();
       
       if (data.success) {
-        // Filter sessions that involve the other user in this chat
-        const filteredSessions = data.sessions.filter((session: Session) => 
-          (session.user1Id._id === userId && session.user2Id._id === otherUserId) ||
-          (session.user1Id._id === otherUserId && session.user2Id._id === userId)
-        );
-        setSessions(filteredSessions);
+        setSessions(data.sessions);
         
         // Fetch counter offers for each session
-        await fetchCounterOffers(filteredSessions);
+        await fetchCounterOffers(data.sessions);
       }
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -218,6 +228,175 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
     }
   };
 
+  const handleRequestCompletion = async (sessionId: string) => {
+    if (!confirm('Are you sure you want to request session completion? This will notify the other participant for approval.')) {
+      return;
+    }
+
+    setProcessingSession(sessionId);
+    
+    try {
+      const response = await fetch('/api/session/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          userId,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Completion request sent successfully! Waiting for approval from the other participant.');
+        fetchSessions(); // Refresh sessions to show completion request
+      } else {
+        alert(data.message || 'Failed to request completion');
+      }
+    } catch (error) {
+      console.error('Error requesting completion:', error);
+      alert('Failed to request completion');
+    } finally {
+      setProcessingSession(null);
+    }
+  };
+
+  const handleCompletionResponse = async (sessionId: string, action: 'approve' | 'reject', providedRejectionReason?: string) => {
+    // For rejection, show modal to collect reason if not provided
+    if (action === 'reject' && !providedRejectionReason) {
+      setSessionForRejection(sessionId);
+      setShowRejectionModal(true);
+      return;
+    }
+
+    const confirmMessage = action === 'approve' 
+      ? 'Are you sure you want to approve session completion? This will mark the session as completed.'
+      : 'Are you sure you want to reject the completion request?';
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setProcessingSession(sessionId);
+    
+    try {
+      const requestBody: any = {
+        sessionId,
+        userId,
+        action,
+      };
+
+      // Add rejection reason if rejecting
+      if (action === 'reject' && providedRejectionReason) {
+        requestBody.rejectionReason = providedRejectionReason;
+      }
+
+      const response = await fetch('/api/session/complete', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        if (action === 'approve') {
+          alert('Session completed successfully!');
+          // Show rating modal for the user who approved
+          const completedSession = sessions.find(s => s._id === sessionId);
+          if (completedSession) {
+            setSessionToRate(completedSession);
+            setShowRatingModal(true);
+          }
+        } else {
+          alert('Completion request rejected');
+        }
+        fetchSessions(); // Refresh session data
+        
+        // Close modal if it was open
+        if (action === 'reject') {
+          setShowRejectionModal(false);
+          setRejectionReason('');
+          setSessionForRejection(null);
+        }
+      } else {
+        alert(data.message || `Failed to ${action} completion`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing completion:`, error);
+      alert(`Failed to ${action} completion`);
+    } finally {
+      setProcessingSession(null);
+    }
+  };
+
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      alert('Please provide a reason for declining the completion request');
+      return;
+    }
+    if (sessionForRejection) {
+      handleCompletionResponse(sessionForRejection, 'reject', rejectionReason.trim());
+    }
+  };
+
+  const handleRatingSubmit = async () => {
+    if (!sessionToRate || rating === 0) {
+      alert('Please provide a rating');
+      return;
+    }
+
+    if (!ratingComment.trim()) {
+      alert('Please provide a comment');
+      return;
+    }
+
+    setSubmittingRating(true);
+
+    try {
+      // Determine the other user and skill details
+      const otherUser = sessionToRate.user1Id._id === userId ? sessionToRate.user2Id : sessionToRate.user1Id;
+      const mySkill = sessionToRate.user1Id._id === userId ? sessionToRate.skill1Id : sessionToRate.skill2Id;
+
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionToRate._id,
+          reviewerId: userId,
+          revieweeId: otherUser._id,
+          rating,
+          comment: ratingComment.trim(),
+          skillId: mySkill._id,
+          reviewType: 'skill_learning', // Since we're rating the other person's teaching
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Rating submitted successfully!');
+        setShowRatingModal(false);
+        setSessionToRate(null);
+        setRating(0);
+        setRatingComment('');
+      } else {
+        alert(data.message || 'Failed to submit rating');
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Failed to submit rating');
+    } finally {
+      setSubmittingRating(false);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -227,6 +406,9 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
   };
 
   const getSessionStatus = (session: Session) => {
+    // Handle both isAccepted and status fields
+    if (session.status === 'completed') return 'completed';
+    if (session.status === 'canceled') return 'canceled';
     if (session.isAccepted === null) return 'pending';
     if (session.isAccepted === true) return 'accepted';
     if (session.isAccepted === false) return 'rejected';
@@ -393,8 +575,8 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                         </>
                       )}
 
-                      {/* View Button for Accepted Sessions */}
-                      {session.isAccepted === true && (
+                      {/* View Button for Active/Completed Sessions */}
+                      {(session.isAccepted === true || session.status === 'completed') && (
                         <button
                           onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
                           className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors flex items-center space-x-1"
@@ -402,6 +584,62 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                           <Eye className="h-3 w-3" />
                           <span>View</span>
                         </button>
+                      )}
+
+                      {/* Session Completion Buttons */}
+                      {session.isAccepted === true && session.status !== 'completed' && (
+                        <>
+                          {session.completionRequestedBy ? (
+                            <>
+                              {(session.completionRequestedBy._id === userId || session.completionRequestedBy === userId) ? (
+                                /* User requested completion - waiting for approval */
+                                <span className="text-xs text-yellow-600 font-medium bg-yellow-50 px-2 py-1 rounded-full">
+                                  Completion Requested
+                                </span>
+                              ) : (
+                                /* Other user requested completion - needs approval */
+                                <>
+                                  <button
+                                    onClick={() => handleCompletionResponse(session._id, 'approve')}
+                                    disabled={processingSession === session._id}
+                                    className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
+                                  >
+                                    <CheckCircle className="h-3 w-3" />
+                                    <span>Approve</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleCompletionResponse(session._id, 'reject')}
+                                    disabled={processingSession === session._id}
+                                    className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
+                                  >
+                                    <XCircle className="h-3 w-3" />
+                                    <span>Decline</span>
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          ) : session.completionRejectedBy ? (
+                            /* Completion was rejected */
+                            <button
+                              onClick={() => handleRequestCompletion(session._id)}
+                              disabled={processingSession === session._id}
+                              className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              <span>Request Completion</span>
+                            </button>
+                          ) : (
+                            /* No completion request yet */
+                            <button
+                              onClick={() => handleRequestCompletion(session._id)}
+                              disabled={processingSession === session._id}
+                              className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
+                            >
+                              <CheckCircle className="h-3 w-3" />
+                              <span>Mark Complete</span>
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -466,12 +704,47 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                   </div>
                 </div>
 
-                {/* Session Progress Info for Accepted Sessions */}
+                {/* Session Progress Info for Active/Completed Sessions */}
                 {session.isAccepted === true && (
                   <div className="mt-4 pt-4 border-t bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      🎉 Session accepted! Progress tracking has been created for both participants.
-                    </p>
+                    {session.status === 'completed' ? (
+                      <p className="text-sm text-green-600">
+                        ✅ Session completed! Both participants have finished their skill exchange.
+                      </p>
+                    ) : session.completionRequestedBy ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-blue-600">
+                          🔄 Completion request pending approval
+                        </p>
+                        {session.completionRequestedBy._id === userId || session.completionRequestedBy === userId ? (
+                          <p className="text-xs text-gray-600">
+                            You requested completion on {formatDate(session.completionRequestedAt || '')}. Waiting for {otherUserName} to approve.
+                          </p>
+                        ) : (
+                          <p className="text-xs text-gray-600">
+                            {otherUserName} requested completion on {formatDate(session.completionRequestedAt || '')}. Please review above.
+                          </p>
+                        )}
+                      </div>
+                    ) : session.completionRejectedBy ? (
+                      <div className="space-y-2">
+                        <p className="text-sm text-red-600">
+                          ❌ Completion request was declined
+                        </p>
+                        <p className="text-xs text-gray-600">
+                          Declined on {formatDate(session.completionRejectedAt || '')}.
+                        </p>
+                        {session.completionRejectionReason && (
+                          <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                            <span className="font-medium text-red-800">Reason:</span> {session.completionRejectionReason}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-600">
+                        🎉 Session accepted! Progress tracking has been created for both participants.
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -614,6 +887,116 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
           setSessionToCounterOffer(null);
         }}
       />
+
+      {/* Rejection Reason Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Decline Completion Request</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Declining *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for declining the completion request..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowRejectionModal(false);
+                    setRejectionReason('');
+                    setSessionForRejection(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectionSubmit}
+                  disabled={processingSession === sessionForRejection}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+                >
+                  {processingSession === sessionForRejection ? 'Submitting...' : 'Submit Rejection Reason'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rating Modal */}
+      {showRatingModal && sessionToRate && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Rate Your Experience</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rating (1 to 5) *
+                </label>
+                <select
+                  value={rating}
+                  onChange={(e) => setRating(Number(e.target.value))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value={0}>Select a rating</option>
+                  <option value={1}>1 - Poor</option>
+                  <option value={2}>2 - Fair</option>
+                  <option value={3}>3 - Good</option>
+                  <option value={4}>4 - Very Good</option>
+                  <option value={5}>5 - Excellent</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comment *
+                </label>
+                <textarea
+                  value={ratingComment}
+                  onChange={(e) => setRatingComment(e.target.value)}
+                  placeholder="Share your experience..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowRatingModal(false);
+                    setSessionToRate(null);
+                    setRating(0);
+                    setRatingComment('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRatingSubmit}
+                  disabled={submittingRating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {submittingRating ? 'Submitting...' : 'Submit Rating'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag } from 'lucide-react';
+import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 
 interface Session {
@@ -18,6 +18,13 @@ interface Session {
   status: string;
   progress1?: any;
   progress2?: any;
+  completionRequestedBy?: any;
+  completionRequestedAt?: string;
+  completionApprovedBy?: any;
+  completionApprovedAt?: string;
+  completionRejectedBy?: any;
+  completionRejectedAt?: string;
+  completionRejectionReason?: string;
 }
 
 interface Work {
@@ -57,8 +64,10 @@ export default function SessionWorkspace() {
   const [myProgress, setMyProgress] = useState<SessionProgress | null>(null);
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report' | 'ratings'>('overview');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Submit work form state
   const [workDescription, setWorkDescription] = useState('');
@@ -84,6 +93,12 @@ export default function SessionWorkspace() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [existingReports, setExistingReports] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
+
+  // Completion state
+  const [requestingCompletion, setRequestingCompletion] = useState(false);
+  const [respondingToCompletion, setRespondingToCompletion] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Helper function to send notifications
   const sendNotification = async (userId: string, typeno: number, description: string, targetDestination?: string) => {
@@ -575,6 +590,150 @@ export default function SessionWorkspace() {
     }
   };
 
+  // Session completion handlers
+  const handleRequestCompletion = async () => {
+    if (!currentUserId || !sessionId) {
+      alert('Session or user information not available');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to request session completion? This will notify the other participant for approval.')) {
+      return;
+    }
+
+    setRequestingCompletion(true);
+    
+    try {
+      const response = await fetch('/api/session/complete', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          userId: currentUserId,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+          
+          await sendNotification(
+            otherUserId,
+            18, // SESSION_COMPLETION_REQUESTED (you may need to add this notification type)
+            `${currentUserName} has requested to complete your skill exchange session. Please review and approve if you agree.`,
+            `/session/${sessionId}`
+          );
+        }
+
+        alert('Completion request sent successfully! Waiting for approval from the other participant.');
+        fetchSessionData(); // Refresh session to show completion request
+      } else {
+        alert(data.message || 'Failed to request completion');
+      }
+    } catch (error) {
+      console.error('Error requesting completion:', error);
+      alert('Failed to request completion');
+    } finally {
+      setRequestingCompletion(false);
+    }
+  };
+
+  const handleCompletionResponse = async (action: 'approve' | 'reject', providedRejectionReason?: string) => {
+    if (!currentUserId || !sessionId) {
+      alert('Session or user information not available');
+      return;
+    }
+
+    // For rejection, show modal to collect reason if not provided
+    if (action === 'reject' && !providedRejectionReason) {
+      setShowRejectionModal(true);
+      return;
+    }
+
+    const confirmMessage = action === 'approve' 
+      ? 'Are you sure you want to approve session completion? This will mark the session as completed.'
+      : 'Are you sure you want to reject the completion request?';
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setRespondingToCompletion(true);
+    
+    try {
+      const requestBody: any = {
+        sessionId,
+        userId: currentUserId,
+        action,
+      };
+
+      // Add rejection reason if rejecting
+      if (action === 'reject' && providedRejectionReason) {
+        requestBody.rejectionReason = providedRejectionReason;
+      }
+
+      const response = await fetch('/api/session/complete', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('Completion response successful:', data);
+        
+        // Send notification to the requester
+        if (session && session.completionRequestedBy) {
+          const requesterUserId = session.completionRequestedBy._id || session.completionRequestedBy;
+          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+          
+          if (action === 'approve') {
+            await sendNotification(
+              requesterUserId,
+              19, // SESSION_COMPLETED (you may need to add this notification type)
+              `🎉 ${currentUserName} approved session completion! Your skill exchange is now complete.`,
+              `/session/${sessionId}`
+            );
+          } else {
+            await sendNotification(
+              requesterUserId,
+              20, // SESSION_COMPLETION_REJECTED (you may need to add this notification type)
+              `${currentUserName} declined the completion request. Reason: ${providedRejectionReason}`,
+              `/session/${sessionId}`
+            );
+          }
+        }
+
+        alert(action === 'approve' ? 'Session completed successfully!' : 'Completion request rejected');
+        console.log('About to refresh session data...');
+        await fetchSessionData(); // Refresh session data
+        console.log('Session data refreshed');
+        
+        // Close modal if it was open
+        if (action === 'reject') {
+          setShowRejectionModal(false);
+          setRejectionReason('');
+        }
+      } else {
+        alert(data.message || `Failed to ${action} completion`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing completion:`, error);
+      alert(`Failed to ${action} completion`);
+    } finally {
+      setRespondingToCompletion(false);
+    }
+  };
+
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -657,6 +816,14 @@ export default function SessionWorkspace() {
 
   const handleReportFileRemove = (index: number) => {
     setReportFiles(reportFiles.filter((_, i) => i !== index));
+  };
+
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      alert('Please provide a reason for declining the completion request');
+      return;
+    }
+    handleCompletionResponse('reject', rejectionReason.trim());
   };
 
   if (loading) {
@@ -788,7 +955,65 @@ export default function SessionWorkspace() {
           <div className="space-y-6">
             {/* Session Details */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Details</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Session Details</h2>
+                
+                {/* Mark as Complete Button */}
+                {session?.status === 'active' && (
+                  <div className="flex items-center space-x-3">
+                    {session.completionRequestedBy ? (
+                      <>
+                        {(session.completionRequestedBy._id === currentUserId || session.completionRequestedBy === currentUserId) ? (
+                          /* User requested completion - waiting for approval */
+                          <span className="text-sm text-yellow-600 font-medium bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
+                            Completion Requested
+                          </span>
+                        ) : (
+                          /* Other user requested completion - needs approval */
+                          <>
+                            <button
+                              onClick={() => handleCompletionResponse('approve')}
+                              disabled={respondingToCompletion}
+                              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                              <span>Approve Completion</span>
+                            </button>
+                            <button
+                              onClick={() => handleCompletionResponse('reject')}
+                              disabled={respondingToCompletion}
+                              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                            >
+                              <XCircle className="h-4 w-4" />
+                              <span>Decline</span>
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : session.completionRejectedBy ? (
+                      /* Completion was rejected */
+                      <button
+                        onClick={handleRequestCompletion}
+                        disabled={requestingCompletion}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Request Completion</span>
+                      </button>
+                    ) : (
+                      /* No completion request yet */
+                      <button
+                        onClick={handleRequestCompletion}
+                        disabled={requestingCompletion}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* What you're offering */}
@@ -844,7 +1069,7 @@ export default function SessionWorkspace() {
                   {myProgress && (
                     <div className="space-y-3">
                       <h3 className="font-medium text-gray-900">Your Progress</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium">Completion</span>
                           <span className="text-sm font-semibold">{myProgress.completionPercentage}%</span>
@@ -875,7 +1100,7 @@ export default function SessionWorkspace() {
                   {otherProgress && (
                     <div className="space-y-3">
                       <h3 className="font-medium text-gray-900">{getOtherUserName()}'s Progress</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg">
+                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium">Completion</span>
                           <span className="text-sm font-semibold">{otherProgress.completionPercentage}%</span>
@@ -925,6 +1150,155 @@ export default function SessionWorkspace() {
                       <div className="text-2xl font-bold text-gray-600">{works.length}</div>
                       <div className="text-xs text-gray-500">Total Submissions</div>
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Session Completion Section */}
+            {session?.status === 'active' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Completion</h2>
+                
+                {/* Completion Request Status */}
+                {session.completionRequestedBy ? (
+                  <div className="space-y-4">
+                    {session.completionRequestedBy._id === currentUserId || session.completionRequestedBy === currentUserId ? (
+                      /* User requested completion - waiting for approval */
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
+                          <div>
+                            <h3 className="font-medium text-yellow-900">Completion Request Sent</h3>
+                            <p className="text-sm text-yellow-700 mt-1">
+                              You've requested to complete this session on {formatDate(session.completionRequestedAt || '')}. 
+                              Waiting for {getOtherUserName()} to approve.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Other user requested completion - needs approval */
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                          <div className="flex-1">
+                            <h3 className="font-medium text-blue-900">Completion Request Received</h3>
+                            <p className="text-sm text-blue-700 mt-1">
+                              {getOtherUserName()} has requested to complete this session on {formatDate(session.completionRequestedAt || '')}. 
+                              Please review and decide whether to approve.
+                            </p>
+                            <div className="mt-3 flex items-center space-x-3">
+                              <button
+                                onClick={() => handleCompletionResponse('approve')}
+                                disabled={respondingToCompletion}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                <span>Approve Completion</span>
+                              </button>
+                              <button
+                                onClick={() => handleCompletionResponse('reject')}
+                                disabled={respondingToCompletion}
+                                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                              >
+                                <XCircle className="h-4 w-4" />
+                                <span>Decline</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : session.completionRejectedBy ? (
+                  /* Completion was rejected - show rejection message */
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-red-900">Completion Request Declined</h3>
+                        <p className="text-sm text-red-700 mt-1">
+                          {session.completionRejectedBy._id === currentUserId || session.completionRejectedBy === currentUserId ? 
+                            `You declined the completion request on ${formatDate(session.completionRejectedAt || '')}.` :
+                            `${getOtherUserName()} declined the completion request on ${formatDate(session.completionRejectedAt || '')}.`
+                          }
+                        </p>
+                        {session.completionRejectionReason && (
+                          <div className="mt-2 p-3 bg-red-100 rounded-lg">
+                            <p className="text-sm font-medium text-red-900 mb-1">Reason:</p>
+                            <p className="text-sm text-red-800">{session.completionRejectionReason}</p>
+                          </div>
+                        )}
+                        <p className="text-xs text-red-600 mt-2">
+                          You can continue working on the session or submit a new completion request when ready.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* No completion request yet */
+                  <div className="space-y-4">
+                    {/* Completion readiness check */}
+                    {myProgress && otherProgress && (
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h3 className="font-medium text-gray-900 mb-3">Completion Readiness</h3>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">Your progress</span>
+                            <span className={`text-sm font-medium ${myProgress.completionPercentage >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
+                              {myProgress.completionPercentage}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">{getOtherUserName()}'s progress</span>
+                            <span className={`text-sm font-medium ${otherProgress.completionPercentage >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
+                              {otherProgress.completionPercentage}%
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-700">Accepted work submissions</span>
+                            <span className="text-sm font-medium text-gray-900">
+                              {works.filter(w => w.acceptanceStatus === 'accepted').length}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Request completion button */}
+                    <div className="flex items-center space-x-4">
+                      <button
+                        onClick={handleRequestCompletion}
+                        disabled={requestingCompletion}
+                        className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <CheckCircle className="h-5 w-5" />
+                        <span>{requestingCompletion ? 'Requesting...' : 'Request Session Completion'}</span>
+                      </button>
+                      <div className="text-sm text-gray-500">
+                        <p>Ready to complete? Click to request approval from {getOtherUserName()}.</p>
+                        <p className="text-xs mt-1">Both participants must agree to mark the session as completed.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Completed Session Status */}
+            {session?.status === 'completed' && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                <div className="flex items-center space-x-3">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <div>
+                    <h3 className="font-semibold text-green-900">Session Completed! 🎉</h3>
+                    <p className="text-sm text-green-700 mt-1">
+                      This skill exchange session was completed on {formatDate(session.completionApprovedAt || '')}.
+                      {session.completionApprovedBy && (
+                        <span> Approved by {session.completionApprovedBy._id === currentUserId ? 'you' : getOtherUserName()}.</span>
+                      )}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1647,6 +2021,46 @@ export default function SessionWorkspace() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {updatingProgress ? 'Updating...' : 'Update Progress'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Reason Modal */}
+      {showRejectionModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Decline Completion Request</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Declining *
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Please provide a reason for declining the completion request..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => setShowRejectionModal(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRejectionSubmit}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Submit Rejection Reason
                 </button>
               </div>
             </div>

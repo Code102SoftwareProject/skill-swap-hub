@@ -14,6 +14,14 @@ interface ISession extends Document {
   createdAt: Date;
   progress1?: mongoose.Types.ObjectId;
   progress2?: mongoose.Types.ObjectId;
+  // Session completion fields
+  completionRequestedBy?: mongoose.Types.ObjectId;
+  completionRequestedAt?: Date;
+  completionApprovedBy?: mongoose.Types.ObjectId;
+  completionApprovedAt?: Date;
+  completionRejectedBy?: mongoose.Types.ObjectId;
+  completionRejectedAt?: Date;
+  completionRejectionReason?: string;
 }
 
 const sessionSchema = new Schema(
@@ -36,7 +44,15 @@ const sessionSchema = new Schema(
       default: "pending", 
     },
     progress1: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
-    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" }
+    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
+    // Session completion fields
+    completionRequestedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    completionRequestedAt: { type: Date },
+    completionApprovedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    completionApprovedAt: { type: Date },
+    completionRejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    completionRejectedAt: { type: Date },
+    completionRejectionReason: { type: String }
   },
   { timestamps: true }
 );

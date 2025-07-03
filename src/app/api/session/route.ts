@@ -100,6 +100,18 @@ export async function GET(req: Request) {
         })
         .populate('progress1')
         .populate('progress2')
+        .populate({
+          path: 'completionRequestedBy',
+          select: 'firstName lastName'
+        })
+        .populate({
+          path: 'completionApprovedBy',
+          select: 'firstName lastName'
+        })
+        .populate({
+          path: 'completionRejectedBy',
+          select: 'firstName lastName'
+        })
         .sort({ createdAt: -1 });
       
       console.log('Successfully populated sessions');

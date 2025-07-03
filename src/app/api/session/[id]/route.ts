@@ -25,7 +25,19 @@ export async function GET(
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')
-      .populate('progress2');
+      .populate('progress2')
+      .populate({
+        path: 'completionRequestedBy',
+        select: 'firstName lastName email'
+      })
+      .populate({
+        path: 'completionApprovedBy',
+        select: 'firstName lastName email'
+      })
+      .populate({
+        path: 'completionRejectedBy',
+        select: 'firstName lastName email'
+      });
 
     if (!session) {
       return NextResponse.json(
