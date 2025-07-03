@@ -85,6 +85,28 @@ export default function SessionWorkspace() {
   const [existingReports, setExistingReports] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
 
+  // Helper function to send notifications
+  const sendNotification = async (userId: string, typeno: number, description: string, targetDestination?: string) => {
+    try {
+      await fetch('/api/notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          typeno,
+          description,
+          targetDestination,
+          broadcast: false
+        }),
+      });
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      // Don't throw error - notifications should not break the main functionality
+    }
+  };
+
   useEffect(() => {
     // Get current user ID - this should be from auth context in real app
     // For now, we'll try to get it from the session data
@@ -143,6 +165,31 @@ export default function SessionWorkspace() {
       
       if (data.success) {
         setWorks(data.works);
+        
+        // Check for pending work reviews and send reminder notification
+        if (currentUserId) {
+          const pendingReviews = data.works.filter((work: Work) => 
+            work.receiveUser._id === currentUserId && work.acceptanceStatus === 'pending'
+          );
+          
+          // If there are pending reviews and this is not the initial load, send reminder
+          if (pendingReviews.length > 0 && works.length > 0) {
+            // Only send reminder if we're not on the initial page load
+            const oldPendingCount = works.filter(w => 
+              w.receiveUser._id === currentUserId && w.acceptanceStatus === 'pending'
+            ).length;
+            
+            if (pendingReviews.length > oldPendingCount) {
+              // New pending work added, send notification to current user as reminder
+              await sendNotification(
+                currentUserId,
+                14, // WORK_REVIEW_PENDING
+                `You have ${pendingReviews.length} work submission${pendingReviews.length > 1 ? 's' : ''} waiting for your review`,
+                `/session/${sessionId}`
+              );
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching works:', error);
@@ -272,6 +319,15 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
+        // Send notification to the other user about work submission
+        const otherUserName = getOtherUserName();
+        await sendNotification(
+          otherUserId,
+          11, // WORK_SUBMITTED
+          `${user?.firstName || 'Someone'} submitted work in your session: "${workDescription.substring(0, 50)}${workDescription.length > 50 ? '...' : ''}"`,
+          `/session/${sessionId}`
+        );
+
         alert('Work submitted successfully!');
         setWorkDescription('');
         setWorkFile(null);
@@ -350,6 +406,31 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
+        // Find the work to get provider details
+        const work = works.find(w => w._id === workId);
+        if (work) {
+          const providerUserId = work.provideUser._id;
+          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+          
+          if (action === 'accept') {
+            // Send WORK_ACCEPTED notification
+            await sendNotification(
+              providerUserId,
+              12, // WORK_ACCEPTED
+              `${currentUserName} accepted your work submission${message ? ': "' + message.substring(0, 50) + '"' : ''}`,
+              `/session/${sessionId}`
+            );
+          } else {
+            // Send WORK_REJECTED notification
+            await sendNotification(
+              providerUserId,
+              13, // WORK_REJECTED
+              `${currentUserName} requested improvements to your work${message ? ': "' + message.substring(0, 50) + '"' : ''}`,
+              `/session/${sessionId}`
+            );
+          }
+        }
+
         alert(`Work ${action}ed successfully!`);
         setReviewingWork(null);
         setReviewAction(null);
@@ -394,10 +475,77 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
+        // Send progress update notification to other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+          
+          await sendNotification(
+            otherUserId,
+            15, // PROGRESS_UPDATED
+            `${currentUserName} updated their progress to ${newProgress}% (${progressStatus.replace('_', ' ')})`,
+            `/session/${sessionId}`
+          );
+
+          // Check for milestones and send milestone notification
+          if (newProgress === 50 || newProgress === 100) {
+            await sendNotification(
+              otherUserId,
+              16, // PROGRESS_MILESTONE
+              `${currentUserName} reached ${newProgress}% completion milestone!`,
+              `/session/${sessionId}`
+            );
+          }
+        }
+
         alert('Progress updated successfully!');
         setEditingProgress(false);
         setProgressNotes('');
         await fetchProgress(); // Refresh progress data
+        
+        // Check if both users have completed after this update
+        if (newProgress === 100) {
+          // Fetch fresh progress data to check if both are at 100%
+          setTimeout(async () => {
+            try {
+              const progressResponse = await fetch(`/api/session-progress/${sessionId}`);
+              const progressData = await progressResponse.json();
+              
+              if (progressData.success && session) {
+                const myFreshProgress = progressData.progress.find((p: SessionProgress) => {
+                  const progUserId = typeof p.userId === 'object' ? p.userId._id : p.userId;
+                  return progUserId.toString() === currentUserId.toString();
+                });
+                const otherFreshProgress = progressData.progress.find((p: SessionProgress) => {
+                  const progUserId = typeof p.userId === 'object' ? p.userId._id : p.userId;
+                  return progUserId.toString() !== currentUserId.toString();
+                });
+                
+                if (myFreshProgress?.completionPercentage === 100 && otherFreshProgress?.completionPercentage === 100) {
+                  // Both users completed - send completion notifications
+                  const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+                  const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+                  
+                  await sendNotification(
+                    otherUserId,
+                    22, // SESSION_COMPLETED
+                    `🎉 Session completed! Both you and ${currentUserName} have reached 100% completion!`,
+                    `/session/${sessionId}`
+                  );
+                  
+                  await sendNotification(
+                    currentUserId,
+                    22, // SESSION_COMPLETED
+                    `🎉 Congratulations! You and ${getOtherUserName()} have successfully completed this session!`,
+                    `/session/${sessionId}`
+                  );
+                }
+              }
+            } catch (error) {
+              console.error('Error checking session completion:', error);
+            }
+          }, 1000); // Small delay to ensure progress is saved
+        }
       } else {
         alert(data.message || 'Failed to update progress');
       }
@@ -472,6 +620,15 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
+        // Send notification to the reported user
+        const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+        await sendNotification(
+          otherUserId,
+          17, // REPORT_SUBMITTED
+          `A report has been submitted regarding your session behavior. Our admin team will review this matter.`,
+          `/session/${sessionId}`
+        );
+
         alert('Report submitted successfully! Our team will review it shortly.');
         setReportReason('');
         setReportDescription('');
