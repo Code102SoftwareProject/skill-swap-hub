@@ -1,4 +1,5 @@
-// File: src/app/api/matches/[id]/route.ts
+// File: src/app/api/matches/[id]/route-with-badges.ts
+// This file contains the original route handler WITH badge assignment functionality
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
@@ -140,7 +141,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// PUT - Update match status
+// PUT - Update match status (WITH badge assignment functionality)
 export async function PUT(request: NextRequest) {
   try {
     const userId = getUserIdFromToken(request);
