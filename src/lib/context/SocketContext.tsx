@@ -90,10 +90,19 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         setOnlineUsers(prev =>
           prev.includes(onlineUserId) ? prev : [...prev, onlineUserId]
         );
+        
+        // Emit event to update delivery status of pending messages for this user
+        newSocket.emit('user_came_online', { userId: onlineUserId });
       });
 
       newSocket.on('user_offline', ({ userId: offlineUserId }) => {
         setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
+      });
+
+      // Listen for delivery status updates
+      newSocket.on('message_delivery_update', (data) => {
+        // This will be handled by individual chat components
+        console.log('Delivery status update:', data);
       });
 
       newSocket.on('receive_notification', (notification) => {
@@ -156,6 +165,19 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
   const sendMessage = (messageData: any) => {
     if (socket) {
       socket.emit('send_message', messageData);
+      
+      // Check if recipient is online and mark as delivered immediately
+      const recipientId = messageData.recipientId || messageData.chatRoomId; // Adjust based on your message structure
+      if (recipientId && onlineUsers.includes(recipientId)) {
+        // Emit delivery status update
+        setTimeout(() => {
+          socket.emit('message_delivered', {
+            messageId: messageData.messageId || messageData._id,
+            chatRoomId: messageData.chatRoomId,
+            recipientId: recipientId
+          });
+        }, 100); // Small delay to ensure message is processed
+      }
     }
   };
 
@@ -180,14 +202,14 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Mark message as read
+  // Mark message as read and notify sender
   const markMessageAsRead = (messageId: string, chatRoomId: string, senderId: string) => {
     if (socket && userId) {
-      socket.emit('message_read', {
-        messageId,
-        chatRoomId,
+      socket.emit("message_read", { 
+        messageId, 
+        chatRoomId, 
         readerId: userId,
-        senderId
+        senderId 
       });
     }
   };
