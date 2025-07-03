@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 
 interface Session {
@@ -57,7 +57,7 @@ export default function SessionWorkspace() {
   const [myProgress, setMyProgress] = useState<SessionProgress | null>(null);
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report'>('overview');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
 
   // Submit work form state
@@ -77,6 +77,14 @@ export default function SessionWorkspace() {
   const [progressStatus, setProgressStatus] = useState<'not_started' | 'in_progress' | 'completed' | 'abandoned'>('not_started');
   const [updatingProgress, setUpdatingProgress] = useState(false);
 
+  // Report form state
+  const [reportReason, setReportReason] = useState('');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reportFiles, setReportFiles] = useState<File[]>([]);
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [existingReports, setExistingReports] = useState<any[]>([]);
+  const [loadingReports, setLoadingReports] = useState(false);
+
   useEffect(() => {
     // Get current user ID - this should be from auth context in real app
     // For now, we'll try to get it from the session data
@@ -89,6 +97,7 @@ export default function SessionWorkspace() {
     if (currentUserId && sessionId) {
       fetchWorks();
       fetchProgress();
+      fetchReports();
     }
   }, [currentUserId, sessionId]);
 
@@ -170,6 +179,24 @@ export default function SessionWorkspace() {
       console.error('Error fetching progress:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchReports = async () => {
+    if (!currentUserId || !sessionId) return;
+    
+    setLoadingReports(true);
+    try {
+      const response = await fetch(`/api/session/report/${sessionId}?userId=${currentUserId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setExistingReports(data.reports);
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+    } finally {
+      setLoadingReports(false);
     }
   };
 
@@ -400,6 +427,81 @@ export default function SessionWorkspace() {
     }
   };
 
+  const handleReportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!reportReason || !reportDescription.trim()) {
+      alert('Please provide a reason and description for the report');
+      return;
+    }
+
+    if (!session || !currentUserId) {
+      alert('Session or user information not available');
+      return;
+    }
+
+    setSubmittingReport(true);
+    
+    try {
+      // Upload evidence files if any
+      const evidenceFileUrls: string[] = [];
+      for (const file of reportFiles) {
+        const uploadedUrl = await handleFileUpload(file);
+        if (uploadedUrl) {
+          evidenceFileUrls.push(uploadedUrl);
+        }
+      }
+
+      const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+
+      const response = await fetch('/api/session/report', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: sessionId,
+          reportedBy: currentUserId,
+          reportedUser: otherUserId,
+          reason: reportReason,
+          description: reportDescription,
+          evidenceFiles: evidenceFileUrls,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Report submitted successfully! Our team will review it shortly.');
+        setReportReason('');
+        setReportDescription('');
+        setReportFiles([]);
+        await fetchReports(); // Refresh reports list
+        // Don't change tab, keep user on report tab to see their submitted report
+      } else {
+        alert(data.message || 'Failed to submit report');
+      }
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report');
+    } finally {
+      setSubmittingReport(false);
+    }
+  };
+
+  const handleReportFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (reportFiles.length + files.length > 5) {
+      alert('Maximum 5 files allowed');
+      return;
+    }
+    setReportFiles([...reportFiles, ...files]);
+  };
+
+  const handleReportFileRemove = (index: number) => {
+    setReportFiles(reportFiles.filter((_, i) => i !== index));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -503,6 +605,7 @@ export default function SessionWorkspace() {
               { id: 'submit-work', label: 'Submit Work', icon: Upload },
               { id: 'view-works', label: 'View Works', icon: CheckCircle },
               { id: 'progress', label: 'Progress', icon: Clock },
+              { id: 'report', label: 'Report Issue', icon: Flag },
             ].map((tab) => {
               const Icon = tab.icon;
               return (
@@ -944,6 +1047,286 @@ export default function SessionWorkspace() {
                   <p className="text-sm">Track all progress updates and milestones</p>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'report' && (
+          <div className="space-y-6">
+            {/* Existing Reports Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Previous Reports</h2>
+                <button
+                  onClick={fetchReports}
+                  disabled={loadingReports}
+                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
+                >
+                  {loadingReports ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+
+              {loadingReports ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
+                </div>
+              ) : existingReports.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Flag className="h-12 w-12 mx-auto mb-2 text-gray-400" />
+                  <p>No reports found for this session</p>
+                  <p className="text-sm">Submit your first report below if you're experiencing issues</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {existingReports.map((report) => {
+                    // Only show reports made by current user, or reports against current user
+                    const isMyReport = report.reportedBy._id === currentUserId;
+                    const wasReported = report.reportedUser._id === currentUserId;
+                    
+                    if (!isMyReport && !wasReported) {
+                      return null;
+                    }
+
+                    return (
+                      <div key={report._id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center space-x-3">
+                            <div className="text-sm">
+                              {isMyReport ? (
+                                <>
+                                  <span className="font-medium">You reported</span>
+                                  <span className="text-gray-600 ml-1">{getOtherUserName()}</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-medium text-red-600">You were reported</span>
+                                  <span className="text-gray-600 ml-1">by {getOtherUserName()}</span>
+                                </>
+                              )}
+                            </div>
+                            <span className={`px-2 py-1 text-xs rounded-full ${
+                              report.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                              report.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
+                              report.status === 'dismissed' ? 'bg-gray-100 text-gray-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {report.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {formatDate(report.createdAt)}
+                          </div>
+                        </div>
+
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-gray-900 mb-1">
+                            Reason: {report.reason.replace('_', ' ')}
+                          </div>
+                          {isMyReport ? (
+                            <p className="text-sm text-gray-700">{report.description}</p>
+                          ) : (
+                            <p className="text-sm text-gray-600 italic">Report details are not shown for privacy</p>
+                          )}
+                        </div>
+
+                        {/* For reports against current user without admin response, show a notice */}
+                        {wasReported && !isMyReport && !report.adminResponse && (
+                          <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-3">
+                            <div className="text-sm text-yellow-800">
+                              <div className="font-medium mb-1">Report Under Review</div>
+                              <p>A report has been submitted regarding your participation in this session. Our admin team is currently reviewing the matter and will respond accordingly.</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Only show evidence files for reports made by current user */}
+                        {isMyReport && report.evidenceFiles && report.evidenceFiles.length > 0 && (
+                          <div className="mb-3">
+                            <div className="text-sm font-medium text-gray-900 mb-2">Evidence Files:</div>
+                            <div className="space-y-1">
+                              {report.evidenceFiles.map((fileUrl: string, index: number) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleDownloadFile(fileUrl, `evidence-${index + 1}`)}
+                                  className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
+                                >
+                                  <FileText className="h-3 w-3" />
+                                  <span>Evidence File {index + 1}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Case summary - only show for own reports */}
+                        {isMyReport && (
+                          <div className="bg-gray-50 p-3 rounded text-sm">
+                            <div className="font-medium text-gray-900 mb-2">Case Summary:</div>
+                            <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
+                              <div>
+                                <span className="font-medium">Reported User Works:</span> {report.reportedUserWorksCount}
+                              </div>
+                              <div>
+                                <span className="font-medium">Your Works:</span> {report.reportingUserWorksCount}
+                              </div>
+                              <div>
+                                <span className="font-medium">Their Last Active:</span> 
+                                {report.reportedUserLastActive 
+                                  ? formatDate(report.reportedUserLastActive)
+                                  : 'Unknown'
+                                }
+                              </div>
+                              <div>
+                                <span className="font-medium">Report Date:</span> {formatDate(report.createdAt)}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Admin Response - show for all reports with responses */}
+                        {report.adminResponse && (
+                          <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
+                            <div className="text-sm font-medium text-blue-900 mb-1">
+                              Admin Response:
+                              {report.adminId && (
+                                <span className="text-blue-700 ml-1">
+                                  by {report.adminId.firstName} {report.adminId.lastName}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-blue-800">{report.adminResponse}</p>
+                            {report.resolvedAt && (
+                              <div className="text-xs text-blue-600 mt-1">
+                                Resolved on {formatDate(report.resolvedAt)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Submit New Report Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Report an Issue</h2>
+                <p className="text-sm text-gray-600">
+                  If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
+                  Our team will review the situation and take appropriate action.
+                </p>
+              </div>
+
+              <form onSubmit={handleReportSubmit} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for Report *
+                  </label>
+                  <select
+                    value={reportReason}
+                    onChange={(e) => setReportReason(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a reason...</option>
+                    <option value="not_submitting_work">Not submitting work</option>
+                    <option value="not_responsive">Not responsive to messages</option>
+                    <option value="poor_quality_work">Poor quality work</option>
+                    <option value="inappropriate_behavior">Inappropriate behavior</option>
+                    <option value="not_following_session_terms">Not following session terms</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Detailed Description *
+                  </label>
+                  <textarea
+                    value={reportDescription}
+                    onChange={(e) => setReportDescription(e.target.value)}
+                    placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context..."
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    rows={6}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Evidence Files (Optional)
+                  </label>
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      onChange={handleReportFileAdd}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                      multiple
+                    />
+                    <p className="text-xs text-gray-500">
+                      Upload screenshots, documents, or other evidence. Maximum 5 files.
+                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
+                    </p>
+                    
+                    {reportFiles.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                        {reportFiles.map((file, index) => (
+                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                            <span className="text-sm text-gray-700">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleReportFileRemove(index)}
+                              className="text-red-600 hover:text-red-700 text-sm"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
+                    <div className="text-sm text-yellow-800">
+                      <p className="font-medium mb-1">Important Notes:</p>
+                      <ul className="list-disc list-inside space-y-1">
+                        <li>All reports are reviewed by our team</li>
+                        <li>False reports may result in account restrictions</li>
+                        <li>We will investigate both sides of the situation</li>
+                        <li>You will be notified of the outcome</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportReason('');
+                      setReportDescription('');
+                      setReportFiles([]);
+                    }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingReport}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {submittingReport ? 'Submitting Report...' : 'Submit Report'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
