@@ -30,11 +30,11 @@ export default function MeetingLists({
   const [isExpanded, setIsExpanded] = useState(false);
   
   if (meetings.length === 0) return null;
-
+  
   const title = type === 'past' ? 'Past Meetings' : 'Cancelled Meetings';
   const isPast = type === 'past';
   const isCancelled = type === 'cancelled';
-
+  
   return (
     <div className="border rounded-md p-2">
       <button 

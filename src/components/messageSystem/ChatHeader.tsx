@@ -223,41 +223,43 @@ export default function ChatHeader({
   };
 
   return (
-    <header className="flex items-center justify-between p-4 bg-primary border-b">
-      <div>
-        <h1 className="text-lg font-semibold text-white font-heading">
+    <header className="flex items-center justify-between p-2 md:p-4 bg-primary border-b">
+      <div className="flex-1 min-w-0">
+        <h1 className="text-base md:text-lg font-semibold text-white font-heading truncate">
           {otherUserName || `Chat ${chatRoomId.substring(0, 8)}`}
         </h1>
-        <p className="text-sm text-blue-100 font-body">
+        <p className="text-xs md:text-sm text-blue-100 font-body truncate">
           {getStatusText()}
         </p>
       </div>
-      <div className="flex space-x-4">
-        {/* Back to Dashboard*/}
+      
+      <div className="flex space-x-2 md:space-x-4 flex-shrink-0">
+        {/* Back to Dashboard Button */}
         <button
           onClick={handleBackToDashboard}
           className="flex flex-col items-center text-white hover:text-blue-200 transition-colors"
         >
           <ArrowLeft className="h-5 w-5 mb-1" />
-          <span className="text-xs font-body">Dashboard</span>
+          <span className="text-xs font-body hidden md:block">Dashboard</span>
         </button>
+        
         {/* Session Button */}
         <button 
           className={`flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleSessions}
         >
           <BookOpen className="h-5 w-5 mb-1" />
-          <span className="text-xs font-body">Sessions</span>
+          <span className="text-xs font-body hidden md:block">Sessions</span>
         </button>
 
         {/* Meetings Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200 text-xs'  : 'hover:text-blue-200'} transition-colors`}
+          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleMeetings}
         >
           <Calendar className="h-5 w-5 mb-1" />
           <div className="flex items-center">
-            <span className="text-xs font-body">Meetings</span>
+            <span className="text-xs font-body hidden md:block">Meetings</span>
           </div>
         </button>
       </div>

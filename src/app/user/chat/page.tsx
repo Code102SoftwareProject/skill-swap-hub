@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { IMessage } from "@/types/chat";
+import { ChevronRight } from "lucide-react";
 
 import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
@@ -36,6 +37,7 @@ export default function ChatPage() {
   // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
 
   /**
    * * Event Handlers
@@ -54,15 +56,27 @@ export default function ChatPage() {
 
   const toggleSessionsDisplay = (show: boolean) => {
     setShowSessions(show);
-    if (show) setShowMeetings(false); //! Hide meetings 
+    if (show) setShowMeetings(false); // Hide meetings when showing sessions
   };
 
   const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
     setNewMessage(null); // Reset new message state when changing chats
+    setSidebarOpen(false); // Close sidebar on mobile when chat is selected
     if (participantInfo) {
       setSelectedParticipantInfo(participantInfo);
     }
+  };
+
+  const handleBackToSidebar = () => {
+    setSelectedChatRoomId(null);
+    setSelectedParticipantInfo(null);
+    setShowMeetings(false);
+    setShowSessions(false);
+  };
+
+  const handleToggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
   };
 
   /**
@@ -132,15 +146,43 @@ export default function ChatPage() {
    * Structured with sidebar and main content area
    */
   return (
-    <div className="flex h-screen">
-      {/* * Chat sidebar with conversation list */}
-      <Sidebar 
-        userId={userId} 
-        selectedChatRoomId={selectedChatRoomId} 
-        onChatSelect={handleChatSelect} 
-      />
+    <div className="flex h-screen relative overflow-hidden">
+      {/* * Sidebar Overlay for mobile - appears when sidebarOpen is true */}
+      {sidebarOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
+      {/* * Mobile Sidebar Toggle Arrow - visible only on mobile when sidebar is closed */}
+      {!sidebarOpen && selectedChatRoomId && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="md:hidden fixed left-0 top-1/2 transform -translate-y-1/2 z-30 
+                     bg-white bg-opacity-80 hover:bg-opacity-100 
+                     border border-gray-300 rounded-r-lg shadow-lg
+                     p-2 transition-all duration-200 ease-in-out"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-600" />
+        </button>
+      )}
 
-      <div className="flex-1 flex flex-col">
+      {/* * Chat sidebar with conversation list - responsive behavior with slide-out */}
+      <div className={`
+        ${selectedChatRoomId && !sidebarOpen ? 'hidden md:block' : 'block'} 
+        ${sidebarOpen ? 'translate-x-0' : selectedChatRoomId ? '-translate-x-full md:translate-x-0' : 'translate-x-0'}
+        fixed md:relative w-full md:w-64 h-full bg-white z-50 md:z-auto
+        flex-shrink-0 transition-transform duration-300 ease-in-out
+      `}>
+        <Sidebar 
+          userId={userId} 
+          selectedChatRoomId={selectedChatRoomId} 
+          onChatSelect={handleChatSelect} 
+        />
+      </div>
+
+      <div className={`flex-1 flex flex-col min-w-0 overflow-hidden ${!selectedChatRoomId ? 'hidden md:flex' : 'flex'}`}>
         {selectedChatRoomId ? (
           <>
             {/* * Chat header with participant info and controls */}
@@ -155,7 +197,7 @@ export default function ChatPage() {
             />
 
             {/* * Main content area - conditionally renders messages, meetings or sessions */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto min-w-0">
               {showMeetings ? (
                 <MeetingBox
                   chatRoomId={selectedChatRoomId}
@@ -163,7 +205,11 @@ export default function ChatPage() {
                   onClose={() => setShowMeetings(false)}
                 />
               ) : showSessions ? (
-                <SessionBox    
+                <SessionBox
+                  chatRoomId={selectedChatRoomId}
+                  userId={userId}
+                  otherUserId={selectedParticipantInfo?.id || chatParticipants.find(id => id !== userId) || ''}
+                  otherUserName={selectedParticipantInfo?.name || 'Other User'}
                 />
               ) : (
                 <MessageBox
@@ -171,7 +217,7 @@ export default function ChatPage() {
                   userId={userId}
                   newMessage={newMessage}
                   onReplySelect={handleReplySelect}
-                  participantInfo={selectedParticipantInfo}  // Add this prop
+                  participantInfo={selectedParticipantInfo}
                 />
               )}
             </div>

@@ -56,15 +56,14 @@ export async function POST(req: Request) {
         { status: 404 }
       );
       
-    }
-
-    const message = await Message.create({
+    }    const message = await Message.create({
       chatRoomId: chatRoomObjectId,
       senderId,
       content: encryptedContent,
       sentAt: new Date(),
       readStatus: false,
-      replyFor: replyForObjectId
+      replyFor: replyForObjectId,
+      deliveryStatus: 'sent'
     });
 
     // For chat room's lastMessage, use unencrypted content, limited to 18 chars

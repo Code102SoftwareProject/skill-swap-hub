@@ -6,7 +6,6 @@ import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
-import { set } from "lodash";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -27,7 +26,7 @@ export default function MessageInput({
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  // Astate for storing the reply sender's name
+  // State for storing the reply sender's name
   const [replySenderName, setReplySenderName] = useState<string>("");
 
   const [file, setFile] = useState<File | null>(null);
@@ -82,7 +81,6 @@ export default function MessageInput({
     if (!file) return;
 
     setUploading(true);
-    
 
     // ! Form Data for Api call
     const formData = new FormData();
@@ -128,12 +126,12 @@ export default function MessageInput({
 
   const sendMessage = async (fileUrl: string = "") => {
     // ! Need either one
-    if (!fileUrl && !message.trim()){
+    if (!fileUrl && !message.trim()) {
       setError("Please enter a message or select a file.");
       
-      setTimeout(()=>{
+      setTimeout(() => {
         setError(null);
-      },5000)
+      }, 5000);
       return;
     }
     if (!socket) return;
@@ -168,24 +166,25 @@ export default function MessageInput({
   };
 
   return (
-    <div className="p-3 border-t bg-white">
-      {/* Reply Preview with user name  */}
+    <div className="p-2 md:p-3 border-t bg-white">
+      {/* Error message display */}
       {error && (
         <div className="mb-2 p-2 bg-red-100 text-red-700 rounded">
           {error}
         </div>
       )}
-      {/* Displaying the reply message */}
+      
+      {/* Reply Preview with user name */}
       {replyingTo && (
         <div className="mb-2 p-2 bg-gray-100 rounded flex items-start font-body">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <div className="flex items-center mb-1">
-              <CornerUpLeft className="w-3 h-3 mr-1" />
-              <span className="text-xs font-semibold text-blue-600">
+              <CornerUpLeft className="w-3 h-3 md:w-4 md:h-4 mr-1 flex-shrink-0" />
+              <span className="text-xs md:text-sm font-semibold text-blue-600 truncate">
                 Replying to {replySenderName}
               </span>
             </div>
-            <p className="text-sm text-gray-700 truncate">
+            <p className="text-xs md:text-sm text-gray-700 truncate">
               {replyingTo.content.startsWith("File:")
                 ? "📎 File attachment"
                 : replyingTo.content}
@@ -194,29 +193,29 @@ export default function MessageInput({
           <button
             onClick={onCancelReply}
             aria-label="To remove reply select"
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 hover:text-gray-700 flex-shrink-0 ml-2"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-1 md:space-x-2">
         {file ? (
-          <div className="flex items-center border p-2 rounded bg-gray-100">
-            <span className="mr-2">{file.name}</span>
+          <div className="flex items-center border p-2 rounded bg-gray-100 flex-1 min-w-0">
+            <span className="mr-2 text-sm md:text-base truncate">{file.name}</span>
             <button
               onClick={removeFile}
-              className="p-1 text-red-500 hover:text-red-700"
+              className="p-1 text-red-500 hover:text-red-700 flex-shrink-0"
               aria-label="Delete File Selected"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 md:w-5 md:h-5" />
             </button>
           </div>
         ) : (
           <input
             ref={inputRef}
-            className="flex-grow border p-2 rounded font-body"
+            className="flex-grow border p-2 rounded font-body text-sm md:text-base min-w-0"
             type="text"
             placeholder={replyingTo ? "Type your reply..." : "Type a message..."}
             value={message}
@@ -236,19 +235,28 @@ export default function MessageInput({
           aria-label="File Input"
         />
         <button
-          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300"
+          className="p-2 bg-gray-200 rounded-full hover:bg-gray-300 flex-shrink-0"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || file !== null}
           aria-label="File Upload Paper Clip"
         >
-          <Paperclip className="w-5 h-5 text-gray-600" />
+          <Paperclip className="w-4 h-4 md:w-5 md:h-5 text-gray-600" />
         </button>
         <button
-          className="bg-primary text-white px-3 py-1 rounded font-body"
+          className="bg-primary text-white px-2 py-1 md:px-3 md:py-1 rounded font-body text-sm md:text-base flex-shrink-0"
           onClick={() => (file ? uploadFile() : sendMessage())}
           disabled={loading || uploading}
         >
-          {loading || uploading ? "Sending..." : "Send"}
+          {loading || uploading ? (
+            <span className="hidden md:inline">Sending...</span>
+          ) : (
+            <span className="hidden md:inline">Send</span>
+          )}
+          {loading || uploading ? (
+            <span className="md:hidden">...</span>
+          ) : (
+            <span className="md:hidden">Send</span>
+          )}
         </button>
       </div>
     </div>

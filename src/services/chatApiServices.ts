@@ -230,3 +230,47 @@ export async function fetchChatMessages(chatRoomId: string) {
   }
 }
 
+/**
+ * Mark multiple messages as read in a single request
+ * 
+ * @param messageIds - Array of message IDs to mark as read
+ * @returns Promise with the response data
+ */
+export async function markMessagesAsRead(messageIds: string[]) {
+  try {
+    const response = await fetch("/api/messages/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds }),
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+}
+
+/**
+ ** Fetch delivery status for messages in a chat room
+ *
+ * @param chatRoomId - The unique identifier of the chat room
+ * @returns Promise that resolves to delivery status map
+ */
+export async function fetchMessageDeliveryStatus(
+  chatRoomId: string
+): Promise<Record<string, 'sent' | 'delivered' | 'read'> | null> {
+  try {
+    const response = await fetch(`/api/messages/delivery-status?chatRoomId=${chatRoomId}`);
+    const data = await response.json();
+
+    if (data.success && data.deliveryStatus) {
+      return data.deliveryStatus;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching delivery status:", error);
+    return null;
+  }
+}
