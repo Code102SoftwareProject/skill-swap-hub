@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get all sessions for a specific user
 export async function GET(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   await connect();
   try {
-    const { userId } = params;
+    const { userId } = await params;
 
     if (!Types.ObjectId.isValid(userId)) {
       return NextResponse.json(
@@ -26,8 +26,8 @@ export async function GET(
         { user2Id: userObjectId }
       ]
     })
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
+      .populate('user1Id', 'firstName lastName email avatar')
+      .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')

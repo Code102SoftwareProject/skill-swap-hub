@@ -11,10 +11,19 @@ interface UserSkill {
   categoryName: string;
 }
 
+interface UserProfile {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+}
+
 interface Session {
   _id: string;
-  user1Id: any;
-  user2Id: any;
+  user1Id: UserProfile;
+  user2Id: UserProfile;
   skill1Id: any;
   skill2Id: any;
   descriptionOfService1: string;
@@ -220,7 +229,23 @@ export default function CounterOfferModal({
 
   if (!isOpen || !session) return null;
 
-  const otherUserName = session.user1Id._id === currentUserId ? session.user2Id.name : session.user1Id.name;
+  // Get the other user's name by combining firstName and lastName
+  const getOtherUserName = () => {
+    const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
+    
+    // Handle different data structures that might come from the API
+    if (otherUser.firstName && otherUser.lastName) {
+      return `${otherUser.firstName} ${otherUser.lastName}`;
+    } else if (otherUser.name) {
+      return otherUser.name;
+    } else if (otherUser.firstName) {
+      return otherUser.firstName;
+    } else {
+      return 'Unknown User';
+    }
+  };
+
+  const otherUserName = getOtherUserName();
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

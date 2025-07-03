@@ -7,10 +7,19 @@ import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
 import CounterOfferModal from '@/components/sessionSystem/CounterOfferModal';
 
+interface UserProfile {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+}
+
 interface Session {
   _id: string;
-  user1Id: any;
-  user2Id: any;
+  user1Id: UserProfile;
+  user2Id: UserProfile;
   skill1Id: any;
   skill2Id: any;
   descriptionOfService1: string;
@@ -27,7 +36,7 @@ interface Session {
 interface CounterOffer {
   _id: string;
   originalSessionId: string;
-  counterOfferedBy: any;
+  counterOfferedBy: UserProfile;
   skill1Id: any;
   skill2Id: any;
   descriptionOfService1: string;
@@ -405,7 +414,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                     <div className="flex items-center space-x-2">
                       <User className="h-4 w-4 text-blue-600" />
                       <h4 className="font-medium text-gray-900">
-                        {session.user1Id.name} offers:
+                        {session.user1Id._id === userId ? 'You offer:' : 
+                          (session.user1Id.firstName && session.user1Id.lastName ? 
+                            `${session.user1Id.firstName} ${session.user1Id.lastName} offers:` : 
+                            `${session.user1Id.name || 'Unknown User'} offers:`)}
                       </h4>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
@@ -430,7 +442,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                     <div className="flex items-center space-x-2">
                       <BookOpen className="h-4 w-4 text-green-600" />
                       <h4 className="font-medium text-gray-900">
-                        {session.user2Id.name} provides:
+                        {session.user2Id._id === userId ? 'You provide:' : 
+                          (session.user2Id.firstName && session.user2Id.lastName ? 
+                            `${session.user2Id.firstName} ${session.user2Id.lastName} provides:` : 
+                            `${session.user2Id.name || 'Unknown User'} provides:`)}
                       </h4>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
@@ -472,7 +487,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-orange-900">
-                                Counter offer by {counterOffer.counterOfferedBy.name}
+                                Counter offer by {counterOffer.counterOfferedBy._id === userId ? 'You' : 
+                                  (counterOffer.counterOfferedBy.firstName && counterOffer.counterOfferedBy.lastName ? 
+                                    `${counterOffer.counterOfferedBy.firstName} ${counterOffer.counterOfferedBy.lastName}` : 
+                                    counterOffer.counterOfferedBy.name || 'Unknown User')}
                               </span>
                               <span className={`text-xs px-2 py-1 rounded-full ${
                                 counterOffer.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
