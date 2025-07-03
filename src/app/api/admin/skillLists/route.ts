@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validate input - only category name is required, skills can be empty
+    // Validate input 
     if (!body.categoryName) {
       return NextResponse.json(
         { error: 'Category name is required' },
@@ -31,13 +31,13 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Ensure skills is an array (empty by default if not provided)
+    // Ensure skills is an array 
     const skills = Array.isArray(body.skills) ? body.skills : [];
     
     // Add skillId for each skill if not already provided
     const processedSkills = skills.map((skill: { skillId: any; }) => {
       if (typeof skill === 'string') {
-        // Convert string to skill object
+        
         return { skillId: uuidv4(), name: skill };
       } else if (typeof skill === 'object') {
         // Ensure skill object has skillId

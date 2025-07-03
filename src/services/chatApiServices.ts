@@ -1,4 +1,5 @@
 import { IChatRoom, IMessage } from "@/types/chat";
+import { method } from "lodash";
 
 interface ChatRoomResponse {
   success: boolean;
@@ -169,23 +170,23 @@ export async function sendMessage(messageData: any) {
 
     const data = await response.json();
     
-    // After sending the message, get chat room details to find recipient
+    // get chat room details to find recipient
     const chatRoom = await fetchChatRoom(messageData.chatRoomId);
     
     if (chatRoom && chatRoom.participants) {
-      // Determine recipient(s) (everyone in chat except sender)
-      const recipients = chatRoom.participants.filter(
+      // Get recipient
+      const recipientId = chatRoom.participants.find(
         (participant) => participant.toString() !== messageData.senderId
       );
       
-      // Get sender user profile to include name in notification
-      const senderProfile = await fetchUserProfile(messageData.senderId);
-      const senderName = senderProfile ? 
-        `${senderProfile.firstName} ${senderProfile.lastName}` : 
-        "Someone";
-      
-      // Create notifications for each recipient
-      for (const recipientId of recipients) {
+      if (recipientId) {
+        // Get sender user profile 
+        const senderProfile = await fetchUserProfile(messageData.senderId);
+        const senderName = senderProfile ? 
+          `${senderProfile.firstName} ${senderProfile.lastName}` : 
+          "Someone";
+        
+        //  ! Create notification 
         await fetch("/api/notification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -235,4 +236,41 @@ export async function fetchChatMessages(chatRoomId: string) {
  * @param messageIds - Array of message IDs to mark as read
  * @returns Promise with the response data
  */
+export async function markMessagesAsRead(messageIds: string[]) {
+  try {
+    const response = await fetch("/api/messages/read", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds }),
+    });
 
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+}
+
+/**
+ ** Fetch delivery status for messages in a chat room
+ *
+ * @param chatRoomId - The unique identifier of the chat room
+ * @returns Promise that resolves to delivery status map
+ */
+export async function fetchMessageDeliveryStatus(
+  chatRoomId: string
+): Promise<Record<string, 'sent' | 'delivered' | 'read'> | null> {
+  try {
+    const response = await fetch(`/api/messages/delivery-status?chatRoomId=${chatRoomId}`);
+    const data = await response.json();
+
+    if (data.success && data.deliveryStatus) {
+      return data.deliveryStatus;
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Error fetching delivery status:", error);
+    return null;
+  }
+}

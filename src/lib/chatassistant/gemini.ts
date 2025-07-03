@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export async function getAnswerFromGemini(question: string, context?: string): Promise<string> {
   try {
     // Get the generative model 
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Construct the prompt
     let prompt = `You are a helpful technical assistant that provides accurate and concise information.

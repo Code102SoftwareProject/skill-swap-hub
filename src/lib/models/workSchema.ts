@@ -8,7 +8,6 @@ interface IWork extends Document {
     receiveUser: mongoose.Types.ObjectId;
     workURL: string;
     workDescription: string;
-    workStatus: 'pending' | 'completed' | 'canceled';
     provideDate: Date;
     acceptanceStatus: 'pending' | 'accepted' | 'rejected';
     rejectionReason: string;
@@ -25,7 +24,6 @@ const workSchema = new Schema<IWork>(
         receiveUser: { type: Schema.Types.ObjectId, ref: 'User', required: true },
         workURL: { type: String, required: true },
         workDescription: { type: String, required: true },
-        workStatus: { type: String, enum: ['pending', 'completed', 'canceled'], default: 'pending' },
         provideDate: { type: Date, default: Date.now },
         acceptanceStatus: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
         rejectionReason: { type: String, default:"" },

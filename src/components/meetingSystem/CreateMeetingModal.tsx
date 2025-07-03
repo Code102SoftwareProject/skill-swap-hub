@@ -17,6 +17,9 @@ export default function CreateMeetingModal({
   const [time, setTime] = useState('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
+
+  //! Validate Form
+
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
     
@@ -27,7 +30,7 @@ export default function CreateMeetingModal({
     if (!date) {
       newErrors.date = 'Date is required';
     } else {
-      // Check if date is in the future
+      // * No Past Dates
       const selectedDate = new Date(date + 'T' + (time || '00:00'));
       if (selectedDate < new Date()) {
         newErrors.date = 'Meeting date must be in the future';
@@ -61,7 +64,7 @@ export default function CreateMeetingModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-primary">Schedule New Meeting</h2>
+          <h2 className="text-xl font-bold text-primary font-body">Schedule New Meeting</h2>
           <button 
             onClick={onClose}
             className="text-gray-500 hover:text-gray-800"
