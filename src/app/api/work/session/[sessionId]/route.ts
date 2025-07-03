@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get works for a specific session
 export async function GET(
   req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   await connect();
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
 
     if (!Types.ObjectId.isValid(sessionId)) {
       return NextResponse.json(
@@ -21,8 +21,8 @@ export async function GET(
 
     const works = await Work.find({ session: new Types.ObjectId(sessionId) })
       .populate('session')
-      .populate('provideUser', 'name email avatar')
-      .populate('receiveUser', 'name email avatar')
+      .populate('provideUser', 'firstName lastName email avatar')
+      .populate('receiveUser', 'firstName lastName email avatar')
       .sort({ provideDate: -1 });
 
     return NextResponse.json({

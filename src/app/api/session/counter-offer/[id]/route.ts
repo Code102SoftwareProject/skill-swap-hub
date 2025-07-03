@@ -8,11 +8,11 @@ import { Types } from 'mongoose';
 // PATCH - Accept or reject a counter offer
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { action, userId } = body; // action: 'accept' | 'reject'
 
@@ -81,10 +81,18 @@ export async function PATCH(
         descriptionOfService2: counterOffer.descriptionOfService2,
         startDate: counterOffer.startDate,
         isAccepted: true,
-        isAmmended: true
+        isAmmended: true,
+        status: 'active'
       });
 
       // Create session progress for both users
+      console.log('Creating progress records for counter offer acceptance:', {
+        sessionId: originalSession._id,
+        user1Id: originalSession.user1Id,
+        user2Id: originalSession.user2Id,
+        startDate: counterOffer.startDate
+      });
+
       const dueDate = new Date(counterOffer.startDate);
       dueDate.setDate(dueDate.getDate() + 30);
 
@@ -98,6 +106,8 @@ export async function PATCH(
         notes: ''
       });
 
+      console.log('Created progress1:', progress1._id);
+
       const progress2 = await SessionProgress.create({
         userId: originalSession.user2Id,
         sessionId: originalSession._id,
@@ -108,11 +118,15 @@ export async function PATCH(
         notes: ''
       });
 
+      console.log('Created progress2:', progress2._id);
+
       // Update session with progress references
       await Session.findByIdAndUpdate(originalSession._id, {
         progress1: progress1._id,
         progress2: progress2._id
       });
+
+      console.log('Updated session with progress references');
 
     } else {
       // If rejected, just mark the original session as rejected
@@ -129,7 +143,7 @@ export async function PATCH(
       { new: true }
     )
       .populate('originalSessionId')
-      .populate('counterOfferedBy', 'name email avatar')
+      .populate('counterOfferedBy', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName');
 

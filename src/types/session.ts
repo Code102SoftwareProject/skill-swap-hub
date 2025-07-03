@@ -27,7 +27,7 @@ interface Session {
     userId: string;
     sessionId: string;
     completionPercentage: number;
-    status: "not_started" | "in_progress" | "completed" | "abondoned";
+    status: "not_started" | "in_progress" | "completed" | "abandoned";
     notes: string;
     startDate?: string;
     dueDate?: string;
@@ -37,7 +37,7 @@ interface Session {
     userId: string;
     sessionId: string;
     completionPercentage: number;
-    status: "not_started" | "in_progress" | "completed" | "abondoned";
+    status: "not_started" | "in_progress" | "completed" | "abandoned";
     notes: string;
     startDate?: string;
     dueDate?: string;

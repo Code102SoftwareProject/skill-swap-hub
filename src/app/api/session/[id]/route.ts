@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get session by ID
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -20,8 +20,8 @@ export async function GET(
     }
 
     const session = await Session.findById(id)
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
+      .populate('user1Id', 'firstName lastName email avatar')
+      .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')
@@ -50,11 +50,11 @@ export async function GET(
 // PATCH - Update session by ID
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     if (!Types.ObjectId.isValid(id)) {
@@ -150,11 +150,11 @@ export async function PATCH(
 // DELETE - Delete session by ID
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(

@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get session progress for a specific session
 export async function GET(
   req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   await connect();
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
 
     if (!Types.ObjectId.isValid(sessionId)) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function GET(
     }
 
     const progress = await SessionProgress.find({ sessionId: new Types.ObjectId(sessionId) })
-      .populate('userId', 'name email avatar')
+      .populate('userId', 'firstName lastName email avatar')
       .populate('sessionId')
       .sort({ createdAt: -1 });
 
@@ -40,11 +40,11 @@ export async function GET(
 // PATCH - Update session progress
 export async function PATCH(
   req: Request,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   await connect();
   try {
-    const { sessionId } = params;
+    const { sessionId } = await params;
     const body = await req.json();
     const { userId, completionPercentage, status, notes } = body;
 
@@ -89,9 +89,13 @@ export async function PATCH(
         userId: new Types.ObjectId(userId)
       },
       updateData,
-      { new: true, runValidators: true }
+      { 
+        new: true, 
+        runValidators: true,
+        upsert: true // Create if doesn't exist
+      }
     )
-      .populate('userId', 'name email avatar')
+      .populate('userId', 'firstName lastName email avatar')
       .populate('sessionId');
 
     if (!progress) {

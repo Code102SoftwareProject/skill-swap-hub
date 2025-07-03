@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/lib/context/AuthContext';
 
 interface Session {
   _id: string;
@@ -35,7 +36,7 @@ interface Work {
 
 interface SessionProgress {
   _id: string;
-  userId: string;
+  userId: any; // Can be string or populated user object
   sessionId: string;
   startDate: string;
   dueDate: string;
@@ -47,7 +48,9 @@ interface SessionProgress {
 export default function SessionWorkspace() {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const sessionId = params.sessionId as string;
+  const currentUserId = user?._id;
   
   const [session, setSession] = useState<Session | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
@@ -55,7 +58,6 @@ export default function SessionWorkspace() {
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress'>('overview');
-  const [currentUserId, setCurrentUserId] = useState<string>('');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
 
   // Submit work form state
@@ -119,21 +121,6 @@ export default function SessionWorkspace() {
       
       if (data.success) {
         setSession(data.session);
-        
-        // Get current user ID from the URL or determine from session
-        // This is a simplified approach - in a real app, you'd get this from auth
-        const urlParams = new URLSearchParams(window.location.search);
-        const userIdFromUrl = urlParams.get('userId');
-        
-        if (userIdFromUrl) {
-          setCurrentUserId(userIdFromUrl);
-        } else {
-          // For demo purposes, you could also check localStorage or use auth context
-          const storedUserId = localStorage.getItem('userId');
-          if (storedUserId) {
-            setCurrentUserId(storedUserId);
-          }
-        }
       }
     } catch (error) {
       console.error('Error fetching session:', error);
@@ -158,10 +145,23 @@ export default function SessionWorkspace() {
       const response = await fetch(`/api/session-progress/${sessionId}`);
       const data = await response.json();
       
-      if (data.success) {
+      if (data.success && currentUserId) {
+        console.log('Progress data:', data.progress);
+        console.log('Current user ID:', currentUserId);
+        
         // Find my progress and other user's progress
-        const myProg = data.progress.find((p: SessionProgress) => p.userId === currentUserId);
-        const otherProg = data.progress.find((p: SessionProgress) => p.userId !== currentUserId);
+        // Handle both string and populated user object cases
+        const myProg = data.progress.find((p: SessionProgress) => {
+          const progUserId = typeof p.userId === 'object' ? p.userId._id : p.userId;
+          return progUserId.toString() === currentUserId.toString();
+        });
+        const otherProg = data.progress.find((p: SessionProgress) => {
+          const progUserId = typeof p.userId === 'object' ? p.userId._id : p.userId;
+          return progUserId.toString() !== currentUserId.toString();
+        });
+        
+        console.log('My progress:', myProg);
+        console.log('Other progress:', otherProg);
         
         setMyProgress(myProg || null);
         setOtherProgress(otherProg || null);
@@ -220,7 +220,13 @@ export default function SessionWorkspace() {
         workURL = uploadedUrl;
       }
 
-      const otherUserId = session?.user1Id._id === currentUserId ? session.user2Id._id : session?.user1Id._id;
+      if (!session || !currentUserId) {
+        alert('Session or user information not available');
+        setUploading(false);
+        return;
+      }
+
+      const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
 
       const response = await fetch('/api/work', {
         method: 'POST',
@@ -332,6 +338,11 @@ export default function SessionWorkspace() {
   };
 
   const handleProgressUpdate = async () => {
+    if (!currentUserId) {
+      alert('User authentication required');
+      return;
+    }
+
     if (newProgress < 0 || newProgress > 100) {
       alert('Progress must be between 0 and 100');
       return;
@@ -359,7 +370,7 @@ export default function SessionWorkspace() {
         alert('Progress updated successfully!');
         setEditingProgress(false);
         setProgressNotes('');
-        fetchProgress(); // Refresh progress data
+        await fetchProgress(); // Refresh progress data
       } else {
         alert(data.message || 'Failed to update progress');
       }
@@ -393,6 +404,23 @@ export default function SessionWorkspace() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!user || !currentUserId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
+          <p className="text-gray-600 mb-4">Please log in to access this session.</p>
+          <button
+            onClick={() => router.push('/login')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go to Login
+          </button>
+        </div>
       </div>
     );
   }

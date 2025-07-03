@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get a specific work by ID
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
 
     if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(
@@ -47,11 +47,11 @@ export async function GET(
 // PATCH - Accept or reject work
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { action, userId, rejectionReason, rating, remark } = body;
 
@@ -136,11 +136,11 @@ export async function PATCH(
 // DELETE - Delete work (only by the provider)
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
 

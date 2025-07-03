@@ -7,11 +7,11 @@ import { Types } from 'mongoose';
 // PATCH - Accept or reject a session and create progress if accepted
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
     const { action, userId } = body; // action: 'accept' | 'reject'
 
@@ -71,8 +71,10 @@ export async function PATCH(
       updatedAt: new Date()
     };
 
-    // If rejected, set status to canceled
-    if (action === 'reject') {
+    // If accepted, set status to active; if rejected, set status to canceled
+    if (action === 'accept') {
+      updateObj.status = 'active';
+    } else if (action === 'reject') {
       updateObj.status = 'canceled';
     }
 
@@ -84,6 +86,13 @@ export async function PATCH(
 
     // If accepted, create session progress for both users
     if (action === 'accept') {
+      console.log('Creating progress records for session acceptance:', {
+        sessionId: session._id,
+        user1Id: session.user1Id,
+        user2Id: session.user2Id,
+        startDate: session.startDate
+      });
+
       // Calculate due date (30 days from start date)
       const dueDate = new Date(session.startDate);
       dueDate.setDate(dueDate.getDate() + 30);
@@ -99,6 +108,8 @@ export async function PATCH(
         notes: ''
       });
 
+      console.log('Created progress1:', progress1._id);
+
       // Create progress for user2
       const progress2 = await SessionProgress.create({
         userId: session.user2Id,
@@ -110,17 +121,21 @@ export async function PATCH(
         notes: ''
       });
 
+      console.log('Created progress2:', progress2._id);
+
       // Update session with progress references
       await Session.findByIdAndUpdate(id, {
         progress1: progress1._id,
         progress2: progress2._id
       });
+
+      console.log('Updated session with progress references');
     }
 
     // Get the final updated session with all populated data
     const finalSession = await Session.findById(id)
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
+      .populate('user1Id', 'firstName lastName email avatar')
+      .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')

@@ -6,11 +6,11 @@ import { Types } from 'mongoose';
 // GET - Get progress by user ID
 export async function GET(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   await connect();
   try {
-    const { userId } = params;
+    const { userId } = await params;
 
     if (!Types.ObjectId.isValid(userId)) {
       return NextResponse.json(
@@ -40,11 +40,11 @@ export async function GET(
 // PATCH - Update progress
 export async function PATCH(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   await connect();
   try {
-    const { userId } = params;
+    const { userId } = await params;
     const body = await req.json();
     const { sessionId, completionPercentage, status, notes } = body;
 
