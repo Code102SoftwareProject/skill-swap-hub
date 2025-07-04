@@ -14,6 +14,7 @@ import {
   FileText,
   Flag,
   LogOut,
+  Shield,
 } from "lucide-react";
 
 import clsx from "clsx"; // Utility for conditional class names
@@ -22,23 +23,61 @@ import clsx from "clsx"; // Utility for conditional class names
 interface AdminSidebarProps {
   onNavigate: (component: string) => void; // Function passed from parent to switch the view
   activeComponent: string; // Current active component ID
+  adminData?: {
+    userId: string;
+    username: string;
+    role: string;
+    permissions: string[];
+  } | null; // Admin data for permission checking
 }
 
 // Navigation items config
 const navItems = [
-  { id: "dashboard", label: "Dashboard", icon: Home },
-  { id: "kyc", label: "KYC", icon: IdCard },
-  { id: "users", label: "Users", icon: Users },
-  { id: "suggestions", label: "Suggestions", icon: Lightbulb },
-  { id: "system", label: "System", icon: Settings },
-  { id: "verify-documents", label: "Verify Documents", icon: FileText },
-  { id: "reporting", label: "Reporting", icon: Flag },
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: Home,
+    permission: "view_dashboard",
+  },
+  {
+    id: "admin-management",
+    label: "Admin Management",
+    icon: Shield,
+    permission: "manage_admins",
+  },
+  { id: "kyc", label: "KYC", icon: IdCard, permission: "manage_kyc" },
+  { id: "users", label: "Users", icon: Users, permission: "manage_users" },
+  {
+    id: "suggestions",
+    label: "Suggestions",
+    icon: Lightbulb,
+    permission: "manage_suggestions",
+  },
+  {
+    id: "system",
+    label: "System",
+    icon: Settings,
+    permission: "manage_system",
+  },
+  {
+    id: "verify-documents",
+    label: "Verify Documents",
+    icon: FileText,
+    permission: "manage_verification",
+  },
+  {
+    id: "reporting",
+    label: "Reporting",
+    icon: Flag,
+    permission: "manage_reporting",
+  },
 ];
 
 // Component
 const AdminSidebar: FC<AdminSidebarProps> = ({
   onNavigate,
   activeComponent,
+  adminData,
 }) => {
   const router = useRouter(); // Now we'll use this for navigation
 
@@ -68,6 +107,18 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeComponent === item.id;
+
+          // Check if admin has permission to access this item
+          const hasPermission =
+            !adminData ||
+            !item.permission ||
+            (adminData.permissions &&
+              adminData.permissions.includes(item.permission));
+
+          // Don't render the item if user doesn't have permission
+          if (!hasPermission) {
+            return null;
+          }
 
           return (
             <button

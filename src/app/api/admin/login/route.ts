@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
       {
         userId: admin._id,
         username: admin.username,
-        role: "admin",
+        role: admin.role || "admin", // Use the role from database
+        permissions: admin.permissions || [],
       },
       JWT_SECRET,
       { expiresIn: "8h" } // Token expires in 8 hours
