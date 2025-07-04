@@ -91,25 +91,26 @@ const cleanAndCreateSuperAdmin = async () => {
     // Pre-save middleware to set default permissions based on role
     adminSchema.pre("save", function (next) {
       if (this.permissions.length === 0) {
+        // Base permissions that all admins have
+        const baseAdminPermissions = [
+          "manage_users",
+          "manage_kyc",
+          "manage_suggestions",
+          "manage_verification",
+          "manage_reporting",
+          "manage_system",
+          "view_dashboard",
+        ];
+
         if (this.role === "super_admin") {
+          // Super admins get all base permissions + admin management
           this.permissions = [
-            "manage_admins",
-            "manage_users",
-            "manage_kyc",
-            "manage_suggestions",
-            "manage_system",
-            "manage_verification",
-            "manage_reporting",
-            "view_dashboard",
+            ...baseAdminPermissions,
+            "manage_admins", // Only super admins can manage other admins
           ];
         } else {
-          this.permissions = [
-            "manage_users",
-            "manage_kyc",
-            "manage_suggestions",
-            "manage_verification",
-            "view_dashboard",
-          ];
+          // Normal admins get all base permissions except admin management
+          this.permissions = [...baseAdminPermissions];
         }
       }
       next();

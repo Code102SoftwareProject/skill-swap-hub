@@ -64,7 +64,10 @@ const connectDB = async () => {
       throw new Error("MONGODB_URI not found in environment variables");
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI, {
+      dbName: "skillSwapHub",
+      bufferCommands: true,
+    });
     console.log("MongoDB connected successfully");
   } catch (error) {
     console.error("MongoDB connection error:", error);

@@ -13,7 +13,11 @@
     "migrate:userskills": "node -r dotenv/config src/scripts/migrations/migrate-userskill.js",
     "setup:super-admin": "node -r dotenv/config scripts/setupSuperAdmin.js",
     "reset:super-admin-password": "node -r dotenv/config scripts/resetSuperAdminPassword.js",
-    "debug:admin-login": "node -r dotenv/config scripts/debugAdminLogin.js"
+    "debug:admin-login": "node -r dotenv/config scripts/debugAdminLogin.js",
+    "test:permissions": "node -r dotenv/config scripts/testPermissionStructure.js",
+    "clean:create-super-admin": "node -r dotenv/config scripts/cleanAndCreateSuperAdmin.js",
+    "test:admin-api": "node -r dotenv/config scripts/testAdminAPI.js",
+    "check:clean-admins": "node -r dotenv/config scripts/checkAndCleanAdmins.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",

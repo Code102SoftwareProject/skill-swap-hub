@@ -139,7 +139,13 @@ const Toast = ({
   );
 };
 
-const AdminManagementContent: React.FC = () => {
+interface AdminManagementContentProps {
+  currentAdminRole?: string;
+}
+
+const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
+  currentAdminRole,
+}) => {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -152,6 +158,9 @@ const AdminManagementContent: React.FC = () => {
     message: string;
     type: "success" | "error" | "warning";
   } | null>(null);
+
+  // Check if current admin is a super admin
+  const isCurrentSuperAdmin = currentAdminRole === "super_admin";
 
   // Form states
   const [createForm, setCreateForm] = useState<CreateAdminData>({
@@ -200,6 +209,41 @@ const AdminManagementContent: React.FC = () => {
   const createAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Client-side validation
+    if (createForm.username.trim().length < 4) {
+      setToast({
+        message: "Username must be at least 4 characters long",
+        type: "error",
+      });
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(createForm.email.trim())) {
+      setToast({
+        message: "Please enter a valid email address",
+        type: "error",
+      });
+      return;
+    }
+
+    if (createForm.password.length < 8) {
+      setToast({
+        message: "Password must be at least 8 characters long",
+        type: "error",
+      });
+      return;
+    }
+
+    const passwordRegex = /^(?=.*\d)/;
+    if (!passwordRegex.test(createForm.password)) {
+      setToast({
+        message: "Password must contain at least one number",
+        type: "error",
+      });
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/create-admin", {
         method: "POST",
@@ -216,7 +260,7 @@ const AdminManagementContent: React.FC = () => {
         throw new Error(data.message || "Failed to create admin");
       }
 
-      setToast({ message: "Admin created successfully", type: "success" });
+      setToast({ message: "New admin created", type: "success" });
       setShowCreateForm(false);
       setCreateForm({
         username: "",
@@ -367,6 +411,28 @@ const AdminManagementContent: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         <span className="ml-2 text-gray-600">Loading admins...</span>
+      </div>
+    );
+  }
+
+  // Show unauthorized message if user is not a super admin
+  if (!isCurrentSuperAdmin) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <ShieldCheck className="mx-auto h-16 w-16 text-red-500 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Unauthorized
+            </h2>
+            <p className="text-gray-600 mb-4">
+              You don't have permission to access admin management.
+            </p>
+            <p className="text-sm text-gray-500">
+              Only Super Admins can view and manage administrator accounts.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -599,9 +665,14 @@ const AdminManagementContent: React.FC = () => {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, username: e.target.value })
                     }
+                    placeholder="At least 4 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
+                    minLength={4}
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Minimum 4 characters
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -613,9 +684,13 @@ const AdminManagementContent: React.FC = () => {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, email: e.target.value })
                     }
+                    placeholder="admin@example.com"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Valid email address
+                  </p>
                 </div>
               </div>
 
@@ -630,8 +705,10 @@ const AdminManagementContent: React.FC = () => {
                     onChange={(e) =>
                       setCreateForm({ ...createForm, password: e.target.value })
                     }
+                    placeholder="At least 8 characters with a number"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
                     required
+                    minLength={8}
                   />
                   <button
                     type="button"
@@ -641,6 +718,9 @@ const AdminManagementContent: React.FC = () => {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimum 8 characters including at least one number
+                </p>
               </div>
 
               <div>
@@ -659,31 +739,41 @@ const AdminManagementContent: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permissions
+                  Permissions Summary (Read-only)
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {AVAILABLE_PERMISSIONS.map((permission) => (
-                    <div
-                      key={permission.key}
-                      className="flex items-center space-x-2"
-                    >
-                      <input
-                        type="checkbox"
-                        id={`create-${permission.key}`}
-                        checked={createForm.permissions.includes(
-                          permission.key
-                        )}
-                        onChange={() => togglePermission(permission.key, true)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label
-                        htmlFor={`create-${permission.key}`}
-                        className="text-sm text-gray-700"
-                      >
-                        {permission.label}
-                      </label>
-                    </div>
-                  ))}
+                <div className="bg-gray-50 p-3 rounded-lg border">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {AVAILABLE_PERMISSIONS.map((permission) => {
+                      const isChecked = createForm.permissions.includes(
+                        permission.key
+                      );
+                      return (
+                        <div
+                          key={permission.key}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            id={`create-${permission.key}`}
+                            checked={isChecked}
+                            disabled={true}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
+                          />
+                          <label
+                            htmlFor={`create-${permission.key}`}
+                            className={`text-sm ${isChecked ? "text-gray-700" : "text-gray-400"}`}
+                          >
+                            {permission.label}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {createForm.role === "super_admin"
+                      ? "Super Admins have all permissions including admin management."
+                      : "Regular Admins have all permissions except admin management."}
+                  </p>
                 </div>
               </div>
 
@@ -803,31 +893,41 @@ const AdminManagementContent: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permissions
+                  Permissions Summary (Read-only)
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {AVAILABLE_PERMISSIONS.map((permission) => (
-                    <div
-                      key={permission.key}
-                      className="flex items-center space-x-2"
-                    >
-                      <input
-                        type="checkbox"
-                        id={`update-${permission.key}`}
-                        checked={updateForm.permissions!.includes(
-                          permission.key
-                        )}
-                        onChange={() => togglePermission(permission.key, false)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                      />
-                      <label
-                        htmlFor={`update-${permission.key}`}
-                        className="text-sm text-gray-700"
-                      >
-                        {permission.label}
-                      </label>
-                    </div>
-                  ))}
+                <div className="bg-gray-50 p-3 rounded-lg border">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {AVAILABLE_PERMISSIONS.map((permission) => {
+                      const isChecked = updateForm.permissions!.includes(
+                        permission.key
+                      );
+                      return (
+                        <div
+                          key={permission.key}
+                          className="flex items-center space-x-2"
+                        >
+                          <input
+                            type="checkbox"
+                            id={`update-${permission.key}`}
+                            checked={isChecked}
+                            disabled={true}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
+                          />
+                          <label
+                            htmlFor={`update-${permission.key}`}
+                            className={`text-sm ${isChecked ? "text-gray-700" : "text-gray-400"}`}
+                          >
+                            {permission.label}
+                          </label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {updateForm.role === "super_admin"
+                      ? "Super Admins have all permissions including admin management."
+                      : "Regular Admins have all permissions except admin management."}
+                  </p>
                 </div>
               </div>
 

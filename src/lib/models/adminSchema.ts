@@ -69,25 +69,26 @@ const adminSchema = new Schema(
 adminSchema.pre("save", function (next) {
   // Only set default permissions if permissions array is empty
   if (this.permissions.length === 0) {
+    // Base permissions that all admins have
+    const baseAdminPermissions = [
+      "manage_users",
+      "manage_kyc",
+      "manage_suggestions",
+      "manage_verification",
+      "manage_reporting",
+      "manage_system",
+      "view_dashboard",
+    ];
+
     if (this.role === "super_admin") {
+      // Super admins get all base permissions + admin management
       this.permissions = [
-        "manage_admins",
-        "manage_users",
-        "manage_kyc",
-        "manage_suggestions",
-        "manage_system",
-        "manage_verification",
-        "manage_reporting",
-        "view_dashboard",
+        ...baseAdminPermissions,
+        "manage_admins", // Only super admins can manage other admins
       ];
     } else {
-      this.permissions = [
-        "manage_users",
-        "manage_kyc",
-        "manage_suggestions",
-        "manage_verification",
-        "view_dashboard",
-      ];
+      // Normal admins get all base permissions except admin management
+      this.permissions = [...baseAdminPermissions];
     }
   }
   next();

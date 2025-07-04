@@ -300,7 +300,10 @@ export default function AdminDashboard() {
                 </div>
               }
             >
-              <AdminManagementContent key={activeComponent} />
+              <AdminManagementContent
+                key={activeComponent}
+                currentAdminRole={adminData?.role}
+              />
             </Suspense>
           );
         case COMPONENTS.KYC:
