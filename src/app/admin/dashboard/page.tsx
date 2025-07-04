@@ -26,12 +26,9 @@ const COMPONENTS = {
 
 // Define interface for Admin data
 interface Admin {
-  id: string;
+  userId: string;
   username: string;
-  email: string;
   role: string;
-  permissions?: string[];
-  lastLogin?: Date;
 }
 
 // Toast notification type definition
@@ -155,7 +152,10 @@ export default function AdminDashboard() {
           return;
         }
 
-        // Authentication is valid
+        // Authentication is valid, store admin data
+        if (data.admin) {
+          setAdminData(data.admin);
+        }
         setIsLoading(false);
       } catch (error) {
         console.error("Authentication error:", error);
@@ -308,7 +308,7 @@ export default function AdminDashboard() {
       {/* Main content area - takes remaining space with flex layout */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top navigation bar */}
-        <AdminNavbar />
+        <AdminNavbar adminData={adminData} />
 
         {/* Main content container with scrollable area and styling */}
         <main className="p-6 mt-4 overflow-y-auto bg-gray-50 min-h-screen">
