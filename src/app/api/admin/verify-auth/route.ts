@@ -55,6 +55,7 @@ export async function GET(_request: NextRequest) {
         userId: decoded.userId,
         username: decoded.username,
         role: decoded.role,
+        permissions: decoded.permissions || [],
       },
     });
   } catch (error) {

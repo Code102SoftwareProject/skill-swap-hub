@@ -1,6 +1,6 @@
 "use client"; // Required for client-side rendering
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/Admin/AdminSidebar";
 import AdminNavbar from "@/components/Admin/AdminNavbar";
@@ -13,9 +13,16 @@ import SystemContent from "@/components/Admin/dashboardContent/SystemContent";
 import VerificationRequests from "@/components/Admin/skillverifications";
 import ReportingContent from "@/components/Admin/dashboardContent/ReportingContent";
 
+// Dynamic import for AdminManagementContent to avoid import issues
+const AdminManagementContent = React.lazy(
+  () =>
+    import("../../../components/Admin/dashboardContent/AdminManagementContent")
+);
+
 // Constants to avoid magic strings
 const COMPONENTS = {
   DASHBOARD: "dashboard",
+  ADMIN_MANAGEMENT: "admin-management",
   KYC: "kyc",
   USERS: "users",
   SUGGESTIONS: "suggestions",
@@ -29,6 +36,19 @@ interface Admin {
   userId: string;
   username: string;
   role: string;
+  permissions: string[];
+}
+
+// Define interface for AdminData with extended properties
+interface AdminData {
+  userId: string;
+  username: string;
+  role: string;
+  permissions: string[];
+  email?: string;
+  status?: string;
+  createdAt?: string;
+  createdBy?: string;
 }
 
 // Toast notification type definition
@@ -268,6 +288,24 @@ export default function AdminDashboard() {
       switch (activeComponent) {
         case COMPONENTS.DASHBOARD:
           return <DashboardContent key={activeComponent} />;
+        case COMPONENTS.ADMIN_MANAGEMENT:
+          return (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-gray-600">
+                    Loading admin management...
+                  </span>
+                </div>
+              }
+            >
+              <AdminManagementContent
+                key={activeComponent}
+                currentAdminRole={adminData?.role}
+              />
+            </Suspense>
+          );
         case COMPONENTS.KYC:
           return <KYCContent key={activeComponent} />;
         case COMPONENTS.USERS:
@@ -303,6 +341,7 @@ export default function AdminDashboard() {
       <AdminSidebar
         onNavigate={setActiveComponent}
         activeComponent={activeComponent}
+        adminData={adminData}
       />
 
       {/* Main content area - takes remaining space with flex layout */}

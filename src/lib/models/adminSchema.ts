@@ -30,11 +30,69 @@ const adminSchema = new Schema(
       type: String,
       required: true, // Always required (should be hashed before storing)
     },
+
+    // Admin role - either 'super_admin' or 'admin'
+    role: {
+      type: String,
+      enum: ["super_admin", "admin"],
+      default: "admin",
+      required: true,
+    },
+
+    // ID of the super admin who created this admin (null for super admins)
+    createdBy: {
+      type: mongoose.Types.ObjectId,
+      ref: "Admin",
+      default: null,
+    },
+
+    // Admin status - active, inactive, suspended
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active",
+      required: true,
+    },
+
+    // Permissions array for granular access control
+    permissions: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true, // Automatically adds createdAt and updatedAt fields
   }
 );
+
+// Pre-save middleware to set default permissions based on role
+adminSchema.pre("save", function (next) {
+  // Only set default permissions if permissions array is empty
+  if (this.permissions.length === 0) {
+    // Base permissions that all admins have
+    const baseAdminPermissions = [
+      "manage_users",
+      "manage_kyc",
+      "manage_suggestions",
+      "manage_verification",
+      "manage_reporting",
+      "manage_system",
+      "view_dashboard",
+    ];
+
+    if (this.role === "super_admin") {
+      // Super admins get all base permissions + admin management
+      this.permissions = [
+        ...baseAdminPermissions,
+        "manage_admins", // Only super admins can manage other admins
+      ];
+    } else {
+      // Normal admins get all base permissions except admin management
+      this.permissions = [...baseAdminPermissions];
+    }
+  }
+  next();
+});
 
 //  Prevent model overwrite error in Next.js hot reload
 const Admin = models.Admin || model("Admin", adminSchema);
