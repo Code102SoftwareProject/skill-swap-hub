@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/badge-assignments",
+      "schedule": "0 0 * * *"
+    }
+  ]
+}

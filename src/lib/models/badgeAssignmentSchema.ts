@@ -11,24 +11,24 @@ export interface IBadgeAssignment extends Document {
 
 const badgeAssignmentSchema = new Schema<IBadgeAssignment>(
   {
-    userId: { 
-      type: Schema.Types.ObjectId, 
-      ref: "User", 
-      required: true 
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
     },
-    badgeId: { 
-      type: Schema.Types.ObjectId, 
-      ref: "badge", 
-      required: true 
+    badgeId: {
+      type: Schema.Types.ObjectId,
+      ref: "badge",
+      required: true,
     },
-    assignedAt: { 
-      type: Date, 
-      default: Date.now 
+    assignedAt: {
+      type: Date,
+      default: Date.now,
     },
-    assignmentContext: { 
-      type: String, 
-      required: true 
-    }
+    assignmentContext: {
+      type: String,
+      required: true,
+    },
   },
   { timestamps: true }
 );
@@ -41,6 +41,8 @@ badgeAssignmentSchema.index({ userId: 1 });
 badgeAssignmentSchema.index({ badgeId: 1 });
 badgeAssignmentSchema.index({ assignmentContext: 1 });
 
-const BadgeAssignment = mongoose.models.BadgeAssignment || mongoose.model<IBadgeAssignment>("BadgeAssignment", badgeAssignmentSchema);
+const BadgeAssignment =
+  mongoose.models.BadgeAssignment ||
+  mongoose.model<IBadgeAssignment>("BadgeAssignment", badgeAssignmentSchema);
 
 export default BadgeAssignment;
