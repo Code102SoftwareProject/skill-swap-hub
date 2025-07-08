@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Calendar, User, BookOpen, MessageSquare } from 'lucide-react';
+import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
   _id: string;
@@ -56,6 +57,32 @@ export default function CounterOfferModal({
   const [counterOfferMessage, setCounterOfferMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
+
+  // Alert state
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: ''
+  });
+
+  // Helper function for alerts
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     if (isOpen && session) {
@@ -145,7 +172,7 @@ export default function CounterOfferModal({
     e.preventDefault();
     
     if (!selectedUserSkill || !selectedOtherSkill || !userDescription || !otherDescription || !startDate || !counterOfferMessage) {
-      alert('Please fill in all fields');
+      showAlert('warning', 'Please fill in all fields');
       return;
     }
 
@@ -160,13 +187,13 @@ export default function CounterOfferModal({
 
     if (!isValidObjectId(selectedUserSkill)) {
       console.error('Invalid user skill ID:', selectedUserSkill);
-      alert(`Invalid user skill selection. ID format: ${selectedUserSkill}`);
+      showAlert('error', `Invalid user skill selection. ID format: ${selectedUserSkill}`);
       return;
     }
     
     if (!isValidObjectId(selectedOtherSkill)) {
       console.error('Invalid other skill ID:', selectedOtherSkill);
-      alert(`Invalid other user skill selection. ID format: ${selectedOtherSkill}`);
+      showAlert('error', `Invalid other user skill selection. ID format: ${selectedOtherSkill}`);
       return;
     }
 
@@ -198,16 +225,16 @@ export default function CounterOfferModal({
       const data = await response.json();
       
       if (data.success) {
-        alert('Counter offer sent successfully!');
+        showAlert('success', 'Counter offer sent successfully!');
         onCounterOfferCreated();
         onClose();
       } else {
         console.error('Counter offer failed:', data); // Debug log
-        alert(data.message || 'Failed to send counter offer');
+        showAlert('error', data.message || 'Failed to send counter offer');
       }
     } catch (error) {
       console.error('Error sending counter offer:', error);
-      alert('Failed to send counter offer');
+      showAlert('error', 'Failed to send counter offer');
     } finally {
       setLoading(false);
     }
@@ -417,6 +444,17 @@ export default function CounterOfferModal({
           </div>
         </form>
       </div>
+
+      {/* Alert Component */}
+      <Alert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        showCloseButton={true}
+        autoClose={false}
+      />
     </div>
   );
 }

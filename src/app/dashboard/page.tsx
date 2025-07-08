@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/context/AuthContext';
 import UserSidebar from '@/components/User/UserSidebar';
 import NavBar from '@/components/homepage/Navbar';
 
@@ -15,6 +16,7 @@ import SuggestionContent from '@/components/User/DashboardContent/SuggestionCont
 import SettingContent from '@/components/User/DashboardContent/SettingContent';
 
 export default function UserDashboardPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [activeComponent, setActiveComponent] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -82,6 +84,33 @@ export default function UserDashboardPage() {
         return <UserDashboardContent key={activeComponent} />;
     }
   };
+
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="h-screen flex flex-col">
+        <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={false} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <div className="h-screen flex flex-col">
+        <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={false} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
+            <p className="text-gray-600">Please log in to access your dashboard</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col">

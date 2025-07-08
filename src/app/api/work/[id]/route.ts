@@ -21,8 +21,8 @@ export async function GET(
 
     const work = await Work.findById(id)
       .populate('session')
-      .populate('provideUser', 'name email avatar')
-      .populate('receiveUser', 'name email avatar');
+      .populate('provideUser', 'firstName lastName email avatar title')
+      .populate('receiveUser', 'firstName lastName email avatar title');
 
     if (!work) {
       return NextResponse.json(
@@ -116,8 +116,8 @@ export async function PATCH(
       { new: true, runValidators: true }
     )
       .populate('session')
-      .populate('provideUser', 'name email avatar')
-      .populate('receiveUser', 'name email avatar');
+      .populate('provideUser', 'firstName lastName email avatar title')
+      .populate('receiveUser', 'firstName lastName email avatar title');
 
     return NextResponse.json({
       success: true,
