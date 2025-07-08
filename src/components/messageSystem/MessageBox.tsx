@@ -60,7 +60,7 @@ function SkillMatchInfoMessage({ participantName }: { participantName?: string }
         </div>
         <p className="text-blue-600 text-sm font-body text-center">
           This chat was created because you and {participantName || 'your chat partner'} were matched based on your skills! 
-          You can now discuss your skill exchange and schedule a learning session.
+          You can now discuss your skill exchange and schedule a skill sharing session.
         </p>
       </div>
     </div>
@@ -428,10 +428,8 @@ export default function MessageBox({
       ref={containerRef}
       className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
     >
-      {/* Show skill match info message when there are no messages */}
-      {messages.length === 0 && (
-        <SkillMatchInfoMessage participantName={participantInfo?.name} />
-      )}
+      {/* Always show skill match info message at the top of new chat rooms */}
+      <SkillMatchInfoMessage participantName={participantInfo?.name} />
       
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
