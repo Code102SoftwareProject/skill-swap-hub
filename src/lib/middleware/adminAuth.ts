@@ -10,17 +10,32 @@ interface AdminUser {
   permissions: string[];
 }
 
+interface AdminMiddlewareFunction {
+  (req: NextRequest): Promise<NextResponse | null>;
+}
+
+interface AdminHandlerFunction {
+  (req: NextRequest, ...args: any[]): Promise<NextResponse>;
+}
+
+// Validate JWT_SECRET early
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required but not set");
+}
+
 export async function verifyAdminAuth(
   req: NextRequest
 ): Promise<AdminUser | null> {
   try {
-    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+    // Extract token from HttpOnly cookie instead of Authorization header
+    const token = req.cookies.get("adminToken")?.value;
 
     if (!token) {
       return null;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, JWT_SECRET!) as any;
 
     await connect();
     const admin = await Admin.findById(decoded.id);
@@ -41,8 +56,10 @@ export async function verifyAdminAuth(
   }
 }
 
-export function createAdminAuthMiddleware(requiredPermissions: string[] = []) {
-  return async (req: NextRequest) => {
+export function createAdminAuthMiddleware(
+  requiredPermissions: string[] = []
+): AdminMiddlewareFunction {
+  return async (req: NextRequest): Promise<NextResponse | null> => {
     const admin = await verifyAdminAuth(req);
 
     if (!admin) {
@@ -67,26 +84,57 @@ export function createAdminAuthMiddleware(requiredPermissions: string[] = []) {
       }
     }
 
-    // Add admin info to request for use in handlers
-    (req as any).admin = admin;
+    // Pass admin info via NextResponse.next() with headers instead of mutating req
+    const response = NextResponse.next();
+    response.headers.set("x-admin-id", admin.id);
+    response.headers.set("x-admin-email", admin.email);
+    response.headers.set("x-admin-role", admin.role);
+    response.headers.set(
+      "x-admin-permissions",
+      JSON.stringify(admin.permissions)
+    );
 
-    return null; // Continue to handler
+    return response;
   };
 }
 
 // Common admin authentication wrapper
 export function withAdminAuth(
-  handler: Function,
+  handler: AdminHandlerFunction,
   requiredPermissions: string[] = []
-) {
-  return async (req: NextRequest, ...args: any[]) => {
+): AdminHandlerFunction {
+  return async (req: NextRequest, ...args: any[]): Promise<NextResponse> => {
     const authResult =
       await createAdminAuthMiddleware(requiredPermissions)(req);
 
-    if (authResult) {
+    if (authResult && authResult.status !== 200) {
       return authResult; // Return auth error response
     }
 
     return handler(req, ...args);
   };
+}
+
+// Helper function to extract admin info from headers in route handlers
+export function getAdminFromHeaders(req: NextRequest): AdminUser | null {
+  const adminId = req.headers.get("x-admin-id");
+  const adminEmail = req.headers.get("x-admin-email");
+  const adminRole = req.headers.get("x-admin-role");
+  const adminPermissions = req.headers.get("x-admin-permissions");
+
+  if (!adminId || !adminEmail || !adminRole || !adminPermissions) {
+    return null;
+  }
+
+  try {
+    return {
+      id: adminId,
+      email: adminEmail,
+      role: adminRole,
+      permissions: JSON.parse(adminPermissions),
+    };
+  } catch (error) {
+    console.error("Error parsing admin permissions from headers:", error);
+    return null;
+  }
 }

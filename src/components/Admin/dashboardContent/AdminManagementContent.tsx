@@ -152,6 +152,7 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
   const [showEditForm, setShowEditForm] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [toast, setToast] = useState<{
@@ -394,13 +395,24 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
   // Filter admins
   const filteredAdmins = admins.filter((admin) => {
     const matchesSearch =
-      admin.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      admin.email.toLowerCase().includes(searchTerm.toLowerCase());
+      admin.username
+        .toLowerCase()
+        .includes(debouncedSearchTerm.toLowerCase()) ||
+      admin.email.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
     const matchesRole = filterRole === "all" || admin.role === filterRole;
     const matchesStatus =
       filterStatus === "all" || admin.status === filterStatus;
     return matchesSearch && matchesRole && matchesStatus;
   });
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchAdmins();
