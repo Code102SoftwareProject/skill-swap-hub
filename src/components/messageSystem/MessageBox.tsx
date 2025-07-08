@@ -46,6 +46,28 @@ function DateBadge({ date }: { date: Date }) {
 }
 
 /**
+ * SkillMatchInfoMessage component to show when chat was created due to skill match
+ */
+function SkillMatchInfoMessage({ participantName }: { participantName?: string }) {
+  return (
+    <div className="flex items-center justify-center my-4 md:my-6 w-full">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span className="text-blue-700 font-semibold text-sm font-body">
+            New Skill Match! 🎉
+          </span>
+        </div>
+        <p className="text-blue-600 text-sm font-body text-center">
+          This chat was created because you and {participantName || 'your chat partner'} were matched based on your skills! 
+          You can now discuss your skill exchange and schedule a learning session.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
  * ! TypingIndicator component 
  */
 function TypingIndicator() {
@@ -406,6 +428,11 @@ export default function MessageBox({
       ref={containerRef}
       className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
     >
+      {/* Show skill match info message when there are no messages */}
+      {messages.length === 0 && (
+        <SkillMatchInfoMessage participantName={participantInfo?.name} />
+      )}
+      
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
         
