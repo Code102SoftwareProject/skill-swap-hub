@@ -110,9 +110,9 @@ export default function CreateSessionModal({
     if (!selectedMySkill) newErrors.mySkill = 'Please select a skill you want to offer';
     if (!myDescription.trim()) newErrors.myDescription = 'Please describe what you will provide';
     if (myDescription.trim().length < 10) newErrors.myDescription = 'Description must be at least 10 characters';
-    
-    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to learn';
-    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to learn';
+
+    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to be offered';
+    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to be offerd';
     if (otherDescription.trim().length < 10) newErrors.otherDescription = 'Description must be at least 10 characters';
     
     if (!startDate) newErrors.startDate = 'Please select a start date';

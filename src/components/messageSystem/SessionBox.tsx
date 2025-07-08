@@ -154,6 +154,43 @@ export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionB
     return user.email || 'Unknown User';
   };
 
+  // Helper function to get display name from counter offer user
+  const getCounterOfferUserName = (counterOfferedBy: any): string => {
+    if (!counterOfferedBy) return 'Unknown User';
+    
+    // Handle if it's just an ID string
+    if (typeof counterOfferedBy === 'string') {
+      return 'Unknown User';
+    }
+    
+    // Handle populated user object
+    const firstName = counterOfferedBy.firstName?.trim();
+    const lastName = counterOfferedBy.lastName?.trim();
+    
+    // Check if we have both firstName and lastName and they're not empty
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+    
+    // If only one name is available, use it
+    if (firstName) return firstName;
+    if (lastName) return lastName;
+    
+    // Fallback to other fields
+    if (counterOfferedBy.name?.trim()) {
+      return counterOfferedBy.name.trim();
+    }
+    
+    // If all else fails, use email but make it more user-friendly
+    if (counterOfferedBy.email) {
+      // Extract username part from email for better display
+      const emailUsername = counterOfferedBy.email.split('@')[0];
+      return emailUsername || counterOfferedBy.email;
+    }
+    
+    return 'Unknown User';
+  };
+
   // Helper functions for alerts and confirmations
   const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
     setAlert({
@@ -968,10 +1005,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionB
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center space-x-2">
                               <span className="text-sm font-medium text-orange-900">
-                                Counter offer by {counterOffer.counterOfferedBy._id === userId ? 'You' : 
-                                  (counterOffer.counterOfferedBy.firstName && counterOffer.counterOfferedBy.lastName ? 
-                                    `${counterOffer.counterOfferedBy.firstName} ${counterOffer.counterOfferedBy.lastName}` : 
-                                    counterOffer.counterOfferedBy.name || 'Unknown User')}
+                                Counter offer by {counterOffer.counterOfferedBy._id === userId ? 'You' : (() => {
+                                  console.log('Counter offer user data:', counterOffer.counterOfferedBy);
+                                  return getCounterOfferUserName(counterOffer.counterOfferedBy);
+                                })()}
                               </span>
                               <span className={`text-xs px-2 py-1 rounded-full ${
                                 counterOffer.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
