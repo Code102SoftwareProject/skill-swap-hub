@@ -64,8 +64,7 @@ export async function POST(req: NextRequest) {
 
     const populatedSession = await Session.findById(sessionId)
       .populate('user1Id', 'firstName lastName email')
-      .populate('user2Id', 'firstName lastName email')
-      .populate('completionRequestedBy', 'firstName lastName email');
+      .populate('user2Id', 'firstName lastName email');
 
     return NextResponse.json({
       success: true,
@@ -168,10 +167,7 @@ export async function PATCH(req: NextRequest) {
 
     const populatedSession = await Session.findById(sessionId)
       .populate('user1Id', 'firstName lastName email')
-      .populate('user2Id', 'firstName lastName email')
-      .populate('completionRequestedBy', 'firstName lastName email')
-      .populate('completionApprovedBy', 'firstName lastName email')
-      .populate('completionRejectedBy', 'firstName lastName email');
+      .populate('user2Id', 'firstName lastName email');
 
     return NextResponse.json({
       success: true,

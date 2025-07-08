@@ -236,7 +236,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
     setProcessingSession(sessionId);
     
     try {
-      const response = await fetch('/api/session/complete', {
+      const response = await fetch('/api/session/completion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -293,7 +293,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
         requestBody.rejectionReason = providedRejectionReason;
       }
 
-      const response = await fetch('/api/session/complete', {
+      const response = await fetch('/api/session/completion', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

@@ -604,7 +604,7 @@ export default function SessionWorkspace() {
     setRequestingCompletion(true);
     
     try {
-      const response = await fetch('/api/session/complete', {
+      const response = await fetch('/api/session/completion', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -678,7 +678,7 @@ export default function SessionWorkspace() {
         requestBody.rejectionReason = providedRejectionReason;
       }
 
-      const response = await fetch('/api/session/complete', {
+      const response = await fetch('/api/session/completion', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
