@@ -76,12 +76,23 @@ export default function SuccessStoriesContent() {
         status: statusFilter,
       });
 
-      const response = await fetch(`/api/admin/success-stories?${params}`);
+      const response = await fetch(`/api/admin/success-stories?${params}`, {
+        credentials: "include", // Important for cookies
+      });
       const data = await response.json();
 
-      if (data.success) {
+      console.log("Success stories response:", { status: response.status, data });
+
+      if (response.ok && data.success) {
         setSuccessStories(data.data.successStories);
         setTotalPages(data.data.pagination.totalPages);
+      } else {
+        console.error("Failed to fetch success stories:", data);
+        // If unauthorized, redirect to admin login
+        if (response.status === 401) {
+          console.warn("Admin not authenticated, redirecting to login");
+          window.location.href = '/admin/login';
+        }
       }
     } catch (error) {
       console.error("Error fetching success stories:", error);
@@ -93,7 +104,9 @@ export default function SuccessStoriesContent() {
   // Fetch users for dropdown
   const fetchUsers = async () => {
     try {
-      const response = await fetch("/api/admin/users");
+      const response = await fetch("/api/admin/users", {
+        credentials: "include", // Important for cookies
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -132,6 +145,7 @@ export default function SuccessStoriesContent() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Important for cookies
         body: JSON.stringify(body),
       });
 
@@ -166,6 +180,7 @@ export default function SuccessStoriesContent() {
     try {
       const response = await fetch(`/api/admin/success-stories?id=${id}`, {
         method: "DELETE",
+        credentials: "include", // Important for cookies
       });
 
       const data = await response.json();
@@ -189,6 +204,7 @@ export default function SuccessStoriesContent() {
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include", // Important for cookies
         body: JSON.stringify({
           id: story._id,
           isPublished: !story.isPublished,
