@@ -160,6 +160,18 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
     type: "success" | "error" | "warning";
   } | null>(null);
 
+  // Email validation states
+  const [emailValidation, setEmailValidation] = useState({
+    isValid: false,
+    message: "",
+    isChecking: false,
+  });
+  const [updateEmailValidation, setUpdateEmailValidation] = useState({
+    isValid: false,
+    message: "",
+    isChecking: false,
+  });
+
   // Check if current admin is a super admin
   const isCurrentSuperAdmin = currentAdminRole === "super_admin";
 
@@ -183,6 +195,124 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
   });
 
   const [showPassword, setShowPassword] = useState(false);
+
+  // Email validation functions
+  const validateEmailFormat = (
+    email: string
+  ): { isValid: boolean; message: string } => {
+    if (!email.trim()) {
+      return { isValid: false, message: "Email is required" };
+    }
+
+    // Check email length
+    if (email.length > 254) {
+      return {
+        isValid: false,
+        message: "Email is too long (max 254 characters)",
+      };
+    }
+
+    // Enhanced email regex pattern
+    const emailRegex =
+      /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+    if (!emailRegex.test(email.trim())) {
+      return { isValid: false, message: "Please enter a valid email address" };
+    }
+
+    // Check for common domains and format issues
+    const domain = email.split("@")[1];
+    if (domain) {
+      // Check if domain has at least one dot
+      if (!domain.includes(".")) {
+        return {
+          isValid: false,
+          message: "Email domain must contain a valid extension",
+        };
+      }
+
+      // Check domain length
+      if (domain.length > 253) {
+        return { isValid: false, message: "Email domain is too long" };
+      }
+    }
+
+    return { isValid: true, message: "Email format is valid" };
+  };
+
+  const checkEmailUniqueness = async (
+    email: string,
+    excludeAdminId?: string
+  ): Promise<{ isUnique: boolean; message: string }> => {
+    try {
+      // Check against existing admins
+      const existingAdmin = admins.find(
+        (admin) =>
+          admin.email.toLowerCase() === email.toLowerCase() &&
+          admin._id !== excludeAdminId
+      );
+
+      if (existingAdmin) {
+        return {
+          isUnique: false,
+          message: "This email is already used by another admin",
+        };
+      }
+
+      // You could also check against user collection here if needed
+      // For now, we'll rely on server-side validation for complete check
+
+      return { isUnique: true, message: "Email is available" };
+    } catch (error) {
+      return { isUnique: false, message: "Unable to verify email uniqueness" };
+    }
+  };
+
+  const validateEmailForCreate = async (email: string) => {
+    setEmailValidation({ isValid: false, message: "", isChecking: true });
+
+    // First check format
+    const formatCheck = validateEmailFormat(email);
+    if (!formatCheck.isValid) {
+      setEmailValidation({
+        isValid: false,
+        message: formatCheck.message,
+        isChecking: false,
+      });
+      return;
+    }
+
+    // Then check uniqueness
+    const uniquenessCheck = await checkEmailUniqueness(email);
+    setEmailValidation({
+      isValid: uniquenessCheck.isUnique,
+      message: uniquenessCheck.message,
+      isChecking: false,
+    });
+  };
+
+  const validateEmailForUpdate = async (email: string, adminId: string) => {
+    setUpdateEmailValidation({ isValid: false, message: "", isChecking: true });
+
+    // First check format
+    const formatCheck = validateEmailFormat(email);
+    if (!formatCheck.isValid) {
+      setUpdateEmailValidation({
+        isValid: false,
+        message: formatCheck.message,
+        isChecking: false,
+      });
+      return;
+    }
+
+    // Then check uniqueness (excluding current admin)
+    const uniquenessCheck = await checkEmailUniqueness(email, adminId);
+    setUpdateEmailValidation({
+      isValid: uniquenessCheck.isUnique,
+      message: uniquenessCheck.message,
+      isChecking: false,
+    });
+  };
 
   // Fetch all admins
   const fetchAdmins = async () => {
@@ -219,10 +349,21 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(createForm.email.trim())) {
+    // Enhanced email validation
+    const emailFormatCheck = validateEmailFormat(createForm.email);
+    if (!emailFormatCheck.isValid) {
       setToast({
-        message: "Please enter a valid email address",
+        message: emailFormatCheck.message,
+        type: "error",
+      });
+      return;
+    }
+
+    // Check email uniqueness
+    const emailUniquenessCheck = await checkEmailUniqueness(createForm.email);
+    if (!emailUniquenessCheck.isUnique) {
+      setToast({
+        message: emailUniquenessCheck.message,
         type: "error",
       });
       return;
@@ -261,7 +402,7 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
         throw new Error(data.message || "Failed to create admin");
       }
 
-      setToast({ message: "New admin created", type: "success" });
+      setToast({ message: "New admin created successfully", type: "success" });
       setShowCreateForm(false);
       setCreateForm({
         username: "",
@@ -270,6 +411,8 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
         role: "admin",
         permissions: [],
       });
+      // Reset email validation state
+      setEmailValidation({ isValid: false, message: "", isChecking: false });
       fetchAdmins();
     } catch (error: any) {
       console.error("Error creating admin:", error);
@@ -283,6 +426,30 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
   // Update admin
   const updateAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Email validation if email is being changed
+    if (updateForm.email && updateForm.email !== selectedAdmin?.email) {
+      const emailFormatCheck = validateEmailFormat(updateForm.email);
+      if (!emailFormatCheck.isValid) {
+        setToast({
+          message: emailFormatCheck.message,
+          type: "error",
+        });
+        return;
+      }
+
+      const emailUniquenessCheck = await checkEmailUniqueness(
+        updateForm.email,
+        updateForm.adminId
+      );
+      if (!emailUniquenessCheck.isUnique) {
+        setToast({
+          message: emailUniquenessCheck.message,
+          type: "error",
+        });
+        return;
+      }
+    }
 
     try {
       const response = await fetch("/api/admin/manage-admin", {
@@ -303,6 +470,12 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
       setToast({ message: "Admin updated successfully", type: "success" });
       setShowEditForm(false);
       setSelectedAdmin(null);
+      // Reset email validation state
+      setUpdateEmailValidation({
+        isValid: false,
+        message: "",
+        isChecking: false,
+      });
       fetchAdmins();
     } catch (error: any) {
       console.error("Error updating admin:", error);
@@ -357,6 +530,12 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
       role: admin.role,
       permissions: admin.permissions,
       status: admin.status,
+    });
+    // Reset email validation state
+    setUpdateEmailValidation({
+      isValid: false,
+      message: "",
+      isChecking: false,
     });
     setShowEditForm(true);
   };
@@ -413,6 +592,36 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
 
     return () => clearTimeout(timer);
   }, [searchTerm]);
+
+  // Debounce email validation for create form
+  useEffect(() => {
+    if (createForm.email.trim()) {
+      const timer = setTimeout(() => {
+        validateEmailForCreate(createForm.email.trim());
+      }, 500);
+
+      return () => clearTimeout(timer);
+    } else {
+      setEmailValidation({ isValid: false, message: "", isChecking: false });
+    }
+  }, [createForm.email]);
+
+  // Debounce email validation for update form
+  useEffect(() => {
+    if (updateForm.email && updateForm.email.trim() && updateForm.adminId) {
+      const timer = setTimeout(() => {
+        validateEmailForUpdate(updateForm.email!.trim(), updateForm.adminId);
+      }, 500);
+
+      return () => clearTimeout(timer);
+    } else {
+      setUpdateEmailValidation({
+        isValid: false,
+        message: "",
+        isChecking: false,
+      });
+    }
+  }, [updateForm.email, updateForm.adminId]);
 
   useEffect(() => {
     fetchAdmins();
@@ -690,18 +899,55 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
-                  <input
-                    type="email"
-                    value={createForm.email}
-                    onChange={(e) =>
-                      setCreateForm({ ...createForm, email: e.target.value })
-                    }
-                    placeholder="admin@example.com"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Valid email address
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={createForm.email}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, email: e.target.value })
+                      }
+                      placeholder="admin@example.com"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent ${
+                        createForm.email.trim() === ""
+                          ? "border-gray-300 focus:ring-blue-500"
+                          : emailValidation.isChecking
+                            ? "border-yellow-300 focus:ring-yellow-500"
+                            : emailValidation.isValid
+                              ? "border-green-300 focus:ring-green-500"
+                              : "border-red-300 focus:ring-red-500"
+                      }`}
+                      required
+                    />
+                    {emailValidation.isChecking && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-500"></div>
+                      </div>
+                    )}
+                    {!emailValidation.isChecking && createForm.email.trim() && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        {emailValidation.isValid ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <p
+                    className={`text-xs mt-1 ${
+                      emailValidation.isChecking
+                        ? "text-yellow-600"
+                        : emailValidation.isValid
+                          ? "text-green-600"
+                          : emailValidation.message
+                            ? "text-red-600"
+                            : "text-gray-500"
+                    }`}
+                  >
+                    {emailValidation.isChecking
+                      ? "Validating email..."
+                      : emailValidation.message ||
+                        "Valid email address required"}
                   </p>
                 </div>
               </div>
@@ -792,16 +1038,42 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
               <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setEmailValidation({
+                      isValid: false,
+                      message: "",
+                      isChecking: false,
+                    });
+                  }}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={
+                    emailValidation.isChecking ||
+                    (createForm.email.trim() !== "" &&
+                      !emailValidation.isValid) ||
+                    !createForm.username.trim() ||
+                    !createForm.email.trim() ||
+                    !createForm.password.trim()
+                  }
+                  className={`px-4 py-2 rounded-lg ${
+                    emailValidation.isChecking ||
+                    (createForm.email.trim() !== "" &&
+                      !emailValidation.isValid) ||
+                    !createForm.username.trim() ||
+                    !createForm.email.trim() ||
+                    !createForm.password.trim()
+                      ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
-                  Create Admin
+                  {emailValidation.isChecking
+                    ? "Validating..."
+                    : "Create Admin"}
                 </button>
               </div>
             </form>
@@ -835,14 +1107,62 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Email
                   </label>
-                  <input
-                    type="email"
-                    value={updateForm.email}
-                    onChange={(e) =>
-                      setUpdateForm({ ...updateForm, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={updateForm.email}
+                      onChange={(e) =>
+                        setUpdateForm({ ...updateForm, email: e.target.value })
+                      }
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent ${
+                        updateForm.email?.trim() === "" ||
+                        updateForm.email === selectedAdmin?.email
+                          ? "border-gray-300 focus:ring-blue-500"
+                          : updateEmailValidation.isChecking
+                            ? "border-yellow-300 focus:ring-yellow-500"
+                            : updateEmailValidation.isValid
+                              ? "border-green-300 focus:ring-green-500"
+                              : "border-red-300 focus:ring-red-500"
+                      }`}
+                    />
+                    {updateEmailValidation.isChecking &&
+                      updateForm.email !== selectedAdmin?.email && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-500"></div>
+                        </div>
+                      )}
+                    {!updateEmailValidation.isChecking &&
+                      updateForm.email &&
+                      updateForm.email.trim() &&
+                      updateForm.email !== selectedAdmin?.email && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          {updateEmailValidation.isValid ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )}
+                        </div>
+                      )}
+                  </div>
+                  {updateForm.email &&
+                    updateForm.email !== selectedAdmin?.email && (
+                      <p
+                        className={`text-xs mt-1 ${
+                          updateEmailValidation.isChecking
+                            ? "text-yellow-600"
+                            : updateEmailValidation.isValid
+                              ? "text-green-600"
+                              : updateEmailValidation.message
+                                ? "text-red-600"
+                                : "text-gray-500"
+                        }`}
+                      >
+                        {updateEmailValidation.isChecking
+                          ? "Validating email..."
+                          : updateEmailValidation.message ||
+                            "Valid email address required"}
+                      </p>
+                    )}
                 </div>
               </div>
 
@@ -946,16 +1266,38 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
               <div className="flex justify-end space-x-2 pt-4">
                 <button
                   type="button"
-                  onClick={() => setShowEditForm(false)}
+                  onClick={() => {
+                    setShowEditForm(false);
+                    setUpdateEmailValidation({
+                      isValid: false,
+                      message: "",
+                      isChecking: false,
+                    });
+                  }}
                   className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={
+                    updateEmailValidation.isChecking ||
+                    (!!updateForm.email &&
+                      updateForm.email !== selectedAdmin?.email &&
+                      !updateEmailValidation.isValid)
+                  }
+                  className={`px-4 py-2 rounded-lg ${
+                    updateEmailValidation.isChecking ||
+                    (!!updateForm.email &&
+                      updateForm.email !== selectedAdmin?.email &&
+                      !updateEmailValidation.isValid)
+                      ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+                      : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 >
-                  Update Admin
+                  {updateEmailValidation.isChecking
+                    ? "Validating..."
+                    : "Update Admin"}
                 </button>
               </div>
             </form>
