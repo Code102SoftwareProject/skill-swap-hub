@@ -12,6 +12,7 @@ import SuggestionsContent from "@/components/Admin/dashboardContent/SuggestionsC
 import SystemContent from "@/components/Admin/dashboardContent/SystemContent";
 import VerificationRequests from "@/components/Admin/skillverifications";
 import ReportingContent from "@/components/Admin/dashboardContent/ReportingContent";
+import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessStoriesContent";
 
 // Dynamic import for AdminManagementContent to avoid import issues
 const AdminManagementContent = React.lazy(
@@ -25,6 +26,7 @@ const COMPONENTS = {
   ADMIN_MANAGEMENT: "admin-management",
   KYC: "kyc",
   USERS: "users",
+  SUCCESS_STORIES: "success-stories",
   SUGGESTIONS: "suggestions",
   SYSTEM: "system",
   VERIFY_DOCUMENTS: "verify-documents",
@@ -310,6 +312,8 @@ export default function AdminDashboard() {
           return <KYCContent key={activeComponent} />;
         case COMPONENTS.USERS:
           return <UsersContent key={activeComponent} />;
+        case COMPONENTS.SUCCESS_STORIES:
+          return <SuccessStoriesContent key={activeComponent} />;
         case COMPONENTS.SUGGESTIONS:
           return <SuggestionsContent key={activeComponent} />;
         case COMPONENTS.SYSTEM:

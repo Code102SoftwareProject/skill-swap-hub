@@ -3,7 +3,7 @@ import Navbar from "@/components/homepage/Navbar";
 import Chatbot from "@/components/chatassistant/chatbot";
 import HeroSection from "@/components/homepage/Herosection";
 import Footer from "@/components/homepage/Footer";
-import SuccessStories from "@/components/homepage/Testimonial";
+import SuccessStoriesCarousel from "@/components/homepage/SuccessStoriesCarousel";
 
 export default function Home() {
   return (
@@ -16,7 +16,7 @@ export default function Home() {
         
       </div>
       <Chatbot/>
-      <SuccessStories />
+      <SuccessStoriesCarousel />
       <Footer />
     </>
   );
