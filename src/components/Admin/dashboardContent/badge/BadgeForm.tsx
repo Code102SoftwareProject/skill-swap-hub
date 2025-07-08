@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   criteriaOptions,
@@ -8,6 +8,7 @@ import {
   handleImageFileChange,
   uploadBadgeImage,
   API_ENDPOINTS,
+  validateImageFile,
 } from "./badgeHelpers";
 
 interface BadgeFormProps {
@@ -26,6 +27,11 @@ const BadgeForm = ({ onBadgeAdded }: BadgeFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState("");
 
+  // Drag and drop states
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   /**
    * Resets form fields to initial state
    */
@@ -36,19 +42,95 @@ const BadgeForm = ({ onBadgeAdded }: BadgeFormProps) => {
     setDescription("");
     setCriteria(criteriaOptions[0]);
     setFormError("");
+    setIsDragActive(false);
+    setIsDragOver(false);
 
     // Clear file input
-    const fileInput = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
-    if (fileInput) fileInput.value = "";
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   /**
-   * Handles image file selection
+   * Handles image file selection for both drag/drop and file input
+   */
+  const handleImageFileSelection = useCallback((file: File) => {
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      setFormError(validation.errorMessage);
+      return;
+    }
+
+    setBadgeImage(file);
+    setBadgeImagePreview(URL.createObjectURL(file));
+    setFormError("");
+  }, []);
+
+  /**
+   * Handles image file selection from file input
    */
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleImageFileChange(e, setBadgeImage, setBadgeImagePreview, setFormError);
+    if (e.target.files && e.target.files[0]) {
+      handleImageFileSelection(e.target.files[0]);
+    }
+  };
+
+  /**
+   * Handles drag enter event
+   */
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(true);
+    setIsDragOver(true);
+  }, []);
+
+  /**
+   * Handles drag leave event
+   */
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    // Only set drag inactive if we're leaving the drop zone entirely
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragActive(false);
+    }
+  }, []);
+
+  /**
+   * Handles drag over event
+   */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  }, []);
+
+  /**
+   * Handles file drop event
+   */
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragActive(false);
+      setIsDragOver(false);
+
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        handleImageFileSelection(file);
+      }
+    },
+    [handleImageFileSelection]
+  );
+
+  /**
+   * Handles click on drop zone to open file picker
+   */
+  const handleDropZoneClick = () => {
+    fileInputRef.current?.click();
   };
 
   /**
@@ -174,27 +256,114 @@ const BadgeForm = ({ onBadgeAdded }: BadgeFormProps) => {
           </div>
         </div>
 
-        {/* Badge Image Upload */}
+        {/* Enhanced Badge Image Upload with Drag & Drop */}
         <div className="space-y-2">
-          <label className="block">
-            Badge Image (JPEG, PNG, GIF, WEBP; max 2MB)
+          <label className="block text-sm font-medium text-gray-700">
+            Badge Image
           </label>
-          <input
-            type="file"
-            accept="image/jpeg, image/png, image/gif, image/webp"
-            onChange={handleImageChange}
-          />
-          {badgeImagePreview && (
-            <div className="mt-2">
-              <Image
-                src={badgeImagePreview}
-                alt="Preview"
-                width={100}
-                height={100}
-                className="rounded"
-              />
-            </div>
-          )}
+
+          {/* Drag & Drop Zone */}
+          <div
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            onClick={handleDropZoneClick}
+            className={`
+              relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
+              ${
+                isDragOver
+                  ? "border-blue-500 bg-blue-50"
+                  : badgeImage
+                    ? "border-green-400 bg-green-50"
+                    : "border-gray-300 hover:border-gray-400 bg-gray-50"
+              }
+              ${isDragActive ? "scale-105" : ""}
+            `}
+          >
+            {/* Hidden file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg, image/png, image/gif, image/webp"
+              onChange={handleImageChange}
+              className="hidden"
+            />
+
+            {badgeImagePreview ? (
+              /* Image Preview */
+              <div className="space-y-3">
+                <Image
+                  src={badgeImagePreview}
+                  alt="Badge Preview"
+                  width={120}
+                  height={120}
+                  className="mx-auto rounded-lg shadow-md"
+                />
+                <div className="text-sm text-gray-600">
+                  <p className="font-medium">{badgeImage?.name}</p>
+                  <p className="text-xs">
+                    {badgeImage && (badgeImage.size / 1024).toFixed(1)} KB
+                  </p>
+                </div>
+                <p className="text-xs text-gray-500">
+                  Click to change or drag a new image here
+                </p>
+              </div>
+            ) : (
+              /* Upload Prompt */
+              <div className="space-y-3">
+                <div className="mx-auto w-20 h-20 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center shadow-lg">
+                  <svg
+                    className="w-10 h-10 text-blue-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-lg font-medium text-gray-700">
+                    {isDragOver ? "Drop your image here" : "Upload Badge Image"}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    Drag and drop an image here, or click to select
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    Supports JPEG, PNG, GIF, WEBP up to 2MB
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Visual feedback overlay */}
+            {isDragOver && (
+              <div className="absolute inset-0 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center">
+                <div className="text-blue-600 font-medium">Drop image here</div>
+              </div>
+            )}
+          </div>
+
+          {/* Alternative text upload option */}
+          <div className="text-center">
+            <span className="text-xs text-gray-500">
+              or{" "}
+              <button
+                type="button"
+                onClick={handleDropZoneClick}
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                browse files
+              </button>
+            </span>
+          </div>
         </div>
 
         {/* Submit Button */}
