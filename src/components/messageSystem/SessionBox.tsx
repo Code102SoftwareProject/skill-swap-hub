@@ -16,6 +16,7 @@ interface UserProfile {
   name?: string;
   email?: string;
   avatar?: string;
+  title?: string;
 }
 
 interface Session {
@@ -62,14 +63,16 @@ interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
-  otherUserName: string;
+  // Remove otherUserName since we'll fetch it
 }
 
-export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserName }: SessionBoxProps) {
+export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionBoxProps) {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [counterOffers, setCounterOffers] = useState<{ [sessionId: string]: CounterOffer[] }>({});
   const [loading, setLoading] = useState(true);
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
@@ -115,6 +118,41 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
   useEffect(() => {
     fetchSessions();
   }, [userId]);
+
+  // Fetch other user's information
+  useEffect(() => {
+    const fetchOtherUser = async () => {
+      try {
+        setUserLoading(true);
+        const response = await fetch(`/api/users/${otherUserId}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          setOtherUser(data.user);
+        } else {
+          console.error('Failed to fetch user:', data.message);
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    if (otherUserId) {
+      fetchOtherUser();
+    }
+  }, [otherUserId]);
+
+  // Helper function to get user's display name
+  const getUserDisplayName = (user: UserProfile | null): string => {
+    if (!user) return 'Unknown User';
+    if (user.firstName && user.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user.name) return user.name;
+    return user.email || 'Unknown User';
+  };
 
   // Helper functions for alerts and confirmations
   const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
@@ -547,22 +585,46 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUserN
     return isCurrentUserCreator(session) && session.isAccepted === null;
   };
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <div className="p-6 text-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Loading sessions...</p>
+        <p className="mt-2 text-gray-600">Loading...</p>
       </div>
     );
   }
+
+  if (!otherUser) {
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-600">Failed to load user information</p>
+      </div>
+    );
+  }
+
+  const otherUserName = getUserDisplayName(otherUser);
 
   return (
     <div className="p-4 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Skill Swap Sessions with {otherUserName}
-        </h2>
+        <div className="flex items-center space-x-3">
+          {otherUser.avatar && (
+            <img 
+              src={otherUser.avatar} 
+              alt={otherUserName}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          )}
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">
+              Skill Swap Sessions with {otherUserName}
+            </h2>
+            {otherUser.title && (
+              <p className="text-sm text-gray-600">{otherUser.title}</p>
+            )}
+          </div>
+        </div>
         <button
           onClick={() => setShowCreateModal(true)}
           className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"

@@ -209,7 +209,6 @@ export default function ChatPage() {
                   chatRoomId={selectedChatRoomId}
                   userId={userId}
                   otherUserId={selectedParticipantInfo?.id || chatParticipants.find(id => id !== userId) || ''}
-                  otherUserName={selectedParticipantInfo?.name || 'Other User'}
                 />
               ) : (
                 <MessageBox
