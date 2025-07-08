@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connect from "@/lib/db";
 import SuccessStory from "@/lib/models/successStorySchema";
 import User from "@/lib/models/userSchema";
+import Admin from "@/lib/models/adminSchema";
 import jwt from "jsonwebtoken";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
@@ -26,6 +27,10 @@ async function verifyAdminToken(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     await connect();
+
+    // Ensure User and Admin models are registered for populate operations
+    User;
+    Admin;
 
     const adminData = await verifyAdminToken(request);
     if (!adminData) {
