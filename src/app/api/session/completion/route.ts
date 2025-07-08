@@ -189,13 +189,28 @@ export async function PATCH(req: NextRequest) {
     // Update session based on action
     if (action === 'approve') {
       // Approve completion - mark session as completed
-      session.status = 'completed';      
+      const oldStatus = session.status;
+      session.status = 'completed';
+      console.log(`Updating session ${sessionId} status from '${oldStatus}' to 'completed'`);
+      
+      const savedSession = await session.save();
+      console.log(`Session ${sessionId} saved with status: ${savedSession.status}`);
+      
+      // Verify the session was actually updated
+      const verifySession = await Session.findById(sessionId);
+      if (verifySession && verifySession.status !== 'completed') {
+        console.error(`Failed to update session ${sessionId} status. Current status: ${verifySession.status}`);
+        return NextResponse.json(
+          { success: false, message: "Failed to update session status to completed" },
+          { status: 500 }
+        );
+      }
+      
+      console.log(`Session ${sessionId} status verified as completed`);
     } else if (action === 'reject') {
       // Rejection is handled in SessionCompletion schema
       // No changes needed to session for rejection
     }
-
-    await session.save();
 
     const message = action === 'approve' 
       ? "Session completed successfully" 

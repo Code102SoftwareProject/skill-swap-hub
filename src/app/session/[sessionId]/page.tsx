@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessionCompletion';
+import Alert from '@/components/ui/Alert';
+import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
 interface Session {
   _id: string;
@@ -112,6 +114,33 @@ export default function SessionWorkspace() {
   const [submittingReview, setSubmittingReview] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
+  // Alert and confirmation states
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: ''
+  });
+
+  const [confirmation, setConfirmation] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type?: 'danger' | 'warning' | 'info' | 'success';
+    onConfirm: () => void;
+    confirmText?: string;
+    loading?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
+
   // Helper function to send notifications
   const sendNotification = async (userId: string, typeno: number, description: string, targetDestination?: string) => {
     try {
@@ -132,6 +161,42 @@ export default function SessionWorkspace() {
       console.error('Error sending notification:', error);
       // Don't throw error - notifications should not break the main functionality
     }
+  };
+
+  // Helper functions for alerts and confirmations
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
+
+  const showConfirmation = (
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    type: 'danger' | 'warning' | 'info' | 'success' = 'warning',
+    confirmText?: string
+  ) => {
+    setConfirmation({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      type,
+      confirmText,
+      loading: false
+    });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const closeConfirmation = () => {
+    setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -327,7 +392,7 @@ export default function SessionWorkspace() {
     e.preventDefault();
     
     if (!workDescription.trim()) {
-      alert('Please provide a work description');
+      showAlert('warning', 'Please provide a work description');
       return;
     }
 
@@ -339,7 +404,7 @@ export default function SessionWorkspace() {
       if (workFile) {
         const uploadedUrl = await handleFileUpload(workFile);
         if (!uploadedUrl) {
-          alert('Failed to upload file');
+          showAlert('error', 'Failed to upload file');
           setUploading(false);
           return;
         }
@@ -347,7 +412,7 @@ export default function SessionWorkspace() {
       }
 
       if (!session || !currentUserId) {
-        alert('Session or user information not available');
+        showAlert('error', 'Session or user information not available');
         setUploading(false);
         return;
       }
@@ -380,17 +445,17 @@ export default function SessionWorkspace() {
           `/session/${sessionId}`
         );
 
-        alert('Work submitted successfully!');
+        showAlert('success', 'Work submitted successfully!');
         setWorkDescription('');
         setWorkFile(null);
         fetchWorks(); // Refresh works list
         setActiveTab('view-works');
       } else {
-        alert(data.message || 'Failed to submit work');
+        showAlert('error', data.message || 'Failed to submit work');
       }
     } catch (error) {
       console.error('Error submitting work:', error);
-      alert('Failed to submit work');
+      showAlert('error', 'Failed to submit work');
     } finally {
       setUploading(false);
     }
@@ -436,7 +501,7 @@ export default function SessionWorkspace() {
       document.body.removeChild(a);
     } catch (error) {
       console.error('Download error:', error);
-      alert('Failed to download file');
+      showAlert('error', 'Failed to download file');
     }
   };
 
@@ -483,28 +548,28 @@ export default function SessionWorkspace() {
           }
         }
 
-        alert(`Work ${action}ed successfully!`);
+        showAlert('success', `Work ${action}ed successfully!`);
         setReviewingWork(null);
         setReviewAction(null);
         setReviewMessage('');
         fetchWorks(); // Refresh works list
       } else {
-        alert(data.message || `Failed to ${action} work`);
+        showAlert('error', data.message || `Failed to ${action} work`);
       }
     } catch (error) {
       console.error(`Error ${action}ing work:`, error);
-      alert(`Failed to ${action} work`);
+      showAlert('error', `Failed to ${action} work`);
     }
   };
 
   const handleProgressUpdate = async () => {
     if (!currentUserId) {
-      alert('User authentication required');
+      showAlert('error', 'User authentication required');
       return;
     }
 
     if (newProgress < 0 || newProgress > 100) {
-      alert('Progress must be between 0 and 100');
+      showAlert('warning', 'Progress must be between 0 and 100');
       return;
     }
 
@@ -550,7 +615,7 @@ export default function SessionWorkspace() {
           }
         }
 
-        alert('Progress updated successfully!');
+        showAlert('success', 'Progress updated successfully!');
         setEditingProgress(false);
         setProgressNotes('');
         await fetchProgress(); // Refresh progress data
@@ -599,11 +664,11 @@ export default function SessionWorkspace() {
           }, 1000); // Small delay to ensure progress is saved
         }
       } else {
-        alert(data.message || 'Failed to update progress');
+        showAlert('error', data.message || 'Failed to update progress');
       }
     } catch (error) {
       console.error('Error updating progress:', error);
-      alert('Failed to update progress');
+      showAlert('error', 'Failed to update progress');
     } finally {
       setUpdatingProgress(false);
     }
@@ -630,61 +695,64 @@ export default function SessionWorkspace() {
   // Session completion handlers
   const handleRequestCompletion = async () => {
     if (!currentUserId || !sessionId) {
-      alert('Session or user information not available');
+      showAlert('error', 'Session or user information not available');
       return;
     }
 
-    if (!confirm('Are you sure you want to request session completion? This will notify the other participant for approval.')) {
-      return;
-    }
+    showConfirmation(
+      'Request Session Completion',
+      'Are you sure you want to request session completion? This will notify the other participant for approval.',
+      async () => {
+        setRequestingCompletion(true);
+        
+        try {
+          const response = await fetch('/api/session/completion', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              sessionId,
+              userId: currentUserId,
+            }),
+          });
 
-    setRequestingCompletion(true);
-    
-    try {
-      const response = await fetch('/api/session/completion', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          userId: currentUserId,
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Send notification to other user
-        if (session) {
-          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
-          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+          const data = await response.json();
           
-          await sendNotification(
-            otherUserId,
-            18, // SESSION_COMPLETION_REQUESTED (you may need to add this notification type)
-            `${currentUserName} has requested to complete your skill exchange session. Please review and approve if you agree.`,
-            `/session/${sessionId}`
-          );
-        }
+          if (data.success) {
+            // Send notification to other user
+            if (session) {
+              const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+              const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
+              
+              await sendNotification(
+                otherUserId,
+                18, // SESSION_COMPLETION_REQUESTED (you may need to add this notification type)
+                `${currentUserName} has requested to complete your skill exchange session. Please review and approve if you agree.`,
+                `/session/${sessionId}`
+              );
+            }
 
-        alert('Completion request sent successfully! Waiting for approval from the other participant.');
-        fetchSessionData(); // Refresh session to show completion request
-        fetchCompletionStatus(); // Refresh completion status
-      } else {
-        alert(data.message || 'Failed to request completion');
-      }
-    } catch (error) {
-      console.error('Error requesting completion:', error);
-      alert('Failed to request completion');
-    } finally {
-      setRequestingCompletion(false);
-    }
+            showAlert('success', 'Completion request sent successfully! Waiting for approval from the other participant.');
+            fetchSessionData(); // Refresh session to show completion request
+            fetchCompletionStatus(); // Refresh completion status
+          } else {
+            showAlert('error', data.message || 'Failed to request completion');
+          }
+        } catch (error) {
+          console.error('Error requesting completion:', error);
+          showAlert('error', 'Failed to request completion');
+        } finally {
+          setRequestingCompletion(false);
+        }
+      },
+      'warning'
+    );
   };
 
   const handleCompletionResponse = async (action: 'approve' | 'reject', providedRejectionReason?: string) => {
     if (!currentUserId || !sessionId) {
-      alert('Session or user information not available');
+      showAlert('error', 'Session or user information not available');
       return;
     }
 
@@ -698,73 +766,76 @@ export default function SessionWorkspace() {
       ? 'Are you sure you want to approve session completion? This will mark the session as completed.'
       : 'Are you sure you want to reject the completion request?';
 
-    if (!confirm(confirmMessage)) {
-      return;
-    }
-
-    setRespondingToCompletion(true);
-    
-    try {
-      const requestBody: any = {
-        sessionId,
-        userId: currentUserId,
-        action,
-      };
-
-      // Add rejection reason if rejecting
-      if (action === 'reject' && providedRejectionReason) {
-        requestBody.rejectionReason = providedRejectionReason;
-      }
-
-      const response = await fetch('/api/session/completion', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        console.log('Completion response successful:', data);
+    showConfirmation(
+      action === 'approve' ? 'Approve Session Completion' : 'Reject Completion Request',
+      confirmMessage,
+      async () => {
+        setRespondingToCompletion(true);
         
-        // Send notification to the other user about completion response
-        // TODO: Update this to work with new SessionCompletion API
-        // For now, we'll skip the notification to avoid errors
-        
-        alert(action === 'approve' ? 'Session completed successfully!' : 'Completion request rejected');
-        console.log('About to refresh session data...');
-        await fetchSessionData(); // Refresh session data
-        await fetchCompletionStatus(); // Refresh completion status
-        console.log('Session data refreshed');
-        
-        // Close modal if it was open
-        if (action === 'reject') {
-          setShowRejectionModal(false);
-          setRejectionReason('');
+        try {
+          const requestBody: any = {
+            sessionId,
+            userId: currentUserId,
+            action,
+          };
+
+          // Add rejection reason if rejecting
+          if (action === 'reject' && providedRejectionReason) {
+            requestBody.rejectionReason = providedRejectionReason;
+          }
+
+          const response = await fetch('/api/session/completion', {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+          });
+
+          const data = await response.json();
+          
+          if (data.success) {
+            console.log('Completion response successful:', data);
+            
+            // Send notification to the other user about completion response
+            // TODO: Update this to work with new SessionCompletion API
+            // For now, we'll skip the notification to avoid errors
+            
+            showAlert(action === 'approve' ? 'success' : 'info', action === 'approve' ? 'Session completed successfully!' : 'Completion request rejected');
+            console.log('About to refresh session data...');
+            await fetchSessionData(); // Refresh session data
+            await fetchCompletionStatus(); // Refresh completion status
+            console.log('Session data refreshed');
+            
+            // Close modal if it was open
+            if (action === 'reject') {
+              setShowRejectionModal(false);
+              setRejectionReason('');
+            }
+          } else {
+            showAlert('error', data.message || `Failed to ${action} completion`);
+          }
+        } catch (error) {
+          console.error(`Error ${action}ing completion:`, error);
+          showAlert('error', `Failed to ${action} completion`);
+        } finally {
+          setRespondingToCompletion(false);
         }
-      } else {
-        alert(data.message || `Failed to ${action} completion`);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing completion:`, error);
-      alert(`Failed to ${action} completion`);
-    } finally {
-      setRespondingToCompletion(false);
-    }
+      },
+      action === 'approve' ? 'success' : 'warning'
+    );
   };
 
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!reportReason || !reportDescription.trim()) {
-      alert('Please provide a reason and description for the report');
+      showAlert('warning', 'Please provide a reason and description for the report');
       return;
     }
 
     if (!session || !currentUserId) {
-      alert('Session or user information not available');
+      showAlert('error', 'Session or user information not available');
       return;
     }
 
@@ -809,18 +880,18 @@ export default function SessionWorkspace() {
           `/session/${sessionId}`
         );
 
-        alert('Report submitted successfully! Our team will review it shortly.');
+        showAlert('success', 'Report submitted successfully! Our team will review it shortly.');
         setReportReason('');
         setReportDescription('');
         setReportFiles([]);
         await fetchReports(); // Refresh reports list
         // Don't change tab, keep user on report tab to see their submitted report
       } else {
-        alert(data.message || 'Failed to submit report');
+        showAlert('error', data.message || 'Failed to submit report');
       }
     } catch (error) {
       console.error('Error submitting report:', error);
-      alert('Failed to submit report');
+      showAlert('error', 'Failed to submit report');
     } finally {
       setSubmittingReport(false);
     }
@@ -829,7 +900,7 @@ export default function SessionWorkspace() {
   const handleReportFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (reportFiles.length + files.length > 5) {
-      alert('Maximum 5 files allowed');
+      showAlert('warning', 'Maximum 5 files allowed');
       return;
     }
     setReportFiles([...reportFiles, ...files]);
@@ -841,7 +912,7 @@ export default function SessionWorkspace() {
 
   const handleRejectionSubmit = () => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a reason for declining the completion request');
+      showAlert('warning', 'Please provide a reason for declining the completion request');
       return;
     }
     handleCompletionResponse('reject', rejectionReason.trim());
@@ -851,17 +922,17 @@ export default function SessionWorkspace() {
     e.preventDefault();
     
     if (reviewRating <= 0) {
-      alert('Please provide a rating');
+      showAlert('warning', 'Please provide a rating');
       return;
     }
 
     if (!reviewComment.trim()) {
-      alert('Please provide a comment');
+      showAlert('warning', 'Please provide a comment');
       return;
     }
 
     if (!session || !currentUserId) {
-      alert('Session or user information not available');
+      showAlert('error', 'Session or user information not available');
       return;
     }
 
@@ -887,17 +958,17 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
-        alert('Review submitted successfully!');
+        showAlert('success', 'Review submitted successfully!');
         setReviewRating(0);
         setReviewComment('');
         fetchReviews(); // Refresh reviews
         setShowReviewModal(false);
       } else {
-        alert(data.message || 'Failed to submit review');
+        showAlert('error', data.message || 'Failed to submit review');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Failed to submit review');
+      showAlert('error', 'Failed to submit review');
     } finally {
       setSubmittingReview(false);
     }
@@ -1177,7 +1248,7 @@ export default function SessionWorkspace() {
                         <button 
                           className="text-blue-600 hover:text-blue-800 text-xs mt-1 underline"
                           onClick={() => {
-                            alert(`Full description: ${myDescription}`);
+                            showAlert('info', myDescription, 'Full Description');
                           }}
                         >
                           View full description
@@ -1208,7 +1279,7 @@ export default function SessionWorkspace() {
                         <button 
                           className="text-green-600 hover:text-green-800 text-xs mt-1 underline"
                           onClick={() => {
-                            alert(`Full description: ${otherDescription}`);
+                            showAlert('info', otherDescription, 'Full Description');
                           }}
                         >
                           View full description
@@ -1604,59 +1675,147 @@ export default function SessionWorkspace() {
         )}
 
         {activeTab === 'submit-work' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Work</h2>
-            
-            <form onSubmit={handleSubmitWork} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Work Description *
-                </label>
-                <textarea
-                  value={workDescription}
-                  onChange={(e) => setWorkDescription(e.target.value)}
-                  placeholder="Describe the work you've completed, what you've learned, or what you've taught..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={6}
-                  required
-                />
+          <div className="space-y-6">
+            {/* Session Completed Message or Submit Form */}
+            {session?.status === 'completed' ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="text-center py-8">
+                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
+                  <p className="text-gray-600 mb-4">
+                    This session has been completed. You can no longer submit new work.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    You can still view previously submitted work below.
+                  </p>
+                </div>
               </div>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Work</h2>
+                
+                <form onSubmit={handleSubmitWork} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Work Description *
+                    </label>
+                    <textarea
+                      value={workDescription}
+                      onChange={(e) => setWorkDescription(e.target.value)}
+                      placeholder="Describe the work you've completed, what you've learned, or what you've taught..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={6}
+                      required
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Attach File (Optional)
-                </label>
-                <input
-                  type="file"
-                  onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
-                </p>
-              </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Attach File (Optional)
+                    </label>
+                    <input
+                      type="file"
+                      onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
+                    </p>
+                  </div>
 
-              <div className="flex items-center justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWorkDescription('');
-                    setWorkFile(null);
-                  }}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Clear
-                </button>
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {uploading ? 'Submitting...' : 'Submit Work'}
-                </button>
+                  <div className="flex items-center justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setWorkDescription('');
+                        setWorkFile(null);
+                      }}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={uploading}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {uploading ? 'Submitting...' : 'Submit Work'}
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
+            )}
+
+            {/* Previously Submitted Works */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                {session?.status === 'completed' ? 'Previously Submitted Works' : 'Your Submitted Works'} ({works.filter(w => w.provideUser._id === currentUserId).length})
+              </h2>
+              
+              {works.filter(w => w.provideUser._id === currentUserId).length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Work Submitted</h3>
+                  <p className="text-gray-600">
+                    {session?.status === 'completed' 
+                      ? 'You did not submit any work during this session.' 
+                      : 'You haven\'t submitted any work yet.'
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {works.filter(w => w.provideUser._id === currentUserId).map((work) => (
+                    <div key={work._id} className="border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="font-medium text-gray-900">Your Work</div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            work.acceptanceStatus === 'accepted' ? 'bg-green-100 text-green-800' :
+                            work.acceptanceStatus === 'rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {work.acceptanceStatus}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {formatDate(work.provideDate)}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-700 mb-3">{work.workDescription}</p>
+                      
+                      {work.workURL && work.workURL !== 'text-only' && (
+                        <div className="mb-3">
+                          <button
+                            onClick={() => handleDownloadFile(work.workURL)}
+                            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700"
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>Download Attachment</span>
+                          </button>
+                        </div>
+                      )}
+                      
+                      {work.remark && work.acceptanceStatus === 'accepted' && (
+                        <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
+                          <div className="text-sm font-medium text-green-800 mb-1">Acceptance Message:</div>
+                          <div className="text-sm text-green-700">{work.remark}</div>
+                        </div>
+                      )}
+                      
+                      {work.rejectionReason && (
+                        <div className="bg-red-50 border border-red-200 rounded p-3">
+                          <div className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</div>
+                          <div className="text-sm text-red-700">{work.rejectionReason}</div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1884,7 +2043,9 @@ export default function SessionWorkspace() {
             {/* Existing Reports Section */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Previous Reports</h2>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {session?.status === 'completed' ? 'Session Reports' : 'Previous Reports'}
+                </h2>
                 <button
                   onClick={fetchReports}
                   disabled={loadingReports}
@@ -1901,8 +2062,15 @@ export default function SessionWorkspace() {
               ) : existingReports.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <Flag className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                  <p>No reports found for this session</p>
-                  <p className="text-sm">Submit your first report below if you're experiencing issues</p>
+                  <p>
+                    {session?.status === 'completed' 
+                      ? 'No reports were submitted during this session' 
+                      : 'No reports found for this session'
+                    }
+                  </p>
+                  {session?.status !== 'completed' && (
+                    <p className="text-sm">Submit your first report below if you're experiencing issues</p>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -2038,124 +2206,139 @@ export default function SessionWorkspace() {
             </div>
 
             {/* Submit New Report Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-2">Report an Issue</h2>
-                <p className="text-sm text-gray-600">
-                  If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
-                  Our team will review the situation and take appropriate action.
-                </p>
+            {session?.status === 'completed' ? (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="text-center py-8">
+                  <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
+                  <p className="text-gray-600 mb-4">
+                    This session has been completed. You can no longer submit new reports.
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    If you have concerns about behavior during this session, please contact support directly.
+                  </p>
+                </div>
               </div>
-
-              <form onSubmit={handleReportSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Reason for Report *
-                  </label>
-                  <select
-                    value={reportReason}
-                    onChange={(e) => setReportReason(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Select a reason...</option>
-                    <option value="not_submitting_work">Not submitting work</option>
-                    <option value="not_responsive">Not responsive to messages</option>
-                    <option value="poor_quality_work">Poor quality work</option>
-                    <option value="inappropriate_behavior">Inappropriate behavior</option>
-                    <option value="not_following_session_terms">Not following session terms</option>
-                    <option value="other">Other</option>
-                  </select>
+            ) : (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Report an Issue</h2>
+                  <p className="text-sm text-gray-600">
+                    If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
+                    Our team will review the situation and take appropriate action.
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Detailed Description *
-                  </label>
-                  <textarea
-                    value={reportDescription}
-                    onChange={(e) => setReportDescription(e.target.value)}
-                    placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context..."
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    rows={6}
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Evidence Files (Optional)
-                  </label>
-                  <div className="space-y-3">
-                    <input
-                      type="file"
-                      onChange={handleReportFileAdd}
+                <form onSubmit={handleReportSubmit} className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reason for Report *
+                    </label>
+                    <select
+                      value={reportReason}
+                      onChange={(e) => setReportReason(e.target.value)}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
-                      multiple
-                    />
-                    <p className="text-xs text-gray-500">
-                      Upload screenshots, documents, or other evidence. Maximum 5 files.
-                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
-                    </p>
-                    
-                    {reportFiles.length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-sm font-medium text-gray-700">Selected Files:</p>
-                        {reportFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                            <span className="text-sm text-gray-700">{file.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleReportFileRemove(index)}
-                              className="text-red-600 hover:text-red-700 text-sm"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                      required
+                    >
+                      <option value="">Select a reason...</option>
+                      <option value="not_submitting_work">Not submitting work</option>
+                      <option value="not_responsive">Not responsive to messages</option>
+                      <option value="poor_quality_work">Poor quality work</option>
+                      <option value="inappropriate_behavior">Inappropriate behavior</option>
+                      <option value="not_following_session_terms">Not following session terms</option>
+                      <option value="other">Other</option>
+                    </select>
                   </div>
-                </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
-                    <div className="text-sm text-yellow-800">
-                      <p className="font-medium mb-1">Important Notes:</p>
-                      <ul className="list-disc list-inside space-y-1">
-                        <li>All reports are reviewed by our team</li>
-                        <li>False reports may result in account restrictions</li>
-                        <li>We will investigate both sides of the situation</li>
-                        <li>You will be notified of the outcome</li>
-                      </ul>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Detailed Description *
+                    </label>
+                    <textarea
+                      value={reportDescription}
+                      onChange={(e) => setReportDescription(e.target.value)}
+                      placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      rows={6}
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Evidence Files (Optional)
+                    </label>
+                    <div className="space-y-3">
+                      <input
+                        type="file"
+                        onChange={handleReportFileAdd}
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                        multiple
+                      />
+                      <p className="text-xs text-gray-500">
+                        Upload screenshots, documents, or other evidence. Maximum 5 files.
+                        Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
+                      </p>
+                      
+                      {reportFiles.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                          {reportFiles.map((file, index) => (
+                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                              <span className="text-sm text-gray-700">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleReportFileRemove(index)}
+                                className="text-red-600 hover:text-red-700 text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center justify-end space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReportReason('');
-                      setReportDescription('');
-                      setReportFiles([]);
-                    }}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submittingReport}
-                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {submittingReport ? 'Submitting Report...' : 'Submit Report'}
-                  </button>
-                </div>
-              </form>
-            </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
+                      <div className="text-sm text-yellow-800">
+                        <p className="font-medium mb-1">Important Notes:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          <li>All reports are reviewed by our team</li>
+                          <li>False reports may result in account restrictions</li>
+                          <li>We will investigate both sides of the situation</li>
+                          <li>You will be notified of the outcome</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setReportReason('');
+                        setReportDescription('');
+                        setReportFiles([]);
+                      }}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={submittingReport}
+                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {submittingReport ? 'Submitting Report...' : 'Submit Report'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2201,7 +2384,7 @@ export default function SessionWorkspace() {
                 <button
                   onClick={() => {
                     if (reviewAction === 'reject' && !reviewMessage.trim()) {
-                      alert('Please provide improvement request details');
+                      showAlert('warning', 'Please provide improvement request details');
                       return;
                     }
                     handleWorkReview(reviewingWork, reviewAction, reviewMessage);
@@ -2434,6 +2617,29 @@ export default function SessionWorkspace() {
           </div>
         </div>
       )}
+
+      {/* Alert Component */}
+      <Alert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        showCloseButton={true}
+        autoClose={false}
+      />
+
+      {/* Confirmation Dialog Component */}
+      <ConfirmationDialog
+        isOpen={confirmation.isOpen}
+        onClose={closeConfirmation}
+        onConfirm={confirmation.onConfirm}
+        title={confirmation.title}
+        message={confirmation.message}
+        confirmText={confirmation.confirmText}
+        type={confirmation.type}
+        loading={confirmation.loading}
+      />
     </div>
   );
 }

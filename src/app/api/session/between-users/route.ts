@@ -36,6 +36,7 @@ export async function GET(req: Request) {
     };
 
     let sessions = await Session.find(query)
+      .lean(false) // Ensure we get the latest data from database
       .populate({
         path: 'user1Id',
         select: 'firstName lastName email avatar'
@@ -54,18 +55,46 @@ export async function GET(req: Request) {
       })
       .populate('progress1')
       .populate('progress2')
+      .populate({
+        path: 'rejectedBy',
+        select: 'firstName lastName email avatar'
+      })
       .sort({ createdAt: -1 });
 
-    // Fix data consistency
+    // Fix data consistency - preserve completed status
     for (let session of sessions) {
       let needsUpdate = false;
+      
+      // Don't change completed sessions
+      if (session.status === 'completed') {
+        continue;
+      }
       
       if (session.isAccepted === true && session.status !== 'active') {
         session.status = 'active';
         needsUpdate = true;
-      } else if (session.isAccepted === false && session.status !== 'canceled') {
-        session.status = 'canceled'; 
-        needsUpdate = true;
+      } else if (session.isAccepted === false) {
+        if (session.status === 'canceled') {
+          // Update old canceled sessions to rejected if isAccepted is false
+          session.status = 'rejected';
+          
+          // Set rejectedBy if not already set
+          if (!session.rejectedBy) {
+            // Assuming the recipient (user2Id) rejected it
+            session.rejectedBy = session.user2Id._id;
+          }
+          
+          // Set rejectedAt if not already set
+          if (!session.rejectedAt) {
+            session.rejectedAt = session.updatedAt || new Date();
+          }
+          
+          needsUpdate = true;
+        } else if (session.status !== 'rejected') {
+          // Status should be rejected
+          session.status = 'rejected';
+          needsUpdate = true;
+        }
       } else if (session.isAccepted === null && session.status !== 'pending') {
         session.status = 'pending';
         needsUpdate = true;

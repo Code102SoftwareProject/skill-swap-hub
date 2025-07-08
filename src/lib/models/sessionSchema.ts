@@ -10,10 +10,12 @@ interface ISession extends Document {
   startDate: Date;
   isAccepted: boolean | null;
   isAmmended: boolean;
-  status: "active" | "completed" | "canceled" | "pending";
+  status: "active" | "completed" | "canceled" | "pending" | "rejected";
   createdAt: Date;
   progress1?: mongoose.Types.ObjectId;
   progress2?: mongoose.Types.ObjectId;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
 }
 
 const sessionSchema = new Schema(
@@ -32,11 +34,13 @@ const sessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "completed", "canceled","pending"],
+      enum: ["active", "completed", "canceled","pending", "rejected"],
       default: "pending", 
     },
     progress1: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
-    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" }
+    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rejectedAt: { type: Date }
   },
   { timestamps: true }
 );
