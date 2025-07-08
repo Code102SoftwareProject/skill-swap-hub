@@ -76,12 +76,15 @@ export async function POST(req: NextRequest) {
       status: 'pending'
     });
 
-    // Note: No longer updating session with completion request fields
-    // All completion data is now tracked in SessionCompletion schema
+    // Update session with completion request (for backward compatibility)
+    session.completionRequestedBy = userIdObj;
+    session.completionRequestedAt = new Date();
+    await session.save();
 
     // Populate the created request
     const populatedRequest = await SessionCompletion.findById(completionRequest._id)
-      .populate('requestedBy', 'firstName lastName email');
+      .populate('requestedBy', 'firstName lastName email')
+      .populate('sessionId');
 
     return NextResponse.json({
       success: true,
@@ -188,11 +191,25 @@ export async function PATCH(req: NextRequest) {
 
     // Update session based on action
     if (action === 'approve') {
-      // Approve completion - mark session as completed
-      session.status = 'completed';      
+      // Approve completion
+      session.completionApprovedBy = userIdObj;
+      session.completionApprovedAt = new Date();
+      session.status = 'completed';
+      
+      // Clear any previous rejection
+      session.completionRejectedBy = undefined;
+      session.completionRejectedAt = undefined;
+      session.completionRejectionReason = undefined;
+      
     } else if (action === 'reject') {
-      // Rejection is handled in SessionCompletion schema
-      // No changes needed to session for rejection
+      // Reject completion
+      session.completionRejectedBy = userIdObj;
+      session.completionRejectedAt = new Date();
+      session.completionRejectionReason = rejectionReason || "Completion request rejected";
+      
+      // Clear the completion request so it can be requested again
+      session.completionRequestedBy = undefined;
+      session.completionRequestedAt = undefined;
     }
 
     await session.save();

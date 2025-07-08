@@ -25,6 +25,8 @@ export async function GET(
     const session = await Session.findById(id)
       .populate('user1Id', 'firstName lastName email avatar')
       .populate('user2Id', 'firstName lastName email avatar')
+      .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
+      .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .lean(); // Use lean for better performance
 
     if (!session) {

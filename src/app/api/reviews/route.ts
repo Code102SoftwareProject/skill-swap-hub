@@ -4,7 +4,6 @@ import connect from '@/lib/db';
 import Review from '@/lib/models/reviewSchema';
 import Session from '@/lib/models/sessionSchema';
 import User from '@/lib/models/userSchema';
-import UserSkill from '@/lib/models/userSkill';
 
 // POST - Create a review
 export async function POST(req: NextRequest) {
@@ -12,28 +11,20 @@ export async function POST(req: NextRequest) {
     await connect();
     
     const body = await req.json();
-    const { sessionId, reviewerId, revieweeId, rating, comment, skillId, reviewType } = body;
+    const { sessionId, reviewerId, revieweeId, rating, comment } = body;
 
     // Validate required fields
-    if (!sessionId || !reviewerId || !revieweeId || !rating || !comment || !skillId || !reviewType) {
+    if (!sessionId || !reviewerId || !revieweeId || !rating || !comment) {
       return NextResponse.json(
         { success: false, message: "All fields are required" },
         { status: 400 }
       );
     }
 
-    // Validate rating range
-    if (rating < 1 || rating > 5) {
+    // Validate rating is integer between 1-5
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return NextResponse.json(
-        { success: false, message: "Rating must be between 1 and 5" },
-        { status: 400 }
-      );
-    }
-
-    // Validate review type
-    if (!['skill_teaching', 'skill_learning'].includes(reviewType)) {
-      return NextResponse.json(
-        { success: false, message: "Review type must be 'skill_teaching' or 'skill_learning'" },
+        { success: false, message: "Rating must be an integer between 1 and 5" },
         { status: 400 }
       );
     }
@@ -54,42 +45,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const reviewerIdObj = new mongoose.Types.ObjectId(reviewerId);
-    const revieweeIdObj = new mongoose.Types.ObjectId(revieweeId);
-
-    // Check if reviewer is part of the session
-    if (!session.user1Id.equals(reviewerIdObj) && !session.user2Id.equals(reviewerIdObj)) {
+    // Verify the reviewer is part of this session
+    const isUser1 = session.user1Id.toString() === reviewerId;
+    const isUser2 = session.user2Id.toString() === reviewerId;
+    
+    if (!isUser1 && !isUser2) {
       return NextResponse.json(
-        { success: false, message: "Reviewer is not part of this session" },
+        { success: false, message: "You are not a participant in this session" },
         { status: 403 }
       );
     }
 
-    // Check if reviewee is the other person in the session
-    if (!session.user1Id.equals(revieweeIdObj) && !session.user2Id.equals(revieweeIdObj)) {
+    // Verify reviewee is the other user in the session
+    const otherUserId = isUser1 ? session.user2Id.toString() : session.user1Id.toString();
+    if (revieweeId !== otherUserId) {
       return NextResponse.json(
-        { success: false, message: "Reviewee is not part of this session" },
-        { status: 403 }
-      );
-    }
-
-    // Check if reviewer and reviewee are different
-    if (reviewerIdObj.equals(revieweeIdObj)) {
-      return NextResponse.json(
-        { success: false, message: "Cannot review yourself" },
+        { success: false, message: "You can only review the other participant in this session" },
         { status: 400 }
       );
     }
 
     // Check if review already exists
     const existingReview = await Review.findOne({
-      sessionId: new mongoose.Types.ObjectId(sessionId),
-      reviewerId: reviewerIdObj
+      sessionId,
+      reviewerId
     });
 
     if (existingReview) {
       return NextResponse.json(
-        { success: false, message: "Review already submitted for this session" },
+        { success: false, message: "You have already reviewed this session" },
         { status: 400 }
       );
     }
@@ -97,21 +81,17 @@ export async function POST(req: NextRequest) {
     // Create the review
     const review = await Review.create({
       sessionId: new mongoose.Types.ObjectId(sessionId),
-      reviewerId: reviewerIdObj,
-      revieweeId: revieweeIdObj,
-      rating,
-      comment,
-      skillId: new mongoose.Types.ObjectId(skillId),
-      reviewType,
+      reviewerId: new mongoose.Types.ObjectId(reviewerId),
+      revieweeId: new mongoose.Types.ObjectId(revieweeId),
+      rating: parseInt(rating),
+      comment: comment.trim(),
       isVisible: true
     });
 
-    // Populate the review with user and skill information
+    // Populate the review with user information
     const populatedReview = await Review.findById(review._id)
-      .populate('reviewerId', 'firstName lastName avatar')
-      .populate('revieweeId', 'firstName lastName avatar')
-      .populate('skillId', 'skillTitle')
-      .populate('sessionId');
+      .populate('reviewerId', 'firstName lastName name')
+      .populate('revieweeId', 'firstName lastName name');
 
     return NextResponse.json({
       success: true,
@@ -128,101 +108,50 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET - Get reviews (for a user or session)
+// GET - Get reviews for a session
 export async function GET(req: NextRequest) {
   try {
     await connect();
     
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
     const sessionId = searchParams.get('sessionId');
-    const skillId = searchParams.get('skillId');
-    const reviewType = searchParams.get('reviewType');
+    const userId = searchParams.get('userId');
 
-    let query: any = { isVisible: true };
-
-    if (userId) {
-      query.revieweeId = new mongoose.Types.ObjectId(userId);
+    if (!sessionId) {
+      return NextResponse.json(
+        { success: false, message: "Session ID is required" },
+        { status: 400 }
+      );
     }
 
-    if (sessionId) {
-      query.sessionId = new mongoose.Types.ObjectId(sessionId);
-    }
-
-    if (skillId) {
-      query.skillId = new mongoose.Types.ObjectId(skillId);
-    }
-
-    if (reviewType && ['skill_teaching', 'skill_learning'].includes(reviewType)) {
-      query.reviewType = reviewType;
-    }
-
-    const reviews = await Review.find(query)
-      .populate('reviewerId', 'firstName lastName avatar')
-      .populate('revieweeId', 'firstName lastName avatar')
-      .populate('skillId', 'skillTitle categoryName')
+    // Get reviews for this session
+    const reviews = await Review.find({ 
+      sessionId: new mongoose.Types.ObjectId(sessionId),
+      isVisible: true 
+    })
+      .populate('reviewerId', 'firstName lastName name')
+      .populate('revieweeId', 'firstName lastName name')
       .sort({ createdAt: -1 });
 
-    // Calculate average rating if getting reviews for a specific user
-    let averageRating = null;
-    if (userId && reviews.length > 0) {
-      const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
-      averageRating = totalRating / reviews.length;
+    // If userId provided, get specific review info
+    let userReview = null;
+    let receivedReview = null;
+    
+    if (userId) {
+      userReview = reviews.find(r => r.reviewerId._id.toString() === userId);
+      receivedReview = reviews.find(r => r.revieweeId._id.toString() === userId);
     }
 
     return NextResponse.json({
       success: true,
       reviews,
-      averageRating,
+      userReview: userReview || null,
+      receivedReview: receivedReview || null,
       totalReviews: reviews.length
     }, { status: 200 });
 
   } catch (error: any) {
     console.error('Get reviews error:', error);
-    return NextResponse.json(
-      { success: false, message: error.message },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT - Update review visibility (admin function)
-export async function PUT(req: NextRequest) {
-  try {
-    await connect();
-    
-    const body = await req.json();
-    const { reviewId, isVisible } = body;
-
-    if (!reviewId || typeof isVisible !== 'boolean') {
-      return NextResponse.json(
-        { success: false, message: "Review ID and visibility status are required" },
-        { status: 400 }
-      );
-    }
-
-    const review = await Review.findByIdAndUpdate(
-      reviewId,
-      { isVisible },
-      { new: true }
-    ).populate('reviewerId', 'firstName lastName')
-     .populate('revieweeId', 'firstName lastName');
-
-    if (!review) {
-      return NextResponse.json(
-        { success: false, message: "Review not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Review ${isVisible ? 'made visible' : 'hidden'} successfully`,
-      review
-    }, { status: 200 });
-
-  } catch (error: any) {
-    console.error('Update review visibility error:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

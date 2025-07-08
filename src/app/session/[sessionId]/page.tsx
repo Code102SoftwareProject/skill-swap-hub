@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessionCompletion';
 
 interface Session {
   _id: string;
@@ -18,13 +19,6 @@ interface Session {
   status: string;
   progress1?: any;
   progress2?: any;
-  completionRequestedBy?: any;
-  completionRequestedAt?: string;
-  completionApprovedBy?: any;
-  completionApprovedAt?: string;
-  completionRejectedBy?: any;
-  completionRejectedAt?: string;
-  completionRejectionReason?: string;
 }
 
 interface Work {
@@ -64,10 +58,18 @@ export default function SessionWorkspace() {
   const [myProgress, setMyProgress] = useState<SessionProgress | null>(null);
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report' | 'ratings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report'>('overview');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [loadingReviews, setLoadingReviews] = useState(false);
+
+  // Completion status from SessionCompletion API
+  const [completionStatus, setCompletionStatus] = useState<CompletionStatus>({
+    canRequestCompletion: true,
+    hasRequestedCompletion: false,
+    needsToApprove: false,
+    wasRejected: false,
+    isCompleted: false,
+    pendingRequests: []
+  });
 
   // Submit work form state
   const [workDescription, setWorkDescription] = useState('');
@@ -99,6 +101,16 @@ export default function SessionWorkspace() {
   const [respondingToCompletion, setRespondingToCompletion] = useState(false);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Review state
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [userReview, setUserReview] = useState<any>(null);
+  const [receivedReview, setReceivedReview] = useState<any>(null);
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Helper function to send notifications
   const sendNotification = async (userId: string, typeno: number, description: string, targetDestination?: string) => {
@@ -135,6 +147,8 @@ export default function SessionWorkspace() {
       fetchWorks();
       fetchProgress();
       fetchReports();
+      fetchCompletionStatus();
+      fetchReviews();
     }
   }, [currentUserId, sessionId]);
 
@@ -143,6 +157,13 @@ export default function SessionWorkspace() {
       fetchOtherUserDetails();
     }
   }, [session, currentUserId]);
+
+  // Fetch reviews when session status changes to completed
+  useEffect(() => {
+    if (session?.status === 'completed' && currentUserId && sessionId) {
+      fetchReviews();
+    }
+  }, [session?.status, currentUserId, sessionId]);
 
   const fetchOtherUserDetails = async () => {
     if (!session) return;
@@ -166,6 +187,11 @@ export default function SessionWorkspace() {
       const data = await response.json();
       
       if (data.success) {
+        console.log('Session data loaded:', data.session);
+        console.log('Skill 1:', data.session.skill1Id);
+        console.log('Skill 2:', data.session.skill2Id);
+        console.log('Description 1:', data.session.descriptionOfService1);
+        console.log('Description 2:', data.session.descriptionOfService2);
         setSession(data.session);
       }
     } catch (error) {
@@ -259,6 +285,17 @@ export default function SessionWorkspace() {
       console.error('Error fetching reports:', error);
     } finally {
       setLoadingReports(false);
+    }
+  };
+
+  const fetchCompletionStatus = async () => {
+    if (!currentUserId || !sessionId) return;
+    
+    try {
+      const status = await getSessionCompletionStatus(sessionId, currentUserId);
+      setCompletionStatus(status);
+    } catch (error) {
+      console.error('Error fetching completion status:', error);
     }
   };
 
@@ -633,6 +670,7 @@ export default function SessionWorkspace() {
 
         alert('Completion request sent successfully! Waiting for approval from the other participant.');
         fetchSessionData(); // Refresh session to show completion request
+        fetchCompletionStatus(); // Refresh completion status
       } else {
         alert(data.message || 'Failed to request completion');
       }
@@ -691,31 +729,14 @@ export default function SessionWorkspace() {
       if (data.success) {
         console.log('Completion response successful:', data);
         
-        // Send notification to the requester
-        if (session && session.completionRequestedBy) {
-          const requesterUserId = session.completionRequestedBy._id || session.completionRequestedBy;
-          const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
-          
-          if (action === 'approve') {
-            await sendNotification(
-              requesterUserId,
-              19, // SESSION_COMPLETED (you may need to add this notification type)
-              `🎉 ${currentUserName} approved session completion! Your skill exchange is now complete.`,
-              `/session/${sessionId}`
-            );
-          } else {
-            await sendNotification(
-              requesterUserId,
-              20, // SESSION_COMPLETION_REJECTED (you may need to add this notification type)
-              `${currentUserName} declined the completion request. Reason: ${providedRejectionReason}`,
-              `/session/${sessionId}`
-            );
-          }
-        }
-
+        // Send notification to the other user about completion response
+        // TODO: Update this to work with new SessionCompletion API
+        // For now, we'll skip the notification to avoid errors
+        
         alert(action === 'approve' ? 'Session completed successfully!' : 'Completion request rejected');
         console.log('About to refresh session data...');
         await fetchSessionData(); // Refresh session data
+        await fetchCompletionStatus(); // Refresh completion status
         console.log('Session data refreshed');
         
         // Close modal if it was open
@@ -826,6 +847,88 @@ export default function SessionWorkspace() {
     handleCompletionResponse('reject', rejectionReason.trim());
   };
 
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (reviewRating <= 0) {
+      alert('Please provide a rating');
+      return;
+    }
+
+    if (!reviewComment.trim()) {
+      alert('Please provide a comment');
+      return;
+    }
+
+    if (!session || !currentUserId) {
+      alert('Session or user information not available');
+      return;
+    }
+
+    const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+
+    setSubmittingReview(true);
+    
+    try {
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId,
+          reviewerId: currentUserId,
+          revieweeId: otherUserId,
+          rating: reviewRating,
+          comment: reviewComment.trim(),
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert('Review submitted successfully!');
+        setReviewRating(0);
+        setReviewComment('');
+        fetchReviews(); // Refresh reviews
+        setShowReviewModal(false);
+      } else {
+        alert(data.message || 'Failed to submit review');
+      }
+    } catch (error) {
+      console.error('Error submitting review:', error);
+      alert('Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const fetchReviews = async () => {
+    if (!sessionId || !currentUserId) return;
+    
+    setLoadingReviews(true);
+    try {
+      const response = await fetch(`/api/reviews?sessionId=${sessionId}&userId=${currentUserId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        setReviews(data.reviews);
+        setUserReview(data.userReview);
+        setReceivedReview(data.receivedReview);
+      }
+    } catch (error) {
+      console.error('Error fetching reviews:', error);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchReviews();
+    }
+  }, [sessionId]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -895,6 +998,29 @@ export default function SessionWorkspace() {
     return fullName || user.name || 'Unknown User';
   };
 
+  // Clean up skill descriptions to handle malformed data
+  const cleanDescription = (description: string) => {
+    if (!description) return 'No description provided';
+    
+    // Remove common prefixes that might be accidentally included
+    const cleanedDesc = description
+      .replace(/^(For the job description|Job description|Description):?\s*/i, '')
+      .replace(/^(Service description|About|Details):?\s*/i, '')
+      .trim();
+    
+    // If after cleaning it's empty or too short, return a fallback
+    if (!cleanedDesc || cleanedDesc.length < 10) {
+      return 'No detailed description provided';
+    }
+    
+    // Truncate if too long for display
+    if (cleanedDesc.length > 200) {
+      return cleanedDesc.substring(0, 197) + '...';
+    }
+    
+    return cleanedDesc;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -908,13 +1034,28 @@ export default function SessionWorkspace() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
-              <h1 className="text-xl font-semibold text-gray-900">
-                Session with {getOtherUserName()}
-              </h1>
+              <div className="flex items-center space-x-3">
+                <h1 className="text-xl font-semibold text-gray-900">
+                  Session with {getOtherUserName()}
+                </h1>
+                {session?.status === 'completed' && (
+                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                    ✓ Completed
+                  </span>
+                )}
+              </div>
             </div>
             <div className="flex items-center space-x-2">
+              <Calendar className="h-4 w-4 text-gray-500" />
               <span className="text-sm text-gray-500">Started:</span>
               <span className="text-sm font-medium">{formatDate(session.startDate)}</span>
+              {session?.status === 'completed' && (
+                <>
+                  <span className="text-sm text-gray-400 mx-2">•</span>
+                  <span className="text-sm text-gray-500">Status:</span>
+                  <span className="text-sm font-medium text-green-600">Completed</span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -956,51 +1097,55 @@ export default function SessionWorkspace() {
             {/* Session Details */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Session Details</h2>
+                <div className="flex items-center space-x-3">
+                  <h2 className="text-lg font-semibold text-gray-900">Session Details</h2>
+                  {session?.status === 'completed' && (
+                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                      <CheckCircle className="h-4 w-4" />
+                      <span>Completed</span>
+                    </span>
+                  )}
+                </div>
                 
                 {/* Mark as Complete Button */}
                 {session?.status === 'active' && (
                   <div className="flex items-center space-x-3">
-                    {session.completionRequestedBy ? (
+                    {completionStatus.hasRequestedCompletion ? (
+                      /* User requested completion - waiting for approval */
+                      <span className="text-sm text-yellow-600 font-medium bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
+                        Completion Requested - Waiting for Approval
+                      </span>
+                    ) : completionStatus.needsToApprove ? (
+                      /* Other user requested completion - needs approval */
                       <>
-                        {(session.completionRequestedBy._id === currentUserId || session.completionRequestedBy === currentUserId) ? (
-                          /* User requested completion - waiting for approval */
-                          <span className="text-sm text-yellow-600 font-medium bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
-                            Completion Requested
-                          </span>
-                        ) : (
-                          /* Other user requested completion - needs approval */
-                          <>
-                            <button
-                              onClick={() => handleCompletionResponse('approve')}
-                              disabled={respondingToCompletion}
-                              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              <span>Approve Completion</span>
-                            </button>
-                            <button
-                              onClick={() => handleCompletionResponse('reject')}
-                              disabled={respondingToCompletion}
-                              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              <span>Decline</span>
-                            </button>
-                          </>
-                        )}
+                        <button
+                          onClick={() => handleCompletionResponse('approve')}
+                          disabled={respondingToCompletion}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Approve Completion</span>
+                        </button>
+                        <button
+                          onClick={() => handleCompletionResponse('reject')}
+                          disabled={respondingToCompletion}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
+                          <XCircle className="h-4 w-4" />
+                          <span>Decline</span>
+                        </button>
                       </>
-                    ) : session.completionRejectedBy ? (
-                      /* Completion was rejected */
+                    ) : completionStatus.wasRejected ? (
+                      /* Completion was rejected - can request again */
                       <button
                         onClick={handleRequestCompletion}
                         disabled={requestingCompletion}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
                       >
                         <CheckCircle className="h-4 w-4" />
-                        <span>Request Completion</span>
+                        <span>Request Completion Again</span>
                       </button>
-                    ) : (
+                    ) : completionStatus.canRequestCompletion ? (
                       /* No completion request yet */
                       <button
                         onClick={handleRequestCompletion}
@@ -1010,7 +1155,7 @@ export default function SessionWorkspace() {
                         <CheckCircle className="h-4 w-4" />
                         <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
                       </button>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -1023,8 +1168,22 @@ export default function SessionWorkspace() {
                     <h3 className="font-medium text-gray-900">You're offering:</h3>
                   </div>
                   <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-blue-900">{mySkill?.skillTitle}</h4>
-                    <p className="text-sm text-blue-700 mt-1">{myDescription}</p>
+                    <h4 className="font-semibold text-blue-900">
+                      {mySkill?.skillTitle || mySkill?.title || 'Skill not available'}
+                    </h4>
+                    <div className="text-sm text-blue-700 mt-1">
+                      <p className="leading-relaxed">{cleanDescription(myDescription)}</p>
+                      {myDescription && myDescription.length > 200 && (
+                        <button 
+                          className="text-blue-600 hover:text-blue-800 text-xs mt-1 underline"
+                          onClick={() => {
+                            alert(`Full description: ${myDescription}`);
+                          }}
+                        >
+                          View full description
+                        </button>
+                      )}
+                    </div>
                     {mySkill?.proficiencyLevel && (
                       <span className="inline-block mt-2 px-2 py-1 bg-blue-200 text-blue-800 text-xs rounded-full">
                         {mySkill.proficiencyLevel}
@@ -1040,8 +1199,22 @@ export default function SessionWorkspace() {
                     <h3 className="font-medium text-gray-900">You're receiving:</h3>
                   </div>
                   <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h4 className="font-semibold text-green-900">{otherSkill?.skillTitle}</h4>
-                    <p className="text-sm text-green-700 mt-1">{otherDescription}</p>
+                    <h4 className="font-semibold text-green-900">
+                      {otherSkill?.skillTitle || otherSkill?.title || 'Skill not available'}
+                    </h4>
+                    <div className="text-sm text-green-700 mt-1">
+                      <p className="leading-relaxed">{cleanDescription(otherDescription)}</p>
+                      {otherDescription && otherDescription.length > 200 && (
+                        <button 
+                          className="text-green-600 hover:text-green-800 text-xs mt-1 underline"
+                          onClick={() => {
+                            alert(`Full description: ${otherDescription}`);
+                          }}
+                        >
+                          View full description
+                        </button>
+                      )}
+                    </div>
                     {otherSkill?.proficiencyLevel && (
                       <span className="inline-block mt-2 px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">
                         {otherSkill.proficiencyLevel}
@@ -1161,57 +1334,63 @@ export default function SessionWorkspace() {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Completion</h2>
                 
                 {/* Completion Request Status */}
-                {session.completionRequestedBy ? (
-                  <div className="space-y-4">
-                    {session.completionRequestedBy._id === currentUserId || session.completionRequestedBy === currentUserId ? (
-                      /* User requested completion - waiting for approval */
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
-                          <div>
-                            <h3 className="font-medium text-yellow-900">Completion Request Sent</h3>
-                            <p className="text-sm text-yellow-700 mt-1">
-                              You've requested to complete this session on {formatDate(session.completionRequestedAt || '')}. 
-                              Waiting for {getOtherUserName()} to approve.
-                            </p>
-                          </div>
-                        </div>
+                {completionStatus.hasRequestedCompletion ? (
+                  /* User requested completion - waiting for approval */
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-yellow-900">Completion Request Sent</h3>
+                        <p className="text-sm text-yellow-700 mt-1">
+                          You've requested to complete this session. 
+                          Waiting for {getOtherUserName()} to approve.
+                        </p>
+                        {completionStatus.pendingRequests.length > 0 && (
+                          <p className="text-xs text-yellow-600 mt-2">
+                            Request sent: {formatDate(completionStatus.pendingRequests[0].requestedAt)}
+                          </p>
+                        )}
                       </div>
-                    ) : (
-                      /* Other user requested completion - needs approval */
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                          <div className="flex-1">
-                            <h3 className="font-medium text-blue-900">Completion Request Received</h3>
-                            <p className="text-sm text-blue-700 mt-1">
-                              {getOtherUserName()} has requested to complete this session on {formatDate(session.completionRequestedAt || '')}. 
-                              Please review and decide whether to approve.
-                            </p>
-                            <div className="mt-3 flex items-center space-x-3">
-                              <button
-                                onClick={() => handleCompletionResponse('approve')}
-                                disabled={respondingToCompletion}
-                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                                <span>Approve Completion</span>
-                              </button>
-                              <button
-                                onClick={() => handleCompletionResponse('reject')}
-                                disabled={respondingToCompletion}
-                                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                              >
-                                <XCircle className="h-4 w-4" />
-                                <span>Decline</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                ) : session.completionRejectedBy ? (
+                ) : completionStatus.needsToApprove ? (
+                  /* Other user requested completion - needs approval */
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="font-medium text-blue-900">Completion Request Received</h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          {completionStatus.requesterName || getOtherUserName()} has requested to complete this session. 
+                          Please review and decide whether to approve.
+                        </p>
+                        {completionStatus.pendingRequests.length > 0 && (
+                          <p className="text-xs text-blue-600 mt-1">
+                            Request received: {formatDate(completionStatus.pendingRequests[0].requestedAt)}
+                          </p>
+                        )}
+                        <div className="mt-3 flex items-center space-x-3">
+                          <button
+                            onClick={() => handleCompletionResponse('approve')}
+                            disabled={respondingToCompletion}
+                            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            <span>{respondingToCompletion ? 'Processing...' : 'Approve Completion'}</span>
+                          </button>
+                          <button
+                            onClick={() => handleCompletionResponse('reject')}
+                            disabled={respondingToCompletion}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            <span>Decline with Reason</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : completionStatus.wasRejected ? (
                   /* Completion was rejected - show rejection message */
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="flex items-start space-x-3">
@@ -1219,24 +1398,15 @@ export default function SessionWorkspace() {
                       <div>
                         <h3 className="font-medium text-red-900">Completion Request Declined</h3>
                         <p className="text-sm text-red-700 mt-1">
-                          {session.completionRejectedBy._id === currentUserId || session.completionRejectedBy === currentUserId ? 
-                            `You declined the completion request on ${formatDate(session.completionRejectedAt || '')}.` :
-                            `${getOtherUserName()} declined the completion request on ${formatDate(session.completionRejectedAt || '')}.`
-                          }
+                          Your recent completion request was declined. You can submit a new request when ready.
                         </p>
-                        {session.completionRejectionReason && (
-                          <div className="mt-2 p-3 bg-red-100 rounded-lg">
-                            <p className="text-sm font-medium text-red-900 mb-1">Reason:</p>
-                            <p className="text-sm text-red-800">{session.completionRejectionReason}</p>
-                          </div>
-                        )}
                         <p className="text-xs text-red-600 mt-2">
                           You can continue working on the session or submit a new completion request when ready.
                         </p>
                       </div>
                     </div>
                   </div>
-                ) : (
+                ) : completionStatus.canRequestCompletion ? (
                   /* No completion request yet */
                   <div className="space-y-4">
                     {/* Completion readiness check */}
@@ -1282,6 +1452,11 @@ export default function SessionWorkspace() {
                       </div>
                     </div>
                   </div>
+                ) : (
+                  /* Default case - no specific completion status */
+                  <div className="text-sm text-gray-600">
+                    <p>Loading completion status...</p>
+                  </div>
                 )}
               </div>
             )}
@@ -1294,13 +1469,135 @@ export default function SessionWorkspace() {
                   <div>
                     <h3 className="font-semibold text-green-900">Session Completed! 🎉</h3>
                     <p className="text-sm text-green-700 mt-1">
-                      This skill exchange session was completed on {formatDate(session.completionApprovedAt || '')}.
-                      {session.completionApprovedBy && (
-                        <span> Approved by {session.completionApprovedBy._id === currentUserId ? 'you' : getOtherUserName()}.</span>
-                      )}
+                      This skill exchange session has been successfully completed. Both participants have agreed to mark it as finished.
+                    </p>
+                    <p className="text-xs text-green-600 mt-2">
+                      You can still view submitted work and session details, or provide ratings for your exchange partner.
                     </p>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Review Section - Only show for completed sessions */}
+            {session?.status === 'completed' && (
+              <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-lg font-semibold text-gray-900">Session Reviews</h2>
+                  <span className="text-sm text-gray-500">
+                    Share your experience with this skill exchange
+                  </span>
+                </div>
+                
+                {loadingReviews ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                    <span className="ml-2 text-gray-600">Loading reviews...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Your Review */}
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900 flex items-center space-x-2">
+                        <User className="h-4 w-4 text-blue-600" />
+                        <span>Your Review of {getOtherUserName()}</span>
+                      </h3>
+                      {userReview ? (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <div className="flex space-x-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                  key={star}
+                                  className={`text-xl ${
+                                    star <= userReview.rating ? 'text-yellow-400' : 'text-gray-300'
+                                  }`}
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                            <span className="text-sm text-gray-600 font-medium">
+                              {userReview.rating}/5
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 italic">"{userReview.comment}"</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Submitted on {formatDate(userReview.createdAt)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                          <div className="space-y-3">
+                            <div className="text-gray-400">
+                              <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              You haven't reviewed {getOtherUserName()} yet
+                            </p>
+                            <button
+                              onClick={() => setShowReviewModal(true)}
+                              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                            >
+                              Write Review
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Review from Other User */}
+                    <div className="space-y-4">
+                      <h3 className="font-medium text-gray-900 flex items-center space-x-2">
+                        <User className="h-4 w-4 text-green-600" />
+                        <span>Review from {getOtherUserName()}</span>
+                      </h3>
+                      {receivedReview ? (
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <div className="flex items-center space-x-2 mb-3">
+                            <div className="flex space-x-1">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <span
+                                  key={star}
+                                  className={`text-xl ${
+                                    star <= receivedReview.rating ? 'text-yellow-400' : 'text-gray-300'
+                                  }`}
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                            <span className="text-sm text-gray-600 font-medium">
+                              {receivedReview.rating}/5
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 italic">"{receivedReview.comment}"</p>
+                          <p className="text-xs text-gray-500 mt-2">
+                            Submitted on {formatDate(receivedReview.createdAt)}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                          <div className="space-y-3">
+                            <div className="text-gray-400">
+                              <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-gray-600">
+                              {getOtherUserName()} hasn't reviewed this session yet
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              They will be able to submit their review once they visit the session page
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2061,6 +2358,76 @@ export default function SessionWorkspace() {
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   Submit Rejection Reason
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Review Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">
+                {userReview ? 'Edit Your Review' : 'Submit Your Review'}
+              </h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Rating *
+                </label>
+                <div className="flex items-center space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className={`text-2xl transition-all hover:scale-110 ${
+                        reviewRating >= star ? 'text-yellow-400' : 'text-gray-300 hover:text-yellow-200'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                  <span className="ml-2 text-sm text-gray-600">
+                    {reviewRating > 0 ? `${reviewRating}/5` : 'Click to rate'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Comment *
+                </label>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share your feedback about the session..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowReviewModal(false);
+                    setReviewRating(0);
+                    setReviewComment('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleReviewSubmit}
+                  disabled={submittingReview || reviewRating === 0 || !reviewComment.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingReview ? 'Submitting...' : 'Submit Review'}
                 </button>
               </div>
             </div>
