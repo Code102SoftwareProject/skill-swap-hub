@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Loader, MessageSquare, Flag, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
+import WatchPostButton from './WatchPostButton';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 interface Post {
   _id: string;
@@ -34,6 +36,7 @@ interface ForumPostsProps {
 const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const { trackInteraction } = useUserPreferences();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +45,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   
   const currentUserId = user ? user._id : 'current-user-id';
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/forums/${forumId}/posts`);
@@ -59,13 +62,13 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [forumId]);
 
   useEffect(() => {
     if (forumId) {
       fetchPosts();
     }
-  }, [forumId]);
+  }, [forumId, fetchPosts]);
 
   const handleCreatePost = () => {
     setIsCreatePostOpen(true);
@@ -120,7 +123,17 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   };
 
   // Add this function to handle post click navigation
-  const handlePostClick = (postId: string) => {
+  const handlePostClick = async (postId: string) => {
+    // Track view interaction
+    if (user) {
+      await trackInteraction({
+        postId,
+        forumId,
+        interactionType: 'view',
+        timeSpent: 0
+      });
+    }
+    
     router.push(`/forum/${forumId}/posts/${postId}`);
   };
 
@@ -268,13 +281,20 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                       </motion.button>
                     </div>
                     
-                    <motion.button 
-                      whileHover={{ scale: 1.1 }}
-                      className="text-blue-400 hover:text-red-500 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Flag className="w-5 h-5" />
-                    </motion.button>
+                    <div className="flex items-center space-x-3">
+                      {/* Watch Post Button */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <WatchPostButton postId={post._id} size="sm" />
+                      </div>
+                      
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        className="text-blue-400 hover:text-red-500 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Flag className="w-5 h-5" />
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X, Bookmark } from 'lucide-react';
 import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -73,7 +73,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
   const handleChatClick = () => {
     setIsMobileMenuOpen(false);
     router.push('/user/chat');
-  }
+  };
+
+  const handleWatchlistClick = () => {
+    setIsMobileMenuOpen(false);
+    router.push('/watchlist');
+  };
 
   const isLoggedIn = !!user;
   const displayName = user ? user.firstName : 'User';
@@ -133,6 +138,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
             <div className="flex items-center gap-4">
               <button className="text-white" onClick={handleChatClick}>
                 <MessageSquare className="w-6 h-6" />
+              </button>
+              <button className="text-white" onClick={handleWatchlistClick}>
+                <Bookmark className="w-6 h-6" />
               </button>
               <button onClick={handleNotificationsClick} className="text-white">
                 <Bell className="w-6 h-6" />
@@ -272,6 +280,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
               >
                 <MessageSquare className="w-5 h-5" />
                 Messages
+              </button>
+              
+              <button 
+                className="flex items-center gap-3 w-full py-2 text-white"
+                onClick={handleWatchlistClick}
+              >
+                <Bookmark className="w-5 h-5" />
+                Watchlist
               </button>
               
               <button 
