@@ -53,8 +53,7 @@ const ListingsContent: React.FC = () => {
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
-    matched: 0,
-    completed: 0,
+    notActive: 0,
     inMatches: 0
   });
 
@@ -122,11 +121,10 @@ const ListingsContent: React.FC = () => {
   const updateStats = () => {
     const total = listings.length;
     const active = listings.filter(l => l.status === 'active').length;
-    const matched = listings.filter(l => l.status === 'matched').length;
-    const completed = listings.filter(l => l.status === 'completed').length;
+    const notActive = listings.filter(l => l.status === 'not active').length;
     const inMatches = listings.filter(l => l.isUsedInMatches).length;
     
-    setStats({ total, active, matched, completed, inMatches });
+    setStats({ total, active, notActive, inMatches });
   };
 
   // Handle listing deletion confirmation
@@ -240,7 +238,7 @@ const ListingsContent: React.FC = () => {
 
   // Render statistics cards
   const renderStatsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       <div className="bg-white p-4 rounded-lg shadow-sm border">
         <div className="flex items-center">
           <Calendar className="w-8 h-8 text-blue-500 mr-3" />
@@ -263,20 +261,10 @@ const ListingsContent: React.FC = () => {
       
       <div className="bg-white p-4 rounded-lg shadow-sm border">
         <div className="flex items-center">
-          <Users className="w-8 h-8 text-blue-500 mr-3" />
+          <XCircle className="w-8 h-8 text-gray-500 mr-3" />
           <div>
-            <p className="text-sm text-gray-600">Matched</p>
-            <p className="text-2xl font-bold text-blue-600">{stats.matched}</p>
-          </div>
-        </div>
-      </div>
-      
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center">
-          <TrendingUp className="w-8 h-8 text-purple-500 mr-3" />
-          <div>
-            <p className="text-sm text-gray-600">Completed</p>
-            <p className="text-2xl font-bold text-purple-600">{stats.completed}</p>
+            <p className="text-sm text-gray-600">Not Active</p>
+            <p className="text-2xl font-bold text-gray-600">{stats.notActive}</p>
           </div>
         </div>
       </div>
@@ -374,9 +362,7 @@ const ListingsContent: React.FC = () => {
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
-                <option value="matched">Matched</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="not active">Not Active</option>
               </select>
             </div>
 

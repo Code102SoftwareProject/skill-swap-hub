@@ -42,23 +42,11 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
           icon: CheckCircle, 
           text: 'Active' 
         };
-      case 'matched':
+      case 'not active':
         return { 
-          color: 'bg-blue-100 text-blue-800 border-blue-200', 
-          icon: Users, 
-          text: 'Matched' 
-        };
-      case 'completed':
-        return { 
-          color: 'bg-purple-100 text-purple-800 border-purple-200', 
-          icon: CheckCircle, 
-          text: 'Completed' 
-        };
-      case 'cancelled':
-        return { 
-          color: 'bg-red-100 text-red-800 border-red-200', 
+          color: 'bg-gray-100 text-gray-800 border-gray-200', 
           icon: XCircle, 
-          text: 'Cancelled' 
+          text: 'Not Active' 
         };
       default:
         return { 
