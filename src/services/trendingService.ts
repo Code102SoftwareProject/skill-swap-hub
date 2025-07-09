@@ -76,3 +76,30 @@ export const getSkillsUsedInMatches = async (): Promise<ApiResponse<any>> => {
     };
   }
 };
+
+// Function to get listings used in matches (authenticated endpoint)
+export const getListingsUsedInMatches = async (): Promise<ApiResponse<any>> => {
+  try {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null;
+    
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    const response = await fetch('/api/listings/used-in-matches', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching listings used in matches:', error);
+    return { 
+      success: false, 
+      message: 'Failed to fetch listings used in matches' 
+    };
+  }
+};

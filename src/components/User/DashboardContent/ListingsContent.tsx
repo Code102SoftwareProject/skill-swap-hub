@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { getListings, deleteListing } from '@/services/listingService';
 import { getUserSkills } from '@/services/skillService';
+import { getListingsUsedInMatches } from '@/services/trendingService';
 import { SkillListing } from '@/types/skillListing';
 import { UserSkill } from '@/types/userSkill';
 import { useToast } from '@/lib/context/ToastContext';
@@ -77,34 +78,29 @@ const ListingsContent: React.FC = () => {
       // Fetch user's skills for form
       const skillsResponse = await getUserSkills();
       
+      // Fetch listings used in matches (efficient batch call)
+      const matchUsageResponse = await getListingsUsedInMatches();
+      
       if (listingsResponse.success && listingsResponse.data) {
-        // Check which listings are used in matches
-        const listingsWithMatchStatus = await Promise.all(
-          (listingsResponse.data as SkillListing[]).map(async (listing) => {
-            try {
-              // Call the API to check if listing is used in matches
-              const response = await fetch(`/api/listings/${listing.id}`, {
-                headers: {
-                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
-                }
-              });
-              const data = await response.json();
-              
-              return {
-                ...listing,
-                isUsedInMatches: data.isUsedInMatches || false,
-                matchDetails: data.matchDetails || []
-              } as ListingWithMatchStatus;
-            } catch (error) {
-              console.error('Error checking match status for listing:', listing.id, error);
-              return {
-                ...listing,
-                isUsedInMatches: false,
-                matchDetails: []
-              } as ListingWithMatchStatus;
-            }
-          })
-        );
+        let listingsWithMatchStatus: ListingWithMatchStatus[] = [];
+        
+        if (matchUsageResponse.success && matchUsageResponse.data) {
+          const { usedListingIds, listingMatchDetails } = matchUsageResponse.data;
+          
+          // Map listings with match status
+          listingsWithMatchStatus = (listingsResponse.data as SkillListing[]).map(listing => ({
+            ...listing,
+            isUsedInMatches: usedListingIds.includes(listing.id),
+            matchDetails: listingMatchDetails[listing.id] || []
+          }));
+        } else {
+          // Fallback: no match data available
+          listingsWithMatchStatus = (listingsResponse.data as SkillListing[]).map(listing => ({
+            ...listing,
+            isUsedInMatches: false,
+            matchDetails: []
+          }));
+        }
         
         setListings(listingsWithMatchStatus);
       } else {
