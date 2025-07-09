@@ -486,21 +486,12 @@ const ListingsContent: React.FC = () => {
       {!loading && filteredListings.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredListings.map(listing => (
-            <div key={listing.id} className="relative">
-              <ListingCard
-                listing={listing}
-                onDelete={confirmDeleteListing}
-                onEdit={handleEditListing}
-              />
-              
-              {/* Match status overlay */}
-              {listing.isUsedInMatches && (
-                <div className="absolute top-2 right-2 bg-orange-500 text-white px-2 py-1 rounded-full text-xs font-medium flex items-center">
-                  <Users className="w-3 h-3 mr-1" />
-                  In Match
-                </div>
-              )}
-            </div>
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              onDelete={confirmDeleteListing}
+              onEdit={handleEditListing}
+            />
           ))}
         </div>
       )}

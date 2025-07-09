@@ -75,9 +75,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
 
   return (
     <>
-      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[320px] transition-shadow hover:shadow-md ${
-        listing.isUsedInMatches ? 'ring-2 ring-orange-100' : ''
-      }`}>
+      <div className={`bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-[320px] transition-shadow hover:shadow-md`}>
         {/* Card Header - User Info & Status */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-2">
@@ -102,7 +100,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               </div>
             </div>
             
-            {/* Single Status Badge */}
+            {/* Status Badge Only */}
             <div className="flex flex-col items-end gap-1">
               <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color}`}>
                 <StatusIcon className="w-3 h-3 mr-1" />
@@ -170,34 +168,25 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               View Details
             </button>
             
-            {/* Action Buttons */}
-            {isOwner && (
+            {/* Action Buttons - Only show if can modify */}
+            {isOwner && canModify && (
               <div className="flex items-center gap-2">
-                {canModify ? (
-                  <>
-                    <button
-                      onClick={() => onEdit(listing)}
-                      className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                      title="Edit listing"
-                    >
-                      <Edit className="w-3 h-3 mr-1" /> 
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(listing.id)}
-                      className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
-                      title="Delete listing"
-                    >
-                      <Trash2 className="w-3 h-3 mr-1" /> 
-                      Delete
-                    </button>
-                  </>
-                ) : (
-                  <div className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Protected
-                  </div>
-                )}
+                <button
+                  onClick={() => onEdit(listing)}
+                  className="inline-flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                  title="Edit listing"
+                >
+                  <Edit className="w-3 h-3 mr-1" /> 
+                  Edit
+                </button>
+                <button
+                  onClick={() => onDelete(listing.id)}
+                  className="inline-flex items-center px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200 transition-colors"
+                  title="Delete listing"
+                >
+                  <Trash2 className="w-3 h-3 mr-1" /> 
+                  Delete
+                </button>
               </div>
             )}
           </div>

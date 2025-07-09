@@ -430,18 +430,6 @@ const SkillsPage = () => {
                 <p className="text-gray-600 whitespace-pre-line">{viewingSkill.description}</p>
               </div>
               
-              {/* Match details if skill is used in matches */}
-              {isSkillUsedInMatches(viewingSkill.id) && (
-                <div className="mb-6 bg-purple-50 rounded-lg p-4">
-                  <h4 className="text-md font-medium text-purple-800 mb-2">Active Match Details</h4>
-                  {getSkillMatchDetails(viewingSkill.skillTitle).map((match: any, index: number) => (
-                    <div key={index} className="text-sm text-purple-700 mb-1">
-                      • {match.matchType} match ({match.reason})
-                    </div>
-                  ))}
-                </div>
-              )}
-              
               <div className="flex justify-end space-x-3 pt-3 border-t">
                 <button
                   onClick={() => setViewingSkill(null)}
