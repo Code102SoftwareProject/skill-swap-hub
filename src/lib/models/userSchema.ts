@@ -10,7 +10,11 @@ export interface IUser extends Document {
   title: string;
   password: string;
   avatar?: string;
-  badges?: mongoose.Types.ObjectId[]; // Array of badge IDs assigned to the user
+  suspension: {
+    isSuspended: boolean;
+    suspendedAt?: Date;
+    reason?: string;
+  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -25,7 +29,11 @@ const UserSchema: Schema = new Schema<IUser>(
     title: { type: String, required: true },
     password: { type: String, required: true },
     avatar: { type: String },
-    badges: [{ type: Schema.Types.ObjectId, ref: "badge" }], // Array of badge references
+    suspension: {
+      isSuspended: { type: Boolean, default: false },
+      suspendedAt: { type: Date },
+      reason: { type: String },
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },

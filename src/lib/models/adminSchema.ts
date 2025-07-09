@@ -77,6 +77,7 @@ adminSchema.pre("save", function (next) {
       "manage_verification",
       "manage_reporting",
       "manage_system",
+      "manage_success_stories", // Added success stories permission
       "view_dashboard",
     ];
 

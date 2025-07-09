@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
+import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
   _id: string;
@@ -46,6 +47,32 @@ export default function EditSessionModal({
   const [startDate, setStartDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
+
+  // Alert state
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: ''
+  });
+
+  // Helper function for alerts
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     if (isOpen && session) {
@@ -137,7 +164,7 @@ export default function EditSessionModal({
     e.preventDefault();
     
     if (!selectedUserSkill || !selectedOtherSkill || !userDescription || !otherDescription || !startDate) {
-      alert('Please fill in all fields');
+      showAlert('warning', 'Please fill in all fields');
       return;
     }
 
@@ -152,13 +179,13 @@ export default function EditSessionModal({
 
     if (!isValidObjectId(selectedUserSkill)) {
       console.error('Invalid user skill ID:', selectedUserSkill);
-      alert(`Invalid user skill selection. ID format: ${selectedUserSkill}`);
+      showAlert('error', `Invalid user skill selection. ID format: ${selectedUserSkill}`);
       return;
     }
     
     if (!isValidObjectId(selectedOtherSkill)) {
       console.error('Invalid other skill ID:', selectedOtherSkill);
-      alert(`Invalid other user skill selection. ID format: ${selectedOtherSkill}`);
+      showAlert('error', `Invalid other user skill selection. ID format: ${selectedOtherSkill}`);
       return;
     }
 
@@ -187,16 +214,16 @@ export default function EditSessionModal({
       const data = await response.json();
       
       if (data.success) {
-        alert('Session updated successfully!');
+        showAlert('success', 'Session updated successfully!');
         onSessionUpdated();
         onClose();
       } else {
         console.error('Update failed:', data); // Debug log
-        alert(data.message || 'Failed to update session');
+        showAlert('error', data.message || 'Failed to update session');
       }
     } catch (error) {
       console.error('Error updating session:', error);
-      alert('Failed to update session');
+      showAlert('error', 'Failed to update session');
     } finally {
       setLoading(false);
     }
@@ -367,6 +394,17 @@ export default function EditSessionModal({
           </div>
         </form>
       </div>
+
+      {/* Alert Component */}
+      <Alert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        showCloseButton={true}
+        autoClose={false}
+      />
     </div>
   );
 }

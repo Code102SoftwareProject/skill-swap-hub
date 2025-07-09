@@ -15,7 +15,7 @@ import {
   Flag,
   LogOut,
   Shield,
-  Mail,
+  Star,
 } from "lucide-react";
 
 import clsx from "clsx"; // Utility for conditional class names
@@ -48,6 +48,12 @@ const navItems = [
   },
   { id: "kyc", label: "KYC", icon: IdCard, permission: "manage_kyc" },
   { id: "users", label: "Users", icon: Users, permission: "manage_users" },
+  {
+    id: "success-stories",
+    label: "Success Stories",
+    icon: Star,
+    permission: "manage_success_stories",
+  },
   {
     id: "suggestions",
     label: "Suggestions",

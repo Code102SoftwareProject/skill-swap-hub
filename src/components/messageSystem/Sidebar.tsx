@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IChatRoom } from "@/types/chat";
-import { User, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import {
   fetchUserChatRooms,
   fetchUserProfile,
@@ -21,21 +21,54 @@ interface SidebarProps {
 interface UserProfile {
   firstName: string;
   lastName: string;
-  avatar?: string; // TODO:Make it display Profile Pic
+  avatar?: string;
 }
 
 function SidebarBox({ 
   otherParticipantName, 
   lastMessage, 
-  isSelected 
+  isSelected,
+  avatarUrl,
+  firstLetter
 }: { 
   otherParticipantName: string; 
   lastMessage: string;
   isSelected?: boolean;
+  avatarUrl?: string;
+  firstLetter: string;
 }) {
   return (
     <div className="flex flex-row items-center space-x-2 p-1">
-      <User className="text-lg md:text-2xl flex-shrink-0" />
+      {/* Avatar or First Letter */}
+      <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+        {avatarUrl ? (
+          <>
+            <img 
+              src={avatarUrl} 
+              alt={`${otherParticipantName}'s avatar`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide image and show fallback letter on error
+                e.currentTarget.style.display = 'none';
+                const fallbackSpan = e.currentTarget.parentElement?.querySelector('.fallback-letter');
+                if (fallbackSpan) {
+                  (fallbackSpan as HTMLElement).style.display = 'block';
+                }
+              }}
+            />
+            <span 
+              className="fallback-letter text-white font-semibold text-sm md:text-base hidden"
+            >
+              {firstLetter}
+            </span>
+          </>
+        ) : (
+          <span className="text-white font-semibold text-sm md:text-base">
+            {firstLetter}
+          </span>
+        )}
+      </div>
+      
       <div className="flex flex-col min-w-0 flex-1">
         <span className="font-heading text-sm md:text-base truncate">{otherParticipantName}</span>
         <span className={`font-body text-xs md:text-sm truncate ${isSelected ? 'text-white' : 'text-gray-400'}`}>
@@ -265,6 +298,9 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
 
             // ! Last Message 
             const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
+            
+            // Get first letter for fallback
+            const firstLetter = profile?.firstName?.charAt(0)?.toUpperCase() || otherParticipantId.charAt(0).toUpperCase();
 
             return (
               /*
@@ -286,6 +322,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                   otherParticipantName={otherParticipantName}
                   lastMessage={lastMessage}
                   isSelected={selectedChatRoomId === chat._id}
+                  avatarUrl={profile?.avatar}
+                  firstLetter={firstLetter}
                 />
               </li>
             );

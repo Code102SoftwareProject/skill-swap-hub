@@ -52,8 +52,8 @@ export async function POST(req: Request) {
 
     const populatedWork = await Work.findById(work._id)
       .populate('session')
-      .populate('provideUser', 'name email avatar')
-      .populate('receiveUser', 'name email avatar');
+      .populate('provideUser', 'firstName lastName email avatar title')
+      .populate('receiveUser', 'firstName lastName email avatar title');
 
     return NextResponse.json({
       success: true,
@@ -108,8 +108,8 @@ export async function GET(req: Request) {
 
     const works = await Work.find(filter)
       .populate('session')
-      .populate('provideUser', 'name email avatar')
-      .populate('receiveUser', 'name email avatar')
+      .populate('provideUser', 'firstName lastName email avatar title')
+      .populate('receiveUser', 'firstName lastName email avatar title')
       .sort({ provideDate: -1 });
 
     return NextResponse.json({

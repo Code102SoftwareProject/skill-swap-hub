@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
+import User from '@/lib/models/userSchema';
+import UserSkill from '@/lib/models/userSkill';
+import SessionProgress from '@/lib/models/sessionProgressSchema';
 import { Types } from 'mongoose';
 
 // GET - Get session by ID
@@ -24,8 +27,7 @@ export async function GET(
       .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
-      .populate('progress1')
-      .populate('progress2');
+      .lean(); // Use lean for better performance
 
     if (!session) {
       return NextResponse.json(
@@ -40,6 +42,7 @@ export async function GET(
     }, { status: 200 });
 
   } catch (error: any) {
+    console.error('Error in GET /api/session/[id]:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }
@@ -120,8 +123,8 @@ export async function PATCH(
       { ...body, updatedAt: new Date() },
       { new: true, runValidators: true }
     )
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
+      .populate('user1Id', 'firstName lastName email avatar')
+      .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')

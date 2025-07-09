@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
+import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
   id: string;
@@ -40,6 +41,32 @@ export default function CreateSessionModal({
   const [otherDescription, setOtherDescription] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Alert state
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: ''
+  });
+
+  // Helper function for alerts
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Fetch skills when modal opens
   useEffect(() => {
@@ -83,9 +110,9 @@ export default function CreateSessionModal({
     if (!selectedMySkill) newErrors.mySkill = 'Please select a skill you want to offer';
     if (!myDescription.trim()) newErrors.myDescription = 'Please describe what you will provide';
     if (myDescription.trim().length < 10) newErrors.myDescription = 'Description must be at least 10 characters';
-    
-    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to learn';
-    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to learn';
+
+    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to be offered';
+    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to be offerd';
     if (otherDescription.trim().length < 10) newErrors.otherDescription = 'Description must be at least 10 characters';
     
     if (!startDate) newErrors.startDate = 'Please select a start date';
@@ -140,13 +167,13 @@ export default function CreateSessionModal({
         onClose();
         
         // You might want to trigger a refresh of sessions or show a success message
-        alert('Session request sent successfully!');
+        showAlert('success', 'Session request sent successfully!');
       } else {
-        alert(data.message || 'Failed to create session request');
+        showAlert('error', data.message || 'Failed to create session request');
       }
     } catch (error) {
       console.error('Error creating session:', error);
-      alert('Failed to create session request');
+      showAlert('error', 'Failed to create session request');
     } finally {
       setSubmitting(false);
     }
@@ -306,6 +333,17 @@ export default function CreateSessionModal({
           </form>
         )}
       </div>
+
+      {/* Alert Component */}
+      <Alert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        showCloseButton={true}
+        autoClose={false}
+      />
     </div>
   );
 }

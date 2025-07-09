@@ -1,3 +1,5 @@
+// Suggestion page in the admin dashboard
+// This page displays a list of pending suggestions to review and approve or reject them
 'use client';
 
 import { useState, useEffect } from 'react';
