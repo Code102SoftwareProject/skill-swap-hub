@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/lib/context/ToastContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { findMatches, getMatches } from '@/services/matchService';
 import { SkillMatch, MatchFilters } from '@/types/skillMatch';
 import MatchCard from '@/components/Dashboard/matches/MatchCard';
@@ -9,16 +10,22 @@ import MatchDetailsModal from '@/components/Dashboard/matches/MatchDetailsModal'
 
 const MatchesPage = () => {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [matches, setMatches] = useState<SkillMatch[]>([]);
   const [selectedMatch, setSelectedMatch] = useState<SkillMatch | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'exact' | 'partial'>('all');
   
+  // Get current user ID
+  const currentUserId = user?._id;
+
   // Fetch matches on component mount
   useEffect(() => {
-    fetchMatches();
-  }, []);
+    if (currentUserId) {
+      fetchMatches();
+    }
+  }, [currentUserId]);
 
   // Function to fetch matches with optional filters
   const fetchMatches = async (filters?: MatchFilters) => {
@@ -95,6 +102,17 @@ const MatchesPage = () => {
       exactMatches : 
       partialMatches;
 
+  // Don't render if user is not authenticated
+  if (!currentUserId) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-center items-center h-64">
+          <p className="text-gray-600">Please log in to view matches</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -120,7 +138,7 @@ const MatchesPage = () => {
             }`}
             onClick={() => handleFilterChange('all')}
           >
-            All Matches
+            All Matches ({matches.length})
           </button>
           <button
             className={`py-2 px-4 border-b-2 font-medium text-sm ${
@@ -130,7 +148,7 @@ const MatchesPage = () => {
             }`}
             onClick={() => handleFilterChange('exact')}
           >
-            Exact Matches
+            Exact Matches ({exactMatches.length})
           </button>
           <button
             className={`py-2 px-4 border-b-2 font-medium text-sm ${
@@ -140,7 +158,7 @@ const MatchesPage = () => {
             }`}
             onClick={() => handleFilterChange('partial')}
           >
-            Partial Matches
+            Partial Matches ({partialMatches.length})
           </button>
         </div>
       </div>
@@ -178,9 +196,10 @@ const MatchesPage = () => {
       )}
 
       {/* Match Details Modal */}
-      {selectedMatch && (
+      {selectedMatch && currentUserId && (
         <MatchDetailsModal 
           match={selectedMatch} 
+          currentUserId={currentUserId}
           onClose={closeMatchDetails} 
         />
       )}
@@ -189,4 +208,3 @@ const MatchesPage = () => {
 };
 
 export default MatchesPage;
-
