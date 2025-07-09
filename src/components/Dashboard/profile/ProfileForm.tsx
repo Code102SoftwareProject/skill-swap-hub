@@ -1,12 +1,14 @@
 //Profile Form component
 // This component is responsible for displaying and editing the user's profile information.
 'use client';
-
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/lib/context/AuthContext'; // Update the path if different
 
 export default function ProfileForm() {
+  const { user } = useAuth();
+
   const [formState, setFormState] = useState({
-    userId: '67e66f9d4c4a95f630b6235c',
+    userId: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -14,27 +16,31 @@ export default function ProfileForm() {
     title: '',
     avatarUrl: ''
   });
+
   const [avatar, setAvatar] = useState<File | null>(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
 
+  // Fetch data after user is available
   useEffect(() => {
+    if (!user?._id) return;
+
     const fetchUserData = async () => {
       try {
-        const res = await fetch(`/api/users/profile?id=${formState.userId}`);
+        const res = await fetch(`/api/users/profile?id=${user._id}`);
         const data = await res.json();
-        
+
         if (data.success && data.user) {
-          setFormState(prev => ({
-            ...prev,
+          setFormState({
+            userId: user._id,
             firstName: data.user.firstName || '',
             lastName: data.user.lastName || '',
             email: data.user.email || '',
             phone: data.user.phone || '',
             title: data.user.title || '',
             avatarUrl: data.user.avatar || ''
-          }));
+          });
         } else {
           setMessage(data.message || 'Failed to fetch user data');
         }
@@ -47,7 +53,10 @@ export default function ProfileForm() {
     };
 
     fetchUserData();
-  }, [formState.userId]);
+  }, [user?._id]); // triggers when user is ready
+
+  // Rest of your code remains the same...
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormState({ ...formState, [e.target.name]: e.target.value });
