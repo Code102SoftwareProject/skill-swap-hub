@@ -15,6 +15,7 @@ import {
   Flag,
   LogOut,
   Shield,
+  Mail,
 } from "lucide-react";
 
 import clsx from "clsx"; // Utility for conditional class names
