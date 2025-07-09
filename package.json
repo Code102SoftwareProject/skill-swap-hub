@@ -13,6 +13,7 @@
     "migration:user-suspension-status": "node -r dotenv/config scripts/migrateUserSuspension.mjs status",
     "migration:user-suspension-rollback": "node -r dotenv/config scripts/migrateUserSuspension.mjs rollback",
     "setup:super-admin": "node -r dotenv/config scripts/setupSuperAdmin.js",
+    "setup:email-automation": "node -r dotenv/config scripts/setupEmailAutomation.js",
     "reset:super-admin-password": "node -r dotenv/config scripts/resetSuperAdminPassword.js",
     "debug:admin-login": "node -r dotenv/config scripts/debugAdminLogin.js",
     "test:permissions": "node -r dotenv/config scripts/testPermissionStructure.js",

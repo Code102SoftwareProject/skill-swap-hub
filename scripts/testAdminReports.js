@@ -102,22 +102,14 @@ async function testEmailConfig() {
   console.log("\n🧪 Testing email configuration");
 
   try {
-    const { testEmailConfig } = require("../src/lib/emailService");
-    const isValid = await testEmailConfig();
-
-    if (isValid) {
-      console.log("✅ Email configuration is valid");
-    } else {
-      console.log("❌ Email configuration is invalid");
-      console.log(
-        "💡 Make sure to set GMAIL_USER and GMAIL_PASS environment variables"
-      );
-    }
+    // Email service has been replaced with mailto links
+    console.log("⚠️ Email service using nodemailer has been deprecated");
+    console.log("✅ Using mailto links in frontend instead");
+    return true;
   } catch (error) {
     console.error("❌ Error testing email config:", error.message);
-    console.log(
-      "💡 Make sure to set GMAIL_USER and GMAIL_PASS environment variables"
-    );
+    console.log("💡 This function is deprecated as we now use mailto links");
+    return false;
   }
 }
 

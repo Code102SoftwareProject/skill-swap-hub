@@ -3,24 +3,24 @@ import connect from "@/lib/db";
 import ReportInSession from "@/lib/models/reportInSessionSchema";
 import { Types } from "mongoose";
 
-// GET /api/admin/reports/[id] - Get single report with full details
+// GET /api/admin/reports/[reportId] - Get single report with full details
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ reportId: string }> }
 ) {
   try {
     await connect();
 
-    const { id } = await params;
+    const { reportId } = await params;
 
-    if (!Types.ObjectId.isValid(id)) {
+    if (!Types.ObjectId.isValid(reportId)) {
       return NextResponse.json(
         { success: false, message: "Invalid report ID" },
         { status: 400 }
       );
     }
 
-    const report = await ReportInSession.findById(id)
+    const report = await ReportInSession.findById(reportId)
       .populate("reportedBy", "firstName lastName email phone title avatar")
       .populate(
         "reportedUser",
@@ -41,7 +41,7 @@ export async function GET(
 
     // Update status from pending to under_review when first admin opens it
     if (report.status === "pending") {
-      await ReportInSession.findByIdAndUpdate(id, {
+      await ReportInSession.findByIdAndUpdate(reportId, {
         status: "under_review",
         updatedAt: new Date(),
       });
