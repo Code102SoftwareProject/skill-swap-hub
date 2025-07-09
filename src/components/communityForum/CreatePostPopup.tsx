@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
 import { useAuth } from '@/lib/context/AuthContext';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 interface CreatePostPopupProps {
   forumId: string;
   isOpen: boolean;
@@ -30,15 +32,66 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
   const titleInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const editorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<Quill | null>(null);
 
-  // Focus the title input when the modal opens
+  // Initialize Quill editor when modal opens
   useEffect(() => {
+    if (isOpen && editorRef.current && !quillRef.current) {
+      quillRef.current = new Quill(editorRef.current, {
+        theme: 'snow',
+        placeholder: 'Write your post content here...',
+        modules: {
+          toolbar: [
+            [{ 'header': [1, 2, 3, false] }],
+            ['bold', 'italic', 'underline', 'strike'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'color': [] }, { 'background': [] }],
+            ['link'],
+            ['clean']
+          ]
+        }
+      });
+
+      // Listen for text changes to update content state
+      quillRef.current.on('text-change', () => {
+        if (quillRef.current) {
+          const htmlContent = quillRef.current.root.innerHTML;
+          const textContent = quillRef.current.getText().trim();
+          setContent(textContent.length > 0 ? htmlContent : '');
+        }
+      });
+    }
+
+    // Focus the title input when the modal opens
     if (isOpen && titleInputRef.current) {
       setTimeout(() => {
         titleInputRef.current?.focus();
       }, 100);
     }
+
+    // Clean up Quill editor when modal closes
+    if (!isOpen && quillRef.current) {
+      quillRef.current = null;
+      setContent('');
+    }
   }, [isOpen]);
+
+  // Apply error styling to Quill editor
+  useEffect(() => {
+    if (quillRef.current && editorRef.current) {
+      const toolbar = editorRef.current.previousElementSibling as HTMLElement;
+      const container = editorRef.current.parentElement as HTMLElement;
+      
+      if (errors.content) {
+        toolbar?.classList.add('ql-error');
+        container?.classList.add('ql-error');
+      } else {
+        toolbar?.classList.remove('ql-error');
+        container?.classList.remove('ql-error');
+      }
+    }
+  }, [errors.content]);
 
   // Clean up image preview URL when component unmounts
   useEffect(() => {
@@ -58,9 +111,10 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       newErrors.title = 'Title must be at least 5 characters';
     }
     
-    if (!content.trim()) {
+    const textContent = quillRef.current?.getText().trim() || '';
+    if (!textContent || textContent.length === 0) {
       newErrors.content = 'Content is required';
-    } else if (content.length < 10) {
+    } else if (textContent.length < 10) {
       newErrors.content = 'Content must be at least 10 characters';
     }
     
@@ -220,6 +274,9 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       // Reset form
       setTitle('');
       setContent('');
+      if (quillRef.current) {
+        quillRef.current.setContents([]);
+      }
       setImage(null);
       if (imagePreview) {
         URL.revokeObjectURL(imagePreview);
@@ -325,20 +382,19 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
                 </div>
                 
                 <div>
-                  <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Content
                   </label>
-                  <textarea
-                    id="content"
-                    name="content"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    rows={6}
-                    className={`w-full px-4 py-2 text-black border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                      errors.content ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    placeholder="Write your post content here..."
-                  />
+                  <div className={`${errors.content ? 'ql-error' : ''}`}>
+                    <div 
+                      ref={editorRef}
+                      className="min-h-[150px] bg-white"
+                      style={{ 
+                        fontSize: '14px',
+                        fontFamily: 'system-ui, -apple-system, sans-serif'
+                      }}
+                    />
+                  </div>
                   {errors.content && (
                     <p className="mt-1 text-sm text-red-600 flex items-center">
                       <AlertCircle className="w-4 h-4 mr-1" />

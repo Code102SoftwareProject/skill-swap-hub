@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { IChatRoom } from "@/types/chat";
-import { User, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import {
   fetchUserChatRooms,
   fetchUserProfile,
@@ -21,30 +21,64 @@ interface SidebarProps {
 interface UserProfile {
   firstName: string;
   lastName: string;
-  avatar?: string; // TODO:Make it display Profile Pic
+  avatar?: string;
 }
 
 function SidebarBox({ 
   otherParticipantName, 
   lastMessage, 
-  isSelected 
+  isSelected,
+  avatarUrl,
+  firstLetter
 }: { 
   otherParticipantName: string; 
   lastMessage: string;
   isSelected?: boolean;
+  avatarUrl?: string;
+  firstLetter: string;
 }) {
   return (
-    <div className="flex flex-row items-center space-x-2">
-      <User className="text-2xl" />
-      <div className="flex flex-col">
-        <span>{otherParticipantName}</span>
-        <span className={`text-sm ${isSelected ? 'text-white' : 'text-gray-400'}`}>
+    <div className="flex flex-row items-center space-x-2 p-1">
+      {/* Avatar or First Letter */}
+      <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center overflow-hidden">
+        {avatarUrl ? (
+          <>
+            <img 
+              src={avatarUrl} 
+              alt={`${otherParticipantName}'s avatar`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                // Hide image and show fallback letter on error
+                e.currentTarget.style.display = 'none';
+                const fallbackSpan = e.currentTarget.parentElement?.querySelector('.fallback-letter');
+                if (fallbackSpan) {
+                  (fallbackSpan as HTMLElement).style.display = 'block';
+                }
+              }}
+            />
+            <span 
+              className="fallback-letter text-white font-semibold text-sm md:text-base hidden"
+            >
+              {firstLetter}
+            </span>
+          </>
+        ) : (
+          <span className="text-white font-semibold text-sm md:text-base">
+            {firstLetter}
+          </span>
+        )}
+      </div>
+      
+      <div className="flex flex-col min-w-0 flex-1">
+        <span className="font-heading text-sm md:text-base truncate">{otherParticipantName}</span>
+        <span className={`font-body text-xs md:text-sm truncate ${isSelected ? 'text-white' : 'text-gray-400'}`}>
           {lastMessage}
         </span>
       </div>
     </div>
   );
 }
+
 /**
  * Sidebar component 
  * @param {string} userId 
@@ -163,7 +197,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         const roomExists = prevRooms.some(room => room._id === messageData.chatRoomId);
         
         if (!roomExists) {
-          // If room not exisits
+          // If room not exists
           setTimeout(() => fetchChatRooms(), 0);
           return prevRooms;
         }
@@ -195,38 +229,39 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
   }, [socket, userId, fetchChatRooms]);
 
   /**
-   * * Renders a loading state while fetching initial data
+   * Renders a loading state while fetching initial data
    */
   if (loading) {
     return (
-      <div className="w-64 bg-grayfill border-solid border-gray-900 text-white p-4">
-        <h2 className="text-xl font-bold mb-4">Messages</h2>
-        <p>Loading chats...</p>
+      <div className="w-full md:w-64 bg-grayfill border-solid border-gray-900 text-white p-2 md:p-4">
+        <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4">Messages</h2>
+        <p className="text-sm">Loading chats...</p>
       </div>
     );
   }
+
   /**
-   * * Shows all chatrooms with seqrch box
+   * Shows all chatrooms with search box
    */
   return (
-    <div className="w-64 bg-bgcolor text-white h-screen p-4 border-solid border-r border-gray-600">
-      <h2 className="text-xl font-bold mb-4 text-textcolor">Messages</h2>
+    <div className="w-full md:w-64 bg-bgcolor text-white h-screen p-2 md:p-4 border-solid border-r border-gray-600 flex-shrink-0">
+      <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4 text-textcolor font-body">Messages</h2>
       
-      {/* Search input */}
-      <div className="mb-4 relative bg-primary">
+      {/* Search bar */}
+      <div className="mb-2 md:mb-4 relative bg-primary">
         <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-          <Search className="text-bgcolor" />
+          <Search className="text-bgcolor w-4 h-4 md:w-5 md:h-5" />
         </div>
         <input
           type="text"
           placeholder="Search by name..."
-          className="w-full pl-8 pr-2 py-2 bg-primary text-bgcolor rounded focus:outline-none focus:ring-1 focus:ring-primary"
+          className="w-full pl-6 md:pl-8 pr-2 py-1 md:py-2 bg-primary text-bgcolor rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary font-body"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <ul className="space-y-2">
+      <ul className="space-y-1 md:space-y-2 overflow-y-auto max-h-[calc(100vh-120px)]">
         {chatRooms
           // Sort by most recent message
           .sort((a, b) => {
@@ -236,6 +271,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
           })
           // Filter chat rooms based on search query
           .filter((chat) => {
+            // ! 2 Participants in chat
             const otherParticipantId =
               chat.participants.find((id) => id !== userId) || "";
             const profile = userProfiles[otherParticipantId];
@@ -243,7 +279,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             // Show all rooms when no search query is provided
             if (!profile || !searchQuery.trim()) return true;
 
-            // Filter by name match case insesitve 
+            // Filter by name match case insensitive 
             const fullName =
               `${profile.firstName} ${profile.lastName}`.toLowerCase();
             return fullName.includes(searchQuery.toLowerCase());
@@ -261,7 +297,10 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               : otherParticipantId.substring(0, 8);
 
             // ! Last Message 
-            const lastMessage = chat.lastMessage?.content.substring(0,6) || "No messages yet";
+            const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
+            
+            // Get first letter for fallback
+            const firstLetter = profile?.firstName?.charAt(0)?.toUpperCase() || otherParticipantId.charAt(0).toUpperCase();
 
             return (
               /*
@@ -269,7 +308,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               */
               <li
                 key={chat._id}
-                className={`p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
+                className={`p-1 md:p-2 bg-bgcolor hover:bg-sky-200 cursor-pointer text-textcolor border-solid border-t border-gray-600 ${
                   selectedChatRoomId === chat._id ? "bg-sky-600 border-sky-700 text-white" : ""
                 }`}
                 onClick={() =>
@@ -283,6 +322,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                   otherParticipantName={otherParticipantName}
                   lastMessage={lastMessage}
                   isSelected={selectedChatRoomId === chat._id}
+                  avatarUrl={profile?.avatar}
+                  firstLetter={firstLetter}
                 />
               </li>
             );

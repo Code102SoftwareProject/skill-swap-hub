@@ -128,7 +128,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
     }
 
-    // Handle acceptance of pending meetings
+    // ! Handle acceptance of pending meetings
     if (meeting.state === "pending" && meetingData.acceptStatus) {
       const zoomAccessToken = await generateZoomAccessToken();
       const zoomMeetingLink = await createZoomMeeting(zoomAccessToken, meeting.meetingTime);
@@ -137,7 +137,7 @@ export async function PATCH(req: Request) {
       meeting.meetingLink = zoomMeetingLink;
       meeting.acceptStatus = true;
     }
-    // Handle other state changes
+    // ! Handle other state changes
     else if (meetingData.state && meeting.state === "accepted") {
       meeting.state = meetingData.state;
     }

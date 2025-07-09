@@ -1,60 +1,16 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useAdminAuth } from "@/lib/hooks";
 
 export default function AdminProtected({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Router instance for navigation
-  const router = useRouter();
-  // Track authentication state - null (loading), true (authenticated), false (not authenticated)
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
-  // Ref to track component mount state to prevent state updates after unmount
-  const isMounted = useRef(true);
+  const { isAuthenticated, isLoading, error } = useAdminAuth();
 
-  useEffect(() => {
-    // Mark component as mounted
-    isMounted.current = true;
-
-    // Function to verify admin authentication status
-    const verifyAuth = async () => {
-      try {
-        // Request to backend API to check admin authentication
-        const res = await fetch("/api/admin/verify-auth", {
-          credentials: "include", // Include cookies in request
-        });
-
-        const data = await res.json();
-
-        // Only update state if component is still mounted
-        if (isMounted.current) {
-          if (!res.ok || !data.authenticated) {
-            // Redirect to login page if not authenticated
-            router.replace("/admin/login");
-          } else {
-            // Set authenticated state to true if verification successful
-            setIsAuthenticated(true);
-          }
-        }
-      } catch (error) {
-        if (isMounted.current) {
-          console.error("Auth verification error:", error);
-          router.replace("/admin/login");
-        }
-      }
-    };
-
-    verifyAuth();
-
-    return () => {
-      isMounted.current = false;
-    };
-  }, [router]);
-
-  if (isAuthenticated === null) {
+  // Show loading state while checking authentication
+  if (isLoading || isAuthenticated === null) {
     return (
       <div className="flex flex-col justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
@@ -63,5 +19,38 @@ export default function AdminProtected({
     );
   }
 
-  return <>{children}</>;
+  // Show error state if there's an authentication error
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center min-h-screen">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="flex items-center mb-4">
+            <div className="bg-red-100 rounded-full p-2 mr-3">
+              <svg
+                className="w-6 h-6 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-red-800">
+              Authentication Error
+            </h3>
+          </div>
+          <p className="text-red-700 mb-4">{error}</p>
+          <p className="text-sm text-red-600">Redirecting to login page...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Only render children if authenticated
+  return isAuthenticated ? <>{children}</> : null;
 }

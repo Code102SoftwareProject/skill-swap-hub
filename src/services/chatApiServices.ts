@@ -1,4 +1,5 @@
 import { IChatRoom, IMessage } from "@/types/chat";
+import { method } from "lodash";
 
 interface ChatRoomResponse {
   success: boolean;
@@ -169,23 +170,23 @@ export async function sendMessage(messageData: any) {
 
     const data = await response.json();
     
-    // After sending the message, get chat room details to find recipient
+    // get chat room details to find recipient
     const chatRoom = await fetchChatRoom(messageData.chatRoomId);
     
     if (chatRoom && chatRoom.participants) {
-      // Determine recipient(s) (everyone in chat except sender)
-      const recipients = chatRoom.participants.filter(
+      // Get recipient
+      const recipientId = chatRoom.participants.find(
         (participant) => participant.toString() !== messageData.senderId
       );
       
-      // Get sender user profile to include name in notification
-      const senderProfile = await fetchUserProfile(messageData.senderId);
-      const senderName = senderProfile ? 
-        `${senderProfile.firstName} ${senderProfile.lastName}` : 
-        "Someone";
-      
-      // Create notifications for each recipient
-      for (const recipientId of recipients) {
+      if (recipientId) {
+        // Get sender user profile 
+        const senderProfile = await fetchUserProfile(messageData.senderId);
+        const senderName = senderProfile ? 
+          `${senderProfile.firstName} ${senderProfile.lastName}` : 
+          "Someone";
+        
+        //  ! Create notification 
         await fetch("/api/notification", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -235,4 +236,72 @@ export async function fetchChatMessages(chatRoomId: string) {
  * @param messageIds - Array of message IDs to mark as read
  * @returns Promise with the response data
  */
+export async function markMessagesAsRead(messageIds: string[]) {
+  try {
+    const response = await fetch("/api/messages/read-status", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds }),
+    });
 
+    return await response.json();
+  } catch (error) {
+    console.error("Error marking messages as read:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get unread message count for a user
+ * 
+ * @param userId - The user ID to get unread count for
+ * @returns Promise with the unread count
+ */
+export async function fetchUnreadMessageCount(userId: string) {
+  try {
+    const response = await fetch(`/api/messages/unread-count?userId=${userId}`);
+    const data = await response.json();
+
+    if (data.success) {
+      return data.unreadCount;
+    }
+
+    return 0;
+  } catch (error) {
+    console.error("Error fetching unread message count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Mark unread messages as read for a specific chat room and user
+ * 
+ * @param chatRoomId - The chat room ID
+ * @param userId - The current user ID (to exclude their own messages)
+ * @returns Promise with the response data
+ */
+export async function markChatRoomMessagesAsRead(chatRoomId: string, userId: string) {
+  try {
+    // First, get all messages for this chat room
+    const messages = await fetchChatMessages(chatRoomId);
+    
+    // Filter for unread messages sent by others (not current user)
+    const unreadMessageIds = messages
+      .filter((msg: any) => 
+        msg.senderId.toString() !== userId && 
+        !msg.readStatus &&
+        msg._id
+      )
+      .map((msg: any) => msg._id!.toString());
+
+    // Only make API call if there are unread messages
+    if (unreadMessageIds.length > 0) {
+      return await markMessagesAsRead(unreadMessageIds);
+    }
+
+    return { success: true, message: "No unread messages to mark", modifiedCount: 0 };
+  } catch (error) {
+    console.error("Error marking chat room messages as read:", error);
+    throw error;
+  }
+}

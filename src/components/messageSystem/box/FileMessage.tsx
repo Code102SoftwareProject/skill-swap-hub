@@ -76,9 +76,7 @@ export default function FileMessage({ fileInfo, sentAt, isMine = false }: FileMe
         >
           <Download size={18} />
         </button>
-      </div>
-
-      {/* Timestamp inside bubble */}
+      </div>      {/* Timestamp */}
       <div className="flex justify-end items-center mt-1">
         <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
           {sentAt

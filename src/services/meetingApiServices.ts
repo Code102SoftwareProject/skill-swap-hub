@@ -71,12 +71,28 @@ export async function createMeeting(meetingData: {
  */
 export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel'): Promise<Meeting | null> {
   try {
+    // Use dedicated reject endpoint for rejections
+    if (action === 'reject') {
+      const response = await fetch('/api/meeting/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingId }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Error rejecting meeting: ${response.status}`);
+      }
+      
+      return await response.json();
+    }
+    
+    // For other actions, use the existing PATCH endpoint
     const body: any = { _id: meetingId };
     
     if (action === 'accept') {
       body.acceptStatus = true;
-    } else if (action === 'reject' || action === 'cancel') {
-      body.state = action === 'reject' ? 'rejected' : 'cancelled';
+    } else if (action === 'cancel') {
+      body.state = 'cancelled';
     }
     
     const response = await fetch('/api/meeting', {
@@ -122,3 +138,26 @@ export async function fetchUpcomingMeetingsCount(userId: string, otherUserId: st
     return 0;
   }
 }
+
+/**
+ ** Fetch all meetings for a specific user
+ * 
+ * @param userId - ID of the user
+ * @returns Promise that resolves to an array of Meeting objects for the specified user,
+ *          or an empty array if the request fails
+ */
+export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> => {
+  try {
+    const response = await fetch(`/api/meeting?userId=${userId}`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data || [];
+  } catch (error) {
+    console.error('Error in fetchAllUserMeetings:', error);
+    return [];
+  }
+};

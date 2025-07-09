@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import connect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
 
 export async function GET(req: Request) {
@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       }, { status: 400 });
     }
     
-    await dbConnect();
+    await connect();
     
     // Fetch the user's skills
     const userSkills = await UserSkill.find({ userId });

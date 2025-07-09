@@ -24,7 +24,7 @@ const ChatRoomSchema: Schema<IChatRoom> = new Schema<IChatRoom>({
   },
 });
 
-// Add validation for exactly 2 participants
+//validation for exactly 2 participants
 ChatRoomSchema.pre('save', function(next) {
   if (this.participants.length !== 2) {
     next(new Error());

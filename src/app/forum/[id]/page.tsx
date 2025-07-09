@@ -114,10 +114,10 @@ export default function ForumDetailsPage() {
       <div className="sticky top-0 z-50">
         <Navbar />
       </div>
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="w-full py-6">
+        <div className="flex flex-col lg:flex-row">
           {/* Main Content */}
-          <div className="lg:w-3/4">
+          <div className="lg:flex-1 lg:max-w-5xl lg:mx-auto lg:mr-12 px-4">
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               {/* Forum Header */}
               <div className="relative h-72 w-full bg-gradient-to-r from-blue-600 to-blue-800">
@@ -149,9 +149,9 @@ export default function ForumDetailsPage() {
           </div>
           
           {/* Sidebar - Now on the right and sticky */}
-          <div className="lg:w-1/4 sticky top-6">
+          <div className="lg:w-80 lg:min-w-80 sticky top-24 h-fit bg-blue-100 rounded-l-xl shadow-sm mr-20">
             {/* Latest Forums */}
-            <div className="bg-blue-100 rounded-xl shadow-sm overflow-hidden mb-6">
+            <div className="mb-6">
               <div className="bg-blue-200 px-4 py-3">
                 <h2 className="text-lg font-semibold text-gray-800">Latest Forums</h2>
               </div>
@@ -176,7 +176,7 @@ export default function ForumDetailsPage() {
             </div>
             
             {/* Latest Posts */}
-            <div className="bg-blue-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-blue-100 overflow-hidden">
               <div className="bg-blue-200 px-4 py-3">
                 <h2 className="text-lg font-semibold text-gray-800">Latest Posts</h2>
               </div>
