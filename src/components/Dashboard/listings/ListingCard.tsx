@@ -1,13 +1,17 @@
+// File: src/components/Dashboard/listings/ListingCard.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { SkillListing } from '@/types/skillListing';
-import { BadgeCheck, Edit, Trash2, Eye } from 'lucide-react';
+import { BadgeCheck, Edit, Trash2, Eye, Users, AlertTriangle, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 
 interface ListingCardProps {
-  listing: SkillListing;
+  listing: SkillListing & { 
+    isUsedInMatches?: boolean; 
+    matchDetails?: any[] 
+  };
   onDelete: (id: string) => void;
   onEdit: (listing: SkillListing) => void;
 }
@@ -29,9 +33,51 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
     return new Date(dateString).toLocaleDateString('en-US', options);
   };
 
+  // Get status display configuration
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'active':
+        return { 
+          color: 'bg-green-100 text-green-800', 
+          icon: CheckCircle, 
+          text: 'Active' 
+        };
+      case 'matched':
+        return { 
+          color: 'bg-blue-100 text-blue-800', 
+          icon: Users, 
+          text: 'Matched' 
+        };
+      case 'completed':
+        return { 
+          color: 'bg-purple-100 text-purple-800', 
+          icon: CheckCircle, 
+          text: 'Completed' 
+        };
+      case 'cancelled':
+        return { 
+          color: 'bg-red-100 text-red-800', 
+          icon: XCircle, 
+          text: 'Cancelled' 
+        };
+      default:
+        return { 
+          color: 'bg-gray-100 text-gray-800', 
+          icon: Clock, 
+          text: 'Unknown' 
+        };
+    }
+  };
+
+  const statusConfig = getStatusConfig(listing.status);
+  const StatusIcon = statusConfig.icon;
+  const canModify = isOwner && !listing.isUsedInMatches;
+
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flex flex-col h-[320px]">
+      <div className={`bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flex flex-col h-[360px] ${
+        listing.isUsedInMatches ? 'ring-2 ring-orange-200' : ''
+      }`}>
         {/* Card Header - User Info */}
         <div className="p-4 border-b border-gray-200 flex items-center">
           <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 mr-3 flex-shrink-0">
@@ -52,6 +98,21 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               Posted on {formatDate(listing.createdAt)}
             </p>
           </div>
+          
+          {/* Status and Match indicators */}
+          <div className="flex flex-col items-end gap-1">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+              <StatusIcon className="w-3 h-3 mr-1" />
+              {statusConfig.text}
+            </span>
+            
+            {listing.isUsedInMatches && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                <Users className="w-3 h-3 mr-1" />
+                In Match
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Card Body with fixed height */}
@@ -70,6 +131,9 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                   ❤ Level: {listing.offering.proficiencyLevel}
                 </span>
               </div>
+              <div className="text-xs text-gray-600 mt-2">
+                {listing.offering.categoryName}
+              </div>
             </div>
 
             {/* Seeking Section */}
@@ -86,8 +150,18 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             </div>
           </div>
           
-          {/* Bottom Controls Section - Contains View Details + Action Buttons */}
-          <div className="flex items-center justify-between p-3 border-t border-gray-100">
+          {/* Match Protection Warning */}
+          {listing.isUsedInMatches && (
+            <div className="px-3 py-2 bg-orange-50 border-t border-orange-200">
+              <div className="flex items-center text-xs text-orange-700">
+                <AlertTriangle className="w-3 h-3 mr-1 flex-shrink-0" />
+                <span className="truncate">Protected by active matches</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Bottom Controls Section */}
+          <div className="flex items-center justify-between p-3 border-t border-gray-100 mt-auto">
             {/* View Details Button */}
             <button 
               onClick={() => setShowDetailsModal(true)}
@@ -99,20 +173,29 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             {/* Action Buttons */}
             {isOwner && (
               <div className="flex space-x-2">
-                <button
-                  onClick={() => onEdit(listing)}
-                  className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
-                  aria-label="Edit listing"
-                >
-                  <Edit className="w-4 h-4 mr-1" /> Edit
-                </button>
-                <button
-                  onClick={() => onDelete(listing.id)}
-                  className="inline-flex items-center px-3 py-1 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-200"
-                  aria-label="Delete listing"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" /> Delete
-                </button>
+                {canModify ? (
+                  <>
+                    <button
+                      onClick={() => onEdit(listing)}
+                      className="inline-flex items-center px-3 py-1 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-200"
+                      aria-label="Edit listing"
+                    >
+                      <Edit className="w-4 h-4 mr-1" /> Edit
+                    </button>
+                    <button
+                      onClick={() => onDelete(listing.id)}
+                      className="inline-flex items-center px-3 py-1 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-200"
+                      aria-label="Delete listing"
+                    >
+                      <Trash2 className="w-4 h-4 mr-1" /> Delete
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex items-center text-xs text-gray-500">
+                    <AlertTriangle className="w-4 h-4 mr-1" />
+                    <span>Protected</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -149,7 +232,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                     className="object-cover w-full h-full"
                   />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h3 className="font-medium text-gray-800 flex items-center">
                     <span>{listing.userDetails.firstName} {listing.userDetails.lastName}</span>
                     <BadgeCheck className="w-5 h-5 ml-1 text-blue-500" />
@@ -158,7 +241,45 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                     Posted on {formatDate(listing.createdAt)}
                   </p>
                 </div>
+                
+                {/* Status badges */}
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {statusConfig.text}
+                  </span>
+                  
+                  {listing.isUsedInMatches && (
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                      <Users className="w-3 h-3 mr-1" />
+                      In Match
+                    </span>
+                  )}
+                </div>
               </div>
+
+              {/* Match Protection Alert */}
+              {listing.isUsedInMatches && listing.matchDetails && listing.matchDetails.length > 0 && (
+                <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h3 className="text-sm font-medium text-orange-800">Active Match Protection</h3>
+                      <p className="text-sm text-orange-700 mb-2">
+                        This listing is currently involved in {listing.matchDetails.length} active skill match{listing.matchDetails.length > 1 ? 'es' : ''}:
+                      </p>
+                      {listing.matchDetails.map((match: any, index: number) => (
+                        <div key={index} className="text-xs text-orange-600 ml-2">
+                          • {match.matchType} match ({match.status})
+                        </div>
+                      ))}
+                      <p className="text-sm text-orange-700 mt-2">
+                        This listing cannot be modified until all matches are completed or cancelled.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Skill Details */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -170,6 +291,9 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                     <h4 className="font-bold text-gray-800 mb-1">{listing.offering.skillTitle}</h4>
                     <p className="text-sm text-blue-600 mb-3">
                       Proficiency: {listing.offering.proficiencyLevel}
+                    </p>
+                    <p className="text-sm text-gray-600 mb-3">
+                      Category: {listing.offering.categoryName}
                     </p>
                     
                     {listing.offering.description && (
@@ -229,7 +353,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
 
               {/* Modal Footer - Actions */}
               <div className="flex justify-end space-x-3">
-                {isOwner && (
+                {isOwner && canModify && (
                   <>
                     <button
                       onClick={() => {
