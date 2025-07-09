@@ -7,6 +7,8 @@ import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X } from 
 import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useNotifications } from '@/lib/hooks/useNotifications';
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
 
 interface NavbarProps {
   onSidebarToggle?: () => void; // Callback for toggling sidebar
@@ -15,12 +17,34 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = false }) => {
   const { user, logout, isLoading } = useAuth();
+  const { unreadCount, fetchUnreadCount } = useNotifications(user?._id || null);
+  const { unreadCount: unreadMessageCount, fetchUnreadCount: fetchUnreadMessageCount } = useUnreadMessages(user?._id || null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // NotificationBell component with red dot indicator
+  const NotificationBell = ({ onClick, unreadCount }: { onClick: () => void; unreadCount: number }) => (
+    <button onClick={onClick} className="text-white relative">
+      <Bell className="w-6 h-6" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full"></span>
+      )}
+    </button>
+  );
+
+  // MessageBell component with red dot indicator for unread messages
+  const MessageBell = ({ onClick, unreadCount }: { onClick: () => void; unreadCount: number }) => (
+    <button onClick={onClick} className="text-white relative">
+      <MessageSquare className="w-6 h-6" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full"></span>
+      )}
+    </button>
+  );
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -131,12 +155,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
             <div className="animate-pulse bg-white/20 h-10 w-20 rounded-md"></div>
           ) : isLoggedIn ? (
             <div className="flex items-center gap-4">
-              <button className="text-white" onClick={handleChatClick}>
-                <MessageSquare className="w-6 h-6" />
-              </button>
-              <button onClick={handleNotificationsClick} className="text-white">
-                <Bell className="w-6 h-6" />
-              </button>
+              <MessageBell onClick={handleChatClick} unreadCount={unreadMessageCount} />
+              <NotificationBell onClick={handleNotificationsClick} unreadCount={unreadCount} />
               
               <div className="relative" ref={dropdownRef}>
                 <button 
@@ -267,19 +287,25 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
               </button>
               
               <button 
-                className="flex items-center gap-3 w-full py-2 text-white"
+                className="flex items-center gap-3 w-full py-2 text-white relative"
                 onClick={handleChatClick}
               >
                 <MessageSquare className="w-5 h-5" />
                 Messages
+                {unreadMessageCount > 0 && (
+                  <span className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-red-500 w-2 h-2 rounded-full"></span>
+                )}
               </button>
               
               <button 
-                className="flex items-center gap-3 w-full py-2 text-white"
+                className="flex items-center gap-3 w-full py-2 text-white relative"
                 onClick={handleNotificationsClick}
               >
                 <Bell className="w-5 h-5" />
                 Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-red-500 w-2 h-2 rounded-full"></span>
+                )}
               </button>
               
               <div className="pt-3 border-t border-white/20">
