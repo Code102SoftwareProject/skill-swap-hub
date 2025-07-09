@@ -115,7 +115,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
         
         // Redirect to chat page after a short delay
         setTimeout(() => {
-          router.push('/chat');
+          router.push('user/chat');
         }, 1000);
       } else {
         showToast(response.message || 'Failed to accept match and create chat room', 'error');
@@ -318,9 +318,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
               </h3>
               <ul className="text-sm text-gray-700 space-y-1">
                 <li>• A private chat room will be created instantly</li>
-                <li>• You can start coordinating your skill exchange</li>
-                <li>• Schedule sessions and track your progress</li>
-                <li>• Access meeting tools and file sharing</li>
+                <li>• You'll be redirected to the chat page to start talking</li>
+                <li>• You can coordinate your skill exchange sessions</li>
+                <li>• Schedule meetings and track your progress together</li>
+                <li>• Access file sharing and collaboration tools</li>
               </ul>
             </div>
           </div>
@@ -346,7 +347,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
               {/* Contact Button - only show if accepted */}
               {match.status === 'accepted' && (
                 <button
-                  onClick={() => router.push('/chat')}
+                  onClick={() => router.push('/user/chat')}
                   className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 
                            focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
