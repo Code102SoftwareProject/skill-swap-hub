@@ -124,3 +124,72 @@ export const updateMatchStatus = async (
     return { success: false, message: 'Failed to update match status' };
   }
 };
+
+// Function to accept match and create chat room
+export const acceptMatchAndCreateChatRoom = async (matchId: string): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    const response = await fetch('/api/matches/accept', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ matchId }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error accepting match and creating chat room:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to accept match and create chat room' 
+    };
+  }
+};
+
+// Function to create chat room between two users (keep for other use cases)
+export const createChatRoom = async (participants: string[]): Promise<ApiResponse<any>> => {
+  try {
+    if (!participants || participants.length !== 2) {
+      return { success: false, message: 'Exactly two participants required' };
+    }
+
+    const response = await fetch('/api/chatrooms', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.NEXT_PUBLIC_SYSTEM_API_KEY || '',
+      },
+      body: JSON.stringify({ participants }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return { 
+      success: data.success, 
+      message: data.success ? 'Chat room created successfully' : data.message,
+      data: data.chatRoom 
+    };
+  } catch (error) {
+    console.error('Error creating chat room:', error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to create chat room' 
+    };
+  }
+};
