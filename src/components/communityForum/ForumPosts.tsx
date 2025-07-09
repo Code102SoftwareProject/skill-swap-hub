@@ -232,7 +232,10 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                   )}
                   
                   <div className="prose max-w-none mt-5">
-                    <p className="whitespace-pre-line text-gray-700 leading-relaxed">{post.content}</p>
+                    <div 
+                      className="whitespace-pre-line text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
                   </div>
                   
                   <div className="flex items-center justify-between mt-8 pt-5 border-t border-blue-50">

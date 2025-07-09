@@ -7,6 +7,8 @@ import { ArrowLeft, Loader, MessageSquare, Flag, Send, ThumbsUp, ThumbsDown, Edi
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
 import Swal from 'sweetalert2';
+import Quill from 'quill';
+import 'quill/dist/quill.snow.css';
 
 interface Author {
   _id: string;
@@ -72,6 +74,8 @@ const PostDetail = () => {
   const editFileInputRef = useRef<HTMLInputElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
   const editReplyRef = useRef<HTMLTextAreaElement>(null);
+  const editEditorRef = useRef<HTMLDivElement>(null);
+  const editQuillRef = useRef<Quill | null>(null);
 
   // Fetch post details
   useEffect(() => {
@@ -145,6 +149,27 @@ const PostDetail = () => {
     };
   }, [editImagePreview]);
 
+  // Apply error styling to Quill editor and cleanup when modal closes
+  useEffect(() => {
+    if (editQuillRef.current && editEditorRef.current) {
+      const toolbar = editEditorRef.current.previousElementSibling as HTMLElement;
+      const container = editEditorRef.current.parentElement as HTMLElement;
+      
+      if (editErrors.content) {
+        toolbar?.classList.add('ql-error');
+        container?.classList.add('ql-error');
+      } else {
+        toolbar?.classList.remove('ql-error');
+        container?.classList.remove('ql-error');
+      }
+    }
+
+    // Cleanup when modal closes
+    if (!showEditModal && editQuillRef.current) {
+      editQuillRef.current = null;
+    }
+  }, [editErrors.content, showEditModal]);
+
   const validateEditForm = (): boolean => {
     const newErrors: { title?: string; content?: string; image?: string } = {};
     
@@ -154,9 +179,10 @@ const PostDetail = () => {
       newErrors.title = 'Title must be at least 5 characters';
     }
     
-    if (!editContent.trim()) {
+    const textContent = editQuillRef.current?.getText().trim() || '';
+    if (!textContent || textContent.length === 0) {
       newErrors.content = 'Content is required';
-    } else if (editContent.length < 10) {
+    } else if (textContent.length < 10) {
       newErrors.content = 'Content must be at least 10 characters';
     }
     
@@ -402,7 +428,6 @@ const PostDetail = () => {
     setEditTitle(post?.title || '');
     setEditContent(post?.content || '');
     
-    
     if (post?.imageUrl) {
       setEditImagePreview(getImageUrl(post.imageUrl));
     } else {
@@ -412,6 +437,40 @@ const PostDetail = () => {
     setEditImage(null);
     setShowEditModal(true);
     setEditErrors({});
+
+    // Initialize Quill editor after modal opens
+    setTimeout(() => {
+      if (editEditorRef.current && !editQuillRef.current) {
+        editQuillRef.current = new Quill(editEditorRef.current, {
+          theme: 'snow',
+          placeholder: 'Write your post content here...',
+          modules: {
+            toolbar: [
+              [{ 'header': [1, 2, 3, false] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+              [{ 'color': [] }, { 'background': [] }],
+              ['link'],
+              ['clean']
+            ]
+          }
+        });
+
+        // Set initial content if available
+        if (post?.content) {
+          editQuillRef.current.root.innerHTML = post.content;
+        }
+
+        // Listen for text changes to update content state
+        editQuillRef.current.on('text-change', () => {
+          if (editQuillRef.current) {
+            const htmlContent = editQuillRef.current.root.innerHTML;
+            const textContent = editQuillRef.current.getText().trim();
+            setEditContent(textContent.length > 0 ? htmlContent : '');
+          }
+        });
+      }
+    }, 100);
   };
 
   // Function to handle image selection for edit
@@ -599,6 +658,12 @@ const PostDetail = () => {
       }
       setEditErrors({});
       
+      // Clear Quill editor
+      if (editQuillRef.current) {
+        editQuillRef.current.setContents([]);
+        editQuillRef.current = null;
+      }
+      
       // Show success notification
       Swal.fire({
         icon: 'success',
@@ -630,6 +695,10 @@ const PostDetail = () => {
     // Close modal on Escape key
     if (e.key === 'Escape') {
       setShowEditModal(false);
+      // Clean up Quill editor
+      if (editQuillRef.current) {
+        editQuillRef.current = null;
+      }
     }
     
     // Submit on Ctrl+Enter or Cmd+Enter
@@ -924,7 +993,10 @@ const PostDetail = () => {
           </div>
           
           <div className="prose max-w-none">
-            <p className="whitespace-pre-line text-gray-700 leading-relaxed">{post.content}</p>
+            <div 
+              className="whitespace-pre-line text-gray-700 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: post.content }}
+            />
           </div>
           
           {/* Post image if available */}
@@ -1034,19 +1106,19 @@ const PostDetail = () => {
                   </div>
                   
                   <div>
-                    <label htmlFor="edit-content" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Content
                     </label>
-                    <textarea
-                      id="edit-content"
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      rows={6}
-                      className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                        editErrors.content ? 'border-red-500' : 'border-gray-300'
-                      }`}
-                      placeholder="Write your post content here..."
-                    />
+                    <div className={`${editErrors.content ? 'ql-error' : ''}`}>
+                      <div 
+                        ref={editEditorRef}
+                        className="min-h-[150px] bg-white"
+                        style={{ 
+                          fontSize: '14px',
+                          fontFamily: 'system-ui, -apple-system, sans-serif'
+                        }}
+                      />
+                    </div>
                     {editErrors.content && (
                       <p className="mt-1 text-sm text-red-600 flex items-center">
                         <AlertCircle className="w-4 h-4 mr-1" />
@@ -1280,7 +1352,7 @@ const PostDetail = () => {
                             </div>
                           </div>
                         ) : (
-                          reply.content
+                          <div dangerouslySetInnerHTML={{ __html: reply.content }} />
                         )}
                       </div>
                       

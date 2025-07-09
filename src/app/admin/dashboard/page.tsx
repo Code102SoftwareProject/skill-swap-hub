@@ -1,6 +1,6 @@
 "use client"; // Required for client-side rendering
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import AdminSidebar from "@/components/Admin/AdminSidebar";
 import AdminNavbar from "@/components/Admin/AdminNavbar";
@@ -12,12 +12,21 @@ import SuggestionsContent from "@/components/Admin/dashboardContent/SuggestionsC
 import SystemContent from "@/components/Admin/dashboardContent/SystemContent";
 import VerificationRequests from "@/components/Admin/skillverifications";
 import ReportingContent from "@/components/Admin/dashboardContent/ReportingContent";
+import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessStoriesContent";
+
+// Dynamic import for AdminManagementContent to avoid import issues
+const AdminManagementContent = React.lazy(
+  () =>
+    import("../../../components/Admin/dashboardContent/AdminManagementContent")
+);
 
 // Constants to avoid magic strings
 const COMPONENTS = {
   DASHBOARD: "dashboard",
+  ADMIN_MANAGEMENT: "admin-management",
   KYC: "kyc",
   USERS: "users",
+  SUCCESS_STORIES: "success-stories",
   SUGGESTIONS: "suggestions",
   SYSTEM: "system",
   VERIFY_DOCUMENTS: "verify-documents",
@@ -26,12 +35,22 @@ const COMPONENTS = {
 
 // Define interface for Admin data
 interface Admin {
-  id: string;
+  userId: string;
   username: string;
-  email: string;
   role: string;
-  permissions?: string[];
-  lastLogin?: Date;
+  permissions: string[];
+}
+
+// Define interface for AdminData with extended properties
+interface AdminData {
+  userId: string;
+  username: string;
+  role: string;
+  permissions: string[];
+  email?: string;
+  status?: string;
+  createdAt?: string;
+  createdBy?: string;
 }
 
 // Toast notification type definition
@@ -155,7 +174,10 @@ export default function AdminDashboard() {
           return;
         }
 
-        // Authentication is valid
+        // Authentication is valid, store admin data
+        if (data.admin) {
+          setAdminData(data.admin);
+        }
         setIsLoading(false);
       } catch (error) {
         console.error("Authentication error:", error);
@@ -268,10 +290,30 @@ export default function AdminDashboard() {
       switch (activeComponent) {
         case COMPONENTS.DASHBOARD:
           return <DashboardContent key={activeComponent} />;
+        case COMPONENTS.ADMIN_MANAGEMENT:
+          return (
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center h-64">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                  <span className="ml-2 text-gray-600">
+                    Loading admin management...
+                  </span>
+                </div>
+              }
+            >
+              <AdminManagementContent
+                key={activeComponent}
+                currentAdminRole={adminData?.role}
+              />
+            </Suspense>
+          );
         case COMPONENTS.KYC:
           return <KYCContent key={activeComponent} />;
         case COMPONENTS.USERS:
           return <UsersContent key={activeComponent} />;
+        case COMPONENTS.SUCCESS_STORIES:
+          return <SuccessStoriesContent key={activeComponent} />;
         case COMPONENTS.SUGGESTIONS:
           return <SuggestionsContent key={activeComponent} />;
         case COMPONENTS.SYSTEM:
@@ -303,12 +345,13 @@ export default function AdminDashboard() {
       <AdminSidebar
         onNavigate={setActiveComponent}
         activeComponent={activeComponent}
+        adminData={adminData}
       />
 
       {/* Main content area - takes remaining space with flex layout */}
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Top navigation bar */}
-        <AdminNavbar />
+        <AdminNavbar adminData={adminData} />
 
         {/* Main content container with scrollable area and styling */}
         <main className="p-6 mt-4 overflow-y-auto bg-gray-50 min-h-screen">

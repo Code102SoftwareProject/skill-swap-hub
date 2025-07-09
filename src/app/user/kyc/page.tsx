@@ -12,7 +12,7 @@ const API_ENDPOINTS = {
 // Accepted file formats for different document types
 const FILE_TYPES = {
   NIC_DOCUMENT: ".pdf,.jpg,.jpeg,.png",
-  PERSON_PHOTO: ".jpg,.jpeg,.png",
+  PERSON_PHOTO: ".pdf,.jpg,.jpeg,.png",
 };
 
 // File validation constraints
@@ -28,8 +28,19 @@ const NIC_PATTERNS = {
   NEW_NIC: /^[0-9]{12}$/, // New format: 12 digits
 };
 
+// Username validation pattern
+const USERNAME_VALIDATION = {
+  PATTERN: /^[A-Za-z]{2,}\s[A-Za-z]{2,}$/, // 3-30 chars: letters, numbers, dots, underscores
+  MIN_LENGTH: 3,
+  MAX_LENGTH: 30,
+};
+
 // User-facing messages for different scenarios
 const MESSAGES = {
+  USERNAME_FORMAT_ERROR:
+    "Username must be 3-30 characters and can only contain letters, numbers, dots (.) and underscores (_)",
+  USERNAME_FORMAT_INFO:
+    "Use 3-30 characters: letters, numbers, dots (.) and underscores (_)",
   NIC_FORMAT_ERROR:
     "Invalid NIC format. Please enter either 9 digits followed by V/X or 12 digits",
   NIC_FORMAT_INFO:
@@ -38,6 +49,7 @@ const MESSAGES = {
     "Your face and both sides of your NIC should be clearly visible",
   FORM_INCOMPLETE: "Please fill all fields and upload all required photos",
   INVALID_NIC: "Please enter a valid NIC number",
+  INVALID_USERNAME: "Please enter a valid username",
   NIC_UPLOAD_FAILED: "NIC file upload failed",
   PERSON_PHOTO_UPLOAD_FAILED: "Photo with NIC upload failed",
   KYC_SUBMISSION_FAILED: "KYC submission failed",
@@ -110,6 +122,7 @@ const initialFormState: KYCFormState = {
 export default function KYCForm() {
   // State management hooks
   const [username, setUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [nicError, setNicError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<FileValidationError | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -132,6 +145,7 @@ export default function KYCForm() {
     setFormState(initialFormState);
     setFileError(null);
     setNicError(null);
+    setUsernameError(null);
 
     // Clear file input elements
     const fileInputs = document.querySelectorAll(
@@ -142,6 +156,10 @@ export default function KYCForm() {
     });
   };
 
+  // Validate username format using regex pattern
+  const validateUsername = (usernameValue: string): boolean => {
+    return USERNAME_VALIDATION.PATTERN.test(usernameValue);
+  };
   // Extract username from JWT token on component mount
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -150,12 +168,16 @@ export default function KYCForm() {
         const decoded = jwtDecode<DecodedToken>(token);
         const name = decoded.username || decoded.email || decoded.sub || "";
         setUsername(name);
+
+        // Validate the username from token
+        if (name && !validateUsername(name)) {
+          setUsernameError(MESSAGES.USERNAME_FORMAT_ERROR);
+        }
       } catch (err) {
         console.error("Invalid JWT", err);
       }
     }
   }, []);
-
   // Validate file size and type
   const validateFile = (file: File): string | null => {
     if (file.size > FILE_CONSTRAINTS.MAX_SIZE_BYTES) {
@@ -167,6 +189,19 @@ export default function KYCForm() {
     }
 
     return null;
+  };
+
+  // Handle changes to username input field
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const usernameValue = e.target.value;
+    setUsername(usernameValue);
+
+    // Validate username format if not empty
+    if (usernameValue && !validateUsername(usernameValue)) {
+      setUsernameError(MESSAGES.USERNAME_FORMAT_ERROR);
+    } else {
+      setUsernameError(null);
+    }
   };
 
   // Validate NIC format using regex patterns
@@ -284,6 +319,10 @@ export default function KYCForm() {
         message: MESSAGES.FORM_INCOMPLETE,
         isError: true,
       });
+      return;
+    } // Validate username format
+    if (!validateUsername(username)) {
+      setStatus({ message: MESSAGES.INVALID_USERNAME, isError: true });
       return;
     }
 
@@ -406,9 +445,8 @@ export default function KYCForm() {
           >
             <h2 id="form-title" className="text-xl font-bold text-center">
               {FORM_LABELS.TITLE}
-            </h2>
-
-            {/* Username field */}
+            </h2>{" "}
+            {/* Username field with validation */}
             <div>
               <label
                 htmlFor="username"
@@ -420,13 +458,29 @@ export default function KYCForm() {
                 id="username"
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500"
+                onChange={handleUsernameChange}
+                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${usernameError ? "border-red-500" : ""}`}
                 required
-                aria-describedby={nicError ? "nic-error" : undefined}
+                aria-invalid={!!usernameError}
+                aria-describedby={
+                  usernameError
+                    ? "username-error username-format"
+                    : "username-format"
+                }
               />
+              {usernameError && (
+                <p
+                  id="username-error"
+                  className="mt-1 text-sm text-red-600"
+                  role="alert"
+                >
+                  {usernameError}
+                </p>
+              )}
+              <p id="username-format" className="mt-1 text-xs text-gray-500">
+                {MESSAGES.USERNAME_FORMAT_INFO}
+              </p>
             </div>
-
             {/* NIC number field with validation */}
             <div>
               <label
@@ -460,7 +514,6 @@ export default function KYCForm() {
                 {MESSAGES.NIC_FORMAT_INFO}
               </p>
             </div>
-
             {/* NIC document upload */}
             <div>
               <label
@@ -492,7 +545,6 @@ export default function KYCForm() {
                 {MESSAGES.FILE_VALIDATION}
               </p>
             </div>
-
             {/* Photo with person holding NIC upload */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -511,18 +563,18 @@ export default function KYCForm() {
               <p className="mt-1 text-xs text-gray-500">
                 {MESSAGES.PHOTO_GUIDANCE}
               </p>
-            </div>
-
+            </div>{" "}
             {/* Submit button - disabled during upload or if errors exist */}
             <button
               type="submit"
               className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-              disabled={uploading || !!nicError || !!fileError}
+              disabled={
+                uploading || !!nicError || !!usernameError || !!fileError
+              }
               aria-busy={uploading}
             >
               {uploading ? FORM_LABELS.UPLOADING : FORM_LABELS.SUBMIT}
             </button>
-
             {/* Status message display (success/error) */}
             {status && (
               <div
