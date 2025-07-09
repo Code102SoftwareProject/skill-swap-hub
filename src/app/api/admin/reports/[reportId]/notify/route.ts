@@ -3,13 +3,12 @@ import connect from "@/lib/db";
 import ReportInSession from "@/lib/models/reportInSessionSchema";
 import User from "@/lib/models/userSchema";
 import Session from "@/lib/models/sessionSchema";
-import EmailService from "@/lib/emailService";
 import { ReportEmailTemplates } from "@/lib/emailTemplates";
 import { Types } from "mongoose";
 
 /**
  * POST /api/admin/reports/[reportId]/notify
- * Send investigation emails to both the reported user and reporting user
+ * Generate email templates for the frontend to use with mailto links
  */
 export async function POST(
   req: Request,
@@ -95,86 +94,11 @@ export async function POST(
       sessionTitle: sessionTitle,
     };
 
-    // Initialize email service
-    const emailService = new EmailService();
-
-    // Verify email service connection (for testing, continue even if it fails)
-    const isConnected = await emailService.verifyConnection();
-    if (!isConnected) {
-      console.log(
-        "Email service not connected, but continuing for testing purposes"
-      );
-      // For testing purposes, we'll continue and simulate email sending
-      // In production, you might want to fail here
-    }
-
-    const emailResults = [];
-
-    // Send email to reported user
-    try {
-      const reportedUserEmail =
-        ReportEmailTemplates.getReportedUserEmail(emailData);
-      const reportedUserResult = await emailService.sendEmail({
-        to: report.reportedUser.email,
-        subject: reportedUserEmail.subject,
-        html: reportedUserEmail.html,
-        text: reportedUserEmail.text,
-      });
-
-      emailResults.push({
-        recipient: "reported_user",
-        email: report.reportedUser.email,
-        sent: reportedUserResult,
-      });
-    } catch (error) {
-      console.error("Error sending email to reported user:", error);
-      emailResults.push({
-        recipient: "reported_user",
-        email: report.reportedUser.email,
-        sent: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-
-    // Send email to reporting user
-    try {
-      const reportingUserEmail =
-        ReportEmailTemplates.getReportingUserEmail(emailData);
-      const reportingUserResult = await emailService.sendEmail({
-        to: report.reportedBy.email,
-        subject: reportingUserEmail.subject,
-        html: reportingUserEmail.html,
-        text: reportingUserEmail.text,
-      });
-
-      emailResults.push({
-        recipient: "reporting_user",
-        email: report.reportedBy.email,
-        sent: reportingUserResult,
-      });
-    } catch (error) {
-      console.error("Error sending email to reporting user:", error);
-      emailResults.push({
-        recipient: "reporting_user",
-        email: report.reportedBy.email,
-        sent: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-
-    // Check if at least one email was sent successfully
-    const successfulEmails = emailResults.filter((result) => result.sent);
-
-    if (successfulEmails.length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Failed to send any investigation emails",
-          emailResults: emailResults,
-        },
-        { status: 500 }
-      );
-    }
+    // Get email templates
+    const reportedUserEmail =
+      ReportEmailTemplates.getReportedUserEmail(emailData);
+    const reportingUserEmail =
+      ReportEmailTemplates.getReportingUserEmail(emailData);
 
     // Update report status to under_review and add timestamp
     await ReportInSession.findByIdAndUpdate(reportId, {
@@ -183,20 +107,23 @@ export async function POST(
       emailsSentAt: new Date(),
     });
 
-    // Determine response message based on results
-    let message;
-    if (successfulEmails.length === 2) {
-      message = "Investigation emails sent successfully to both users";
-    } else {
-      const failedEmails = emailResults.filter((result) => !result.sent);
-      message = `Investigation emails partially sent. Failed to send to: ${failedEmails.map((r) => r.recipient).join(", ")}`;
-    }
-
+    // Return the email templates for the frontend to use with mailto links
     return NextResponse.json(
       {
         success: true,
-        message: message,
-        emailResults: emailResults,
+        message: "Email templates generated for frontend mailto links",
+        emailData: {
+          reportedUser: {
+            to: report.reportedUser.email,
+            subject: reportedUserEmail.subject,
+            body: reportedUserEmail.text || reportedUserEmail.html,
+          },
+          reportingUser: {
+            to: report.reportedBy.email,
+            subject: reportingUserEmail.subject,
+            body: reportingUserEmail.text || reportingUserEmail.html,
+          },
+        },
         reportStatus: "under_review",
       },
       { status: 200 }
@@ -206,7 +133,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        message: "Internal server error while sending investigation emails",
+        message: "Internal server error while generating email templates",
         error: error.message,
       },
       { status: 500 }
