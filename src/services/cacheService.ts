@@ -2,6 +2,8 @@
  * Cache service to reduce redundant API calls
  */
 
+import { perfMonitor } from '@/utils/performanceMonitor';
+
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
@@ -18,11 +20,26 @@ class CacheService {
    */
   get<T>(key: string): T | null {
     const entry = this.cache.get(key);
-    if (!entry) return null;
+    if (!entry) {
+      // Record cache miss for user profiles
+      if (key.startsWith('user_profile_')) {
+        perfMonitor.recordMiss('userProfiles');
+      }
+      return null;
+    }
 
     if (Date.now() > entry.expiresAt) {
       this.cache.delete(key);
+      // Record cache miss for expired entries
+      if (key.startsWith('user_profile_')) {
+        perfMonitor.recordMiss('userProfiles');
+      }
       return null;
+    }
+
+    // Record cache hit
+    if (key.startsWith('user_profile_')) {
+      perfMonitor.recordHit('userProfiles');
     }
 
     return entry.data;
