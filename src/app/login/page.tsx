@@ -160,7 +160,6 @@ const Login = () => {
           <div className="text-center mb-6">
             <h1 className="text-2xl font-semibold text-gray-800">SkillSwap Hub Login</h1>
             <p className="text-sm text-gray-600 mt-1">Connect, Learn, and Share Your Skills</p>
-            <p className="text-xs text-blue-600 mt-2">🧪 Testing Mode: Normal login expires in 10 seconds</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 flex-grow">
@@ -227,7 +226,7 @@ const Login = () => {
                   onChange={handleChange}
                 />
                 <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
-                  Remember me (30 days)
+                  Remember me
                 </label>
               </div>
               <div className="text-sm">
