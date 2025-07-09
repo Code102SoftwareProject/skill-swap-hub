@@ -71,7 +71,7 @@ export default function UserDashboardContent() {
 
         {/* Right/Sidebar Column */}
         <div className="lg:col-span-1 space-y-6">
-          <ProfileCard userId="67e66f9d4c4a95f630b6235c" />
+         {user && <ProfileCard userId={user._id} />}
           {/* Calendar and Time Spent */}
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Time Spent</h3>

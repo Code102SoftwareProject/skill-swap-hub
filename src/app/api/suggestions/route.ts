@@ -5,26 +5,23 @@ import User from '@/lib/models/userSchema';
 import mongoose from 'mongoose';
 
 // GET: Fetch all suggestions
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    console.log('Attempting to connect to database...');
     await connect();
-    console.log('Database connected successfully');
 
-    // Ensure User model is registered
-    if (!mongoose.models.User) {
-      console.log('User model not found, registering...');
-      require('@/lib/models/userSchema');
-    }
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const status = searchParams.get("status");
 
-    console.log('Fetching suggestions...');
-    const suggestions = await Suggestion.find({}).populate({
+    const filter: any = {};
+    if (userId) filter.userId = userId;
+    if (status) filter.status = status;
+
+    const suggestions = await Suggestion.find(filter).populate({
       path: 'userId',
-      select: 'firstName lastName email avatar' // Only select needed fields
+      select: 'firstName lastName email avatar'
     });
-    console.log(`Found ${suggestions.length} suggestions`);
 
-    // Flatten user data into each suggestion object
     const formatted = suggestions.map((s) => ({
       _id: s._id,
       category: s.category,
@@ -32,30 +29,20 @@ export async function GET() {
       title: s.title,
       description: s.description,
       status: s.status,
-      // Flattened from s.userId
       userName: s.userId ? `${s.userId.firstName} ${s.userId.lastName}` : 'Unknown',
       avatar: s.userId?.avatar || '/default-avatar.png',
-      role: 'User', // Default role
+      role: 'User',
     }));
 
     return NextResponse.json(formatted);
   } catch (error) {
-    console.error('Detailed error:', {
-      message: (error as Error).message,
-      stack: (error as Error).stack,
-      name: (error as Error).name
-    });
-    
     return NextResponse.json(
-      { 
-        error: 'Failed to fetch suggestions', 
-        details: (error as Error).message,
-        type: (error as Error).name
-      },
+      { error: 'Failed to fetch suggestions', details: (error as Error).message },
       { status: 500 }
     );
   }
 }
+
 
 // POST: Create new suggestion
 export async function POST(request: Request) {

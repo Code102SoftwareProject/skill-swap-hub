@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import {
   format,
   addMonths,
@@ -12,67 +13,31 @@ import {
   isSameMonth,
   isSameDay,
 } from 'date-fns';
-import Image from 'next/image';
 
-// Define the shape of the user object returned from API
-interface User {
+type UserType = {
   _id: string;
-  firstName: string;
-  lastName: string;
-  title: string;
-  avatar: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  firstName?: string; // if your data splits name
+  lastName?: string;
+  title?: string;
+};
+
+interface ProfileCardProps {
+  userId: string;
 }
 
-// API response shape
-interface UserApiResponse {
-  success: boolean;
-  user?: User;
-  message?: string;
-}
-
-const ProfileCard = ({ userId }: { userId: string }) => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [user, setUser] = useState<User | null>(null);
+const ProfileCard = ({ userId }: ProfileCardProps) => {
+  const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  // Fetch user data from API based on the userId
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/users/profile?id=${userId}`);
-        const data: UserApiResponse = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to fetch user data');
-        }
-
-        if (data.success && data.user) {
-          setUser(data.user);
-        } else {
-          throw new Error('User not found in response');
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error occurred');
-        console.error('Error fetching user data:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (userId) {
-      fetchUserData();
-    }
-  }, [userId]);
-
-  // Move to the next month
+  // Calendar controls
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
-  // Move to the previous month
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
-  // Render calendar header with month/year and nav buttons
   const renderHeader = () => (
     <div className="flex justify-between items-center text-sm text-gray-700 mb-2">
       <button onClick={prevMonth} className="p-1 font-bold" aria-label="Previous Month">
@@ -85,7 +50,6 @@ const ProfileCard = ({ userId }: { userId: string }) => {
     </div>
   );
 
-  // Render day initials (S, M, T, W, T, F, S)
   const renderDays = () => {
     const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     return (
@@ -99,10 +63,9 @@ const ProfileCard = ({ userId }: { userId: string }) => {
     );
   };
 
-  // Generate all calendar cells for current month (memoized for performance)
   const calendarCells = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
     const endDate = endOfMonth(currentMonth);
 
     const rows = [];
@@ -113,7 +76,6 @@ const ProfileCard = ({ userId }: { userId: string }) => {
       for (let i = 0; i < 7; i++) {
         const formattedDate = format(day, 'd');
         const cloneDay = day;
-
         const isToday = isSameDay(day, new Date());
         const isSelected = isSameDay(day, selectedDate);
         const isCurrentMonth = isSameMonth(day, monthStart);
@@ -153,37 +115,33 @@ const ProfileCard = ({ userId }: { userId: string }) => {
     return rows;
   }, [currentMonth, selectedDate]);
 
-  // Conditional loading state
-  if (loading) {
-    return (
-      <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm flex justify-center items-center h-64">
-        <p>Loading profile...</p>
-      </div>
-    );
-  }
+  useEffect(() => {
+    async function fetchUser() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/users/${userId}`);
+        const data = await res.json();
+        if (data.success) {
+          setUser(data.user);
+        } else {
+          console.error('User not found or error:', data.message);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Fetch user failed:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUser();
+  }, [userId]);
 
-  // Show error if data fetch fails
-  if (error) {
-    return (
-      <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm flex justify-center items-center h-64">
-        <p className="text-red-500">Error: {error}</p>
-      </div>
-    );
-  }
+  if (loading) return <div>Loading profile...</div>;
+  if (!user) return <div>User not found</div>;
 
-  // Show if user is not found
-  if (!user) {
-    return (
-      <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm flex justify-center items-center h-64">
-        <p>User not found</p>
-      </div>
-    );
-  }
-
-  // Final render of the Profile Card with user info and calendar
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm">
-      {/* Profile Image & Info */}
       <div className="flex flex-col items-center">
         <div className="w-24 h-24 rounded-full overflow-hidden">
           <Image
@@ -199,9 +157,8 @@ const ProfileCard = ({ userId }: { userId: string }) => {
         </h2>
         <p className="text-sm text-gray-500">{user.title || 'No title provided'}</p>
       </div>
-
-      {/* Calendar UI */}
-      <div className="mt-6">
+	  
+	  <div className="mt-6">
         {renderHeader()}
         {renderDays()}
         <div className="mt-2">{calendarCells}</div>
