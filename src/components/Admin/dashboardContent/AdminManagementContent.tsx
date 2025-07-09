@@ -963,21 +963,21 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                     onChange={(e) =>
                       setCreateForm({ ...createForm, password: e.target.value })
                     }
-                    placeholder="At least 8 characters with a number"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                    placeholder="Minimum 8 characters"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                     minLength={8}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">
-                  Minimum 8 characters including at least one number
+                  Minimum 8 characters, at least 1 number
                 </p>
               </div>
 
@@ -987,93 +987,68 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                 </label>
                 <select
                   value={createForm.role}
-                  onChange={(e) => setDefaultPermissions(e.target.value, true)}
+                  onChange={(e) => {
+                    setDefaultPermissions(e.target.value, true);
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="admin">Admin</option>
                   <option value="super_admin">Super Admin</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Super admins have full system access
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permissions Summary (Read-only)
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Permissions
                 </label>
-                <div className="bg-gray-50 p-3 rounded-lg border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {AVAILABLE_PERMISSIONS.map((permission) => {
-                      const isChecked = createForm.permissions.includes(
-                        permission.key
-                      );
-                      return (
-                        <div
-                          key={permission.key}
-                          className="flex items-center space-x-2"
+                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  <div className="space-y-2">
+                    {AVAILABLE_PERMISSIONS.map((permission) => (
+                      <div key={permission.key} className="flex items-start">
+                        <input
+                          type="checkbox"
+                          id={`create-${permission.key}`}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          checked={createForm.permissions.includes(
+                            permission.key
+                          )}
+                          onChange={() =>
+                            togglePermission(permission.key, true)
+                          }
+                        />
+                        <label
+                          htmlFor={`create-${permission.key}`}
+                          className="ml-2 block text-sm"
                         >
-                          <input
-                            type="checkbox"
-                            id={`create-${permission.key}`}
-                            checked={isChecked}
-                            disabled={true}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
-                          />
-                          <label
-                            htmlFor={`create-${permission.key}`}
-                            className={`text-sm ${isChecked ? "text-gray-700" : "text-gray-400"}`}
-                          >
+                          <span className="font-medium text-gray-900">
                             {permission.label}
-                          </label>
-                        </div>
-                      );
-                    })}
+                          </span>
+                          <span className="text-gray-500 block text-xs">
+                            {permission.description}
+                          </span>
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {createForm.role === "super_admin"
-                      ? "Super Admins have all permissions including admin management."
-                      : "Regular Admins have all permissions except admin management."}
-                  </p>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowCreateForm(false);
-                    setEmailValidation({
-                      isValid: false,
-                      message: "",
-                      isChecking: false,
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  onClick={() => setShowCreateForm(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    emailValidation.isChecking ||
-                    (createForm.email.trim() !== "" &&
-                      !emailValidation.isValid) ||
-                    !createForm.username.trim() ||
-                    !createForm.email.trim() ||
-                    !createForm.password.trim()
-                  }
-                  className={`px-4 py-2 rounded-lg ${
-                    emailValidation.isChecking ||
-                    (createForm.email.trim() !== "" &&
-                      !emailValidation.isValid) ||
-                    !createForm.username.trim() ||
-                    !createForm.email.trim() ||
-                    !createForm.password.trim()
-                      ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  {emailValidation.isChecking
-                    ? "Validating..."
-                    : "Create Admin"}
+                  Create Admin
                 </button>
               </div>
             </form>
@@ -1100,7 +1075,10 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                     onChange={(e) =>
                       setUpdateForm({ ...updateForm, username: e.target.value })
                     }
+                    placeholder="At least 4 characters"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                    minLength={4}
                   />
                 </div>
                 <div>
@@ -1114,9 +1092,9 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                       onChange={(e) =>
                         setUpdateForm({ ...updateForm, email: e.target.value })
                       }
+                      placeholder="admin@example.com"
                       className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent ${
-                        updateForm.email?.trim() === "" ||
-                        updateForm.email === selectedAdmin?.email
+                        updateForm.email === selectedAdmin.email
                           ? "border-gray-300 focus:ring-blue-500"
                           : updateEmailValidation.isChecking
                             ? "border-yellow-300 focus:ring-yellow-500"
@@ -1124,17 +1102,15 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                               ? "border-green-300 focus:ring-green-500"
                               : "border-red-300 focus:ring-red-500"
                       }`}
+                      required
                     />
-                    {updateEmailValidation.isChecking &&
-                      updateForm.email !== selectedAdmin?.email && (
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-500"></div>
-                        </div>
-                      )}
+                    {updateEmailValidation.isChecking && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-500"></div>
+                      </div>
+                    )}
                     {!updateEmailValidation.isChecking &&
-                      updateForm.email &&
-                      updateForm.email.trim() &&
-                      updateForm.email !== selectedAdmin?.email && (
+                      updateForm.email !== selectedAdmin.email && (
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                           {updateEmailValidation.isValid ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
@@ -1144,31 +1120,32 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                         </div>
                       )}
                   </div>
-                  {updateForm.email &&
-                    updateForm.email !== selectedAdmin?.email && (
-                      <p
-                        className={`text-xs mt-1 ${
-                          updateEmailValidation.isChecking
-                            ? "text-yellow-600"
-                            : updateEmailValidation.isValid
-                              ? "text-green-600"
-                              : updateEmailValidation.message
-                                ? "text-red-600"
-                                : "text-gray-500"
-                        }`}
-                      >
-                        {updateEmailValidation.isChecking
-                          ? "Validating email..."
-                          : updateEmailValidation.message ||
-                            "Valid email address required"}
-                      </p>
-                    )}
+                  <p
+                    className={`text-xs mt-1 ${
+                      updateForm.email === selectedAdmin.email
+                        ? "text-gray-500"
+                        : updateEmailValidation.isChecking
+                          ? "text-yellow-600"
+                          : updateEmailValidation.isValid
+                            ? "text-green-600"
+                            : updateEmailValidation.message
+                              ? "text-red-600"
+                              : "text-gray-500"
+                    }`}
+                  >
+                    {updateForm.email === selectedAdmin.email
+                      ? "Current email address"
+                      : updateEmailValidation.isChecking
+                        ? "Validating email..."
+                        : updateEmailValidation.message ||
+                          "Valid email address required"}
+                  </p>
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  New Password (leave blank to keep current)
+                  New Password (optional)
                 </label>
                 <div className="relative">
                   <input
@@ -1177,16 +1154,20 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                     onChange={(e) =>
                       setUpdateForm({ ...updateForm, password: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-10"
+                    placeholder="Leave blank to keep current password"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
                   >
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimum 8 characters, at least 1 number if provided
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1196,9 +1177,9 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                   </label>
                   <select
                     value={updateForm.role}
-                    onChange={(e) =>
-                      setDefaultPermissions(e.target.value, false)
-                    }
+                    onChange={(e) => {
+                      setDefaultPermissions(e.target.value);
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="admin">Admin</option>
@@ -1224,80 +1205,52 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Permissions Summary (Read-only)
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Permissions
                 </label>
-                <div className="bg-gray-50 p-3 rounded-lg border">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {AVAILABLE_PERMISSIONS.map((permission) => {
-                      const isChecked = updateForm.permissions!.includes(
-                        permission.key
-                      );
-                      return (
-                        <div
-                          key={permission.key}
-                          className="flex items-center space-x-2"
+                <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
+                  <div className="space-y-2">
+                    {AVAILABLE_PERMISSIONS.map((permission) => (
+                      <div key={permission.key} className="flex items-start">
+                        <input
+                          type="checkbox"
+                          id={`edit-${permission.key}`}
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          checked={updateForm.permissions?.includes(
+                            permission.key
+                          )}
+                          onChange={() => togglePermission(permission.key)}
+                        />
+                        <label
+                          htmlFor={`edit-${permission.key}`}
+                          className="ml-2 block text-sm"
                         >
-                          <input
-                            type="checkbox"
-                            id={`update-${permission.key}`}
-                            checked={isChecked}
-                            disabled={true}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 bg-gray-100 cursor-not-allowed"
-                          />
-                          <label
-                            htmlFor={`update-${permission.key}`}
-                            className={`text-sm ${isChecked ? "text-gray-700" : "text-gray-400"}`}
-                          >
+                          <span className="font-medium text-gray-900">
                             {permission.label}
-                          </label>
-                        </div>
-                      );
-                    })}
+                          </span>
+                          <span className="text-gray-500 block text-xs">
+                            {permission.description}
+                          </span>
+                        </label>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {updateForm.role === "super_admin"
-                      ? "Super Admins have all permissions including admin management."
-                      : "Regular Admins have all permissions except admin management."}
-                  </p>
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-2 pt-4">
+              <div className="flex justify-end space-x-3 mt-6">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowEditForm(false);
-                    setUpdateEmailValidation({
-                      isValid: false,
-                      message: "",
-                      isChecking: false,
-                    });
-                  }}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  onClick={() => setShowEditForm(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    updateEmailValidation.isChecking ||
-                    (!!updateForm.email &&
-                      updateForm.email !== selectedAdmin?.email &&
-                      !updateEmailValidation.isValid)
-                  }
-                  className={`px-4 py-2 rounded-lg ${
-                    updateEmailValidation.isChecking ||
-                    (!!updateForm.email &&
-                      updateForm.email !== selectedAdmin?.email &&
-                      !updateEmailValidation.isValid)
-                      ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                  }`}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  {updateEmailValidation.isChecking
-                    ? "Validating..."
-                    : "Update Admin"}
+                  Save Changes
                 </button>
               </div>
             </form>
