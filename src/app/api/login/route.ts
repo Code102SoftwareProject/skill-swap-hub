@@ -48,7 +48,7 @@ try {
         name: `${user.firstName} ${user.lastName}`
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: rememberMe ? '30d' : '24h' }
+      { expiresIn: rememberMe ? '30d' : '10s' }
     );
 
     // Return success response with token and user info (password is automatically excluded by toJSON method)

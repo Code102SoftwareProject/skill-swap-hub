@@ -7,6 +7,7 @@ interface ApiResponse<T = any> {
 class ApiClient {
   private baseURL: string;
   private onSessionExpired?: () => void;
+  private isSessionExpiring: boolean = false;
 
   constructor(baseURL: string = '') {
     this.baseURL = baseURL;
@@ -27,7 +28,10 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
     if (response.status === 401) {
       // Token expired or invalid
-      this.handleSessionExpiry();
+      if (!this.isSessionExpiring) {
+        this.isSessionExpiring = true;
+        this.handleSessionExpiry();
+      }
       throw new Error('Session expired');
     }
 
@@ -50,6 +54,11 @@ class ApiClient {
     if (this.onSessionExpired) {
       this.onSessionExpired();
     }
+    
+    // Reset flag after a delay
+    setTimeout(() => {
+      this.isSessionExpiring = false;
+    }, 2000);
   }
 
   async get<T>(url: string): Promise<ApiResponse<T>> {
