@@ -151,7 +151,8 @@ export async function POST(req: Request) {
       user2Id,
       skill2Id,
       descriptionOfService2,
-      startDate
+      startDate,
+      expectedEndDate
     } = body;
 
     // Validate required fields
@@ -163,7 +164,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await Session.create({
+    const sessionData: any = {
       user1Id: new Types.ObjectId(user1Id),
       skill1Id: new Types.ObjectId(skill1Id),
       descriptionOfService1,
@@ -174,7 +175,14 @@ export async function POST(req: Request) {
       isAccepted: null,
       isAmmended: false,
       status: 'pending'
-    });
+    };
+
+    // Add expected end date if provided
+    if (expectedEndDate) {
+      sessionData.expectedEndDate = new Date(expectedEndDate);
+    }
+
+    const session = await Session.create(sessionData);
 
     const populatedSession = await Session.findById(session._id)
       .populate('user1Id', 'email avatar firstName lastName')
