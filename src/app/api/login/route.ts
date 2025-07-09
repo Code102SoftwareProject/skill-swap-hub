@@ -45,7 +45,7 @@ export async function POST(req: Request) {
         name: `${user.firstName} ${user.lastName}`
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: rememberMe ? '30d' : '10s' }  // 🚨 10 SECONDS FOR TESTING
+      { expiresIn: rememberMe ? '30d' : '24h' }  // 🚨 10 SECONDS FOR TESTING
     );
 
     // Optional: Log for debugging
