@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
+import ProfileCompletionModal from '@/components/auth/ProfileCompletionModal';
 
 function LoginWithSearchParams() {
   const { useSearchParams } = require('next/navigation');
@@ -23,7 +25,7 @@ function LoginWithSearchParams() {
 
 const Login = () => {
   const router = useRouter();
-  const { login, user, isLoading: authLoading } = useAuth();
+  const { login, googleLogin, user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -37,6 +39,7 @@ const Login = () => {
     password?: string;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -121,6 +124,53 @@ const Login = () => {
       console.error('Login error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Google login handler
+  const handleGoogleLogin = async (credential: string) => {
+    try {
+      const result = await googleLogin(credential);
+
+      if (result.success) {
+        if (result.needsProfileCompletion) {
+          // Show profile completion modal
+          setShowProfileModal(true);
+        } else {
+          showToast('Google login successful! Redirecting...', 'success');
+          
+          // Check if there's a redirect URL stored
+          const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+          if (redirectUrl) {
+            sessionStorage.removeItem('redirectAfterLogin');
+            router.push(redirectUrl);
+          } else {
+            router.push('/dashboard');
+          }
+        }
+      } else {
+        showToast(result.message || 'Google login failed', 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred during Google login. Please try again.', 'error');
+      console.error('Google login error:', error);
+    }
+  };
+
+  const handleGoogleError = (error: string) => {
+    showToast(error, 'error');
+  };
+
+  const handleProfileCompletion = (profileData: { phone: string; title: string }) => {
+    showToast('Profile completed successfully! Redirecting...', 'success');
+    
+    // Check if there's a redirect URL stored
+    const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+    if (redirectUrl) {
+      sessionStorage.removeItem('redirectAfterLogin');
+      router.push(redirectUrl);
+    } else {
+      router.push('/dashboard');
     }
   };
 
@@ -251,12 +301,37 @@ const Login = () => {
                 Login
               </button>
             </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Google Login Button */}
+            <div>
+              <GoogleLoginButton 
+                onSuccess={handleGoogleLogin}
+                onError={handleGoogleError}
+              />
+            </div>
           </form>
 
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">Don't have an account? <Link href="/register" className="text-blue-600 hover:text-blue-800">Create an account</Link></p>
             <p className="text-sm text-gray-600 mt-1"><Link href="/" className="text-blue-600 hover:text-blue-800">Back to Homepage</Link></p>
           </div>
+
+          {/* Profile Completion Modal */}
+          <ProfileCompletionModal 
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            onComplete={handleProfileCompletion}
+          />
         </div>
       </div>
     </div>
