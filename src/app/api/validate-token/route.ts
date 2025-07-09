@@ -3,25 +3,25 @@ import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import User from '@/lib/models/userSchema';
 
-// JWT Configuration
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is not defined');
 }
 
 export async function POST(req: Request) {
-  const { resetToken } = await req.json();
-
-  // Validate input
-  if (!resetToken) {
-    return NextResponse.json({ 
-      success: false, 
-      message: 'Reset token is required' 
-    }, { status: 400 });
-  }
-
   try {
-    // Verify the reset token
-    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as {
+    // Get token from Authorization header
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    if (!token) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'No token provided' 
+      }, { status: 401 });
+    }
+
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
       userId: string;
       email: string;
     };
@@ -29,8 +29,8 @@ export async function POST(req: Request) {
     // Connect to database
     await dbConnect();
     
-    // Find user by email from token
-    const user = await User.findOne({ email: decoded.email });
+    // Find user to ensure they still exist and aren't suspended
+    const user = await User.findById(decoded.userId);
     
     if (!user) {
       return NextResponse.json({ 
@@ -39,26 +39,46 @@ export async function POST(req: Request) {
       }, { status: 404 });
     }
 
-    // If we got here, the token is valid
+    // Check if user is suspended
+    if (user.suspension?.isSuspended) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Account suspended' 
+      }, { status: 403 });
+    }
+
+    // Token is valid
     return NextResponse.json({ 
       success: true, 
       message: 'Token is valid',
-      email: decoded.email
+      user: {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        title: user.title
+      }
     });
   } catch (error) {
-    console.error('Validate token error:', error);
+    console.error('Token validation error:', error);
     
-    // Check if it's a token verification error
+    if (error instanceof jwt.TokenExpiredError) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Token expired' 
+      }, { status: 401 });
+    }
+    
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Invalid or expired reset token' 
+        message: 'Invalid token' 
       }, { status: 401 });
     }
     
     return NextResponse.json({ 
       success: false, 
-      message: 'An error occurred while validating token' 
+      message: 'Token validation failed' 
     }, { status: 500 });
   }
 }

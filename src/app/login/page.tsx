@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 
-
 function LoginWithSearchParams() {
   const { useSearchParams } = require('next/navigation');
   const searchParams = useSearchParams();
@@ -24,7 +23,7 @@ function LoginWithSearchParams() {
 
 const Login = () => {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -38,6 +37,19 @@ const Login = () => {
     password?: string;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router]);
 
   const validateForm = () => {
     const newErrors: {
@@ -112,9 +124,20 @@ const Login = () => {
     }
   };
 
+  // Show loading state while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
-      {/* Wrap the component using useSearchParams in Suspense */}
       <Suspense fallback={null}>
         <LoginWithSearchParams />
       </Suspense>
