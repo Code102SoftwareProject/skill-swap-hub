@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { X, Plus, AlertCircle, Clock, ChevronDown, ChevronRight, Calendar, CheckCircle, XCircle } from 'lucide-react';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
@@ -135,9 +135,142 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Check if there are any active meetings or requests
   const hasActiveMeetingsOrRequests = pendingRequests.length > 0 || upcomingMeetings.length > 0;
 
-  // Get recent cancellations (last 24 hours) using cached API calls
-  const fetchRecentCancellations = useCallback(async () => {
-    const cancelledMeetings = meetings.filter(m => m.state === 'cancelled');
+  // Track if meetings have been loaded to prevent duplicate onMeetingUpdate calls
+  const hasFetchedMeetings = useRef(false);
+
+  // Fetch chat room to get other user ID
+  useEffect(() => {
+    const fetchChatRoom = async () => {
+      try {
+        const response = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
+        const data = await response.json();
+        
+        if (data.success && data.chatRooms && data.chatRooms.length > 0) {
+          const chatRoom = data.chatRooms[0];
+          const otherParticipant = chatRoom.participants.find(
+            (id: string) => id !== userId
+          );
+          if (otherParticipant) {
+            setOtherUserId(otherParticipant);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching chat room:", error);
+      }
+    };
+    
+    if (chatRoomId && userId) {
+      fetchChatRoom();
+    }
+  }, [chatRoomId, userId]);
+
+  // Fetch meetings when otherUserId is available
+  useEffect(() => {
+    if (!otherUserId) return;
+    
+    // Call fetchMeetings directly to avoid callback dependency
+    const loadMeetings = async () => {
+      try {
+        setLoading(true);
+        const data = await fetchMeetings(userId, otherUserId);
+        setMeetings(data);
+
+        // Notify parent component about meeting updates (only once per mount)
+        if (onMeetingUpdate && !hasFetchedMeetings.current) {
+          hasFetchedMeetings.current = true;
+          onMeetingUpdate();
+        }
+      } catch (error) {
+        console.error('Error fetching meetings:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    hasFetchedMeetings.current = false; // Reset for new otherUserId
+    loadMeetings();
+  }, [otherUserId, userId]); // Remove onMeetingUpdate dependency
+
+  // Fetch meetings data
+  const fetchMeetingsData = useCallback(async (otherUserID: string) => {
+    try {
+      setLoading(true);
+      const data = await fetchMeetings(userId, otherUserID);
+      setMeetings(data);
+
+      // Notify parent component about meeting updates
+      if (onMeetingUpdate) {
+        onMeetingUpdate();
+      }
+    } catch (error) {
+      console.error('Error fetching meetings:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId, onMeetingUpdate]); // Remove fetchRecentCancellations dependency
+
+  // Fetch user profiles for all meeting participants with stable dependencies
+  const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
+    if (currentMeetings.length === 0) return;
+    
+    const uniqueUserIds = new Set<string>();
+    currentMeetings.forEach(meeting => {
+      uniqueUserIds.add(meeting.senderId);
+      uniqueUserIds.add(meeting.receiverId);
+    });
+
+    // Fetch profiles for each unique user ID
+    for (const id of uniqueUserIds) {
+      const cacheKey = `profile-${id}`;
+      
+      try {
+        const profileData = await debouncedApiService.makeRequest(
+          cacheKey,
+          async () => {
+            const res = await fetch(`/api/users/profile?id=${id}`);
+            const data = await res.json();
+            return data.success ? data.user : null;
+          },
+          60000 // 1 minute cache for profiles
+        );
+        
+        if (profileData) {
+          setUserProfiles(prev => {
+            // Check if we already have this profile to prevent unnecessary updates
+            if (prev[id] && prev[id].firstName === profileData.firstName && prev[id].lastName === profileData.lastName) {
+              return prev; // No change needed
+            }
+            
+            return {
+              ...prev,
+              [id]: {
+                firstName: profileData.firstName,
+                lastName: profileData.lastName
+              }
+            };
+          });
+        }
+      } catch (err) {
+        console.error(`Error fetching profile for user ${id}:`, err);
+      }
+    }
+  }, []);
+
+  // Fetch user profiles when meetings change (with debouncing)
+  useEffect(() => {
+    if (meetings.length === 0) return;
+    
+    // Debounce the call to prevent excessive API requests
+    const timeoutId = setTimeout(() => {
+      fetchUserProfiles(meetings);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [meetings.length, fetchUserProfiles]); // Stable dependencies only
+
+  // Fetch recent cancellations with stable dependencies
+  const fetchRecentCancellations = useCallback(async (currentMeetings: Meeting[]) => {
+    const cancelledMeetings = currentMeetings.filter(m => m.state === 'cancelled');
     if (cancelledMeetings.length === 0) {
       setCancellationAlerts([]);
       return;
@@ -148,7 +281,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
 
     const recentCancellations: CancellationAlert[] = [];
 
-    // Use cached cancellation data to avoid excessive API calls
+    // Process each cancelled meeting
     for (const meeting of cancelledMeetings) {
       const cacheKey = `cancellation-${meeting._id}`;
       
@@ -160,15 +293,13 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
             if (!response.ok) return null;
             return await response.json();
           },
-          300000 // 5 minute cache for cancellation data
+          300000
         );
 
         if (cancellationData) {
           const cancelledAt = new Date(cancellationData.cancelledAt);
           
-          // Add to alerts if recent (last 24 hours)
           if (cancelledAt > oneDayAgo) {
-            // Get canceller name by fetching user profile
             let cancellerName = 'Someone';
             if (cancellationData.cancelledBy) {
               const profileCacheKey = `profile-${cancellationData.cancelledBy}`;
@@ -206,122 +337,22 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     }
 
     setCancellationAlerts(recentCancellations);
-  }, [meetings, userId]);
+  }, [userId]);
 
-  // Fetch user profile by ID (cached)
-  const fetchUserProfile = useCallback(async (id: string) => {
-    // Use a ref or direct check to avoid dependency on userProfiles state
-    const cacheKey = `profile-${id}`;
-    
-    try {
-      const profileData = await debouncedApiService.makeRequest(
-        cacheKey,
-        async () => {
-          const res = await fetch(`/api/users/profile?id=${id}`);
-          const data = await res.json();
-          return data.success ? data.user : null;
-        },
-        60000 // 1 minute cache for profiles
-      );
-      
-      if (profileData) {
-        setUserProfiles(prev => {
-          // Check if we already have this profile to prevent unnecessary updates
-          if (prev[id]) return prev;
-          
-          return {
-            ...prev,
-            [id]: {
-              firstName: profileData.firstName,
-              lastName: profileData.lastName
-            }
-          };
-        });
-      }
-    } catch (err) {
-      console.error(`Error fetching profile for user ${id}:`, err);
+  // Call fetch recent cancellations when meetings change (with debouncing)
+  useEffect(() => {
+    if (meetings.length === 0) {
+      setCancellationAlerts([]);
+      return;
     }
-  }, []); // Remove userProfiles dependency to prevent infinite loop
 
-  // Fetch chat room to get other user ID
-  useEffect(() => {
-    const fetchChatRoom = async () => {
-      try {
-        const response = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
-        const data = await response.json();
-        
-        if (data.success && data.chatRooms && data.chatRooms.length > 0) {
-          const chatRoom = data.chatRooms[0];
-          const otherParticipant = chatRoom.participants.find(
-            (id: string) => id !== userId
-          );
-          setOtherUserId(otherParticipant);
-          
-          if (otherParticipant) {
-            fetchUserProfile(otherParticipant);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching chat room:", error);
-      }
-    };
+    // Debounce the call to prevent excessive API requests
+    const timeoutId = setTimeout(() => {
+      fetchRecentCancellations(meetings);
+    }, 500);
     
-    fetchChatRoom();
-  }, [chatRoomId, userId, fetchUserProfile]);
-
-  // Fetch meetings data
-  const fetchMeetingsData = useCallback(async (otherUserID: string) => {
-    try {
-      setLoading(true);
-      const data = await fetchMeetings(userId, otherUserID);
-      setMeetings(data);
-
-      // Notify parent component about meeting updates
-      if (onMeetingUpdate) {
-        onMeetingUpdate();
-      }
-    } catch (error) {
-      console.error('Error fetching meetings:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, onMeetingUpdate]); // Remove fetchRecentCancellations dependency
-
-  // Fetch meetings when otherUserId is available
-  useEffect(() => {
-    if (!otherUserId) return;
-    fetchMeetingsData(otherUserId);
-  }, [otherUserId, fetchMeetingsData]);
-
-  // Fetch user profiles for all meeting participants
-  useEffect(() => {
-    if (meetings.length === 0) return;
-    
-    const uniqueUserIds = new Set<string>();
-    meetings.forEach(meeting => {
-      uniqueUserIds.add(meeting.senderId);
-      uniqueUserIds.add(meeting.receiverId);
-    });
-
-    uniqueUserIds.forEach(id => {
-      // Check if profile already exists to prevent unnecessary calls
-      if (!userProfiles[id]) {
-        fetchUserProfile(id);
-      }
-    });
-  }, [meetings]); // Remove fetchUserProfile dependency to prevent loop
-
-  // Call fetch recent cancellations when meetings change
-  useEffect(() => {
-    if (meetings.length > 0) {
-      // Use a timeout to prevent immediate re-renders and potential loops
-      const timeoutId = setTimeout(() => {
-        fetchRecentCancellations();
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [meetings.length]); // Only depend on meetings.length, not the entire meetings array
+    return () => clearTimeout(timeoutId);
+  }, [meetings.length, fetchRecentCancellations]); // Stable dependencies only
 
   // Meeting action handler
   const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
