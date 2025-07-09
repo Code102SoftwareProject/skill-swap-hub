@@ -31,6 +31,7 @@ export interface ISkillListing extends Document {
   status: 'active' | 'matched' | 'completed' | 'cancelled';
   createdAt: Date;
   updatedAt?: Date;
+  id?: string; // Add id property for the transformation
 }
 
 const SkillListingSchema: Schema = new Schema({
@@ -116,7 +117,7 @@ const SkillListingSchema: Schema = new Schema({
   timestamps: true, // Automatically manage createdAt and updatedAt
   toJSON: { 
     virtuals: true,
-    transform: function(doc, ret) {
+    transform: function(doc: any, ret: any) {
       ret.id = ret._id;
       delete ret._id;
       delete ret.__v;

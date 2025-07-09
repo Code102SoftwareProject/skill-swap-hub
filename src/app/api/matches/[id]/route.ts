@@ -222,18 +222,6 @@ export async function PUT(request: NextRequest) {
         console.log(`User 1: ${match.userOneId}`);
         console.log(`User 2: ${match.userTwoId}`);
 
-        // Import and call the badge assignment service directly
-        const { handleMatchCompletionBadges } = await import(
-          "@/services/badgeAssignmentService"
-        );
-
-        const badgeResults = await handleMatchCompletionBadges(
-          match.userOneId,
-          match.userTwoId,
-          match._id.toString()
-        );
-
-        console.log("🏆 BADGE ASSIGNMENT RESULTS:", badgeResults);
         console.log(
           `Checked badge eligibility for match completion: users ${match.userOneId} and ${match.userTwoId}`
         );

@@ -85,6 +85,14 @@ export async function PUT(request: NextRequest) {
     // Prevent super admin from demoting themselves
     const cookieStore = await cookies();
     const token = cookieStore.get("adminToken")?.value;
+    
+    if (!token) {
+      return NextResponse.json(
+        { message: "No authentication token" },
+        { status: 401 }
+      );
+    }
+    
     const currentUser = jwt.verify(token, JWT_SECRET) as any;
 
     if (currentUser.userId === adminId && role === "admin") {
@@ -190,6 +198,14 @@ export async function DELETE(request: NextRequest) {
     // Prevent super admin from deleting themselves
     const cookieStore = await cookies();
     const token = cookieStore.get("adminToken")?.value;
+    
+    if (!token) {
+      return NextResponse.json(
+        { message: "No authentication token" },
+        { status: 401 }
+      );
+    }
+    
     const currentUser = jwt.verify(token, JWT_SECRET) as any;
 
     if (currentUser.userId === adminId) {
