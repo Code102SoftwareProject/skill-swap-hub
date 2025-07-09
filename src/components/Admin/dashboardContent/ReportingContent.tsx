@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
   ShieldX,
   AlertOctagon,
   Search,
+  SortAsc,
+  SortDesc,
 } from "lucide-react";
 // Local interfaces to ensure TypeScript compatibility
 interface AdminReportUser {
@@ -95,6 +97,7 @@ export default function AdminReports() {
   const [resolvingReport, setResolvingReport] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
 
   const createTestReport = async () => {
     try {
@@ -698,42 +701,52 @@ SkillSwapHub Admin Team`;
   };
 
   // Filter reports based on status and search query
-  const filteredReports = reports.filter((report) => {
-    // Status filter
-    const statusMatch =
-      statusFilter === "all" || report.status === statusFilter;
+  const filteredReports = useMemo(() => {
+    return reports
+      .filter((report) => {
+        // Status filter
+        const statusMatch =
+          statusFilter === "all" || report.status === statusFilter;
 
-    // Search filter
-    if (!searchQuery.trim()) {
-      return statusMatch;
-    }
+        // Search filter
+        if (!searchQuery.trim()) {
+          return statusMatch;
+        }
 
-    const query = searchQuery.toLowerCase();
-    const reporterName = formatName(
-      report.reportedBy?.firstName,
-      report.reportedBy?.lastName
-    ).toLowerCase();
-    const reportedName = formatName(
-      report.reportedUser?.firstName,
-      report.reportedUser?.lastName
-    ).toLowerCase();
-    const reporterEmail = (report.reportedBy?.email || "").toLowerCase();
-    const reportedEmail = (report.reportedUser?.email || "").toLowerCase();
-    const reason = formatReason(report.reason).toLowerCase();
-    const description = (report.description || "").toLowerCase();
-    const reportId = report._id.toLowerCase();
+        const query = searchQuery.toLowerCase();
+        const reporterName = formatName(
+          report.reportedBy?.firstName,
+          report.reportedBy?.lastName
+        ).toLowerCase();
+        const reportedName = formatName(
+          report.reportedUser?.firstName,
+          report.reportedUser?.lastName
+        ).toLowerCase();
+        const reporterEmail = (report.reportedBy?.email || "").toLowerCase();
+        const reportedEmail = (report.reportedUser?.email || "").toLowerCase();
+        const reason = formatReason(report.reason).toLowerCase();
+        const description = (report.description || "").toLowerCase();
+        const reportId = report._id.toLowerCase();
 
-    const searchMatch =
-      reporterName.includes(query) ||
-      reportedName.includes(query) ||
-      reporterEmail.includes(query) ||
-      reportedEmail.includes(query) ||
-      reason.includes(query) ||
-      description.includes(query) ||
-      reportId.includes(query);
+        const searchMatch =
+          reporterName.includes(query) ||
+          reportedName.includes(query) ||
+          reporterEmail.includes(query) ||
+          reportedEmail.includes(query) ||
+          reason.includes(query) ||
+          description.includes(query) ||
+          reportId.includes(query);
 
-    return statusMatch && searchMatch;
-  });
+        return statusMatch && searchMatch;
+      })
+      .sort((a, b) => {
+        // Sort by creation date
+        const dateA = new Date(a.createdAt).getTime();
+        const dateB = new Date(b.createdAt).getTime();
+
+        return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
+      });
+  }, [reports, statusFilter, searchQuery, sortDirection]);
 
   // Get counts for each status
   const getStatusCounts = () => {
@@ -755,6 +768,42 @@ SkillSwapHub Admin Team`;
   };
 
   const statusCounts = getStatusCounts();
+
+  // Toggle sort direction
+  const toggleSortDirection = () => {
+    setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+  };
+
+  // Report status constants for dropdown menu
+  const REPORT_STATUSES = {
+    ALL: "all",
+    PENDING: "pending",
+    UNDER_REVIEW: "under_review",
+    RESOLVED: "resolved",
+    DISMISSED: "dismissed",
+  } as const;
+
+  type ReportStatusKey = keyof typeof REPORT_STATUSES;
+
+  // Format status for display
+  const getStatusDisplayName = (status: string) => {
+    switch (status) {
+      case REPORT_STATUSES.ALL:
+        return "All";
+      case REPORT_STATUSES.PENDING:
+        return "Pending";
+      case REPORT_STATUSES.UNDER_REVIEW:
+        return "Under Review";
+      case REPORT_STATUSES.RESOLVED:
+        return "Resolved";
+      case REPORT_STATUSES.DISMISSED:
+        return "Dismissed";
+      default:
+        return status
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase());
+    }
+  };
 
   if (loading) {
     return (
@@ -842,76 +891,62 @@ SkillSwapHub Admin Team`;
             </div>
           </div>
 
-          {/* Filter Buttons */}
+          {/* Filter Dropdown */}
           <div className="mb-6">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">
-              Filter by Status:
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={() => setStatusFilter("all")}
-                variant={statusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                className={`${
-                  statusFilter === "all"
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "hover:bg-gray-50"
-                }`}
-              >
-                All Reports ({statusCounts.all})
-              </Button>
-              <Button
-                onClick={() => setStatusFilter("pending")}
-                variant={statusFilter === "pending" ? "default" : "outline"}
-                size="sm"
-                className={`${
-                  statusFilter === "pending"
-                    ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                    : "hover:bg-yellow-50 border-yellow-200 text-yellow-700"
-                }`}
-              >
-                Pending ({statusCounts.pending})
-              </Button>
-              <Button
-                onClick={() => setStatusFilter("under_review")}
-                variant={
-                  statusFilter === "under_review" ? "default" : "outline"
-                }
-                size="sm"
-                className={`${
-                  statusFilter === "under_review"
-                    ? "bg-blue-600 hover:bg-blue-700 text-white"
-                    : "hover:bg-blue-50 border-blue-200 text-blue-700"
-                }`}
-              >
-                Under Review ({statusCounts.under_review})
-              </Button>
-              <Button
-                onClick={() => setStatusFilter("resolved")}
-                variant={statusFilter === "resolved" ? "default" : "outline"}
-                size="sm"
-                className={`${
-                  statusFilter === "resolved"
-                    ? "bg-green-600 hover:bg-green-700 text-white"
-                    : "hover:bg-green-50 border-green-200 text-green-700"
-                }`}
-              >
-                Resolved ({statusCounts.resolved})
-              </Button>
-              <Button
-                onClick={() => setStatusFilter("dismissed")}
-                variant={statusFilter === "dismissed" ? "default" : "outline"}
-                size="sm"
-                className={`${
-                  statusFilter === "dismissed"
-                    ? "bg-red-600 hover:bg-red-700 text-white"
-                    : "hover:bg-red-50 border-red-200 text-red-700"
-                }`}
-              >
-                Dismissed ({statusCounts.dismissed})
-              </Button>
+            <div className="flex flex-wrap justify-between items-center gap-4">
+              <div className="flex items-center gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                    Filter by Status:
+                  </h3>
+                  <select
+                    className="border px-4 py-2 rounded"
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    {(
+                      Object.keys(REPORT_STATUSES) as Array<ReportStatusKey>
+                    ).map((key) => (
+                      <option key={key} value={REPORT_STATUSES[key]}>
+                        {getStatusDisplayName(REPORT_STATUSES[key])} (
+                        {
+                          statusCounts[
+                            REPORT_STATUSES[key] as keyof typeof statusCounts
+                          ]
+                        }
+                        )
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Sort direction toggle button */}
+                <button
+                  onClick={toggleSortDirection}
+                  className="flex items-center gap-2 px-4 py-2 border rounded hover:bg-gray-50"
+                  title={
+                    sortDirection === "desc"
+                      ? "Showing newest first"
+                      : "Showing oldest first"
+                  }
+                  aria-label={`Sort by date: currently ${sortDirection === "desc" ? "newest first" : "oldest first"}`}
+                >
+                  {sortDirection === "desc" ? (
+                    <>
+                      <SortDesc className="h-4 w-4" /> Newest
+                    </>
+                  ) : (
+                    <>
+                      <SortAsc className="h-4 w-4" /> Oldest
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
+
           {filteredReports.length === 0 ? (
             <div className="text-center py-12">
               <AlertCircle className="h-16 w-16 mx-auto mb-4 text-gray-400" />
@@ -945,37 +980,63 @@ SkillSwapHub Admin Team`;
               )}
             </div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full border-collapse bg-white">
+            <div className="overflow-x-auto">
+              <table className="w-full table-auto border-separate border-spacing-y-2 text-sm">
                 <thead>
-                  <tr className="bg-[#609ad9] text-white">
-                    <th className="border-r border-blue-400 px-6 py-4 text-left font-semibold">
-                      Reporting User
+                  <tr className="bg-gray-100">
+                    <th className="px-4 py-2 text-left">Reporting User</th>
+                    <th className="px-4 py-2 text-left">Reported User</th>
+                    <th className="px-4 py-2 text-left">Reason</th>
+                    <th className="px-4 py-2 text-left">Status</th>
+                    <th className="px-4 py-2 text-left">
+                      <div className="flex items-center">
+                        <span>Created At</span>
+                        <button
+                          onClick={toggleSortDirection}
+                          className="ml-2 p-1 rounded hover:bg-gray-200"
+                          title={`Sort by date ${sortDirection === "asc" ? "descending" : "ascending"}`}
+                        >
+                          {sortDirection === "asc" ? (
+                            <svg
+                              className="w-4 h-4 text-gray-500"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4 text-gray-500"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M16 15l-4 4-4-4m0-6l4-4 4 4"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </th>
-                    <th className="border-r border-blue-400 px-6 py-4 text-left font-semibold">
-                      Reported User
-                    </th>
-                    <th className="border-r border-blue-400 px-6 py-4 text-left font-semibold">
-                      Reason
-                    </th>
-                    <th className="border-r border-blue-400 px-6 py-4 text-left font-semibold">
-                      Status
-                    </th>
-                    <th className="border-r border-blue-400 px-6 py-4 text-left font-semibold">
-                      Created At
-                    </th>
-                    <th className="px-6 py-4 text-center font-semibold">
-                      Actions
-                    </th>
+                    <th className="px-4 py-2 text-center">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {filteredReports.map((report, index) => (
-                    <tr
-                      key={report._id}
-                      className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-gray-50/30"}`}
-                    >
-                      <td className="border-r border-gray-200 px-6 py-4">
+                <tbody>
+                  {filteredReports.map((report) => (
+                    <tr key={report._id} className="bg-white hover:bg-gray-50">
+                      <td className="px-4 py-3 border-b">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium text-gray-900">
@@ -1006,7 +1067,7 @@ SkillSwapHub Admin Team`;
                           </Button>
                         </div>
                       </td>
-                      <td className="border-r border-gray-200 px-6 py-4">
+                      <td className="px-4 py-3 border-b">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="font-medium text-gray-900">
@@ -1038,122 +1099,122 @@ SkillSwapHub Admin Team`;
                           </Button>
                         </div>
                       </td>
-                      <td className="border-r border-gray-200 px-6 py-4">
+                      <td className="px-4 py-3 border-b">
                         <div className="text-sm font-medium text-gray-900">
                           {formatReason(report.reason)}
                         </div>
                       </td>
-                      <td className="border-r border-gray-200 px-6 py-4">
-                        <Badge
-                          variant="outline"
-                          className={`${getStatusColor(report.status)} font-medium`}
-                        >
-                          {formatStatus(report.status)}
-                        </Badge>
+                      <td className="px-4 py-3 border-b">
+                        <div className="flex items-center justify-start">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(report.status)}`}
+                          >
+                            {formatStatus(report.status)}
+                          </span>
+                        </div>
                       </td>
-                      <td className="border-r border-gray-200 px-6 py-4">
+                      <td className="px-4 py-3 border-b">
                         <div className="text-sm text-gray-900">
                           {formatDate(report.createdAt)}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3 border-b">
                         <div className="flex items-center justify-center space-x-1">
-                          <Button
+                          <button
                             onClick={() => setSelectedReport(report)}
-                            variant="outline"
-                            size="sm"
-                            className="h-8 w-8 p-0"
+                            className="p-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded"
                             title="View Details"
                           >
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                            <Eye className="h-3 w-3" />
+                          </button>
 
                           {report.status === "pending" && (
-                            <Button
+                            <button
                               onClick={() => handleSendNotification(report._id)}
                               disabled={sendingEmails === report._id}
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0"
+                              className={`p-2 rounded ${
+                                sendingEmails === report._id
+                                  ? "bg-blue-200 text-blue-700 cursor-not-allowed"
+                                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                              }`}
                               title="Send investigation emails to both users"
                             >
                               {sendingEmails === report._id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <Loader2 className="h-3 w-3 animate-spin" />
                               ) : (
-                                <Mail className="h-4 w-4" />
+                                <Mail className="h-3 w-3" />
                               )}
-                            </Button>
+                            </button>
                           )}
 
                           {report.status === "under_review" && (
                             <>
-                              <Button
+                              <button
                                 onClick={() =>
                                   openWarningEmailClient(report, "reported")
                                 }
                                 disabled={!report.reportedUser?.email}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
-                                title="🛑 Open email to warn reported user (complaint is valid)"
+                                className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded"
+                                title="Open email to warn reported user (complaint is valid)"
                               >
-                                <AlertOctagon className="h-4 w-4" />
-                              </Button>
-                              <Button
+                                <AlertOctagon className="h-3 w-3" />
+                              </button>
+                              <button
                                 onClick={() =>
                                   openWarningEmailClient(report, "reporter")
                                 }
                                 disabled={!report.reportedBy?.email}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 border-yellow-300"
-                                title="⚠️ Open email to warn reporting user (false complaint)"
+                                className="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded"
+                                title="Open email to warn reporting user (false complaint)"
                               >
-                                <ShieldX className="h-4 w-4" />
-                              </Button>
-                              <Button
+                                <ShieldX className="h-3 w-3" />
+                              </button>
+                              <button
                                 onClick={() =>
                                   resolveReport(report._id, "dismiss")
                                 }
                                 disabled={resolvingReport === report._id}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                className={`p-2 rounded ${
+                                  resolvingReport === report._id
+                                    ? "bg-gray-200 text-gray-700 cursor-not-allowed"
+                                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                                }`}
                                 title="Dismiss report (no action needed)"
                               >
                                 {resolvingReport === report._id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Loader2 className="h-3 w-3 animate-spin" />
                                 ) : (
-                                  <X className="h-4 w-4" />
+                                  <X className="h-3 w-3" />
                                 )}
-                              </Button>
-                              <Button
+                              </button>
+                              <button
                                 onClick={() => markAsResolved(report._id)}
                                 disabled={resolvingReport === report._id}
-                                variant="outline"
-                                size="sm"
-                                className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300"
-                                title="✅ Mark report as resolved (after sending warning email)"
+                                className={`p-2 rounded flex items-center gap-1 ${
+                                  resolvingReport === report._id
+                                    ? "bg-green-200 text-green-700 cursor-not-allowed"
+                                    : "bg-green-100 text-green-700 hover:bg-green-200"
+                                }`}
+                                title="Mark report as resolved (after sending warning email)"
                               >
                                 {resolvingReport === report._id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  <Loader2 className="h-3 w-3 animate-spin" />
                                 ) : (
-                                  <CheckCircle className="h-4 w-4" />
+                                  <CheckCircle className="h-3 w-3" />
                                 )}
-                              </Button>
+                                Resolve
+                              </button>
                             </>
                           )}
 
                           {report.status === "resolved" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-green-600 cursor-default"
+                            <button
+                              className="p-2 bg-green-100 text-green-700 rounded cursor-default opacity-70"
                               disabled
                               title="Report has been resolved"
                             >
-                              <CheckCircle className="h-4 w-4" />
-                            </Button>
+                              <CheckCircle className="h-3 w-3" />
+                            </button>
                           )}
                         </div>
                       </td>
