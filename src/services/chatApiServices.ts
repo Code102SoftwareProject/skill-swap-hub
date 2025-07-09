@@ -238,8 +238,8 @@ export async function fetchChatMessages(chatRoomId: string) {
  */
 export async function markMessagesAsRead(messageIds: string[]) {
   try {
-    const response = await fetch("/api/messages/read", {
-      method: "POST",
+    const response = await fetch("/api/messages/read-status", {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messageIds }),
     });
@@ -252,25 +252,56 @@ export async function markMessagesAsRead(messageIds: string[]) {
 }
 
 /**
- ** Fetch delivery status for messages in a chat room
- *
- * @param chatRoomId - The unique identifier of the chat room
- * @returns Promise that resolves to delivery status map
+ * Get unread message count for a user
+ * 
+ * @param userId - The user ID to get unread count for
+ * @returns Promise with the unread count
  */
-export async function fetchMessageDeliveryStatus(
-  chatRoomId: string
-): Promise<Record<string, 'sent' | 'delivered' | 'read'> | null> {
+export async function fetchUnreadMessageCount(userId: string) {
   try {
-    const response = await fetch(`/api/messages/delivery-status?chatRoomId=${chatRoomId}`);
+    const response = await fetch(`/api/messages/unread-count?userId=${userId}`);
     const data = await response.json();
 
-    if (data.success && data.deliveryStatus) {
-      return data.deliveryStatus;
+    if (data.success) {
+      return data.unreadCount;
     }
 
-    return null;
+    return 0;
   } catch (error) {
-    console.error("Error fetching delivery status:", error);
-    return null;
+    console.error("Error fetching unread message count:", error);
+    return 0;
+  }
+}
+
+/**
+ * Mark unread messages as read for a specific chat room and user
+ * 
+ * @param chatRoomId - The chat room ID
+ * @param userId - The current user ID (to exclude their own messages)
+ * @returns Promise with the response data
+ */
+export async function markChatRoomMessagesAsRead(chatRoomId: string, userId: string) {
+  try {
+    // First, get all messages for this chat room
+    const messages = await fetchChatMessages(chatRoomId);
+    
+    // Filter for unread messages sent by others (not current user)
+    const unreadMessageIds = messages
+      .filter((msg: any) => 
+        msg.senderId.toString() !== userId && 
+        !msg.readStatus &&
+        msg._id
+      )
+      .map((msg: any) => msg._id!.toString());
+
+    // Only make API call if there are unread messages
+    if (unreadMessageIds.length > 0) {
+      return await markMessagesAsRead(unreadMessageIds);
+    }
+
+    return { success: true, message: "No unread messages to mark", modifiedCount: 0 };
+  } catch (error) {
+    console.error("Error marking chat room messages as read:", error);
+    throw error;
   }
 }
