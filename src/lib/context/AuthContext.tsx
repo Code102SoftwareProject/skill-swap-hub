@@ -44,11 +44,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSessionExpired, setIsSessionExpired] = useState<boolean>(false);
+  const [isSessionExpiring, setIsSessionExpiring] = useState<boolean>(false);
+  const [hasSessionExpired, setHasSessionExpired] = useState<boolean>(false);
+  const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  // Session expiry handler
+  // Setup automatic session expiry timer
+  const setupSessionTimer = (tokenToMonitor: string) => {
+    // Clear any existing timer
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+    }
+
+    // Calculate exact time until token expires
+    const timeUntilExpiry = getTimeUntilExpiry(tokenToMonitor) * 1000; // Convert to milliseconds
+    
+    console.log(`🕐 Setting session timer for ${timeUntilExpiry / 1000} seconds`);
+    console.log(`⏰ Session will expire at: ${new Date(Date.now() + timeUntilExpiry).toLocaleTimeString()}`);
+
+    // Set timer to show modal exactly when token expires
+    const timer = setTimeout(() => {
+      console.log('🚨 Session timer expired - showing modal automatically');
+      handleSessionExpiry();
+    }, timeUntilExpiry);
+
+    setSessionTimer(timer);
+  };
+
+  // Clear session timer
+  const clearSessionTimer = () => {
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+      setSessionTimer(null);
+      console.log('🧹 Session timer cleared');
+    }
+  };
+
+  // PROTECTED session expiry handler - ONLY ONE POPUP
   const handleSessionExpiry = () => {
-    console.log('Session expired - cleaning up');
+    // STRONG PROTECTION: Prevent any duplicate calls
+    if (isSessionExpiring || isSessionExpired || hasSessionExpired) {
+      console.log('❌ Session expiry already handled, ignoring duplicate call');
+      return;
+    }
+
+    console.log('✅ Session expired - showing popup (FIRST TIME ONLY)');
+    
+    // Set ALL protection flags immediately
+    setIsSessionExpiring(true);
+    setHasSessionExpired(true);
+    
+    // Clear timer
+    clearSessionTimer();
     
     // Clear all auth data
     localStorage.removeItem('auth_token');
@@ -56,10 +103,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('resetToken');
     localStorage.removeItem('resetEmail');
     
-    // Reset state
+    // Reset auth state
     setToken(null);
     setUser(null);
+    
+    // Show the popup
     setIsSessionExpired(true);
+    
+    // Reset protection flag after modal shows
+    setTimeout(() => {
+      setIsSessionExpiring(false);
+    }, 1000);
   };
 
   // Initialize auth on app start
@@ -92,8 +146,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               setToken(storedToken);
               setUser(JSON.parse(storedUser));
               
-              // Set up token expiry monitoring
-              setupTokenMonitoring(storedToken);
+              // Set up automatic timer
+              setupSessionTimer(storedToken);
             } else {
               console.log('Token invalid on server validation');
               handleSessionExpiry();
@@ -115,32 +169,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     apiClient.setSessionExpiredHandler(handleSessionExpiry);
 
     initializeAuth();
-  }, []);
 
-  // Token monitoring
-  const setupTokenMonitoring = (tokenToMonitor: string) => {
-    const checkTokenExpiry = () => {
-      if (isTokenExpired(tokenToMonitor)) {
-        console.log('Token expired during monitoring');
-        handleSessionExpiry();
-        return;
-      }
-
-      const timeUntilExpiry = getTimeUntilExpiry(tokenToMonitor);
-      
-      // Show warning when 5 minutes left
-      if (timeUntilExpiry <= 300 && timeUntilExpiry > 240) {
-        console.log('Token expiring soon - 5 minutes left');
-        // You could show a warning toast here
-      }
+    // Cleanup timer on unmount
+    return () => {
+      clearSessionTimer();
     };
-
-    // Check every minute
-    const interval = setInterval(checkTokenExpiry, 60000);
-    
-    // Cleanup function
-    return () => clearInterval(interval);
-  };
+  }, []);
 
   // Login function
   const login = async (email: string, password: string, rememberMe: boolean): Promise<{ success: boolean; message: string }> => {
@@ -170,10 +204,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Update state
         setToken(data.token);
         setUser(data.user);
-        setIsSessionExpired(false);
         
-        // Set up monitoring for new token
-        setupTokenMonitoring(data.token);
+        // Reset ALL session expiry flags on new login
+        setIsSessionExpired(false);
+        setIsSessionExpiring(false);
+        setHasSessionExpired(false);
+        
+        // Set up automatic timer for new token
+        setupSessionTimer(data.token);
         
         return { success: true, message: data.message || 'Login successful' };
       } else {
@@ -220,10 +258,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Update state
         setToken(data.token);
         setUser(data.user);
-        setIsSessionExpired(false);
         
-        // Set up monitoring
-        setupTokenMonitoring(data.token);
+        // Reset session expiry flags
+        setIsSessionExpired(false);
+        setIsSessionExpiring(false);
+        setHasSessionExpired(false);
+        
+        // Set up automatic timer
+        setupSessionTimer(data.token);
       }
       
       return { 
@@ -238,39 +280,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Logout function
+  // PROTECTED logout function
   const logout = async () => {
+    console.log('🚪 Logout initiated');
+    
     try {
-      // Call logout API
-      if (token) {
-        await fetch('/api/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          }
-        });
+      // Clear timer first
+      clearSessionTimer();
+      
+      // If session already expired, skip API call
+      if (!hasSessionExpired && token) {
+        try {
+          await fetch('/api/logout', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          console.log('✅ Logout API call successful');
+        } catch (error) {
+          console.log('⚠️ Logout API call failed (token might be expired)');
+        }
+      } else {
+        console.log('🔄 Skipping logout API call - session already expired');
       }
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      // Clear everything
+      // Always clear everything regardless of API success
       localStorage.removeItem('auth_token');
       localStorage.removeItem('user');
       localStorage.removeItem('resetToken');
       localStorage.removeItem('resetEmail');
       
+      // Reset ALL states
       setToken(null);
       setUser(null);
       setIsSessionExpired(false);
+      setIsSessionExpiring(false);
+      setHasSessionExpired(false);
       
+      console.log('🧹 All auth data cleared');
       router.push('/login');
     }
   };
 
   // Handle session expired modal login
   const handleSessionExpiredLogin = () => {
+    console.log('🔐 User clicked Login Again - redirecting to login');
+    
+    // Clear all session states
     setIsSessionExpired(false);
+    setIsSessionExpiring(false);
+    setHasSessionExpired(false);
+    
+    // Clear timer just in case
+    clearSessionTimer();
+    
+    // Redirect to login
     router.push('/login');
   };
 
@@ -288,8 +356,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   return (
     <AuthContext.Provider value={value}>
       {children}
-      {/* Session Expired Modal */}
-      {isSessionExpired && (
+      
+      {/* SINGLE Session Expired Modal - Protected Against Duplicates */}
+      {isSessionExpired && !isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black bg-opacity-50"></div>
           <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
