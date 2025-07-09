@@ -28,19 +28,18 @@ const NIC_PATTERNS = {
   NEW_NIC: /^[0-9]{12}$/, // New format: 12 digits
 };
 
-// Username validation pattern
-const USERNAME_VALIDATION = {
-  PATTERN: /^[A-Za-z]{2,}\s[A-Za-z]{2,}$/, // 3-30 chars: letters, numbers, dots, underscores
-  MIN_LENGTH: 3,
-  MAX_LENGTH: 30,
+// Full name validation pattern (first name and last name)
+const FULLNAME_VALIDATION = {
+  PATTERN: /^[A-Za-z]{2,}(\s+[A-Za-z]{2,})+$/, // At least 2 letters, followed by one or more words of at least 2 letters each
+  MIN_LENGTH: 5,
+  MAX_LENGTH: 50,
 };
 
 // User-facing messages for different scenarios
 const MESSAGES = {
-  USERNAME_FORMAT_ERROR:
-    "Username must be 3-30 characters and can only contain letters, numbers, dots (.) and underscores (_)",
-  USERNAME_FORMAT_INFO:
-    "Use 3-30 characters: letters, numbers, dots (.) and underscores (_)",
+  FULLNAME_FORMAT_ERROR:
+    "Please enter your full name with first name and last name (e.g., John Doe)",
+  FULLNAME_FORMAT_INFO: "Enter your full name: First Name Last Name",
   NIC_FORMAT_ERROR:
     "Invalid NIC format. Please enter either 9 digits followed by V/X or 12 digits",
   NIC_FORMAT_INFO:
@@ -49,7 +48,7 @@ const MESSAGES = {
     "Your face and both sides of your NIC should be clearly visible",
   FORM_INCOMPLETE: "Please fill all fields and upload all required photos",
   INVALID_NIC: "Please enter a valid NIC number",
-  INVALID_USERNAME: "Please enter a valid username",
+  INVALID_FULLNAME: "Please enter a valid full name",
   NIC_UPLOAD_FAILED: "NIC file upload failed",
   PERSON_PHOTO_UPLOAD_FAILED: "Photo with NIC upload failed",
   KYC_SUBMISSION_FAILED: "KYC submission failed",
@@ -71,7 +70,7 @@ type FieldName = (typeof FIELD_NAMES)[keyof typeof FIELD_NAMES];
 // UI text labels
 const FORM_LABELS = {
   TITLE: "NIC Document Upload",
-  USERNAME: "Username",
+  FULLNAME: "Full Name",
   NIC_NUMBER: "NIC Number",
   NIC_DOCUMENT: "NIC Document",
   PERSON_PHOTO: "Photo of you holding your NIC (both sides visible)",
@@ -121,8 +120,8 @@ const initialFormState: KYCFormState = {
 
 export default function KYCForm() {
   // State management hooks
-  const [username, setUsername] = useState("");
-  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
   const [nicError, setNicError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<FileValidationError | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -145,7 +144,7 @@ export default function KYCForm() {
     setFormState(initialFormState);
     setFileError(null);
     setNicError(null);
-    setUsernameError(null);
+    setFullNameError(null);
 
     // Clear file input elements
     const fileInputs = document.querySelectorAll(
@@ -156,22 +155,24 @@ export default function KYCForm() {
     });
   };
 
-  // Validate username format using regex pattern
-  const validateUsername = (usernameValue: string): boolean => {
-    return USERNAME_VALIDATION.PATTERN.test(usernameValue);
+  // Validate full name format using regex pattern
+  const validateFullName = (fullNameValue: string): boolean => {
+    return FULLNAME_VALIDATION.PATTERN.test(fullNameValue);
   };
-  // Extract username from JWT token on component mount
+  // Extract full name from JWT token on component mount
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
       try {
         const decoded = jwtDecode<DecodedToken>(token);
         const name = decoded.username || decoded.email || decoded.sub || "";
-        setUsername(name);
+        setFullName(name);
 
-        // Validate the username from token
-        if (name && !validateUsername(name)) {
-          setUsernameError(MESSAGES.USERNAME_FORMAT_ERROR);
+        // Only validate if the name from token looks complete
+        if (name && name.trim().length >= 5 && name.includes(" ")) {
+          if (!validateFullName(name.trim())) {
+            setFullNameError(MESSAGES.FULLNAME_FORMAT_ERROR);
+          }
         }
       } catch (err) {
         console.error("Invalid JWT", err);
@@ -191,16 +192,30 @@ export default function KYCForm() {
     return null;
   };
 
-  // Handle changes to username input field
-  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const usernameValue = e.target.value;
-    setUsername(usernameValue);
+  // Handle changes to full name input field
+  const handleFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fullNameValue = e.target.value;
+    setFullName(fullNameValue);
 
-    // Validate username format if not empty
-    if (usernameValue && !validateUsername(usernameValue)) {
-      setUsernameError(MESSAGES.USERNAME_FORMAT_ERROR);
-    } else {
-      setUsernameError(null);
+    // Clear error while typing
+    if (fullNameError) {
+      setFullNameError(null);
+    }
+
+    // Only validate if user has typed something that looks complete
+    const trimmedValue = fullNameValue.trim();
+    if (trimmedValue.length >= 5 && trimmedValue.includes(" ")) {
+      if (!validateFullName(trimmedValue)) {
+        setFullNameError(MESSAGES.FULLNAME_FORMAT_ERROR);
+      }
+    }
+  };
+
+  // Handle full name validation when user leaves the input field
+  const handleFullNameBlur = () => {
+    const trimmedValue = fullName.trim();
+    if (trimmedValue && !validateFullName(trimmedValue)) {
+      setFullNameError(MESSAGES.FULLNAME_FORMAT_ERROR);
     }
   };
 
@@ -310,7 +325,7 @@ export default function KYCForm() {
 
     // Validate that all required fields are filled
     if (
-      !username.trim() ||
+      !fullName.trim() ||
       !formState.nic.trim() ||
       !formState.nicFile ||
       !formState.nicWithPersonFile
@@ -320,9 +335,9 @@ export default function KYCForm() {
         isError: true,
       });
       return;
-    } // Validate username format
-    if (!validateUsername(username)) {
-      setStatus({ message: MESSAGES.INVALID_USERNAME, isError: true });
+    } // Validate full name format
+    if (!validateFullName(fullName.trim())) {
+      setStatus({ message: MESSAGES.INVALID_FULLNAME, isError: true });
       return;
     }
 
@@ -377,7 +392,7 @@ export default function KYCForm() {
         },
         body: JSON.stringify({
           nic: formState.nic,
-          recipient: username,
+          recipient: fullName,
           nicUrl: nicUploadData.url,
           nicWithPersonUrl: personUploadData.url,
         }),
@@ -446,39 +461,40 @@ export default function KYCForm() {
             <h2 id="form-title" className="text-xl font-bold text-center">
               {FORM_LABELS.TITLE}
             </h2>{" "}
-            {/* Username field with validation */}
+            {/* Full Name field with validation */}
             <div>
               <label
-                htmlFor="username"
+                htmlFor="fullName"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                {FORM_LABELS.USERNAME}
+                {FORM_LABELS.FULLNAME}
               </label>
               <input
-                id="username"
+                id="fullName"
                 type="text"
-                value={username}
-                onChange={handleUsernameChange}
-                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${usernameError ? "border-red-500" : ""}`}
+                value={fullName}
+                onChange={handleFullNameChange}
+                onBlur={handleFullNameBlur}
+                className={`w-full px-4 py-2 border rounded focus:ring-2 focus:ring-blue-500 ${fullNameError ? "border-red-500" : ""}`}
                 required
-                aria-invalid={!!usernameError}
+                aria-invalid={!!fullNameError}
                 aria-describedby={
-                  usernameError
-                    ? "username-error username-format"
-                    : "username-format"
+                  fullNameError
+                    ? "fullName-error fullName-format"
+                    : "fullName-format"
                 }
               />
-              {usernameError && (
+              {fullNameError && (
                 <p
-                  id="username-error"
+                  id="fullName-error"
                   className="mt-1 text-sm text-red-600"
                   role="alert"
                 >
-                  {usernameError}
+                  {fullNameError}
                 </p>
               )}
-              <p id="username-format" className="mt-1 text-xs text-gray-500">
-                {MESSAGES.USERNAME_FORMAT_INFO}
+              <p id="fullName-format" className="mt-1 text-xs text-gray-500">
+                {MESSAGES.FULLNAME_FORMAT_INFO}
               </p>
             </div>
             {/* NIC number field with validation */}
@@ -569,7 +585,7 @@ export default function KYCForm() {
               type="submit"
               className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
               disabled={
-                uploading || !!nicError || !!usernameError || !!fileError
+                uploading || !!nicError || !!fullNameError || !!fileError
               }
               aria-busy={uploading}
             >
