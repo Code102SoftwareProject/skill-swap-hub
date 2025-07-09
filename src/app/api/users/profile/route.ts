@@ -7,17 +7,24 @@ import mongoose from 'mongoose';
 
 //To update user profile, we need to handle the following fields:
 export async function PUT(req: NextRequest) {
-  await connect();
-
   try {
+    console.log('Starting profile update...');
+    await connect();
+    console.log('Database connected successfully');
+
     const formData = await req.formData();
+    console.log('Form data received');
 
     const userId = formData.get('userId') as string;
+    console.log('User ID:', userId);
+
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json({ success: false, message: 'Invalid user ID' }, { status: 400 });
     }
 
     const user = await User.findById(userId);
+    console.log('User found:', !!user);
+
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
@@ -29,38 +36,57 @@ export async function PUT(req: NextRequest) {
     const phone = formData.get('phone') as string;
     const title = formData.get('title') as string;
 
+    console.log('Text fields received:', { firstName, lastName, email, phone, title });
+
     // Get file
     const file = formData.get('avatar') as File | null;
+    console.log('File received:', !!file);
 
     let avatarUrl = user.avatar;
 
     if (file && file.size > 0) {
+        console.log('Processing file upload...');
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
       
         const filename = `avatars/${userId}-${Date.now()}-${file.name}`;
         const mimetype = file.type;
       
+        console.log('Uploading to R2...');
         const uploadResult = await uploadFileToR2(buffer, filename, mimetype);
+        console.log('R2 upload result:', uploadResult);
+        
         if (uploadResult.success && uploadResult.url) {
           avatarUrl = uploadResult.url;
         }
-      }
+    }
 
     // Update user
-    user.firstName = firstName;
-    user.lastName = lastName;
-    user.email = email;
-    user.phone = phone;
-    user.title = title;
+    user.firstName = firstName || user.firstName;
+    user.lastName = lastName || user.lastName;
+    user.email = email || user.email;
+    user.phone = phone || user.phone;
+    user.title = title || user.title;
     user.avatar = avatarUrl;
 
+    console.log('Saving user updates...');
     await user.save();
+    console.log('User updated successfully');
 
     return NextResponse.json({ success: true, user: user.toJSON() }, { status: 200 });
   } catch (error) {
     console.error('[PROFILE_UPDATE_ERROR]', error);
-    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
+    // Log the full error details
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    return NextResponse.json({ 
+      success: false, 
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 }
 
