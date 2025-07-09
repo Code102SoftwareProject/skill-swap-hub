@@ -101,14 +101,26 @@ export async function GET(req: NextRequest) {
       if (!id) {
         return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
       }
+
+      console.log('Fetching user profile for ID:', id);
   
       const user = await User.findById(id);
   
       if (!user) {
+        console.log('User not found for ID:', id);
         return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
       }
+
+      const userObj = user.toJSON();
+      console.log('User profile found:', { 
+        id: userObj._id, 
+        firstName: userObj.firstName, 
+        lastName: userObj.lastName,
+        hasAvatar: !!userObj.avatar,
+        avatarUrl: userObj.avatar
+      });
   
-      return NextResponse.json({ success: true, user }, { status: 200 });
+      return NextResponse.json({ success: true, user: userObj }, { status: 200 });
     } catch (error) {
       console.error('[GET_USER_ERROR]', error);
       return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });

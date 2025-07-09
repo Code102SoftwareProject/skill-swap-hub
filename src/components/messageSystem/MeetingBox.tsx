@@ -605,45 +605,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         </button>
       </div>
 
-      {/* Recent Cancellation Alerts */}
-      {cancellationAlerts.length > 0 && (
-        <div className="mb-4 space-y-3">
-          {cancellationAlerts.map((alert) => {
-            // Note: cancellerName will be resolved when we fetch the cancellation data with user ID
-            const displayName = alert.cancellerName || 'Someone';
-            
-            return (
-              <div
-                key={alert.meetingId}
-                className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start justify-between"
-              >
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-amber-900 font-medium">
-                      Meeting cancelled by {displayName}
-                    </p>
-                    <p className="text-amber-800 text-sm mt-1">
-                      Reason: {alert.reason}
-                    </p>
-                    <p className="text-amber-700 text-xs mt-1 flex items-center">
-                      <Clock className="w-3 h-3 mr-1" />
-                      {new Date(alert.cancelledAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleDismissCancellation(alert.meetingId)}
-                  className="text-amber-600 hover:text-amber-800 p-1 rounded transition-colors"
-                  title="Dismiss"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Recent Cancellation Alerts - Hidden as requested */}
+      {/* Cancellation alerts are now hidden from the top of the interface */}
 
       {/* Meetings List */}
       <div className="flex-1 overflow-y-auto space-y-4">

@@ -85,18 +85,78 @@ export async function fetchUserChatRooms(userId: string): Promise<IChatRoom[]> {
  */
 export async function fetchUserProfile(userId: string) {
   try {
+    console.log(`Fetching profile for user: ${userId}`);
     const response = await fetch(`/api/users/profile?id=${userId}`);
     const data = (await response.json()) as UserProfileResponse;
 
     if (data.success && data.user) {
+      console.log(`Profile fetched successfully for user: ${userId}`, data.user);
       return data.user;
     }
 
+    console.log(`No profile found for user: ${userId}`);
     return null;
   } catch (error) {
     console.error("Error fetching user profile:", error);
     return null;
   }
+}
+
+/**
+ * Fetch multiple user profiles - simple version
+ * 
+ * @param userIds - Array of user IDs to fetch profiles for
+ * @returns Promise that resolves to a map of userId -> profile data
+ */
+export async function fetchUserProfiles(userIds: string[]) {
+  const profiles: { [key: string]: any } = {};
+
+  console.log(`Fetching profiles for ${userIds.length} users:`, userIds);
+  
+  // Fetch each profile
+  const fetchPromises = userIds.map(async (userId) => {
+    try {
+      const response = await fetch(`/api/users/profile?id=${userId}`);
+      const data = (await response.json()) as UserProfileResponse;
+
+      if (data.success && data.user) {
+        console.log(`Profile fetched for user ${userId}:`, data.user);
+        return { userId, profile: data.user };
+      }
+      console.log(`No profile found for user: ${userId}`);
+      return { userId, profile: null };
+    } catch (error) {
+      console.error(`Error fetching profile for user ${userId}:`, error);
+      return { userId, profile: null };
+    }
+  });
+
+  const results = await Promise.all(fetchPromises);
+  
+  // Add results to profiles map
+  results.forEach(({ userId, profile }) => {
+    if (profile) {
+      profiles[userId] = profile;
+    } else {
+      // Set default profile for failed fetches
+      profiles[userId] = {
+        firstName: "Unknown",
+        lastName: "User",
+      };
+    }
+  });
+
+  console.log('Final profiles object:', profiles);
+  return profiles;
+}
+
+/**
+ * Invalidate cached profile for a user (useful after profile updates)
+ * 
+ * @param userId - The user ID whose cache should be invalidated
+ */
+export async function invalidateUserProfileCache(userId: string) {
+  console.log(`Cache invalidation requested for user: ${userId} (no caching implemented)`);
 }
 
 /**
@@ -182,8 +242,8 @@ export async function sendMessage(messageData: any) {
       if (recipientId) {
         // Get sender user profile 
         const senderProfile = await fetchUserProfile(messageData.senderId);
-        const senderName = senderProfile ? 
-          `${senderProfile.firstName} ${senderProfile.lastName}` : 
+        const senderName = (senderProfile && typeof senderProfile === 'object' && 'firstName' in senderProfile && 'lastName' in senderProfile) ? 
+          `${(senderProfile as any).firstName} ${(senderProfile as any).lastName}` : 
           "Someone";
         
         //  ! Create notification 

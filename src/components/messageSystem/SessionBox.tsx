@@ -9,6 +9,7 @@ import CounterOfferModal from '@/components/sessionSystem/CounterOfferModal';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface UserProfile {
   _id: string;
@@ -651,17 +652,22 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
   }
 
   const otherUserName = getUserDisplayName(otherUser);
+  const processedAvatarUrl = processAvatarUrl(otherUser.avatar);
 
   return (
     <div className="p-4 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          {otherUser.avatar && (
+          {processedAvatarUrl && (
             <img 
-              src={otherUser.avatar} 
+              src={processedAvatarUrl} 
               alt={otherUserName}
               className="w-10 h-10 rounded-full object-cover"
+              onError={(e) => {
+                // Hide image on error
+                e.currentTarget.style.display = 'none';
+              }}
             />
           )}
           <div>
