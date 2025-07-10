@@ -203,7 +203,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-4">
                   <Image
-                    src={listing.userDetails.avatar || '/Avatar.png'}
+                    src={'/Avatar.png'}
                     alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                     width={48}
                     height={48}
