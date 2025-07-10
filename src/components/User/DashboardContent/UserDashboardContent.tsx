@@ -4,7 +4,7 @@ import React from 'react';
 import { useAuth } from '@/lib/context/AuthContext';
 import ProfileCard from "@/components/Dashboard/ProfileCard";
 import { SkillsRequested, SkillsOffered } from "@/components/Dashboard/SkillsRequested";
-import { TimeSpent } from "@/components/Dashboard/TimeSpentChart";
+import { TimeSpentChart } from "@/components/Dashboard/TimeSpentChart";
 import UserSkills from "@/components/Dashboard/UserSkills";
 import EarnedBadges from "@/components/Dashboard/EarnedBadges";
 import SkillMatchOverview from "@/components/Dashboard/SkillMatchOverview";
@@ -62,7 +62,7 @@ export default function UserDashboardContent({ onNavigateToMySkills }: { onNavig
           {/* Time Spent */}
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Time Spent</h3>
-            <TimeSpent />
+            {user && <TimeSpentChart userId={user._id} />}
           </div>
 
           {/* Skill Matches */}
