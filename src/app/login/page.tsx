@@ -6,7 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
-
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
 
 function LoginWithSearchParams() {
   const { useSearchParams } = require('next/navigation');
@@ -24,7 +24,7 @@ function LoginWithSearchParams() {
 
 const Login = () => {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, googleLogin, user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -38,6 +38,20 @@ const Login = () => {
     password?: string;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router]);
 
   const validateForm = () => {
     const newErrors: {
@@ -112,9 +126,73 @@ const Login = () => {
     }
   };
 
+  // Google login handler
+  const handleGoogleLogin = async (credential: string) => {
+    // Prevent multiple simultaneous Google login requests
+    if (isGoogleLoading) {
+      console.log('Google login already in progress, ignoring...');
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    
+    try {
+      const result = await googleLogin(credential);
+      
+      console.log('Google login result:', result);
+
+      if (result.success) {
+        // Cancel any remaining Google prompts to prevent additional popups
+        if (window.google?.accounts?.id?.cancel) {
+          try {
+            window.google.accounts.id.cancel();
+          } catch (error) {
+            // Ignore errors if cancel is not available
+            console.log('Google prompt cancel not available');
+          }
+        }
+
+        // Google users go directly to dashboard (no profile completion required)
+        console.log('Google login successful, redirecting to dashboard');
+        showToast('Google login successful! Redirecting...', 'success');
+        
+        // Check if there's a redirect URL stored
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectUrl);
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        showToast(result.message || 'Google login failed', 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred during Google login. Please try again.', 'error');
+      console.error('Google login error:', error);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = (error: string) => {
+    showToast(error, 'error');
+  };
+
+  // Show loading state while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
-      {/* Wrap the component using useSearchParams in Suspense */}
       <Suspense fallback={null}>
         <LoginWithSearchParams />
       </Suspense>
@@ -227,6 +305,26 @@ const Login = () => {
                 ) : null}
                 Login
               </button>
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Google Login Button */}
+            <div>
+              <GoogleLoginButton 
+                onSuccess={handleGoogleLogin}
+                onError={handleGoogleError}
+                disabled={isGoogleLoading}
+                isLoading={isGoogleLoading}
+              />
             </div>
           </form>
 

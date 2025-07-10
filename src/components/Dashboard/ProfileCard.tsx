@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import Image from 'next/image';
 import {
   format,
   addMonths,
@@ -11,62 +12,81 @@ import {
   addDays,
   isSameMonth,
   isSameDay,
-  parse,
 } from 'date-fns';
-import Image from 'next/image';
 
-const ProfileCard = () => {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+type UserType = {
+  _id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  firstName?: string; // if your data splits name
+  lastName?: string;
+  title?: string;
+};
+
+interface ProfileCardProps {
+  userId: string;
+}
+
+const ProfileCard = ({ userId }: ProfileCardProps) => {
+  const [user, setUser] = useState<UserType | null>(null);
+  const [loading, setLoading] = useState(true);
+   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const renderHeader = () => {
+  // Calendar controls
+  const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+
+  const renderHeader = () => (
+    <div className="flex justify-between items-center text-sm text-gray-700 mb-2">
+      <button onClick={prevMonth} className="p-1 font-bold" aria-label="Previous Month">
+        &lt;
+      </button>
+      <p className="font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
+      <button onClick={nextMonth} className="p-1 font-bold" aria-label="Next Month">
+        &gt;
+      </button>
+    </div>
+  );
+
+  const renderDays = () => {
+    const weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     return (
-      <div className="flex justify-between items-center text-sm text-gray-700 mb-2">
-        <button onClick={prevMonth} className="p-1 font-bold">&lt;</button>
-        <p className="font-medium">{format(currentMonth, 'MMMM yyyy')}</p>
-        <button onClick={nextMonth} className="p-1 font-bold">&gt;</button>
+      <div className="grid grid-cols-7 gap-2">
+        {weekdays.map((day, index) => (
+          <div key={index} className="text-xs text-center text-gray-500">
+            {day}
+          </div>
+        ))}
       </div>
     );
   };
 
-  const renderDays = () => {
-    const days = [];
-    const date = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    for (let i = 0; i < 7; i++) {
-      days.push(
-        <div key={i} className="text-xs text-center text-gray-500">
-          {date[i]}
-        </div>
-      );
-    }
-    return <div className="grid grid-cols-7 gap-2">{days}</div>;
-  };
-
-  const renderCells = () => {
+  const calendarCells = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(monthStart);
-    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
-    const endDate = endOfMonth(monthEnd);
+    const startDate = startOfWeek(monthStart, { weekStartsOn: 0 });
+    const endDate = endOfMonth(currentMonth);
 
     const rows = [];
     let days = [];
     let day = startDate;
-    let formattedDate = '';
 
     while (day <= endDate) {
       for (let i = 0; i < 7; i++) {
-        formattedDate = format(day, 'd');
+        const formattedDate = format(day, 'd');
         const cloneDay = day;
-
         const isToday = isSameDay(day, new Date());
         const isSelected = isSameDay(day, selectedDate);
+        const isCurrentMonth = isSameMonth(day, monthStart);
 
         days.push(
-          <div key={day.toString()} className="text-center">
+          <div key={format(day, 'yyyy-MM-dd')} className="text-center">
             <button
               onClick={() => setSelectedDate(cloneDay)}
+              aria-label={`Select ${format(cloneDay, 'PPP')}`}
               className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                !isSameMonth(day, monthStart)
+                !isCurrentMonth
                   ? 'text-gray-400'
                   : isSelected
                   ? 'bg-black text-white ring-2 ring-indigo-400'
@@ -79,47 +99,69 @@ const ProfileCard = () => {
             </button>
           </div>
         );
+
         day = addDays(day, 1);
       }
+
       rows.push(
-        <div className="grid grid-cols-7 gap-2" key={day.toString()}>
+        <div className="grid grid-cols-7 gap-2" key={`week-${format(day, 'yyyy-MM-dd')}`}>
           {days}
         </div>
       );
+
       days = [];
     }
 
-    return <div className="mt-2">{rows}</div>;
-  };
+    return rows;
+  }, [currentMonth, selectedDate]);
 
-  const nextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
+  useEffect(() => {
+    async function fetchUser() {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/users/${userId}`);
+        const data = await res.json();
+        if (data.success) {
+          setUser(data.user);
+        } else {
+          console.error('User not found or error:', data.message);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error('Fetch user failed:', error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchUser();
+  }, [userId]);
 
-  const prevMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
+  if (loading) return <div>Loading profile...</div>;
+  if (!user) return <div>User not found</div>;
 
   return (
     <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm">
       <div className="flex flex-col items-center">
         <div className="w-24 h-24 rounded-full overflow-hidden">
           <Image
-            src="/profile.png"
+            src={user.avatar || '/profile.png'}
             alt="Profile"
             width={96}
             height={96}
             className="object-cover w-full h-full"
           />
         </div>
-        <h2 className="mt-4 text-lg font-semibold">Maietry Prajapati</h2>
-        <p className="text-sm text-gray-500">College Student</p>
+        <h2 className="mt-4 text-lg font-semibold">
+          {user.firstName} {user.lastName}
+        </h2>
+        <p className="text-sm text-gray-500">{user.title || 'No title provided'}</p>
       </div>
-
-      <div className="mt-6">
+	  
+	  <div className="mt-6">
         {renderHeader()}
         {renderDays()}
-        {renderCells()}
+        <div className="mt-2">{calendarCells}</div>
       </div>
     </div>
   );

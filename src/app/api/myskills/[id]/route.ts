@@ -7,6 +7,7 @@ import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import UserSkill from '@/lib/models/userSkill';
 import SkillListing from '@/lib/models/skillListing';
+import SkillMatch from '@/lib/models/skillMatch';
 import VerificationRequest from '@/lib/models/VerificationRequest';
 import mongoose from 'mongoose';
 
@@ -25,6 +26,68 @@ function getUserIdFromToken(req: NextRequest): string | null {
   } catch (error) {
     console.error('Error decoding token:', error);
     return null;
+  }
+}
+
+// Helper function to check if skill is used in active matches
+async function isSkillUsedInMatches(userId: string, skillTitle: string): Promise<{ isUsed: boolean; matchDetails: any[] }> {
+  try {
+    const activeMatches = await SkillMatch.find({
+      $and: [
+        {
+          $or: [
+            { userOneId: userId },
+            { userTwoId: userId }
+          ]
+        },
+        {
+          status: { $in: ['pending', 'accepted'] } // Only active matches
+        }
+      ]
+    });
+    
+    const matchDetails: any[] = [];
+    
+    for (const match of activeMatches) {
+      const isUserOne = match.userOneId === userId;
+      const myDetails = isUserOne ? match.userOneDetails : match.userTwoDetails;
+      const otherDetails = isUserOne ? match.userTwoDetails : match.userOneDetails;
+      
+      // Check if this skill is involved in the match
+      if (match.matchType === 'exact') {
+        if (myDetails.offeringSkill === skillTitle || myDetails.seekingSkill === skillTitle) {
+          matchDetails.push({
+            matchId: match.id,
+            matchType: 'exact',
+            status: match.status,
+            reason: `Skill "${skillTitle}" is part of exact match`
+          });
+        }
+      } else if (match.matchType === 'partial') {
+        // For partial matches, check if this skill is the one being used
+        if (myDetails.offeringSkill === skillTitle && myDetails.offeringSkill === otherDetails.seekingSkill) {
+          matchDetails.push({
+            matchId: match.id,
+            matchType: 'partial',
+            status: match.status,
+            reason: `Skill "${skillTitle}" is being offered in partial match`
+          });
+        }
+        if (otherDetails.seekingSkill === skillTitle && myDetails.seekingSkill === otherDetails.offeringSkill) {
+          matchDetails.push({
+            matchId: match.id,
+            matchType: 'partial',
+            status: match.status,
+            reason: `Skill "${skillTitle}" from your skill set is needed for partial match`
+          });
+        }
+      }
+    }
+    
+    return { isUsed: matchDetails.length > 0, matchDetails };
+  } catch (error) {
+    console.error('Error checking skill usage in matches:', error);
+    return { isUsed: false, matchDetails: [] };
   }
 }
 
@@ -74,17 +137,31 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
         status: 'pending'
       });
       
+      // Check if skill is used in active matches
+      const matchUsage = await isSkillUsedInMatches(userId, skill.skillTitle);
+      
       return NextResponse.json({ 
         success: true, 
         data: skill,
         isUsedInListing: listings.length > 0,
-        hasPendingVerification: !!pendingVerification
+        hasPendingVerification: !!pendingVerification,
+        isUsedInMatches: matchUsage.isUsed,
+        matchDetails: matchUsage.matchDetails
       });
     }
     
-    // DELETE operation
-    if (operation === 'delete') {
-      // First check if the skill is used in any listings
+    // For UPDATE and DELETE operations, check all protection conditions
+    if (operation === 'update' || operation === 'delete') {
+      const skill = await UserSkill.findOne({ _id: id, userId });
+      
+      if (!skill) {
+        return NextResponse.json({ 
+          success: false, 
+          message: 'Skill not found' 
+        }, { status: 404 });
+      }
+      
+      // Check if skill is used in any listings
       const listings = await SkillListing.find({ 
         userId, 
         'offering.skillId': id 
@@ -93,7 +170,7 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
       if (listings.length > 0) {
         return NextResponse.json({ 
           success: false, 
-          message: 'This skill cannot be deleted because it is being used in one or more listings' 
+          message: 'This skill cannot be modified because it is being used in one or more active listings' 
         }, { status: 400 });
       }
 
@@ -107,10 +184,24 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
       if (pendingVerification) {
         return NextResponse.json({
           success: false,
-          message: 'This skill cannot be deleted because it has a pending verification request'
+          message: 'This skill cannot be modified because it has a pending verification request'
         }, { status: 400 });
       }
       
+      // NEW: Check if skill is used in active matches
+      const matchUsage = await isSkillUsedInMatches(userId, skill.skillTitle);
+      if (matchUsage.isUsed) {
+        const matchTypes = matchUsage.matchDetails.map(m => m.matchType).join(', ');
+        return NextResponse.json({
+          success: false,
+          message: `This skill cannot be modified because it is involved in active skill matches (${matchTypes}). Please complete or cancel the matches first.`,
+          matchDetails: matchUsage.matchDetails
+        }, { status: 400 });
+      }
+    }
+    
+    // DELETE operation
+    if (operation === 'delete') {
       const result = await UserSkill.findOneAndDelete({ _id: id, userId });
       
       if (!result) {
@@ -128,33 +219,6 @@ async function handleSkillOperation(request: NextRequest, id: string, operation:
     
     // UPDATE operation
     if (operation === 'update') {
-      // First check if the skill is used in any listings
-      const listings = await SkillListing.find({ 
-        userId, 
-        'offering.skillId': id 
-      });
-      
-      if (listings.length > 0) {
-        return NextResponse.json({ 
-          success: false, 
-          message: 'This skill cannot be updated because it is being used in one or more listings' 
-        }, { status: 400 });
-      }
-
-      // Check if this skill has a pending verification request
-      const pendingVerification = await VerificationRequest.findOne({
-        userId,
-        skillId: id,
-        status: 'pending'
-      });
-
-      if (pendingVerification) {
-        return NextResponse.json({
-          success: false,
-          message: 'This skill cannot be updated because it has a pending verification request'
-        }, { status: 400 });
-      }
-      
       const data = await request.json();
       
       // Validate required fields - now including all fields

@@ -26,7 +26,7 @@ interface User {
 
 interface SuccessStory {
   _id: string;
-  userId: User;
+  userId: User | null;
   title: string;
   description: string;
   image?: string;
@@ -84,7 +84,9 @@ export default function SuccessStoriesContent() {
       console.log("Success stories response:", { status: response.status, data });
 
       if (response.ok && data.success) {
-        setSuccessStories(data.data.successStories);
+        // Filter out stories with null userId to prevent errors
+        const validStories = data.data.successStories.filter((story: SuccessStory) => story.userId !== null);
+        setSuccessStories(validStories);
         setTotalPages(data.data.pagination.totalPages);
       } else {
         console.error("Failed to fetch success stories:", data);
@@ -228,7 +230,7 @@ export default function SuccessStoriesContent() {
   const handleEdit = (story: SuccessStory) => {
     setEditingStory(story);
     setFormData({
-      userId: story.userId._id,
+      userId: story.userId?._id || "",
       title: story.title,
       description: story.description,
       image: story.image || "",
@@ -317,7 +319,7 @@ export default function SuccessStoriesContent() {
               <input
                 type="text"
                 placeholder="Search stories..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -325,15 +327,22 @@ export default function SuccessStoriesContent() {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option value="all">All Stories</option>
-              <option value="published">Published</option>
-              <option value="unpublished">Unpublished</option>
-            </select>
+            <div className="relative">
+              <select
+                className="border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white appearance-none cursor-pointer hover:border-gray-400 transition-colors"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="all" className="text-gray-900">All Stories</option>
+                <option value="published" className="text-gray-900">Published</option>
+                <option value="unpublished" className="text-gray-900">Unpublished</option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -366,7 +375,7 @@ export default function SuccessStoriesContent() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
-                      {story.userId.avatar ? (
+                      {story.userId?.avatar ? (
                         <img
                           className="h-10 w-10 rounded-full"
                           src={story.userId.avatar}
@@ -380,10 +389,10 @@ export default function SuccessStoriesContent() {
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">
-                        {story.userId.firstName} {story.userId.lastName}
+                        {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : "Unknown User"}
                       </div>
-                      <div className="text-sm text-gray-500">
-                        {story.userId.email}
+                      <div className="text-sm text-gray-600">
+                        {story.userId?.email || "No email"}
                       </div>
                     </div>
                   </div>
@@ -392,7 +401,7 @@ export default function SuccessStoriesContent() {
                   <div className="text-sm text-gray-900 font-medium">
                     {story.title}
                   </div>
-                  <div className="text-sm text-gray-500 truncate max-w-xs">
+                  <div className="text-sm text-gray-600 truncate max-w-xs">
                     {story.description}
                   </div>
                 </td>
@@ -407,9 +416,9 @@ export default function SuccessStoriesContent() {
                     {story.isPublished ? "Published" : "Draft"}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
                   <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1" />
+                    <Calendar className="w-4 h-4 mr-1 text-gray-500" />
                     {new Date(story.createdAt).toLocaleDateString()}
                   </div>
                 </td>
@@ -454,7 +463,8 @@ export default function SuccessStoriesContent() {
         {successStories.length === 0 && (
           <div className="text-center py-8">
             <BookOpen className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No success stories found</p>
+            <p className="text-gray-600 font-medium">No success stories found</p>
+            <p className="text-gray-500 text-sm mt-1">Create your first success story to get started</p>
           </div>
         )}
       </div>
@@ -465,17 +475,17 @@ export default function SuccessStoriesContent() {
           <button
             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
             disabled={currentPage === 1}
-            className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
             Previous
           </button>
-          <span className="text-sm text-gray-600">
+          <span className="text-sm text-gray-700 font-medium">
             Page {currentPage} of {totalPages}
           </span>
           <button
             onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded border disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-1 rounded border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
           >
             Next
           </button>
@@ -484,33 +494,51 @@ export default function SuccessStoriesContent() {
 
       {/* Create/Edit Form Modal */}
       {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-bold mb-4">
-              {editingStory ? "Edit Success Story" : "Add Success Story"}
-            </h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">
+                {editingStory ? "Edit Success Story" : "Add Success Story"}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateForm(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   User *
                 </label>
-                <select
-                  value={formData.userId}
-                  onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Select a user</option>
-                  {users.map((user) => (
-                    <option key={user._id} value={user._id}>
-                      {user.firstName} {user.lastName} ({user.email})
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={formData.userId}
+                    onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                    required
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white appearance-none cursor-pointer hover:border-gray-400 transition-colors"
+                  >
+                    <option value="" disabled className="text-gray-500">Select a user</option>
+                    {users.map((user) => (
+                      <option key={user._id} value={user._id} className="text-gray-900 py-2">
+                        {user.firstName} {user.lastName} ({user.email})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Title *
                 </label>
                 <input
@@ -519,12 +547,14 @@ export default function SuccessStoriesContent() {
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   required
                   maxLength={200}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 hover:border-gray-400 transition-colors"
+                  placeholder="Enter story title"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.title.length}/200 characters</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Description *
                 </label>
                 <textarea
@@ -533,46 +563,53 @@ export default function SuccessStoriesContent() {
                   required
                   maxLength={1000}
                   rows={4}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 hover:border-gray-400 transition-colors resize-vertical"
+                  placeholder="Enter story description"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.description.length}/1000 characters</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Image URL
                 </label>
                 <input
                   type="url"
                   value={formData.image}
                   onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 hover:border-gray-400 transition-colors"
+                  placeholder="Enter image URL (optional)"
                 />
+                <p className="text-xs text-gray-500 mt-1">Optional: Add an image URL to enhance the story</p>
               </div>
 
-              <div className="flex items-center">
+              <div className="flex items-start">
                 <input
                   type="checkbox"
                   id="isPublished"
                   checked={formData.isPublished}
                   onChange={(e) => setFormData({ ...formData, isPublished: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
                 />
-                <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
-                  Publish immediately
-                </label>
+                <div className="ml-3">
+                  <label htmlFor="isPublished" className="block text-sm font-medium text-gray-900">
+                    Publish immediately
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Make this story visible on the homepage right away</p>
+                </div>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-4">
+              <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-200 transition-colors font-medium"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors font-medium min-w-[120px]"
                 >
                   {editingStory ? "Update Story" : "Create Story"}
                 </button>

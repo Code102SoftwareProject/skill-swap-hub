@@ -28,9 +28,10 @@ export interface ISkillListing extends Document {
     availability?: string; // Optional availability timeframe
     tags?: string[]; // Optional tags for better search
   };
-  status: 'active' | 'matched' | 'completed' | 'cancelled';
+  status: 'active' | 'not active'; // Simplified to 2 statuses
   createdAt: Date;
   updatedAt?: Date;
+  id?: string; // Add id property for the transformation
 }
 
 const SkillListingSchema: Schema = new Schema({
@@ -109,14 +110,14 @@ const SkillListingSchema: Schema = new Schema({
   status: {
     type: String,
     required: true,
-    enum: ['active', 'matched', 'completed', 'cancelled'],
+    enum: ['active', 'not active'], // Simplified status system
     default: 'active'
   }
 }, {
   timestamps: true, // Automatically manage createdAt and updatedAt
   toJSON: { 
     virtuals: true,
-    transform: function(doc, ret) {
+    transform: function(doc: any, ret: any) {
       ret.id = ret._id;
       delete ret._id;
       delete ret.__v;

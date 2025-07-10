@@ -6,6 +6,12 @@ import UserSkill from '@/lib/models/userSkill';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
 import Session from '@/lib/models/sessionSchema';
 
+// Ensure all models are registered
+User;
+UserSkill;
+SessionProgress;
+Session;
+
 // GET - Get sessions between two specific users
 export async function GET(req: Request) {
   await connect();

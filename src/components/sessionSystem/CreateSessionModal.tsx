@@ -40,6 +40,7 @@ export default function CreateSessionModal({
   const [selectedOtherSkill, setSelectedOtherSkill] = useState<string>('');
   const [otherDescription, setOtherDescription] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
+  const [expectedEndDate, setExpectedEndDate] = useState<string>('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
 
   // Alert state
@@ -76,6 +77,11 @@ export default function CreateSessionModal({
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setStartDate(tomorrow.toISOString().split('T')[0]);
+      
+      // Set default expected end date to 30 days from tomorrow
+      const defaultEndDate = new Date();
+      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
+      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
     }
   }, [isOpen, currentUserId, otherUserId]);
 
@@ -116,13 +122,20 @@ export default function CreateSessionModal({
     if (otherDescription.trim().length < 10) newErrors.otherDescription = 'Description must be at least 10 characters';
     
     if (!startDate) newErrors.startDate = 'Please select a start date';
+    if (!expectedEndDate) newErrors.expectedEndDate = 'Please select an expected end date';
     
     // Check if start date is in the future
-    const selectedDate = new Date(startDate);
+    const selectedStartDate = new Date(startDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (selectedDate <= today) {
+    if (selectedStartDate <= today) {
       newErrors.startDate = 'Start date must be in the future';
+    }
+    
+    // Check if expected end date is after start date
+    const selectedEndDate = new Date(expectedEndDate);
+    if (selectedEndDate <= selectedStartDate) {
+      newErrors.expectedEndDate = 'Expected end date must be after start date';
     }
 
     setErrors(newErrors);
@@ -148,7 +161,8 @@ export default function CreateSessionModal({
           user2Id: otherUserId,
           skill2Id: selectedOtherSkill,
           descriptionOfService2: otherDescription.trim(),
-          startDate: new Date(startDate).toISOString()
+          startDate: new Date(startDate).toISOString(),
+          expectedEndDate: new Date(expectedEndDate).toISOString()
         }),
       });
 
@@ -161,6 +175,7 @@ export default function CreateSessionModal({
         setSelectedOtherSkill('');
         setOtherDescription('');
         setStartDate('');
+        setExpectedEndDate('');
         setErrors({});
         
         // Close modal
@@ -185,6 +200,7 @@ export default function CreateSessionModal({
     setSelectedOtherSkill('');
     setOtherDescription('');
     setStartDate('');
+    setExpectedEndDate('');
     setErrors({});
     onClose();
   };
@@ -311,6 +327,26 @@ export default function CreateSessionModal({
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
+            </div>
+
+            {/* Expected end date */}
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Calendar className="h-5 w-5 text-orange-600" />
+                <label className="block text-sm font-medium text-gray-700">
+                  Expected End Date
+                </label>
+              </div>
+              <input
+                type="date"
+                value={expectedEndDate}
+                onChange={(e) => setExpectedEndDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.expectedEndDate && <p className="text-red-500 text-sm mt-1">{errors.expectedEndDate}</p>}
+              <p className="text-sm text-gray-600 mt-1">
+                This helps both participants plan and track session progress
+              </p>
             </div>
 
             {/* Buttons */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clock, AlertCircle, Flag, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessionCompletion';
 import Alert from '@/components/ui/Alert';
@@ -17,10 +17,15 @@ interface Session {
   descriptionOfService1: string;
   descriptionOfService2: string;
   startDate: string;
+  expectedEndDate?: string;
   isAccepted: boolean;
   status: string;
   progress1?: any;
   progress2?: any;
+  completionApprovedAt?: string;
+  completionRequestedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface Work {
@@ -97,6 +102,7 @@ export default function SessionWorkspace() {
   const [submittingReport, setSubmittingReport] = useState(false);
   const [existingReports, setExistingReports] = useState<any[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [showReportForm, setShowReportForm] = useState(false);
 
   // Completion state
   const [requestingCompletion, setRequestingCompletion] = useState(false);
@@ -884,6 +890,7 @@ export default function SessionWorkspace() {
         setReportReason('');
         setReportDescription('');
         setReportFiles([]);
+        setShowReportForm(false); // Close the form after successful submission
         await fetchReports(); // Refresh reports list
         // Don't change tab, keep user on report tab to see their submitted report
       } else {
@@ -1092,6 +1099,62 @@ export default function SessionWorkspace() {
     return cleanedDesc;
   };
 
+  // Get expected end date from session progress
+  const getExpectedEndDate = () => {
+    // First, check if the session has an expected end date set during creation
+    if (session?.expectedEndDate) {
+      const expectedDate = new Date(session.expectedEndDate);
+      const today = new Date();
+      const isOverdue = today > expectedDate;
+      
+      if (isOverdue) {
+        const daysOverdue = Math.ceil((today.getTime() - expectedDate.getTime()) / (1000 * 60 * 60 * 24));
+        return `${formatDate(session.expectedEndDate)} (${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue)`;
+      } else {
+        const daysRemaining = Math.ceil((expectedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysRemaining === 0) {
+          return `${formatDate(session.expectedEndDate)} (Due today)`;
+        } else {
+          return `${formatDate(session.expectedEndDate)} (${daysRemaining} day${daysRemaining > 1 ? 's' : ''} remaining)`;
+        }
+      }
+    }
+    
+    // Fallback: Try to get the earliest due date from both users' progress
+    const dueDates = [];
+    
+    if (myProgress?.dueDate) {
+      dueDates.push(new Date(myProgress.dueDate));
+    }
+    
+    if (otherProgress?.dueDate) {
+      dueDates.push(new Date(otherProgress.dueDate));
+    }
+    
+    if (dueDates.length === 0) {
+      return 'Not set yet';
+    }
+    
+    // Use the earliest due date as the expected session end
+    const earliestDueDate = new Date(Math.min(...dueDates.map(d => d.getTime())));
+    
+    // Check if it's overdue
+    const today = new Date();
+    const isOverdue = today > earliestDueDate;
+    
+    if (isOverdue) {
+      const daysOverdue = Math.ceil((today.getTime() - earliestDueDate.getTime()) / (1000 * 60 * 60 * 24));
+      return `${formatDate(earliestDueDate.toISOString())} (${daysOverdue} day${daysOverdue > 1 ? 's' : ''} overdue)`;
+    } else {
+      const daysRemaining = Math.ceil((earliestDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysRemaining === 0) {
+        return `${formatDate(earliestDueDate.toISOString())} (Due today)`;
+      } else {
+        return `${formatDate(earliestDueDate.toISOString())} (${daysRemaining} day${daysRemaining > 1 ? 's' : ''} remaining)`;
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -1112,6 +1175,11 @@ export default function SessionWorkspace() {
                 {session?.status === 'completed' && (
                   <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                     ✓ Completed
+                  </span>
+                )}
+                {session?.status === 'active' && (
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                    ● Active
                   </span>
                 )}
               </div>
@@ -1165,6 +1233,194 @@ export default function SessionWorkspace() {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="space-y-6">
+            {/* Session Statistics Overview */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Statistics</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {/* Total Works */}
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">{works.length}</div>
+                  <div className="text-sm text-blue-700">Total Works Submitted</div>
+                </div>
+                
+                {/* Accepted Works */}
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {works.filter(w => w.acceptanceStatus === 'accepted').length}
+                  </div>
+                  <div className="text-sm text-green-700">Accepted Works</div>
+                </div>
+                
+                {/* Rejected Works */}
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-red-600">
+                    {works.filter(w => w.acceptanceStatus === 'rejected').length}
+                  </div>
+                  <div className="text-sm text-red-700">Rejected/Needs Improvement</div>
+                </div>
+                
+                {/* Pending Reviews */}
+                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {works.filter(w => w.acceptanceStatus === 'pending').length}
+                  </div>
+                  <div className="text-sm text-yellow-700">Pending Review</div>
+                </div>
+              </div>
+
+              {/* Expected End Date Alert (for active sessions) */}
+              {session?.status === 'active' && (session?.expectedEndDate || myProgress?.dueDate || otherProgress?.dueDate) && (
+                <div className="mb-4">
+                  {(() => {
+                    let targetDate;
+                    
+                    // Prioritize session expected end date
+                    if (session?.expectedEndDate) {
+                      targetDate = new Date(session.expectedEndDate);
+                    } else {
+                      // Fallback to earliest progress due date
+                      const dueDates = [];
+                      if (myProgress?.dueDate) dueDates.push(new Date(myProgress.dueDate));
+                      if (otherProgress?.dueDate) dueDates.push(new Date(otherProgress.dueDate));
+                      
+                      if (dueDates.length === 0) return null;
+                      targetDate = new Date(Math.min(...dueDates.map(d => d.getTime())));
+                    }
+                    
+                    const today = new Date();
+                    const isOverdue = today > targetDate;
+                    const daysUntilDue = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    if (isOverdue) {
+                      const daysOverdue = Math.ceil((today.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
+                      return (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <AlertCircle className="h-5 w-5 text-red-600" />
+                            <span className="text-sm font-medium text-red-800">
+                              Session Overdue: {daysOverdue} day{daysOverdue > 1 ? 's' : ''} past expected completion
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    } else if (daysUntilDue <= 7) {
+                      return (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <div className="flex items-center space-x-2">
+                            <Clock className="h-5 w-5 text-yellow-600" />
+                            <span className="text-sm font-medium text-yellow-800">
+                              {daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                </div>
+              )}
+
+              {/* Session Timeline */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="font-medium text-gray-900 mb-3">Session Timeline</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Start Date */}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Started</div>
+                      <div className="text-sm text-gray-600">{formatDate(session.startDate)}</div>
+                    </div>
+                  </div>
+                  
+                  {/* End Date - Completed or Expected */}
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-2 h-2 rounded-full ${
+                      session?.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
+                    }`}></div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {session?.status === 'completed' ? 'Completed' : 'Expected End'}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {session?.status === 'completed' 
+                          ? (session.completionApprovedAt ? formatDate(session.completionApprovedAt) : (session.updatedAt ? formatDate(session.updatedAt) : 'Recently completed'))
+                          : getExpectedEndDate()
+                        }
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Duration */}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">Duration</div>
+                      <div className="text-sm text-gray-600">
+                        {session?.status === 'completed' && (session.completionApprovedAt || session.updatedAt)
+                          ? `${Math.ceil((new Date(session.completionApprovedAt || session.updatedAt!).getTime() - new Date(session.startDate).getTime()) / (1000 * 60 * 60 * 24))} days`
+                          : `${Math.ceil((new Date().getTime() - new Date(session.startDate).getTime()) / (1000 * 60 * 60 * 24))} days so far`
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Work Submission Breakdown */}
+              {works.length > 0 && (
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  <h3 className="font-medium text-gray-900 mb-3">Work Submission Breakdown</h3>
+                  <div className="space-y-3">
+                    {/* Your submissions */}
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-blue-900">Your Submissions</span>
+                        <span className="text-sm text-blue-700">
+                          {works.filter(w => w.provideUser._id === currentUserId).length} total
+                        </span>
+                      </div>
+                      <div className="flex space-x-4 text-xs">
+                        <span className="text-green-700">
+                          ✓ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'accepted').length} accepted
+                        </span>
+                        <span className="text-red-700">
+                          ✗ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'rejected').length} rejected
+                        </span>
+                        <span className="text-yellow-700">
+                          ⏳ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'pending').length} pending
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Other user's submissions */}
+                    <div className="bg-green-50 p-3 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-green-900">
+                          {getOtherUserName()}'s Submissions
+                        </span>
+                        <span className="text-sm text-green-700">
+                          {works.filter(w => w.provideUser._id !== currentUserId).length} total
+                        </span>
+                      </div>
+                      <div className="flex space-x-4 text-xs">
+                        <span className="text-green-700">
+                          ✓ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'accepted').length} accepted
+                        </span>
+                        <span className="text-red-700">
+                          ✗ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'rejected').length} rejected
+                        </span>
+                        <span className="text-yellow-700">
+                          ⏳ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'pending').length} pending
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Session Details */}
             <div className="bg-white rounded-lg shadow p-6">
               <div className="flex items-center justify-between mb-4">
@@ -2221,122 +2477,230 @@ export default function SessionWorkspace() {
               </div>
             ) : (
               <div className="bg-white rounded-lg shadow p-6">
+                {/* Collapsible Report Header */}
                 <div className="mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Report an Issue</h2>
-                  <p className="text-sm text-gray-600">
-                    If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
-                    Our team will review the situation and take appropriate action.
-                  </p>
+                  <button
+                    onClick={() => setShowReportForm(!showReportForm)}
+                    className="flex items-center justify-between w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2 hover:bg-gray-50 transition-colors"
+                  >
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 mb-1">Report an Issue</h2>
+                      <p className="text-sm text-gray-600">
+                        {showReportForm 
+                          ? 'Click to hide the report form' 
+                          : 'Click to report issues with this session'
+                        }
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Flag className="h-5 w-5 text-gray-400" />
+                      {showReportForm ? (
+                        <ChevronUp className="h-5 w-5 text-gray-400" />
+                      ) : (
+                        <ChevronDown className="h-5 w-5 text-gray-400" />
+                      )}
+                    </div>
+                  </button>
                 </div>
 
-                <form onSubmit={handleReportSubmit} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reason for Report *
-                    </label>
-                    <select
-                      value={reportReason}
-                      onChange={(e) => setReportReason(e.target.value)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select a reason...</option>
-                      <option value="not_submitting_work">Not submitting work</option>
-                      <option value="not_responsive">Not responsive to messages</option>
-                      <option value="poor_quality_work">Poor quality work</option>
-                      <option value="inappropriate_behavior">Inappropriate behavior</option>
-                      <option value="not_following_session_terms">Not following session terms</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Detailed Description *
-                    </label>
-                    <textarea
-                      value={reportDescription}
-                      onChange={(e) => setReportDescription(e.target.value)}
-                      placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={6}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Evidence Files (Optional)
-                    </label>
-                    <div className="space-y-3">
-                      <input
-                        type="file"
-                        onChange={handleReportFileAdd}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
-                        multiple
-                      />
-                      <p className="text-xs text-gray-500">
-                        Upload screenshots, documents, or other evidence. Maximum 5 files.
-                        Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
-                      </p>
-                      
-                      {reportFiles.length > 0 && (
-                        <div className="space-y-2">
-                          <p className="text-sm font-medium text-gray-700">Selected Files:</p>
-                          {reportFiles.map((file, index) => (
-                            <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                              <span className="text-sm text-gray-700">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleReportFileRemove(index)}
-                                className="text-red-600 hover:text-red-700 text-sm"
-                              >
-                                Remove
-                              </button>
+                {/* Collapsible Report Form */}
+                {showReportForm && (
+                  <div className="border-t border-gray-200 pt-6">
+                    {/* Report Context Warning */}
+                    <div className="mb-6 space-y-4">
+                      {/* Session Activity Summary */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <h3 className="font-medium text-blue-900 mb-3">Session Activity Summary</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800">Your Contributions</h4>
+                            <div className="text-sm text-blue-700 mt-1">
+                              <div>Work submitted: {works.filter(w => w.provideUser._id === currentUserId).length}</div>
+                              <div>Progress: {myProgress?.completionPercentage || 0}%</div>
                             </div>
-                          ))}
+                          </div>
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800">{getOtherUserName()}'s Contributions</h4>
+                            <div className="text-sm text-blue-700 mt-1">
+                              <div>Work submitted: {works.filter(w => w.provideUser._id !== currentUserId).length}</div>
+                              <div>Progress: {otherProgress?.completionPercentage || 0}%</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Progress Comparison Warning */}
+                      {otherProgress && myProgress && otherProgress.completionPercentage > myProgress.completionPercentage && (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <div>
+                              <h3 className="font-medium text-yellow-900">Progress Consideration</h3>
+                              <p className="text-sm text-yellow-700 mt-1">
+                                {getOtherUserName()} has higher progress ({otherProgress.completionPercentage}%) than you ({myProgress.completionPercentage}%). 
+                                Please consider your own contribution level before reporting. Ensure your concerns are valid and not related to your own progress.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Work Submission Warning */}
+                      {works.filter(w => w.provideUser._id !== currentUserId).length > works.filter(w => w.provideUser._id === currentUserId).length && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <svg className="h-5 w-5 text-orange-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <div>
+                              <h3 className="font-medium text-orange-900">Work Submission Notice</h3>
+                              <p className="text-sm text-orange-700 mt-1">
+                                {getOtherUserName()} has submitted more work ({works.filter(w => w.provideUser._id !== currentUserId).length}) than you ({works.filter(w => w.provideUser._id === currentUserId).length}). 
+                                Please ensure your report is about legitimate issues and not about work quality expectations.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Previous Report Warning */}
+                      {existingReports.length > 0 && session?.status !== 'completed' && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                          <div className="flex items-start space-x-3">
+                            <svg className="h-5 w-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <div>
+                              <h3 className="font-medium text-red-900">Previous Reports Submitted</h3>
+                              <p className="text-sm text-red-700 mt-1">
+                                {existingReports.length} report{existingReports.length > 1 ? 's have' : ' has'} already been submitted for this session.
+                                Consider resolving issues directly with {getOtherUserName()} first before submitting additional reports.
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
-                      <div className="text-sm text-yellow-800">
-                        <p className="font-medium mb-1">Important Notes:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          <li>All reports are reviewed by our team</li>
-                          <li>False reports may result in account restrictions</li>
-                          <li>We will investigate both sides of the situation</li>
-                          <li>You will be notified of the outcome</li>
-                        </ul>
-                      </div>
+                    <div className="mb-4">
+                      <p className="text-sm text-gray-600">
+                        If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
+                        Our team will review the situation and take appropriate action. Please address the context shown above in your description.
+                      </p>
                     </div>
-                  </div>
 
-                  <div className="flex items-center justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setReportReason('');
-                        setReportDescription('');
-                        setReportFiles([]);
-                      }}
-                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={submittingReport}
-                      className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {submittingReport ? 'Submitting Report...' : 'Submit Report'}
-                    </button>
+                    <form onSubmit={handleReportSubmit} className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Reason for Report *
+                        </label>
+                        <select
+                          value={reportReason}
+                          onChange={(e) => setReportReason(e.target.value)}
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          required
+                        >
+                          <option value="">Select a reason...</option>
+                          <option value="not_submitting_work">Not submitting work</option>
+                          <option value="not_responsive">Not responsive to messages</option>
+                          <option value="poor_quality_work">Poor quality work</option>
+                          <option value="inappropriate_behavior">Inappropriate behavior</option>
+                          <option value="not_following_session_terms">Not following session terms</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Detailed Description *
+                        </label>
+                        <textarea
+                          value={reportDescription}
+                          onChange={(e) => setReportDescription(e.target.value)}
+                          placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context. Please address the session activity summary and any warnings shown above..."
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          rows={6}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Evidence Files (Optional)
+                        </label>
+                        <div className="space-y-3">
+                          <input
+                            type="file"
+                            onChange={handleReportFileAdd}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                            multiple
+                          />
+                          <p className="text-xs text-gray-500">
+                            Upload screenshots, documents, or other evidence. Maximum 5 files.
+                            Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
+                          </p>
+                          
+                          {reportFiles.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-gray-700">Selected Files:</p>
+                              {reportFiles.map((file, index) => (
+                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                  <span className="text-sm text-gray-700">{file.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReportFileRemove(index)}
+                                    className="text-red-600 hover:text-red-700 text-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-start">
+                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
+                          <div className="text-sm text-yellow-800">
+                            <p className="font-medium mb-1">Important Notes:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                              <li>All reports are reviewed by our team</li>
+                              <li>False reports may result in account restrictions</li>
+                              <li>We will investigate both sides of the situation</li>
+                              <li>You will be notified of the outcome</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReportReason('');
+                            setReportDescription('');
+                            setReportFiles([]);
+                          }}
+                          className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        >
+                          Clear
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={submittingReport}
+                          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {submittingReport ? 'Submitting Report...' : 'Submit Report'}
+                        </button>
+                      </div>
+                    </form>
                   </div>
-                </form>
+                )}
               </div>
             )}
           </div>

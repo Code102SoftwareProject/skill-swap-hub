@@ -1,3 +1,4 @@
+// Renders a History of suggestion card with badges for category and status
 "use client";
 import {
     AlertTriangle,
@@ -17,7 +18,7 @@ import { ReactElement } from "react";
     status: string;
   };
   
-  // Category badge styles
+  // Category icon styles
   const categoryStyles: Record<string, string> = {
     issue: "bg-red-100 text-red-800",
     suggestion: "bg-blue-100 text-blue-800",
@@ -36,7 +37,7 @@ import { ReactElement } from "react";
   
 
   
-  // Status badge styles
+  // Status icon styles
   const statusStyles: Record<string, string> = {
     pending: "bg-yellow-100 text-yellow-800",
     approved: "bg-green-100 text-green-800",

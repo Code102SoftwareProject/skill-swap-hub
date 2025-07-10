@@ -8,6 +8,7 @@ interface ISession extends Document {
   skill2Id: mongoose.Types.ObjectId;
   descriptionOfService2: string;
   startDate: Date;
+  expectedEndDate?: Date;
   isAccepted: boolean | null;
   isAmmended: boolean;
   status: "active" | "completed" | "canceled" | "pending" | "rejected";
@@ -27,6 +28,7 @@ const sessionSchema = new Schema(
     skill2Id: { type: Schema.Types.ObjectId, ref: "UserSkill", required: true },
     descriptionOfService2: { type: String, required: true },
     startDate: { type: Date, required: true },
+    expectedEndDate: { type: Date },
     isAccepted: { 
       type: Boolean, 
       required: false, 

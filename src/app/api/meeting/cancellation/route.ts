@@ -9,6 +9,8 @@ export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
     const meetingId = url.searchParams.get('meetingId');
+    const userId = url.searchParams.get('userId');
+    const includeAcknowledged = url.searchParams.get('includeAcknowledged') === 'true';
 
     if (!meetingId) {
       return NextResponse.json(
@@ -17,7 +19,17 @@ export async function GET(req: Request) {
       );
     }
 
-    const cancellation = await cancelMeetingSchema.findOne({ meetingId });
+    let query: any = { meetingId };
+    
+    // If userId is provided and includeAcknowledged is false, filter out acknowledged cancellations for that user
+    if (userId && !includeAcknowledged) {
+      query.$or = [
+        { acknowledged: false },
+        { acknowledgedBy: { $ne: userId } }
+      ];
+    }
+
+    const cancellation = await cancelMeetingSchema.findOne(query);
 
     return NextResponse.json(cancellation, { status: 200 });
 
