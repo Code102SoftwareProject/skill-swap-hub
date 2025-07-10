@@ -1,3 +1,5 @@
+// Users page in admin dashboard
+// This page displays a list of users with search and delete functionality
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { debounce } from 'lodash-es';
 import { ToastContainer, toast } from 'react-toastify';

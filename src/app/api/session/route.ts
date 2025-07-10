@@ -1,19 +1,129 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose, { Types } from 'mongoose';
 import connect from '@/lib/db';
-import Session from '@/lib/models/sessionSchema';
+// Import models in the correct order to avoid schema registration issues
+import User from '@/lib/models/userSchema';
+import UserSkill from '@/lib/models/userSkill';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
-import { Types } from 'mongoose';
+import Session from '@/lib/models/sessionSchema';
 
-// GET - Get all sessions
+// GET - Get all sessions (with optional user filter)
 export async function GET(req: Request) {
   await connect();
   try {
-    const sessions = await Session.find()
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
-      .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
-      .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
+
+    console.log('Session API called with:', { userId, status, search });
+
+    let query: any = {};
+    
+    // Filter by user if provided
+    if (userId) {
+      query = {
+        $or: [
+          { user1Id: new Types.ObjectId(userId) },
+          { user2Id: new Types.ObjectId(userId) }
+        ]
+      };
+    }
+
+    // Filter by status if provided
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    console.log('Query:', JSON.stringify(query, null, 2));
+
+    // Ensure models are registered by accessing them
+    console.log('User model exists:', !!User);
+    console.log('UserSkill model exists:', !!UserSkill);
+    console.log('SessionProgress model exists:', !!SessionProgress);
+
+    // Try to populate step by step
+    let sessions = await Session.find(query)
       .sort({ createdAt: -1 });
+
+    console.log('Found sessions (unpopulated):', sessions.length);
+    
+    // Debug: Log the first session to see its structure
+    if (sessions.length > 0) {
+      console.log('Sample session data:', {
+        isAccepted: sessions[0].isAccepted,
+        status: sessions[0].status,
+        user1Id: sessions[0].user1Id,
+        user2Id: sessions[0].user2Id
+      });
+    }
+
+    // Fix data consistency: ensure status matches isAccepted
+    for (let session of sessions) {
+      let needsUpdate = false;
+      
+      if (session.isAccepted === true && session.status !== 'active') {
+        session.status = 'active';
+        needsUpdate = true;
+      } else if (session.isAccepted === false && session.status !== 'canceled') {
+        session.status = 'canceled'; 
+        needsUpdate = true;
+      } else if (session.isAccepted === null && session.status !== 'pending') {
+        session.status = 'pending';
+        needsUpdate = true;
+      }
+      
+      if (needsUpdate) {
+        await session.save();
+        console.log(`Updated session ${session._id} status to ${session.status}`);
+      }
+    }
+
+    // Now try to populate
+    try {
+      sessions = await Session.find(query)
+        .populate({
+          path: 'user1Id',
+          select: 'firstName lastName email avatar'
+        })
+        .populate({
+          path: 'user2Id', 
+          select: 'firstName lastName email avatar'
+        })
+        .populate({
+          path: 'skill1Id',
+          select: 'skillTitle proficiencyLevel categoryName'
+        })
+        .populate({
+          path: 'skill2Id',
+          select: 'skillTitle proficiencyLevel categoryName'
+        })
+        .populate('progress1')
+        .populate('progress2')
+        .sort({ createdAt: -1 });
+      
+      console.log('Successfully populated sessions');
+    } catch (populateError) {
+      console.error('Population failed:', populateError);
+      // Return unpopulated sessions if population fails
+      sessions = await Session.find(query).sort({ createdAt: -1 });
+    }
+
+    // Search functionality (only if we have populated data)
+    if (search && sessions.length > 0 && sessions[0].user1Id?.firstName) {
+      const searchLower = search.toLowerCase();
+      sessions = sessions.filter(session => {
+        const user1Name = `${session.user1Id.firstName || ''} ${session.user1Id.lastName || ''}`.toLowerCase();
+        const user2Name = `${session.user2Id.firstName || ''} ${session.user2Id.lastName || ''}`.toLowerCase();
+        const skill1Title = session.skill1Id?.skillTitle?.toLowerCase() || '';
+        const skill2Title = session.skill2Id?.skillTitle?.toLowerCase() || '';
+        
+        return user1Name.includes(searchLower) || 
+               user2Name.includes(searchLower) ||
+               skill1Title.includes(searchLower) ||
+               skill2Title.includes(searchLower);
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -21,6 +131,7 @@ export async function GET(req: Request) {
     }, { status: 200 });
 
   } catch (error: any) {
+    console.error('Session API Error:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }
@@ -40,7 +151,8 @@ export async function POST(req: Request) {
       user2Id,
       skill2Id,
       descriptionOfService2,
-      startDate
+      startDate,
+      expectedEndDate
     } = body;
 
     // Validate required fields
@@ -52,7 +164,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const session = await Session.create({
+    const sessionData: any = {
       user1Id: new Types.ObjectId(user1Id),
       skill1Id: new Types.ObjectId(skill1Id),
       descriptionOfService1,
@@ -63,11 +175,18 @@ export async function POST(req: Request) {
       isAccepted: null,
       isAmmended: false,
       status: 'pending'
-    });
+    };
+
+    // Add expected end date if provided
+    if (expectedEndDate) {
+      sessionData.expectedEndDate = new Date(expectedEndDate);
+    }
+
+    const session = await Session.create(sessionData);
 
     const populatedSession = await Session.findById(session._id)
-      .populate('user1Id', 'name email avatar')
-      .populate('user2Id', 'name email avatar')
+      .populate('user1Id', 'email avatar firstName lastName')
+      .populate('user2Id', 'email avatar firstName lastName')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName');
 

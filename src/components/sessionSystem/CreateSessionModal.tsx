@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
+import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
   id: string;
@@ -39,7 +40,34 @@ export default function CreateSessionModal({
   const [selectedOtherSkill, setSelectedOtherSkill] = useState<string>('');
   const [otherDescription, setOtherDescription] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
+  const [expectedEndDate, setExpectedEndDate] = useState<string>('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Alert state
+  const [alert, setAlert] = useState<{
+    isOpen: boolean;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title?: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'info',
+    message: ''
+  });
+
+  // Helper function for alerts
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
+
+  const closeAlert = () => {
+    setAlert(prev => ({ ...prev, isOpen: false }));
+  };
 
   // Fetch skills when modal opens
   useEffect(() => {
@@ -49,6 +77,11 @@ export default function CreateSessionModal({
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       setStartDate(tomorrow.toISOString().split('T')[0]);
+      
+      // Set default expected end date to 30 days from tomorrow
+      const defaultEndDate = new Date();
+      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
+      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
     }
   }, [isOpen, currentUserId, otherUserId]);
 
@@ -83,19 +116,26 @@ export default function CreateSessionModal({
     if (!selectedMySkill) newErrors.mySkill = 'Please select a skill you want to offer';
     if (!myDescription.trim()) newErrors.myDescription = 'Please describe what you will provide';
     if (myDescription.trim().length < 10) newErrors.myDescription = 'Description must be at least 10 characters';
-    
-    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to learn';
-    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to learn';
+
+    if (!selectedOtherSkill) newErrors.otherSkill = 'Please select a skill you want to be offered';
+    if (!otherDescription.trim()) newErrors.otherDescription = 'Please describe what you want to be offerd';
     if (otherDescription.trim().length < 10) newErrors.otherDescription = 'Description must be at least 10 characters';
     
     if (!startDate) newErrors.startDate = 'Please select a start date';
+    if (!expectedEndDate) newErrors.expectedEndDate = 'Please select an expected end date';
     
     // Check if start date is in the future
-    const selectedDate = new Date(startDate);
+    const selectedStartDate = new Date(startDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    if (selectedDate <= today) {
+    if (selectedStartDate <= today) {
       newErrors.startDate = 'Start date must be in the future';
+    }
+    
+    // Check if expected end date is after start date
+    const selectedEndDate = new Date(expectedEndDate);
+    if (selectedEndDate <= selectedStartDate) {
+      newErrors.expectedEndDate = 'Expected end date must be after start date';
     }
 
     setErrors(newErrors);
@@ -121,7 +161,8 @@ export default function CreateSessionModal({
           user2Id: otherUserId,
           skill2Id: selectedOtherSkill,
           descriptionOfService2: otherDescription.trim(),
-          startDate: new Date(startDate).toISOString()
+          startDate: new Date(startDate).toISOString(),
+          expectedEndDate: new Date(expectedEndDate).toISOString()
         }),
       });
 
@@ -134,19 +175,20 @@ export default function CreateSessionModal({
         setSelectedOtherSkill('');
         setOtherDescription('');
         setStartDate('');
+        setExpectedEndDate('');
         setErrors({});
         
         // Close modal
         onClose();
         
         // You might want to trigger a refresh of sessions or show a success message
-        alert('Session request sent successfully!');
+        showAlert('success', 'Session request sent successfully!');
       } else {
-        alert(data.message || 'Failed to create session request');
+        showAlert('error', data.message || 'Failed to create session request');
       }
     } catch (error) {
       console.error('Error creating session:', error);
-      alert('Failed to create session request');
+      showAlert('error', 'Failed to create session request');
     } finally {
       setSubmitting(false);
     }
@@ -158,6 +200,7 @@ export default function CreateSessionModal({
     setSelectedOtherSkill('');
     setOtherDescription('');
     setStartDate('');
+    setExpectedEndDate('');
     setErrors({});
     onClose();
   };
@@ -286,6 +329,26 @@ export default function CreateSessionModal({
               {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
             </div>
 
+            {/* Expected end date */}
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <Calendar className="h-5 w-5 text-orange-600" />
+                <label className="block text-sm font-medium text-gray-700">
+                  Expected End Date
+                </label>
+              </div>
+              <input
+                type="date"
+                value={expectedEndDate}
+                onChange={(e) => setExpectedEndDate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.expectedEndDate && <p className="text-red-500 text-sm mt-1">{errors.expectedEndDate}</p>}
+              <p className="text-sm text-gray-600 mt-1">
+                This helps both participants plan and track session progress
+              </p>
+            </div>
+
             {/* Buttons */}
             <div className="flex space-x-4 pt-4">
               <button
@@ -306,6 +369,17 @@ export default function CreateSessionModal({
           </form>
         )}
       </div>
+
+      {/* Alert Component */}
+      <Alert
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        isOpen={alert.isOpen}
+        onClose={closeAlert}
+        showCloseButton={true}
+        autoClose={false}
+      />
     </div>
   );
 }

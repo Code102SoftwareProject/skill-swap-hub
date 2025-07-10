@@ -1,4 +1,4 @@
-// File: src/lib/services/listingService.ts
+// File: src/services/listingService.ts
 import { 
   SkillListing, 
   ApiResponse, 
@@ -149,5 +149,32 @@ export const deleteListing = async (id: string): Promise<ApiResponse> => {
   } catch (error) {
     console.error(`Error deleting listing ${id}:`, error);
     return { success: false, message: 'Failed to delete listing' };
+  }
+};
+
+// NEW FUNCTION: Get listings used in matches (efficient batch check)
+export const getListingsUsedInMatches = async (): Promise<ApiResponse<any>> => {
+  try {
+    const token = getAuthToken();
+    
+    if (!token) {
+      return { success: false, message: 'Authentication required' };
+    }
+
+    const response = await fetch('/api/listings/used-in-matches', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching listings used in matches:', error);
+    return { 
+      success: false, 
+      message: 'Failed to fetch listings used in matches' 
+    };
   }
 };

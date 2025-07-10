@@ -71,11 +71,13 @@ export async function PATCH(
       updatedAt: new Date()
     };
 
-    // If accepted, set status to active; if rejected, set status to canceled
+    // If accepted, set status to active; if rejected, set status to rejected and track who rejected
     if (action === 'accept') {
       updateObj.status = 'active';
     } else if (action === 'reject') {
-      updateObj.status = 'canceled';
+      updateObj.status = 'rejected';
+      updateObj.rejectedBy = userObjectId;
+      updateObj.rejectedAt = new Date();
     }
 
     const updatedSession = await Session.findByIdAndUpdate(
@@ -139,7 +141,8 @@ export async function PATCH(
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .populate('progress1')
-      .populate('progress2');
+      .populate('progress2')
+      .populate('rejectedBy', 'firstName lastName email avatar');
 
     return NextResponse.json({
       success: true,

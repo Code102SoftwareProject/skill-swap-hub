@@ -3,18 +3,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X, Bookmark } from 'lucide-react';
 import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useNotifications } from '@/lib/hooks/useNotifications';
+import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
 
 interface NavbarProps {
-  onSidebarToggle?: () => void; // Callback for toggling sidebar
-  showSidebarToggle?: boolean; // Whether to show the sidebar toggle button
+  onSidebarToggle?: () => void;
+  showSidebarToggle?: boolean;
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = false }) => {
   const { user, logout, isLoading } = useAuth();
+  const { unreadCount, fetchUnreadCount } = useNotifications(user?._id || null);
+  const { unreadCount: unreadMessageCount, fetchUnreadCount: fetchUnreadMessageCount } = useUnreadMessages(user?._id || null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -22,7 +26,24 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Close dropdown when clicking outside
+  const NotificationBell = ({ onClick, unreadCount }: { onClick: () => void; unreadCount: number }) => (
+    <button onClick={onClick} className="text-white relative">
+      <Bell className="w-6 h-6" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full"></span>
+      )}
+    </button>
+  );
+
+  const MessageBell = ({ onClick, unreadCount }: { onClick: () => void; unreadCount: number }) => (
+    <button onClick={onClick} className="text-white relative">
+      <MessageSquare className="w-6 h-6" />
+      {unreadCount > 0 && (
+        <span className="absolute -top-1 -right-1 bg-red-500 w-3 h-3 rounded-full"></span>
+      )}
+    </button>
+  );
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -73,19 +94,21 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
   const handleChatClick = () => {
     setIsMobileMenuOpen(false);
     router.push('/user/chat');
-  }
+  };
 
-  const isLoggedIn = !!user;
+  const handleSavedPostsClick = () => {
+    setIsMobileMenuOpen(false);
+    router.push('/savedlist');
+  };
+
+  const isLoggedIn = !!user && !isLoading;
   const displayName = user ? user.firstName : 'User';
-  const userImage = '/Avatar.png';
+  const userImage = user?.avatar || '/Avatar.png';
 
   return (
     <>
-      {/* Fixed height navbar with h-16 */}
       <nav className="bg-[#006699] px-4 md:px-6 h-16 flex items-center justify-between relative">
-        {/* Logo and sidebar toggle */}
         <div className="flex items-center">
-          {/* Sidebar toggle button - only shown on mobile if enabled */}
           {showSidebarToggle && (
             <button
               className="text-white mr-3"
@@ -109,7 +132,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
           </Link>
         </div>
 
-        {/* Search - hidden on mobile, visible on md and up */}
         <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 w-full max-w-md px-4">
           <div className="relative">
             <input
@@ -125,18 +147,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
           </div>
         </div>
 
-        {/* User/auth section - visible on desktop */}
         <div className="hidden md:flex items-center h-10 min-w-[150px] justify-end">
           {isLoading ? (
             <div className="animate-pulse bg-white/20 h-10 w-20 rounded-md"></div>
           ) : isLoggedIn ? (
             <div className="flex items-center gap-4">
-              <button className="text-white" onClick={handleChatClick}>
-                <MessageSquare className="w-6 h-6" />
-              </button>
-              <button onClick={handleNotificationsClick} className="text-white">
-                <Bell className="w-6 h-6" />
-              </button>
+              <MessageBell onClick={handleChatClick} unreadCount={unreadMessageCount} />
+              <NotificationBell onClick={handleNotificationsClick} unreadCount={unreadCount} />
               
               <div className="relative" ref={dropdownRef}>
                 <button 
@@ -167,6 +184,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                     </button>
                     <button 
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={handleSavedPostsClick}
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      Saved Posts
+                    </button>
+                    <button 
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       onClick={handleLogout}
                     >
                       <LogOut className="w-4 h-4 mr-2" />
@@ -194,9 +218,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
           )}
         </div>
 
-        {/* Mobile menu and search buttons */}
         <div className="md:hidden flex items-center gap-2">
-          {/* Mobile search button */}
           <button 
             className="text-white p-2"
             onClick={() => setIsSearchOpen(true)}
@@ -204,7 +226,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
             <Search className="h-5 w-5" />
           </button>
           
-          {/* Mobile menu button */}
           <button 
             className="text-white p-2 mobile-menu-button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -214,13 +235,11 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
         </div>
       </nav>
 
-      {/* Mobile menu */}
       {isMobileMenuOpen && (
         <div 
           ref={mobileMenuRef}
           className="md:hidden bg-[#006699] shadow-lg absolute right-0 top-16 z-50 w-full sm:w-64 py-4 px-6"
         >
-          {/* Mobile search - only shown in collapsed menu */}
           <div className="mb-4">
             <div className="relative">
               <input
@@ -243,7 +262,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
             <div className="animate-pulse bg-white/20 h-10 w-full rounded-md"></div>
           ) : isLoggedIn ? (
             <div className="space-y-4">
-              {/* User info */}
               <div className="flex items-center gap-3 pb-3 border-b border-white/20">
                 <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200">
                   <Image
@@ -257,7 +275,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                 <span className="font-medium text-white">{displayName}</span>
               </div>
               
-              {/* Navigation links */}
               <button 
                 className="flex items-center gap-3 w-full py-2 text-white"
                 onClick={handleProfileClick}
@@ -267,19 +284,33 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
               </button>
               
               <button 
-                className="flex items-center gap-3 w-full py-2 text-white"
+                className="flex items-center gap-3 w-full py-2 text-white relative"
                 onClick={handleChatClick}
               >
                 <MessageSquare className="w-5 h-5" />
                 Messages
+                {unreadMessageCount > 0 && (
+                  <span className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-red-500 w-2 h-2 rounded-full"></span>
+                )}
               </button>
               
               <button 
-                className="flex items-center gap-3 w-full py-2 text-white"
+                className="flex items-center gap-3 w-full py-2 text-white relative"
                 onClick={handleNotificationsClick}
               >
                 <Bell className="w-5 h-5" />
                 Notifications
+                {unreadCount > 0 && (
+                  <span className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-red-500 w-2 h-2 rounded-full"></span>
+                )}
+              </button>
+              
+              <button 
+                className="flex items-center gap-3 w-full py-2 text-white"
+                onClick={handleSavedPostsClick}
+              >
+                <Bookmark className="w-5 h-5" />
+                Saved Posts
               </button>
               
               <div className="pt-3 border-t border-white/20">

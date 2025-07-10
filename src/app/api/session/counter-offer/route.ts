@@ -72,7 +72,7 @@ export async function POST(req: Request) {
 
     const populatedCounterOffer = await SessionCounterOffer.findById(counterOffer._id)
       .populate('originalSessionId')
-      .populate('counterOfferedBy', 'name email avatar')
+      .populate('counterOfferedBy', 'firstName lastName email avatar title')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName');
 
@@ -106,7 +106,7 @@ export async function GET(req: Request) {
 
     const counterOffers = await SessionCounterOffer.find({ originalSessionId: sessionId })
       .populate('originalSessionId')
-      .populate('counterOfferedBy', 'name email avatar')
+      .populate('counterOfferedBy', 'firstName lastName email avatar title')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
       .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
       .sort({ createdAt: -1 });

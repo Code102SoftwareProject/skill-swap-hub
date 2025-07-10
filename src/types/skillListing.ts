@@ -34,7 +34,7 @@ export interface SkillListing {
   offering: OfferingSkill;
   seeking: SeekingSkill;
   additionalInfo: AdditionalInfo;
-  status: 'active' | 'matched' | 'completed' | 'cancelled';
+  status: 'active' | 'not active'; // Simplified status system
   createdAt: string;
   updatedAt?: string;
 }
@@ -51,7 +51,7 @@ export interface UpdateListingData {
   offering?: OfferingSkill;
   seeking?: SeekingSkill;
   additionalInfo?: Partial<AdditionalInfo>;
-  status?: 'active' | 'matched' | 'completed' | 'cancelled';
+  status?: 'active' | 'not active'; // Simplified status system
 }
 
 // API response type

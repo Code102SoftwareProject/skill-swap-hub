@@ -8,12 +8,15 @@ interface ISession extends Document {
   skill2Id: mongoose.Types.ObjectId;
   descriptionOfService2: string;
   startDate: Date;
+  expectedEndDate?: Date;
   isAccepted: boolean | null;
   isAmmended: boolean;
-  status: "active" | "completed" | "canceled" | "pending";
+  status: "active" | "completed" | "canceled" | "pending" | "rejected";
   createdAt: Date;
   progress1?: mongoose.Types.ObjectId;
   progress2?: mongoose.Types.ObjectId;
+  rejectedBy?: mongoose.Types.ObjectId;
+  rejectedAt?: Date;
 }
 
 const sessionSchema = new Schema(
@@ -25,6 +28,7 @@ const sessionSchema = new Schema(
     skill2Id: { type: Schema.Types.ObjectId, ref: "UserSkill", required: true },
     descriptionOfService2: { type: String, required: true },
     startDate: { type: Date, required: true },
+    expectedEndDate: { type: Date },
     isAccepted: { 
       type: Boolean, 
       required: false, 
@@ -32,11 +36,13 @@ const sessionSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "completed", "canceled","pending"],
+      enum: ["active", "completed", "canceled","pending", "rejected"],
       default: "pending", 
     },
     progress1: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
-    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" }
+    progress2: { type: Schema.Types.ObjectId, ref: "SessionProgress" },
+    rejectedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    rejectedAt: { type: Date }
   },
   { timestamps: true }
 );

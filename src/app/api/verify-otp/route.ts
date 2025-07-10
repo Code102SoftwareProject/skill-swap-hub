@@ -26,12 +26,15 @@ export async function POST(req: Request) {
     const user = await User.findOne({ email });
     
     if (!user) {
+      console.log('User not found for email:', email);
       // For security reasons, provide a generic error message
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid email or OTP' 
       }, { status: 401 });
     }
+
+    console.log('User found, searching for OTP record');
 
     // Find OTP verification record
     const otpRecord = await OtpVerification.findOne({
@@ -42,6 +45,7 @@ export async function POST(req: Request) {
     
     // Check if OTP exists
     if (!otpRecord) {
+      console.log('OTP record not found or already used');
       return NextResponse.json({ 
         success: false, 
         message: 'Invalid or expired OTP' 
@@ -50,12 +54,18 @@ export async function POST(req: Request) {
 
     // Check if OTP is expired
     const now = new Date();
+    console.log('Current time:', now);
+    console.log('OTP expires at:', otpRecord.expiresAt);
+    
     if (now > new Date(otpRecord.expiresAt)) {
+      console.log('OTP has expired');
       return NextResponse.json({ 
         success: false, 
         message: 'OTP has expired' 
       }, { status: 401 });
     }
+
+    console.log('OTP is valid, marking as used');
 
     // Mark OTP as used
     otpRecord.used = true;
@@ -69,6 +79,7 @@ export async function POST(req: Request) {
     );
 
     console.log("OTP verification successful for:", email);
+    console.log("Generated reset token with 15m expiry");
 
     return NextResponse.json({ 
       success: true, 
