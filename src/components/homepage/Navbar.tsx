@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X } from 'lucide-react';
+import { Bell, MessageSquare, ChevronDown, Search, LogOut, User, Menu, X, Bookmark } from 'lucide-react';
 import SearchPopup from './SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -94,7 +94,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
   const handleChatClick = () => {
     setIsMobileMenuOpen(false);
     router.push('/user/chat');
-  }
+  };
+
+  const handleSavedPostsClick = () => {
+    setIsMobileMenuOpen(false);
+    router.push('/savedlist');
+  };
 
   const isLoggedIn = !!user && !isLoading;
   const displayName = user ? user.firstName : 'User';
@@ -176,6 +181,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                     >
                       <User className="w-4 h-4 mr-2" />
                       Dashboard
+                    </button>
+                    <button 
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={handleSavedPostsClick}
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      Saved Posts
                     </button>
                     <button 
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -291,6 +303,14 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                 {unreadCount > 0 && (
                   <span className="absolute left-8 top-1/2 transform -translate-y-1/2 bg-red-500 w-2 h-2 rounded-full"></span>
                 )}
+              </button>
+              
+              <button 
+                className="flex items-center gap-3 w-full py-2 text-white"
+                onClick={handleSavedPostsClick}
+              >
+                <Bookmark className="w-5 h-5" />
+                Saved Posts
               </button>
               
               <div className="pt-3 border-t border-white/20">

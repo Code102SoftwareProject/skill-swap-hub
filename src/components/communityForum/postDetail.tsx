@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ArrowLeft, Loader, MessageSquare, Flag, Send, ThumbsUp, ThumbsDown, Edit, X, AlertCircle, ImagePlus, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader, MessageSquare, Send, ThumbsUp, ThumbsDown, Edit, X, AlertCircle, ImagePlus, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
+import WatchPostButton from './WatchPostButton';
 import Swal from 'sweetalert2';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -28,6 +29,7 @@ interface Post {
   likedBy: string[];
   dislikedBy: string[];
   replies: number;
+  views?: number;
 }
 
 interface Reply {
@@ -1034,18 +1036,21 @@ const PostDetail = () => {
                 </button>
               </div>
               
-              <div className="flex items-center space-x-2 text-blue-600">
-                <MessageSquare className="w-5 h-5" />
-                <span className="font-medium">{post.replies}</span>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 text-blue-600">
+                  <MessageSquare className="w-5 h-5" />
+                  <span className="font-medium">{post.replies}</span>
+                </div>
+                
+                {/* View count */}
+                <div className="flex items-center space-x-1 text-gray-500">
+                  <span className="text-sm">{post.views || 0} views</span>
+                </div>
               </div>
             </div>
             
-            <motion.button 
-              whileHover={{ scale: 1.1 }}
-              className="text-blue-400 hover:text-red-500 transition-colors"
-            >
-              <Flag className="w-5 h-5" />
-            </motion.button>
+            {/* Save Post Button */}
+            <WatchPostButton postId={post._id} size="sm" />
           </div>
         </div>
       </motion.div>
@@ -1309,9 +1314,6 @@ const PostDetail = () => {
                           <p className="font-medium text-blue-800">{reply.author.name}</p>
                           <p className="text-xs text-blue-500">{formatDate(reply.createdAt)}</p>
                         </div>
-                        <button className="text-gray-400 hover:text-red-500 transition-colors">
-                          <Flag className="w-4 h-4" />
-                        </button>
                       </div>
                       
                       <div className="mt-2 text-gray-700 whitespace-pre-line">

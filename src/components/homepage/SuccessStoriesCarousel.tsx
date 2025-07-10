@@ -166,7 +166,9 @@ export default function SuccessStoriesCarousel() {
                         
                         {/* User Info */}
                         <div className="flex items-center justify-center">
+
                           <div className="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-cyan-300/20">
+
                             {story.userId?.avatar ? (
                               <img
                                 src={story.userId.avatar}
@@ -179,6 +181,7 @@ export default function SuccessStoriesCarousel() {
                               </div>
                             )}
                             <div className="text-left">
+
                               <p className="font-semibold text-sm text-white">
                                 {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
                               </p>
@@ -254,6 +257,7 @@ export default function SuccessStoriesCarousel() {
                     </div>
                   )}
                   <div>
+
                     <p className="font-semibold text-sm text-white">
                       {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
                     </p>
