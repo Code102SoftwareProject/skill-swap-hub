@@ -203,7 +203,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-4">
                   <Image
-                    src={listing.userDetails.avatar || '/Avatar.png'}
+                    src={'/Avatar.png'}
                     alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                     width={48}
                     height={48}
@@ -260,48 +260,49 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               {/* Skills Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 {/* Offering */}
-                <div className="bg-blue-50 rounded-lg p-5">
-                  <h4 className="text-green-600 font-semibold mb-3 flex items-center">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-5">
+                  <h4 className="text-green-700 font-semibold mb-3 flex items-center">
                     <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                     Offering
                   </h4>
-                  <h5 className="font-bold text-gray-800 mb-2">{listing.offering.skillTitle}</h5>
+                  <h5 className="font-bold text-gray-900 mb-2">{listing.offering.skillTitle}</h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-blue-600 font-medium">Level:</span> {listing.offering.proficiencyLevel}</p>
-                    <p><span className="text-blue-600 font-medium">Category:</span> {listing.offering.categoryName}</p>
+                    <p><span className="text-gray-700 font-medium">Level:</span> <span className="text-gray-800">{listing.offering.proficiencyLevel}</span></p>
+                    <p><span className="text-gray-700 font-medium">Category:</span> <span className="text-gray-800">{listing.offering.categoryName}</span></p>
                     {listing.offering.description && (
-                      <p className="text-gray-700 mt-3">{listing.offering.description}</p>
+                      <p className="text-gray-700 mt-3 leading-relaxed">{listing.offering.description}</p>
                     )}
                   </div>
                 </div>
 
                 {/* Seeking */}
-                <div className="bg-purple-50 rounded-lg p-5">
-                  <h4 className="text-purple-600 font-semibold mb-3 flex items-center">
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-5">
+                  <h4 className="text-purple-700 font-semibold mb-3 flex items-center">
                     <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
                     Seeking
                   </h4>
-                  <h5 className="font-bold text-gray-800 mb-2">{listing.seeking.skillTitle}</h5>
+                  <h5 className="font-bold text-gray-900 mb-2">{listing.seeking.skillTitle}</h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-purple-600 font-medium">Category:</span> {listing.seeking.categoryName}</p>
+                    <p><span className="text-gray-700 font-medium">Category:</span> <span className="text-gray-800">{listing.seeking.categoryName}</span></p>
                   </div>
                 </div>
               </div>
 
               {/* Additional Information */}
               {(listing.additionalInfo.description || listing.additionalInfo.availability || (listing.additionalInfo.tags && Array.isArray(listing.additionalInfo.tags) && listing.additionalInfo.tags.length > 0)) && (
-                <div className="bg-gray-50 rounded-lg p-5 mb-6">
-                  <h4 className="font-semibold text-gray-800 mb-3">Additional Information</h4>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-5 mb-6">
+                  <h4 className="font-semibold text-gray-900 mb-3">Additional Information</h4>
                   
                   {listing.additionalInfo.description && (
                     <div className="mb-4">
-                      <p className="text-sm text-gray-700">{listing.additionalInfo.description}</p>
+                      <h5 className="text-sm font-medium text-gray-700 mb-1">Description:</h5>
+                      <p className="text-sm text-gray-800 leading-relaxed">{listing.additionalInfo.description}</p>
                     </div>
                   )}
                   
                   {listing.additionalInfo.availability && (
                     <div className="mb-4">
-                      <p className="text-sm"><span className="font-medium text-gray-700">Availability:</span> {listing.additionalInfo.availability}</p>
+                      <p className="text-sm"><span className="font-medium text-gray-700">Availability:</span> <span className="text-gray-800">{listing.additionalInfo.availability}</span></p>
                     </div>
                   )}
                   
@@ -312,7 +313,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                         {listing.additionalInfo.tags.map((tag, index) => (
                           <span 
                             key={index} 
-                            className="bg-white border border-gray-200 text-gray-700 text-xs px-2 py-1 rounded-full"
+                            className="bg-white border border-gray-300 text-gray-800 text-xs px-3 py-1 rounded-full font-medium"
                           >
                             {tag}
                           </span>
