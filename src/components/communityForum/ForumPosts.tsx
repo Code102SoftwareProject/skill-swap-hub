@@ -124,7 +124,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
 
   // Add this function to handle post click navigation
   const handlePostClick = async (postId: string) => {
-    // Track view interaction
+    // Track view interaction only for authenticated users
     if (user) {
       await trackInteraction({
         postId,

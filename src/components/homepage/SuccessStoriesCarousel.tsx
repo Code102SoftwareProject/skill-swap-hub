@@ -9,7 +9,7 @@ interface SuccessStory {
     firstName: string;
     lastName: string;
     avatar?: string;
-  };
+  } | null;
   title: string;
   description: string;
   image?: string;
@@ -143,7 +143,7 @@ export default function SuccessStoriesCarousel() {
                         {/* User Info */}
                         <div className="flex items-center justify-center">
                           <div className="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2">
-                            {story.userId.avatar ? (
+                            {story.userId?.avatar ? (
                               <img
                                 src={story.userId.avatar}
                                 alt={`${story.userId.firstName} ${story.userId.lastName}`}
@@ -156,7 +156,7 @@ export default function SuccessStoriesCarousel() {
                             )}
                             <div className="text-left">
                               <p className="font-semibold text-sm">
-                                {story.userId.firstName} {story.userId.lastName}
+                                {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
                               </p>
                               <p className="text-xs text-gray-300">
                                 {new Date(story.publishedAt).toLocaleDateString()}
@@ -218,7 +218,7 @@ export default function SuccessStoriesCarousel() {
                 onClick={() => goToSlide(index)}
               >
                 <div className="flex items-center mb-3">
-                  {story.userId.avatar ? (
+                  {story.userId?.avatar ? (
                     <img
                       src={story.userId.avatar}
                       alt={`${story.userId.firstName} ${story.userId.lastName}`}
@@ -231,7 +231,7 @@ export default function SuccessStoriesCarousel() {
                   )}
                   <div>
                     <p className="font-semibold text-sm text-gray-800">
-                      {story.userId.firstName} {story.userId.lastName}
+                      {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
                     </p>
                   </div>
                 </div>

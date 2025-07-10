@@ -54,7 +54,8 @@ const WatchPostButton: React.FC<WatchPostButtonProps> = ({
   };
 
   if (!user) {
-    return null; // Don't show the button if user is not logged in
+    // Don't show the button at all if user is not logged in
+    return null;
   }
 
   const sizeClasses = {
