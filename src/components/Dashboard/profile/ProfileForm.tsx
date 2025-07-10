@@ -12,7 +12,7 @@ export default function ProfileForm() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
+    phone: '', 
     title: '',
     avatarUrl: ''
   });
@@ -168,7 +168,7 @@ export default function ProfileForm() {
           <div className="relative group">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative">
               <img 
-                src={formState.avatarUrl || '/default-avatar.png'} 
+                src={formState.avatarUrl ? `/api/file/retrieve?fileUrl=${encodeURIComponent(formState.avatarUrl)}` : '/default-avatar.png'} 
                 alt="Profile" 
                 className="w-full h-full object-cover"
               />

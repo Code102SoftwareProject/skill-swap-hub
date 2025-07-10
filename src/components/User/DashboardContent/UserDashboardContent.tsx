@@ -55,9 +55,7 @@ export default function UserDashboardContent({ onNavigateToMySkills }: { onNavig
         <div className="lg:col-span-1 space-y-8">
           {/* Profile Card */}
           {user && (
-            <div className="bg-white p-6 rounded-lg shadow-lg">
-              <ProfileCard userId={user._id} />
-            </div>
+            <ProfileCard userId={user._id} />
           )}
 
           {/* Time Spent */}
