@@ -26,7 +26,7 @@ interface User {
 
 interface SuccessStory {
   _id: string;
-  userId: User;
+  userId: User | null;
   title: string;
   description: string;
   image?: string;
@@ -84,7 +84,9 @@ export default function SuccessStoriesContent() {
       console.log("Success stories response:", { status: response.status, data });
 
       if (response.ok && data.success) {
-        setSuccessStories(data.data.successStories);
+        // Filter out stories with null userId to prevent errors
+        const validStories = data.data.successStories.filter((story: SuccessStory) => story.userId !== null);
+        setSuccessStories(validStories);
         setTotalPages(data.data.pagination.totalPages);
       } else {
         console.error("Failed to fetch success stories:", data);
@@ -228,7 +230,7 @@ export default function SuccessStoriesContent() {
   const handleEdit = (story: SuccessStory) => {
     setEditingStory(story);
     setFormData({
-      userId: story.userId._id,
+      userId: story.userId?._id || "",
       title: story.title,
       description: story.description,
       image: story.image || "",
@@ -366,7 +368,7 @@ export default function SuccessStoriesContent() {
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className="flex-shrink-0 h-10 w-10">
-                      {story.userId.avatar ? (
+                      {story.userId?.avatar ? (
                         <img
                           className="h-10 w-10 rounded-full"
                           src={story.userId.avatar}
@@ -380,10 +382,10 @@ export default function SuccessStoriesContent() {
                     </div>
                     <div className="ml-4">
                       <div className="text-sm font-medium text-gray-900">
-                        {story.userId.firstName} {story.userId.lastName}
+                        {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : "Unknown User"}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {story.userId.email}
+                        {story.userId?.email || "No email"}
                       </div>
                     </div>
                   </div>
