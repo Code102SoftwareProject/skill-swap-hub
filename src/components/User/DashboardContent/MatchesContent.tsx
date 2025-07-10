@@ -13,7 +13,8 @@ const MatchesPage = () => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [matches, setMatches] = useState<SkillMatch[]>([]);
+  const [allMatches, setAllMatches] = useState<SkillMatch[]>([]); // Keep all matches for counting
+  const [matches, setMatches] = useState<SkillMatch[]>([]); // Currently displayed matches
   const [selectedMatch, setSelectedMatch] = useState<SkillMatch | null>(null);
   const [activeFilter, setActiveFilter] = useState<'all' | 'exact' | 'partial'>('all');
   
@@ -35,6 +36,10 @@ const MatchesPage = () => {
       
       if (response.success && response.data) {
         setMatches(response.data);
+        // If no filters, this represents all matches
+        if (!filters?.matchType && !filters?.status) {
+          setAllMatches(response.data);
+        }
       } else {
         showToast(response.message || 'Failed to load matches', 'error');
       }
@@ -54,8 +59,18 @@ const MatchesPage = () => {
       
       if (response.success) {
         showToast(response.message || 'Successfully found matches', 'success');
-        // Refresh the matches list
-        fetchMatches({ matchType: activeFilter === 'all' ? undefined : activeFilter });
+        // Refresh all matches to update counts and filtered view
+        const refreshResponse = await getMatches();
+        if (refreshResponse.success && refreshResponse.data) {
+          setAllMatches(refreshResponse.data);
+          // Reapply current filter
+          if (activeFilter === 'all') {
+            setMatches(refreshResponse.data);
+          } else {
+            const filteredMatches = refreshResponse.data.filter(match => match.matchType === activeFilter);
+            setMatches(filteredMatches);
+          }
+        }
       } else {
         showToast(response.message || 'Failed to find matches', 'error');
       }
@@ -71,11 +86,12 @@ const MatchesPage = () => {
   const handleFilterChange = (filter: 'all' | 'exact' | 'partial') => {
     setActiveFilter(filter);
     
-    // Apply the filter
+    // Apply the filter - always keep allMatches intact for counting
     if (filter === 'all') {
-      fetchMatches();
+      setMatches(allMatches);
     } else {
-      fetchMatches({ matchType: filter });
+      const filteredMatches = allMatches.filter(match => match.matchType === filter);
+      setMatches(filteredMatches);
     }
   };
 
@@ -88,19 +104,28 @@ const MatchesPage = () => {
   const closeMatchDetails = () => {
     setSelectedMatch(null);
     // Refresh matches when modal is closed (in case status was updated)
-    fetchMatches({ matchType: activeFilter === 'all' ? undefined : activeFilter });
+    const refreshAndReapplyFilter = async () => {
+      const refreshResponse = await getMatches();
+      if (refreshResponse.success && refreshResponse.data) {
+        setAllMatches(refreshResponse.data);
+        // Reapply current filter
+        if (activeFilter === 'all') {
+          setMatches(refreshResponse.data);
+        } else {
+          const filteredMatches = refreshResponse.data.filter(match => match.matchType === activeFilter);
+          setMatches(filteredMatches);
+        }
+      }
+    };
+    refreshAndReapplyFilter();
   };
 
-  // Filter matches by type (for UI rendering)
-  const exactMatches = matches.filter(match => match.matchType === 'exact');
-  const partialMatches = matches.filter(match => match.matchType === 'partial');
+  // Filter matches by type (for UI counting - using allMatches for accurate counts)
+  const exactMatches = allMatches.filter(match => match.matchType === 'exact');
+  const partialMatches = allMatches.filter(match => match.matchType === 'partial');
 
   // Determine which matches to show based on filter
-  const matchesToShow = activeFilter === 'all' ? 
-    matches : 
-    activeFilter === 'exact' ? 
-      exactMatches : 
-      partialMatches;
+  const matchesToShow = matches;
 
   // Don't render if user is not authenticated
   if (!currentUserId) {
@@ -138,7 +163,7 @@ const MatchesPage = () => {
             }`}
             onClick={() => handleFilterChange('all')}
           >
-            All Matches ({matches.length})
+            All Matches ({allMatches.length})
           </button>
           <button
             className={`py-2 px-4 border-b-2 font-medium text-sm ${

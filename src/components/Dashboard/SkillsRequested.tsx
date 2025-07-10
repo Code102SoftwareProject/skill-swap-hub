@@ -202,3 +202,14 @@ export function SkillsOffered() {
     </ResponsiveContainer>
   );
 }
+
+export function CardWithBar() {
+  return (
+    <div className="bg-white shadow-md rounded-lg overflow-hidden p-4 max-w-md mx-auto mt-6">
+      <h2 className="text-xl font-bold text-gray-800 mb-4">Skills Requested</h2>
+      <div className="border-t border-gray-200 mt-4 pt-4">
+        <SkillsRequested />
+      </div>
+    </div>
+  );
+}
