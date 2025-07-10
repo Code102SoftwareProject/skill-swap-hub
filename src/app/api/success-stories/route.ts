@@ -16,15 +16,21 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "10");
 
-    // Get only published success stories
-    const successStories = await SuccessStory.find({ isPublished: true })
+    // Get only published success stories with valid user data
+    const successStories = await SuccessStory.find({ 
+      isPublished: true,
+      userId: { $ne: null } // Exclude stories where userId is null
+    })
       .populate("userId", "firstName lastName avatar")
       .sort({ publishedAt: -1 })
       .limit(limit);
 
+    // Additional filter to ensure populated userId is not null
+    const validStories = successStories.filter(story => story.userId !== null);
+
     return NextResponse.json({
       success: true,
-      data: successStories,
+      data: validStories,
     });
   } catch (error) {
     console.error("Error fetching published success stories:", error);

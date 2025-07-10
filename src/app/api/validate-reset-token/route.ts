@@ -9,19 +9,18 @@ if (!process.env.JWT_SECRET) {
 
 export async function POST(req: Request) {
   try {
-    // Get token from Authorization header
-    const authHeader = req.headers.get('authorization');
-    const token = authHeader?.replace('Bearer ', '');
+    const body = await req.json();
+    const { resetToken } = body;
 
-    if (!token) {
+    if (!resetToken) {
       return NextResponse.json({ 
         success: false, 
-        message: 'No token provided' 
-      }, { status: 401 });
+        message: 'Reset token is required' 
+      }, { status: 400 });
     }
 
-    // Verify the token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+    // Verify the reset token
+    const decoded = jwt.verify(resetToken, process.env.JWT_SECRET as string) as {
       userId: string;
       email: string;
     };
@@ -29,51 +28,36 @@ export async function POST(req: Request) {
     // Connect to database
     await dbConnect();
     
-    // Find user to ensure they still exist and aren't suspended
-    const user = await User.findById(decoded.userId);
+    // Find user to ensure they still exist
+    const user = await User.findOne({ email: decoded.email });
     
     if (!user) {
       return NextResponse.json({ 
         success: false, 
-        message: 'User not found' 
+        message: 'Invalid reset token' 
       }, { status: 404 });
-    }
-
-    // Check if user is suspended
-    if (user.suspension?.isSuspended) {
-      return NextResponse.json({ 
-        success: false, 
-        message: 'Account suspended' 
-      }, { status: 403 });
     }
 
     // Token is valid
     return NextResponse.json({ 
       success: true, 
-      message: 'Token is valid',
-      user: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        title: user.title,
-        avatar: user.avatar
-      }
+      message: 'Reset token is valid',
+      email: user.email
     });
   } catch (error) {
-    console.error('Token validation error:', error);
+    console.error('Reset token validation error:', error);
     
     if (error instanceof jwt.TokenExpiredError) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Token expired' 
+        message: 'Reset token has expired. Please restart the process.' 
       }, { status: 401 });
     }
     
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Invalid token' 
+        message: 'Invalid reset token' 
       }, { status: 401 });
     }
     
