@@ -43,6 +43,10 @@ export default function SavedListPage() {
   const fetchSavedPosts = async (isRefresh = false, retryCount = 0) => {
     // Don't fetch if auth is still loading or user/token is not available
     if (authLoading || !user || !token) {
+      if (!authLoading && (!user || !token)) {
+        // Auth is done loading but no user/token - stop loading
+        setLoading(false);
+      }
       return;
     }
 
@@ -122,6 +126,7 @@ export default function SavedListPage() {
       } else {
         // If auth finished loading but no user or token, stop loading state
         setLoading(false);
+        setError(null); // Clear any previous errors when user is not authenticated
       }
     }
   }, [user, token, authLoading]);
