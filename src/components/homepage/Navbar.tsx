@@ -98,7 +98,7 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
 
   const isLoggedIn = !!user && !isLoading;
   const displayName = user ? user.firstName : 'User';
-  const userImage = '/Avatar.png';
+  const userImage = user?.avatar || '/Avatar.png';
 
   return (
     <>

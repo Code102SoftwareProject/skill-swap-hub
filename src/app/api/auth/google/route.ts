@@ -41,6 +41,15 @@ export async function POST(req: NextRequest) {
 
     const { sub: googleId, email, given_name: firstName, family_name: lastName, picture } = payload;
 
+    console.log('Google OAuth payload:', {
+      googleId,
+      email,
+      firstName,
+      lastName,
+      picture: picture || 'NO PICTURE PROVIDED',
+      hasProfilePicture: !!picture
+    });
+
     if (!email || !firstName || !lastName) {
       return NextResponse.json({ 
         success: false, 
@@ -63,6 +72,24 @@ export async function POST(req: NextRequest) {
         user.googleId = googleId;
         user.isGoogleUser = true;
         user.avatar = user.avatar || picture;
+        
+        console.log('Linking Google account - Avatar info:', {
+          existingAvatar: user.avatar,
+          googlePicture: picture,
+          willUseGooglePicture: !user.avatar && !!picture,
+          finalAvatar: user.avatar || picture
+        });
+
+        // Mark profile as completed for Google users (skip profile completion step)
+        user.profileCompleted = true;
+        
+        console.log('Linking Google to existing user:', {
+          email: user.email,
+          hasPhone: !!user.phone,
+          hasTitle: !!user.title,
+          profileCompleted: user.profileCompleted
+        });
+        
         await user.save();
       } else {
         // Create new user with Google info
@@ -73,10 +100,17 @@ export async function POST(req: NextRequest) {
           googleId,
           isGoogleUser: true,
           avatar: picture,
-          profileCompleted: false, // Mark as incomplete since we need phone and title
-          phone: '', // Will be filled later
-          title: '', // Will be filled later
+          profileCompleted: true, // Mark as completed for Google users (skip profile completion step)
+          phone: '', // Optional for Google users
+          title: '', // Optional for Google users
         });
+        
+        console.log('Creating new Google user - Avatar info:', {
+          googlePicture: picture,
+          hasGooglePicture: !!picture,
+          savedAvatar: picture || 'NO AVATAR SAVED'
+        });
+        
         await user.save();
       }
     }
@@ -100,7 +134,22 @@ export async function POST(req: NextRequest) {
       { expiresIn: '24h' }
     );
 
-    // Return response with profile completion flag
+    // Mark profile as completed for Google users (skip profile completion step)
+    if (!user.profileCompleted) {
+      user.profileCompleted = true;
+      await user.save();
+    }
+    
+    const needsProfileCompletion = false; // Always false for Google users
+    
+    console.log('Google login response:', {
+      email: user.email,
+      profileCompleted: user.profileCompleted,
+      hasPhone: !!user.phone,
+      hasTitle: !!user.title,
+      needsProfileCompletion
+    });
+
     return NextResponse.json({ 
       success: true, 
       message: 'Google authentication successful',
@@ -116,7 +165,7 @@ export async function POST(req: NextRequest) {
         isGoogleUser: user.isGoogleUser,
         profileCompleted: user.profileCompleted
       },
-      needsProfileCompletion: !user.profileCompleted || !user.phone || !user.title
+      needsProfileCompletion
     });
 
   } catch (error: any) {

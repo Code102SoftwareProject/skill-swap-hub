@@ -56,7 +56,7 @@ const Navbar: React.FC = () => {
   }
   const isLoggedIn = !!user;
   const displayName = user ? user.firstName : 'User';
-  const userImage = '/Avatar.png';
+  const userImage = user?.avatar || '/Avatar.png';
 
   return (
     <>

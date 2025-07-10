@@ -49,7 +49,9 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     // Build query
-    const query: any = {};
+    const query: any = {
+      userId: { $ne: null } // Exclude stories where userId is null
+    };
     
     if (search) {
       query.$or = [
@@ -70,12 +72,15 @@ export async function GET(request: NextRequest) {
       .skip(skip)
       .limit(limit);
 
+    // Additional filter to ensure populated userId is not null
+    const validStories = successStories.filter(story => story.userId !== null);
+
     const total = await SuccessStory.countDocuments(query);
 
     return NextResponse.json({
       success: true,
       data: {
-        successStories,
+        successStories: validStories,
         pagination: {
           page,
           limit,

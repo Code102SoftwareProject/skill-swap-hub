@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
-import ProfileCompletionModal from '@/components/auth/ProfileCompletionModal';
 
 function LoginWithSearchParams() {
   const { useSearchParams } = require('next/navigation');
@@ -39,7 +38,7 @@ const Login = () => {
     password?: string;
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -129,24 +128,41 @@ const Login = () => {
 
   // Google login handler
   const handleGoogleLogin = async (credential: string) => {
+    // Prevent multiple simultaneous Google login requests
+    if (isGoogleLoading) {
+      console.log('Google login already in progress, ignoring...');
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    
     try {
       const result = await googleLogin(credential);
+      
+      console.log('Google login result:', result);
 
       if (result.success) {
-        if (result.needsProfileCompletion) {
-          // Show profile completion modal
-          setShowProfileModal(true);
-        } else {
-          showToast('Google login successful! Redirecting...', 'success');
-          
-          // Check if there's a redirect URL stored
-          const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-          if (redirectUrl) {
-            sessionStorage.removeItem('redirectAfterLogin');
-            router.push(redirectUrl);
-          } else {
-            router.push('/dashboard');
+        // Cancel any remaining Google prompts to prevent additional popups
+        if (window.google?.accounts?.id?.cancel) {
+          try {
+            window.google.accounts.id.cancel();
+          } catch (error) {
+            // Ignore errors if cancel is not available
+            console.log('Google prompt cancel not available');
           }
+        }
+
+        // Google users go directly to dashboard (no profile completion required)
+        console.log('Google login successful, redirecting to dashboard');
+        showToast('Google login successful! Redirecting...', 'success');
+        
+        // Check if there's a redirect URL stored
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectUrl);
+        } else {
+          router.push('/dashboard');
         }
       } else {
         showToast(result.message || 'Google login failed', 'error');
@@ -154,24 +170,13 @@ const Login = () => {
     } catch (error) {
       showToast('An error occurred during Google login. Please try again.', 'error');
       console.error('Google login error:', error);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
   const handleGoogleError = (error: string) => {
     showToast(error, 'error');
-  };
-
-  const handleProfileCompletion = (profileData: { phone: string; title: string }) => {
-    showToast('Profile completed successfully! Redirecting...', 'success');
-    
-    // Check if there's a redirect URL stored
-    const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-    if (redirectUrl) {
-      sessionStorage.removeItem('redirectAfterLogin');
-      router.push(redirectUrl);
-    } else {
-      router.push('/dashboard');
-    }
   };
 
   // Show loading state while checking auth status
@@ -317,6 +322,8 @@ const Login = () => {
               <GoogleLoginButton 
                 onSuccess={handleGoogleLogin}
                 onError={handleGoogleError}
+                disabled={isGoogleLoading}
+                isLoading={isGoogleLoading}
               />
             </div>
           </form>
@@ -325,13 +332,6 @@ const Login = () => {
             <p className="text-sm text-gray-600">Don't have an account? <Link href="/register" className="text-blue-600 hover:text-blue-800">Create an account</Link></p>
             <p className="text-sm text-gray-600 mt-1"><Link href="/" className="text-blue-600 hover:text-blue-800">Back to Homepage</Link></p>
           </div>
-
-          {/* Profile Completion Modal */}
-          <ProfileCompletionModal 
-            isOpen={showProfileModal}
-            onClose={() => setShowProfileModal(false)}
-            onComplete={handleProfileCompletion}
-          />
         </div>
       </div>
     </div>

@@ -8,12 +8,14 @@ interface ProfileCompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onComplete: (profileData: { phone: string; title: string }) => void;
+  onSkip?: () => void; // Add skip functionality
 }
 
 const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
   isOpen,
   onClose,
   onComplete,
+  onSkip,
 }) => {
   const { showToast } = useToast();
   const [formData, setFormData] = useState({
@@ -32,17 +34,14 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
       title?: string;
     } = {};
 
-    // Phone validation
-    if (!formData.phone) {
-      newErrors.phone = 'Phone number is required';
-    } else if (!/^\+?[\d\s-()]{8,}$/.test(formData.phone)) {
+    // Only validate if user is trying to complete (not skip)
+    // Phone validation - make optional for skip
+    if (formData.phone && !/^\+?[\d\s-()]{8,}$/.test(formData.phone)) {
       newErrors.phone = 'Please enter a valid phone number';
     }
 
-    // Title validation
-    if (!formData.title) {
-      newErrors.title = 'Professional title is required';
-    } else if (formData.title.length < 2) {
+    // Title validation - make optional for skip
+    if (formData.title && formData.title.length > 0 && formData.title.length < 2) {
       newErrors.title = 'Professional title must be at least 2 characters';
     }
 
@@ -63,7 +62,26 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    // For completing profile, require both fields
+    const requiredErrors: {
+      phone?: string;
+      title?: string;
+    } = {};
+
+    if (!formData.phone) {
+      requiredErrors.phone = 'Phone number is required';
+    } else if (!/^\+?[\d\s-()]{8,}$/.test(formData.phone)) {
+      requiredErrors.phone = 'Please enter a valid phone number';
+    }
+
+    if (!formData.title) {
+      requiredErrors.title = 'Professional title is required';
+    } else if (formData.title.length < 2) {
+      requiredErrors.title = 'Professional title must be at least 2 characters';
+    }
+
+    if (Object.keys(requiredErrors).length > 0) {
+      setErrors(requiredErrors);
       return;
     }
 
@@ -102,6 +120,14 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
     }
   };
 
+  const handleSkip = () => {
+    showToast('You can complete your profile later from your settings', 'info');
+    if (onSkip) {
+      onSkip();
+    }
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -118,14 +144,14 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
             Complete Your Profile
           </h3>
           <p className="text-sm text-gray-500">
-            Please provide your phone number and professional title to complete your registration.
+            Add your phone number and professional title to help others connect with you. You can skip this step and complete it later from your profile settings.
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-              Phone Number *
+              Phone Number
             </label>
             <input
               type="tel"
@@ -137,7 +163,6 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 errors.phone ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="Enter your phone number"
-              required
             />
             {errors.phone && (
               <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
@@ -146,7 +171,7 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
 
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Professional Title *
+              Professional Title
             </label>
             <input
               type="text"
@@ -158,7 +183,6 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
                 errors.title ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="e.g., Software Developer, Marketing Manager"
-              required
             />
             {errors.title && (
               <p className="mt-1 text-sm text-red-600">{errors.title}</p>
@@ -166,6 +190,13 @@ const ProfileCompletionModal: React.FC<ProfileCompletionModalProps> = ({
           </div>
 
           <div className="flex space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="flex-1 px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              Skip for now
+            </button>
             <button
               type="submit"
               disabled={isLoading}

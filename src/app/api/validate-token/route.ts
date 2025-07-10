@@ -56,7 +56,8 @@ export async function POST(req: Request) {
         firstName: user.firstName,
         lastName: user.lastName,
         email: user.email,
-        title: user.title
+        title: user.title,
+        avatar: user.avatar
       }
     });
   } catch (error) {

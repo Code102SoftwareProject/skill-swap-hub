@@ -12,6 +12,7 @@ interface User {
   lastName: string;
   email: string;
   title: string;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -143,9 +144,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             });
 
             if (response.ok) {
+              const validationData = await response.json();
               // Token is valid
               setToken(storedToken);
-              setUser(JSON.parse(storedUser));
+              // Use the updated user data from server validation instead of localStorage
+              setUser(validationData.user);
+              
+              // Update localStorage with the latest user data
+              localStorage.setItem('user', JSON.stringify(validationData.user));
               
               // Set up automatic timer
               setupSessionTimer(storedToken);
