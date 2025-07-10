@@ -101,7 +101,7 @@ const EnhancedHeroSection = () => {
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
-              <span className="text-sm font-medium text-cyan-100">New Feature</span>
+              <span className="text-sm font-medium text-cyan-100">New Features</span>
             </div>
             <span className="text-sm text-blue-100">Check out the team dashboard</span>
             <ArrowRight className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform" />
