@@ -12,12 +12,14 @@ interface User {
   lastName: string;
   email: string;
   title: string;
+  avatar?: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   login: (email: string, password: string, rememberMe: boolean) => Promise<{ success: boolean; message: string }>;
+  googleLogin: (credential: string) => Promise<{ success: boolean; message: string; needsProfileCompletion?: boolean }>;
   register: (userData: RegisterData) => Promise<{ success: boolean; message: string }>;
   logout: () => void;
   isLoading: boolean;
@@ -142,9 +144,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             });
 
             if (response.ok) {
+              const validationData = await response.json();
               // Token is valid
               setToken(storedToken);
-              setUser(JSON.parse(storedUser));
+              // Use the updated user data from server validation instead of localStorage
+              setUser(validationData.user);
+              
+              // Update localStorage with the latest user data
+              localStorage.setItem('user', JSON.stringify(validationData.user));
               
               // Set up automatic timer
               setupSessionTimer(storedToken);
@@ -220,6 +227,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, message: 'An error occurred during login. Please try again.' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Google login function
+  const googleLogin = async (credential: string): Promise<{ success: boolean; message: string; needsProfileCompletion?: boolean }> => {
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Store token and user
+        localStorage.setItem('auth_token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Update state
+        setToken(data.token);
+        setUser(data.user);
+        
+        // Reset ALL session expiry flags on new login
+        setIsSessionExpired(false);
+        setIsSessionExpiring(false);
+        setHasSessionExpired(false);
+        
+        // Set up automatic timer for new token
+        setupSessionTimer(data.token);
+        
+        return { 
+          success: true, 
+          message: data.message || 'Google login successful',
+          needsProfileCompletion: data.needsProfileCompletion
+        };
+      } else {
+        return { success: false, message: data.message || 'Google login failed' };
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      return { success: false, message: 'An error occurred during Google login. Please try again.' };
     } finally {
       setIsLoading(false);
     }
@@ -346,6 +406,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     user,
     token,
     login,
+    googleLogin,
     register,
     logout,
     isLoading,

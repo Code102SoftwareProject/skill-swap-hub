@@ -8,8 +8,13 @@ export interface IUser extends Document {
   email: string;
   phone: string;
   title: string;
-  password: string;
+  password?: string; // Optional for Google OAuth users
   avatar?: string;
+  // Google OAuth fields
+  googleId?: string;
+  isGoogleUser?: boolean;
+  // Flag to track if user needs to complete profile
+  profileCompleted?: boolean;
   suspension: {
     isSuspended: boolean;
     suspendedAt?: Date;
@@ -25,10 +30,14 @@ const UserSchema: Schema = new Schema<IUser>(
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     email: { type: String, unique: true, required: true, trim: true },
-    phone: { type: String, required: true },
-    title: { type: String, required: true },
-    password: { type: String, required: true },
+    phone: { type: String, required: false }, // Not required for Google OAuth initially
+    title: { type: String, required: false }, // Not required for Google OAuth initially
+    password: { type: String, required: false }, // Not required for Google OAuth
     avatar: { type: String },
+    // Google OAuth fields
+    googleId: { type: String, unique: true, sparse: true }, // sparse allows null/undefined
+    isGoogleUser: { type: Boolean, default: false },
+    profileCompleted: { type: Boolean, default: false },
     suspension: {
       isSuspended: { type: Boolean, default: false },
       suspendedAt: { type: Date },
@@ -44,8 +53,8 @@ const UserSchema: Schema = new Schema<IUser>(
 
 // Hash password before saving
 UserSchema.pre<IUser>("save", async function (next) {
-  // Only hash the password if it has been modified (or is new)
-  if (!this.isModified("password")) return next();
+  // Only hash the password if it exists and has been modified (or is new)
+  if (!this.password || !this.isModified("password")) return next();
 
   try {
     const salt = await bcrypt.genSalt(10);
@@ -57,11 +66,20 @@ UserSchema.pre<IUser>("save", async function (next) {
 });
 
 // Method to compare password for login
-// In userSchema.ts
 UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
+    // If this is a Google OAuth user, they don't have a password
+    if (this.isGoogleUser && !this.password) {
+      return false;
+    }
+    
+    // If no password is set, return false
+    if (!this.password) {
+      return false;
+    }
+
     console.log("Comparing passwords...");
     console.log("Candidate password length:", candidatePassword.length);
     console.log("Stored password hash length:", this.password.length);

@@ -34,7 +34,12 @@ const ResetPassword = () => {
     const storedEmail = localStorage.getItem('resetEmail');
     const storedToken = localStorage.getItem('resetToken');
     
+    console.log('Reset password page loaded');
+    console.log('Stored email:', storedEmail);
+    console.log('Stored token exists:', !!storedToken);
+    
     if (!storedEmail || !storedToken) {
+      console.log('Missing email or token, redirecting to forgot-password');
       setRedirected(true); // Set flag to prevent loop
       showToast('Please complete the verification process first', 'info');
       router.push('/forgot-password');
@@ -44,7 +49,8 @@ const ResetPassword = () => {
     // Validate token with backend
     const validateToken = async () => {
       try {
-        const response = await fetch('/api/validate-token', {
+        console.log('Validating reset token...');
+        const response = await fetch('/api/validate-reset-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -53,15 +59,19 @@ const ResetPassword = () => {
         });
         
         const data = await response.json();
+        console.log('Token validation response:', data);
         
         if (!data.success) {
+          console.log('Token validation failed:', data.message);
           setRedirected(true); // Set flag to prevent loop
-          showToast('Reset token has expired. Please restart the process.', 'error');
+          showToast(data.message || 'Reset token has expired. Please restart the process.', 'error');
           localStorage.removeItem('resetEmail');
           localStorage.removeItem('resetToken');
           router.push('/forgot-password');
           return;
         }
+        
+        console.log('Token validation successful');
       } catch (error) {
         console.error('Error validating token:', error);
         setRedirected(true); // Set flag to prevent loop
@@ -190,6 +200,9 @@ const ResetPassword = () => {
     setIsLoading(true);
 
     try {
+      console.log('Submitting password reset...');
+      console.log('Reset token exists:', !!resetToken);
+      
       const response = await fetch('/api/reset-password', {
         method: 'POST',
         headers: {
@@ -202,6 +215,7 @@ const ResetPassword = () => {
       });
 
       const data = await response.json();
+      console.log('Password reset response:', data);
 
       if (data.success) {
         showToast('Password has been reset successfully!', 'success');
@@ -218,6 +232,7 @@ const ResetPassword = () => {
           router.push('/login');
         }, 2000);
       } else {
+        console.log('Password reset failed:', data.message);
         showToast(data.message || 'Failed to reset password', 'error');
       }
     } catch (error) {
