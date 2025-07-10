@@ -38,9 +38,9 @@ Replace the placeholder values in your `.env` file:
 
 ```env
 # Google OAuth Configuration
-GOOGLE_CLIENT_ID=your-actual-google-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-actual-google-client-secret
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-actual-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here.apps.googleusercontent.com
 ```
 
 ### 5. Test the Integration
