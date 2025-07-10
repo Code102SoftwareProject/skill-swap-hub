@@ -30,7 +30,7 @@ interface SavedPost {
 }
 
 export default function SavedListPage() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const { getWatchedPosts } = useUserPreferences();
   const router = useRouter();
   
@@ -41,8 +41,8 @@ export default function SavedListPage() {
 
   // Fetch saved posts with retry logic
   const fetchSavedPosts = async (isRefresh = false, retryCount = 0) => {
-    // Don't fetch if auth is still loading or user is not available
-    if (authLoading || !user) {
+    // Don't fetch if auth is still loading or user/token is not available
+    if (authLoading || !user || !token) {
       return;
     }
 
@@ -61,9 +61,9 @@ export default function SavedListPage() {
       if (response.success) {
         setSavedPosts(response.data);
         setError(null);
-      } else {
+      } else {        
         // For authentication errors, don't retry automatically
-        if (response.error?.includes('Authentication') || response.error?.includes('log in')) {
+        if (response.error?.includes('Authentication') || response.error?.includes('log in') || response.error?.includes('token')) {
           throw new Error(response.error);
         }
         
@@ -117,14 +117,14 @@ export default function SavedListPage() {
   useEffect(() => {
     // Wait for auth to finish loading before attempting to fetch
     if (!authLoading) {
-      if (user) {
+      if (user && token) {
         fetchSavedPosts();
       } else {
-        // If auth finished loading but no user, stop loading state
+        // If auth finished loading but no user or token, stop loading state
         setLoading(false);
       }
     }
-  }, [user, authLoading]);
+  }, [user, token, authLoading]);
 
   // Show loading while authentication is being determined
   if (authLoading) {
@@ -183,7 +183,7 @@ export default function SavedListPage() {
           </div>
 
           {/* Loading state */}
-          {loading && (
+          {(loading || (user && !token)) && (
             <div className="flex justify-center py-20">
               <div className="relative w-16 h-16">
                 <div className="absolute w-16 h-16 rounded-full border-4 border-blue-100 opacity-30"></div>
@@ -192,8 +192,8 @@ export default function SavedListPage() {
             </div>
           )}
 
-          {/* Error state */}
-          {error && (
+          {/* Error state - but don't show auth errors if we're still setting up */}
+          {error && !(authLoading || (!user || !token)) && (
             <div className="text-center py-10 px-4 bg-red-50 border border-red-100 rounded-lg">
               <p className="text-red-600 mb-4">Error loading saved posts: {error}</p>
               <button
@@ -206,7 +206,7 @@ export default function SavedListPage() {
           )}
 
           {/* Content */}
-          {!loading && !error && (
+          {!loading && !error && user && token && (
             <>
               {savedPosts.length === 0 ? (
                 <motion.div 

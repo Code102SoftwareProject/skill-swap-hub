@@ -25,7 +25,7 @@ interface InteractionData {
 }
 
 export const useUserPreferences = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,25 +37,19 @@ export const useUserPreferences = () => {
   }, []);
 
   // Helper function to get auth headers
-  const getAuthHeaders = () => {
-    // Check if we're on the client side to avoid hydration issues
-    if (typeof window === 'undefined') {
-      throw new Error('Cannot access localStorage during server-side rendering');
-    }
-    
-    const token = localStorage.getItem('auth_token');
-    if (!token || token === 'null' || token === 'undefined') {
+  const getAuthHeaders = (authToken: string) => {
+    if (!authToken || authToken === 'null' || authToken === 'undefined') {
       throw new Error('No valid authentication token found');
     }
     return {
-      'Authorization': `Bearer ${token}`,
+      'Authorization': `Bearer ${authToken}`,
       'Content-Type': 'application/json'
     };
   };
 
   // Fetch user preferences
   const fetchPreferences = useCallback(async () => {
-    if (!user || !mounted) {
+    if (!user || !mounted || !token) {
       setLoading(false);
       return;
     }
@@ -63,7 +57,7 @@ export const useUserPreferences = () => {
     try {
       setLoading(true);
       const response = await fetch('/api/user/preferences', {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(token)
       });
 
       if (response.ok) {
@@ -79,18 +73,18 @@ export const useUserPreferences = () => {
     } finally {
       setLoading(false);
     }
-  }, [user, mounted]); // Dependencies for useCallback
+  }, [user, mounted, token]); // Dependencies for useCallback
 
   // Update preferences
   const updatePreferences = useCallback(async (updates: Partial<UserPreferences>) => {
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
     try {
       const response = await fetch('/api/user/preferences', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify(updates)
       });
 
@@ -106,18 +100,18 @@ export const useUserPreferences = () => {
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
-  }, [mounted, user]);
+  }, [mounted, user, token]);
 
   // Watch/Unwatch post
   const toggleWatchPost = useCallback(async (postId: string, action: 'watch' | 'unwatch') => {
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
     try {
       const response = await fetch('/api/user/watch-posts', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify({ postId, action })
       });
 
@@ -147,19 +141,19 @@ export const useUserPreferences = () => {
       setError(errorMessage);
       return { success: false, error: errorMessage };
     }
-  }, [mounted, user, preferences]);
+  }, [mounted, user, token, preferences]);
 
   // Track interaction
   const trackInteraction = useCallback(async (interactionData: InteractionData) => {
     // Don't track if not mounted (SSR) or user not authenticated
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
     try {
       const response = await fetch('/api/user/interactions', {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: getAuthHeaders(token),
         body: JSON.stringify(interactionData)
       });
 
@@ -180,17 +174,17 @@ export const useUserPreferences = () => {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       return { success: false, error: errorMessage };
     }
-  }, [mounted, user]);
+  }, [mounted, user, token]);
 
   // Get personalized feed
   const getPersonalizedFeed = useCallback(async (page = 1, limit = 10) => {
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
     try {
       const response = await fetch(`/api/user/feed?page=${page}&limit=${limit}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(token)
       });
 
       if (response.ok) {
@@ -205,7 +199,7 @@ export const useUserPreferences = () => {
         error: err instanceof Error ? err.message : 'Unknown error' 
       };
     }
-  }, [mounted, user]);
+  }, [mounted, user, token]);
 
   // Check if post is watched
   const isPostWatched = useCallback((postId: string): boolean => {
@@ -215,15 +209,18 @@ export const useUserPreferences = () => {
 
   // Get watched posts
   const getWatchedPosts = useCallback(async () => {
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
+
+    // Add small delay to ensure token is available
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     try {
       // Get auth headers and handle token issues gracefully
       let headers;
       try {
-        headers = getAuthHeaders();
+        headers = getAuthHeaders(token);
       } catch (authError) {
         return { 
           success: false, 
@@ -253,7 +250,7 @@ export const useUserPreferences = () => {
         error: err instanceof Error ? err.message : 'Unknown error occurred while fetching saved posts' 
       };
     }
-  }, [mounted, user]);
+  }, [mounted, user, token]);
 
   // Add forum to interests based on user behavior (when they watch posts from a forum)
   const addForumInterest = useCallback(async (forumId: string) => {
@@ -267,7 +264,7 @@ export const useUserPreferences = () => {
 
   // Get feed with enhanced customization
   const getCustomizedFeed = useCallback(async (page = 1, limit = 10, includeWatched = false) => {
-    if (!mounted || !user) {
+    if (!mounted || !user || !token) {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
@@ -279,7 +276,7 @@ export const useUserPreferences = () => {
       });
 
       const response = await fetch(`/api/user/feed?${params}`, {
-        headers: getAuthHeaders()
+        headers: getAuthHeaders(token)
       });
 
       if (response.ok) {
@@ -294,7 +291,7 @@ export const useUserPreferences = () => {
         error: err instanceof Error ? err.message : 'Unknown error' 
       };
     }
-  }, [mounted, user]);
+  }, [mounted, user, token]);
 
   // Enhanced interaction tracking that also updates user interests
   const trackInteractionWithLearning = useCallback(async (interactionData: InteractionData) => {
@@ -313,7 +310,7 @@ export const useUserPreferences = () => {
   // Initialize preferences on mount
   useEffect(() => {
     fetchPreferences();
-  }, [user, mounted]);
+  }, [user, mounted, token]);
 
   return {
     preferences,
