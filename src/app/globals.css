@@ -5,13 +5,19 @@
 @tailwind components;
 @tailwind utilities;
 
-
 :root {
   --primary:#0369A1;
   --secondary: #BAE6FD;
   --grayfill:#F7F7F7;
   --textcolor: #000000;
   --bgcolor:#ffffff;
+  
+  /* Blue theme colors for consistency */
+  --brand-blue: #006699;
+  --brand-blue-light: #0891b2;
+  --brand-blue-dark: #155e75;
+  --brand-cyan: #22d3ee;
+  --brand-cyan-light: #67e8f9;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -43,6 +49,85 @@ body {
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(to bottom, #94a3b8, #64748b);
+}
+
+/* Glassmorphism effects for blue theme */
+.glass-blue {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-blue-dark {
+  background: rgba(0, 102, 153, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+/* Animated gradient backgrounds */
+.bg-blue-flow {
+  background: linear-gradient(-45deg, #006699, #0891b2, #22d3ee, #67e8f9);
+  background-size: 400% 400%;
+  animation: gradientFlow 15s ease infinite;
+}
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Floating animation for decorative elements */
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+/* Pulsing glow effect */
+.pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes pulseGlow {
+  from {
+    box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+  }
+  to {
+    box-shadow: 0 0 40px rgba(34, 211, 238, 0.6);
+  }
+}
+
+/* Line clamp utilities for consistent text truncation */
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 /* Quill Editor Styles */
@@ -190,4 +275,49 @@ body {
 .prose [style*="background-color"] {
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
+}
+
+/* Blue theme card hover effects */
+.card-hover-blue {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover-blue:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(34, 211, 238, 0.1), 0 10px 10px -5px rgba(34, 211, 238, 0.04);
+}
+
+/* Consistent button styles */
+.btn-primary-blue {
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-light));
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary-blue:hover {
+  background: linear-gradient(135deg, var(--brand-blue-dark), var(--brand-blue));
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 102, 153, 0.3);
+}
+
+.btn-secondary-blue {
+  background: transparent;
+  color: var(--brand-cyan);
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  border: 2px solid var(--brand-cyan);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-secondary-blue:hover {
+  background: var(--brand-cyan);
+  color: var(--brand-blue);
+  transform: translateY(-2px);
 }

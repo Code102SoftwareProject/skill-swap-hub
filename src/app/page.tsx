@@ -19,13 +19,13 @@ export default function Home() {
         <HeroSection />
       </div>
       
-      {/* Trending Skills Section */}
+      {/* Trending Skills Section - Now with consistent blue theme */}
       <TrendingSkills />
       
       {/* Chatbot */}
       <Chatbot />
       
-      {/* Success Stories */}
+      {/* Success Stories - Now with consistent blue theme */}
       <SuccessStoriesCarousel />
       
       {/* Footer */}
