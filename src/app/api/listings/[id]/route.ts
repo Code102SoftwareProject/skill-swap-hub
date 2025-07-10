@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import dbConnect from '@/lib/db';
 import SkillListing from '@/lib/models/skillListing';
+import SkillMatch from '@/lib/models/skillMatch';
 import mongoose from 'mongoose';
 
 // Helper function to get user ID from the token
@@ -22,6 +23,38 @@ function getUserIdFromToken(req: NextRequest): string | null {
   } catch (error) {
     console.error('Error decoding token:', error);
     return null;
+  }
+}
+
+// Helper function to check if listing is used in active matches
+async function isListingUsedInMatches(listingId: string): Promise<{ isUsed: boolean; matchDetails: any[] }> {
+  try {
+    const activeMatches = await SkillMatch.find({
+      $and: [
+        {
+          $or: [
+            { listingOneId: listingId },
+            { listingTwoId: listingId }
+          ]
+        },
+        {
+          status: { $in: ['pending', 'accepted'] } // Only active matches
+        }
+      ]
+    });
+    
+    const matchDetails = activeMatches.map(match => ({
+      matchId: match.id,
+      matchType: match.matchType,
+      status: match.status,
+      matchPercentage: match.matchPercentage,
+      otherListingId: match.listingOneId === listingId ? match.listingTwoId : match.listingOneId
+    }));
+    
+    return { isUsed: activeMatches.length > 0, matchDetails };
+  } catch (error) {
+    console.error('Error checking listing usage in matches:', error);
+    return { isUsed: false, matchDetails: [] };
   }
 }
 
@@ -58,9 +91,14 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
         }, { status: 404 });
       }
       
+      // Check if listing is used in matches (for information purposes)
+      const matchUsage = await isListingUsedInMatches(id);
+      
       return NextResponse.json({ 
         success: true, 
-        data: listing 
+        data: listing,
+        isUsedInMatches: matchUsage.isUsed,
+        matchDetails: matchUsage.matchDetails
       });
     }
     
@@ -81,6 +119,17 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
           success: false, 
           message: 'You do not have permission to modify this listing' 
         }, { status: 403 });
+      }
+      
+      // Check if listing is used in active matches (for protection)
+      const matchUsage = await isListingUsedInMatches(id);
+      if (matchUsage.isUsed) {
+        const matchStatuses = matchUsage.matchDetails.map(m => `${m.matchType} (${m.status})`).join(', ');
+        return NextResponse.json({
+          success: false,
+          message: `This listing cannot be modified because it is involved in active skill matches: ${matchStatuses}. Please complete or cancel the matches first.`,
+          matchDetails: matchUsage.matchDetails
+        }, { status: 400 });
       }
       
       // DELETE operation
@@ -105,9 +154,16 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
           }, { status: 400 });
         }
         
-        // Log what's being updated
         console.log('Updating listing:', id);
         console.log('Update data:', JSON.stringify(data, null, 2));
+        
+        // Validate status if provided
+        if (data.status && !['active', 'not active'].includes(data.status)) {
+          return NextResponse.json({ 
+            success: false, 
+            message: 'Invalid status. Must be "active" or "not active"' 
+          }, { status: 400 });
+        }
         
         // Validate offering and seeking if provided
         if (data.offering) {
@@ -135,6 +191,9 @@ async function handleListingOperation(request: NextRequest, id: string, operatio
             .map((tag: string) => tag.trim())
             .filter(Boolean);
         }
+        
+        // Add updatedAt timestamp
+        data.updatedAt = new Date();
         
         const updatedListing = await SkillListing.findByIdAndUpdate(
           id,

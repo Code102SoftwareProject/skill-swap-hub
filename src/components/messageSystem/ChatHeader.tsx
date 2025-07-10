@@ -6,15 +6,18 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
 import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
+import { hasActiveOrPendingSessions, hasUpcomingOrPendingMeetings } from "@/services/sessionApiServices";
 
 interface ChatHeaderProps {
   chatRoomId: string;
   userId: string;
   onToggleMeetings: (show: boolean) => void;
   onToggleSessions: (show: boolean) => void;
+  onSessionUpdate?: () => void; // Add callback for session updates
   initialParticipantInfo?: { id: string, name: string };
   showingMeetings?: boolean;
   showingSessions?: boolean;
+  sessionUpdateTrigger?: number; // Trigger to refresh session status
 }
 
 export default function ChatHeader({ 
@@ -22,15 +25,19 @@ export default function ChatHeader({
   userId, 
   onToggleMeetings,
   onToggleSessions,
+  onSessionUpdate,
   initialParticipantInfo,
   showingMeetings = false,
-  showingSessions = false
+  showingSessions = false,
+  sessionUpdateTrigger = 0
 }: ChatHeaderProps) {
   const { socket } = useSocket();
   
   const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
+  const [hasActiveSessions, setHasActiveSessions] = useState(false);
+  const [hasActiveMeetings, setHasActiveMeetings] = useState(false);
   
   const [otherUserName, setOtherUserName] = useState<string | null>(
     initialParticipantInfo?.name || "Chat Participant"
@@ -115,11 +122,55 @@ export default function ChatHeader({
     }
   };
 
+  const checkActiveSessions = async () => {
+    try {
+      const hasActivePendingSessions = await hasActiveOrPendingSessions(userId);
+      setHasActiveSessions(hasActivePendingSessions);
+    } catch (error) {
+      console.error('Error checking active sessions:', error);
+      setHasActiveSessions(false);
+    }
+  };
+
+  const checkActiveMeetings = async () => {
+    try {
+      const hasActivePendingMeetings = await hasUpcomingOrPendingMeetings(userId);
+      setHasActiveMeetings(hasActivePendingMeetings);
+    } catch (error) {
+      console.error('Error checking active meetings:', error);
+      setHasActiveMeetings(false);
+    }
+  };
+
   useEffect(() => {
     if (otherUserId && socket) {
       socket.emit("get_online_users");
     }
   }, [otherUserId, socket]);
+
+  // Check for active/pending sessions when component mounts or userId changes
+  useEffect(() => {
+    if (userId) {
+      checkActiveSessions();
+      checkActiveMeetings();
+      
+      // Set up periodic refresh every 60 seconds (reduced from 30)
+      const interval = setInterval(() => {
+        checkActiveSessions();
+        checkActiveMeetings();
+      }, 60000);
+
+      return () => clearInterval(interval);
+    }
+  }, [userId]);
+
+  // React to session update trigger changes
+  useEffect(() => {
+    if (sessionUpdateTrigger > 0) {
+      checkActiveSessions();
+      checkActiveMeetings();
+    }
+  }, [sessionUpdateTrigger]);
 
   useEffect(() => {
     if (!socket || !otherUserId) return;
@@ -216,10 +267,18 @@ export default function ChatHeader({
 
   const handleToggleMeetings = () => {
     onToggleMeetings(!showingMeetings);
+    // Refresh active meetings check when toggling meetings view
+    if (!showingMeetings) {
+      checkActiveMeetings();
+    }
   };
 
   const handleToggleSessions = () => {
     onToggleSessions(!showingSessions);
+    // Refresh active sessions check when toggling sessions view
+    if (!showingSessions) {
+      checkActiveSessions();
+    }
   };
 
   return (
@@ -245,19 +304,29 @@ export default function ChatHeader({
         
         {/* Session Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          className={`relative flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleSessions}
         >
-          <BookOpen className="h-5 w-5 mb-1" />
+          <div className="relative">
+            <BookOpen className="h-5 w-5 mb-1" />
+            {hasActiveSessions && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+            )}
+          </div>
           <span className="text-xs font-body hidden md:block">Sessions</span>
         </button>
 
         {/* Meetings Button */}
         <button 
-          className={`flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          className={`relative flex flex-col items-center text-white ${showingMeetings ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
           onClick={handleToggleMeetings}
         >
-          <Calendar className="h-5 w-5 mb-1" />
+          <div className="relative">
+            <Calendar className="h-5 w-5 mb-1" />
+            {hasActiveMeetings && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white"></div>
+            )}
+          </div>
           <div className="flex items-center">
             <span className="text-xs font-body hidden md:block">Meetings</span>
           </div>

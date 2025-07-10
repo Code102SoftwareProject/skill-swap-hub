@@ -63,10 +63,10 @@ export async function POST(request: NextRequest) {
     
     await dbConnect();
     
-    // Get all active listings by the current user
+    // Get all active listings by the current user (only 'active' status)
     const userListings = await SkillListing.find({ 
       userId, 
-      status: 'active' 
+      status: 'active' // Only consider active listings for matching
     });
     
     if (userListings.length === 0) {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       // Exact matches: My offering matches their seeking AND my seeking matches their offering
       const exactMatches = await SkillListing.find({
         userId: { $ne: userId },  // Not my own listings
-        status: 'active',         // Only active listings
+        status: 'active',         // Only active listings (simplified status)
         'offering.skillTitle': userListing.seeking.skillTitle,  // Their offering is what I seek
         'seeking.skillTitle': userListing.offering.skillTitle   // They seek what I offer
       }).populate({
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
       // but not both (otherwise it would be an exact match)
       const potentialPartialMatches = await SkillListing.find({
         userId: { $ne: userId },  // Not my own listings
-        status: 'active',         // Only active listings
+        status: 'active',         // Only active listings (simplified status)
         $or: [
           { 'offering.skillTitle': userListing.seeking.skillTitle },  // Their offering is what I seek
           { 'seeking.skillTitle': userListing.offering.skillTitle }   // They seek what I offer

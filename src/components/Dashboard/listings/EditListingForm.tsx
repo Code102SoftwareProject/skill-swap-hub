@@ -1,3 +1,4 @@
+// File: src/components/Dashboard/listings/EditListingForm.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -56,7 +57,7 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
   const [description, setDescription] = useState(listing.additionalInfo.description || '');
   const [availability, setAvailability] = useState(listing.additionalInfo.availability || '');
   const [tags, setTags] = useState('');
-  const [status, setStatus] = useState<'active' | 'matched' | 'completed' | 'cancelled'>(listing.status);
+  const [status, setStatus] = useState<'active' | 'not active'>(listing.status); // Updated for simplified status
   
   // Form validation errors
   const [errors, setErrors] = useState({
@@ -159,42 +160,41 @@ const EditListingForm: React.FC<EditListingFormProps> = ({ listing, onSuccess, o
     loadSkillsForSeekingCategory();
   }, [seekingCategoryId, showToast]);
 
-// Update to the handleUserSkillChange function in EditListingForm.tsx
-
-// Handle user skill selection
-const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-  const skillId = e.target.value;
-  setSelectedUserSkill(skillId);
-  
-  if (skillId) {
-    const skill = userSkills.find(s => s.id === skillId);
-    if (skill) {
+  // Handle user skill selection
+  const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const skillId = e.target.value;
+    setSelectedUserSkill(skillId);
+    
+    if (skillId) {
+      const skill = userSkills.find(s => s.id === skillId);
+      if (skill) {
+        setOfferingData({
+          skillId: skill.id,  // Make sure to store the skillId explicitly
+          categoryId: skill.categoryId,
+          categoryName: skill.categoryName,
+          skillTitle: skill.skillTitle,
+          proficiencyLevel: skill.proficiencyLevel,
+          description: skill.description
+        });
+      }
+    } else {
+      // Keep current data if no skill is selected
       setOfferingData({
-        skillId: skill.id,  // Make sure to store the skillId explicitly
-        categoryId: skill.categoryId,
-        categoryName: skill.categoryName,
-        skillTitle: skill.skillTitle,
-        proficiencyLevel: skill.proficiencyLevel,
-        description: skill.description
+        ...offeringData,
+        skillId: ''
       });
     }
-  } else {
-    // Keep current data if no skill is selected
-    setOfferingData({
-      ...offeringData,
-      skillId: ''
-    });
-  }
-  
-  // Clear errors
-  setErrors(prev => ({
-    ...prev,
-    offering: {
-      ...prev.offering,
-      userSkill: ''
-    }
-  }));
-};
+    
+    // Clear errors
+    setErrors(prev => ({
+      ...prev,
+      offering: {
+        ...prev.offering,
+        userSkill: ''
+      }
+    }));
+  };
+
   // Handle seeking category change
   const handleSeekingCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const categoryId = parseInt(e.target.value);
@@ -581,7 +581,7 @@ const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
           <p className="text-sm text-gray-600 mt-1">Separate tags with commas (e.g., online, flexible, beginner-friendly)</p>
         </div>
         
-        {/* Status */}
+        {/* Status - Updated for simplified system */}
         <div className="mb-4">
           <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
             Listing Status
@@ -590,13 +590,11 @@ const handleUserSkillChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
             id="status"
             className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-800 appearance-none"
             value={status}
-            onChange={(e) => setStatus(e.target.value as 'active' | 'matched' | 'completed' | 'cancelled')}
+            onChange={(e) => setStatus(e.target.value as 'active' | 'not active')}
             disabled={submitting}
           >
             <option value="active" className="text-gray-800">Active</option>
-            <option value="matched" className="text-gray-800">Matched</option>
-            <option value="completed" className="text-gray-800">Completed</option>
-            <option value="cancelled" className="text-gray-800">Cancelled</option>
+            <option value="not active" className="text-gray-800">Not Active</option>
           </select>
         </div>
       </div>

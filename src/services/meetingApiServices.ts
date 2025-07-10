@@ -1,4 +1,6 @@
 import Meeting from "@/types/meeting";
+import { debouncedApiService } from './debouncedApiService';
+import { invalidateMeetingCache, invalidateUsersCaches } from './sessionApiServices';
 
 /**
  ** Fetch meetings between two users
@@ -9,18 +11,21 @@ import Meeting from "@/types/meeting";
  *          or an empty array if the request fails
  */
 export async function fetchMeetings(userId: string, otherUserId: string): Promise<Meeting[]> {
-  try {
-    const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`);
-    
-    if (!response.ok) {
-      throw new Error(`Error fetching meetings: ${response.status}`);
-    }
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Error fetching meetings:', error);
-    return [];
-  }
+  const cacheKey = `meetings-${userId}-${otherUserId}`;
+  
+  return debouncedApiService.makeRequest(
+    cacheKey,
+    async () => {
+      const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching meetings: ${response.status}`);
+      }
+      
+      return await response.json();
+    },
+    15000 // 15 second cache
+  );
 }
 
 /**
@@ -51,7 +56,12 @@ export async function createMeeting(meetingData: {
       throw new Error(`Error creating meeting: ${response.status}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    
+    // Invalidate cache for both users
+    invalidateUsersCaches(meetingData.senderId, meetingData.receiverId);
+    
+    return result;
   } catch (error) {
     console.error('Error creating meeting:', error);
     return null;
@@ -71,41 +81,48 @@ export async function createMeeting(meetingData: {
  */
 export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel'): Promise<Meeting | null> {
   try {
+    let response: Response;
+    
     // Use dedicated reject endpoint for rejections
     if (action === 'reject') {
-      const response = await fetch('/api/meeting/reject', {
+      response = await fetch('/api/meeting/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ meetingId }),
       });
+    } else {
+      // For other actions, use the existing PATCH endpoint
+      const body: any = { _id: meetingId };
       
-      if (!response.ok) {
-        throw new Error(`Error rejecting meeting: ${response.status}`);
+      if (action === 'accept') {
+        body.acceptStatus = true;
+      } else if (action === 'cancel') {
+        body.state = 'cancelled';
       }
       
-      return await response.json();
+      response = await fetch('/api/meeting', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
     }
-    
-    // For other actions, use the existing PATCH endpoint
-    const body: any = { _id: meetingId };
-    
-    if (action === 'accept') {
-      body.acceptStatus = true;
-    } else if (action === 'cancel') {
-      body.state = 'cancelled';
-    }
-    
-    const response = await fetch('/api/meeting', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
     
     if (!response.ok) {
       throw new Error(`Error updating meeting: ${response.status}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    
+    // Get meeting details to invalidate cache for both users
+    if (result && (result.senderId || result.receiverId)) {
+      const senderId = result.senderId?._id || result.senderId;
+      const receiverId = result.receiverId?._id || result.receiverId;
+      if (senderId && receiverId) {
+        invalidateUsersCaches(senderId, receiverId);
+      }
+    }
+    
+    return result;
   } catch (error) {
     console.error(`Error ${action}ing meeting:`, error);
     return null;
@@ -140,24 +157,27 @@ export async function fetchUpcomingMeetingsCount(userId: string, otherUserId: st
 }
 
 /**
- ** Fetch all meetings for a specific user
+ ** Fetch all meetings for a specific user (cached)
  * 
  * @param userId - ID of the user
  * @returns Promise that resolves to an array of Meeting objects for the specified user,
  *          or an empty array if the request fails
  */
 export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> => {
-  try {
-    const response = await fetch(`/api/meeting?userId=${userId}`);
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error ${response.status}`);
-    }
-    
-    const data = await response.json();
-    return data || [];
-  } catch (error) {
-    console.error('Error in fetchAllUserMeetings:', error);
-    return [];
-  }
+  const cacheKey = `user-meetings-${userId}`;
+  
+  return debouncedApiService.makeRequest(
+    cacheKey,
+    async () => {
+      const response = await fetch(`/api/meeting?userId=${userId}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data || [];
+    },
+    10000 // 10 second cache
+  );
 };

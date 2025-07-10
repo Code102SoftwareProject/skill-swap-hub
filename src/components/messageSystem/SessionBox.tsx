@@ -8,6 +8,8 @@ import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
 import CounterOfferModal from '@/components/sessionSystem/CounterOfferModal';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import { invalidateUsersCaches } from '@/services/sessionApiServices';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface UserProfile {
   _id: string;
@@ -28,6 +30,7 @@ interface Session {
   descriptionOfService1: string;
   descriptionOfService2: string;
   startDate: string;
+  expectedEndDate?: string;
   isAccepted: boolean | null;
   isAmmended: boolean;
   status: "active" | "completed" | "canceled" | "pending" | "rejected";
@@ -63,10 +66,11 @@ interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
+  onSessionUpdate?: () => void; // Callback to notify parent about session changes
   // Remove otherUserName since we'll fetch it
 }
 
-export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionBoxProps) {
+export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionUpdate }: SessionBoxProps) {
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [counterOffers, setCounterOffers] = useState<{ [sessionId: string]: CounterOffer[] }>({});
@@ -238,6 +242,11 @@ export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionB
         
         // Fetch counter offers for each session
         await fetchCounterOffers(data.sessions);
+        
+        // Notify parent component about session updates
+        if (onSessionUpdate) {
+          onSessionUpdate();
+        }
       }
     } catch (error) {
       console.error('Error fetching sessions:', error);
@@ -287,6 +296,9 @@ export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionB
         // Refresh sessions to show updated status
         fetchSessions();
         showAlert('success', `Session ${action}ed successfully!`);
+        
+        // Invalidate cache for both users
+        invalidateUsersCaches(userId, otherUserId);
       } else {
         showAlert('error', data.message || `Failed to ${action} session`);
       }
@@ -640,17 +652,22 @@ export default function SessionBox({ chatRoomId, userId, otherUserId }: SessionB
   }
 
   const otherUserName = getUserDisplayName(otherUser);
+  const processedAvatarUrl = processAvatarUrl(otherUser.avatar);
 
   return (
     <div className="p-4 h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          {otherUser.avatar && (
+          {processedAvatarUrl && (
             <img 
-              src={otherUser.avatar} 
+              src={processedAvatarUrl} 
               alt={otherUserName}
               className="w-10 h-10 rounded-full object-cover"
+              onError={(e) => {
+                // Hide image on error
+                e.currentTarget.style.display = 'none';
+              }}
             />
           )}
           <div>

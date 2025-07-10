@@ -140,7 +140,7 @@ export async function POST(req: Request) {
         .filter(Boolean);
     }
     
-    // Create the new listing
+    // Create the new listing with default 'active' status
     const newListing = new SkillListing({
       userId,
       userDetails: {
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
       offering,
       seeking,
       additionalInfo,
-      status: 'active'
+      status: 'active' // Default to active status
     });
     
     await newListing.save();

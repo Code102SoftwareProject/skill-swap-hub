@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  MessageSquare,
-  Bell,
-  ChevronDown,
-  User,
-  MessageCircle,
-} from "lucide-react";
+import { Bell, ChevronDown, User, MessageCircle } from "lucide-react";
 
 interface AdminNavbarProps {
   adminData?: {
@@ -33,13 +27,6 @@ const AdminNavbar = ({ adminData }: AdminNavbarProps) => {
 
         {/* Right Icons */}
         <div className="flex items-center gap-4">
-          {/* Messages */}
-          <Link href="/">
-            <div className="p-2  rounded-md shadow-sm hover:bg-blue-900 transition">
-              <MessageSquare size={24} className="text-white " fill="white" />
-            </div>
-          </Link>
-
           {/* Admin Profile */}
           <div className="flex items-center gap-2 px-3 py-1 rounded-full shadow-sm hover:bg-blue-900 hover:text-black cursor-pointer">
             <User size={24} className="text-white" fill="white" />
