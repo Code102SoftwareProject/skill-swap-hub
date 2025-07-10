@@ -126,7 +126,6 @@ export default function SavedListPage() {
       } else {
         // If auth finished loading but no user or token, stop loading state
         setLoading(false);
-        setError(null); // Clear any previous errors when user is not authenticated
       }
     }
   }, [user, token, authLoading]);
