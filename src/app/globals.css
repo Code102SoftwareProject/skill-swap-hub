@@ -12,6 +12,10 @@
   --textcolor: #000000;
   --bgcolor:#ffffff;
   
+  /* Light mode colors */
+  --background: #ffffff;
+  --foreground: #000000;
+  
   /* Blue theme colors for consistency */
   --brand-blue: #006699;
   --brand-blue-light: #0891b2;
