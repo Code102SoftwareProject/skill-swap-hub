@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
-import { X, FileText, MessageSquare, Loader2, Clock } from 'lucide-react';
+import { X, FileText, MessageSquare, Loader2, Clock, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -98,6 +98,11 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleViewAllForums = () => {
+    handleClose();
+    router.push('/forum');
+  };
+
   const handleResultClick = (result: IForum) => {
     handleClose();
     router.push(`/forum/${result._id}`);
@@ -123,7 +128,16 @@ const SearchPopup: React.FC<SearchPopupProps> = ({ isOpen, onClose }) => {
           >
             <div className="p-4 relative">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl text-black font-semibold">Search Forums</h2>
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl text-black font-semibold">Search Forums</h2>
+                  <button
+                    onClick={handleViewAllForums}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200 border border-blue-200 hover:border-blue-300"
+                  >
+                    View All Forums
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
                 <button
                   onClick={handleClose}
                   className="hover:bg-gray-100 p-2 rounded-full transition-colors duration-200"

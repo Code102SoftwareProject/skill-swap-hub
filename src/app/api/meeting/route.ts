@@ -43,10 +43,10 @@ const generateZoomAccessToken = async () => {
 /**
  * *Function to create a Zoom Meeting
  * @param {string} zoomAccessToken - Zoom Access Token
+ * @param {Date} meetingTime - Time when the meeting should start
  * @returns {string} - Zoom Meeting Link
  */
-
-const createZoomMeeting = async (zoomAccessToken: string) => {
+const createZoomMeeting = async (zoomAccessToken: string, meetingTime: Date) => {
   const response = await fetch(
     `https://api.zoom.us/v2/users/me/meetings`,
     {
@@ -59,7 +59,7 @@ const createZoomMeeting = async (zoomAccessToken: string) => {
         topic: "Meeting Topic",
         agenda: "Meeting Agenda",
         type: 2, // Scheduled meeting
-        start_time: new Date().toISOString(), // Or pass the actual meeting time
+        start_time: new Date(meetingTime).toISOString(), // Use the scheduled meeting time
         duration: 30, // Meeting duration in minutes
         password: "12345",
         settings: {
@@ -113,6 +113,11 @@ export async function POST(req: Request) {
   }
 }
 
+
+
+/*
+ ! Patch where zoom link is created
+*/
 export async function PATCH(req: Request) {
   await connect();
   try {
@@ -123,16 +128,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
     }
 
-    // Handle acceptance of pending meetings
+    // ! Handle acceptance of pending meetings
     if (meeting.state === "pending" && meetingData.acceptStatus) {
       const zoomAccessToken = await generateZoomAccessToken();
-      const zoomMeetingLink = await createZoomMeeting(zoomAccessToken);
+      const zoomMeetingLink = await createZoomMeeting(zoomAccessToken, meeting.meetingTime);
 
       meeting.state = "accepted";
       meeting.meetingLink = zoomMeetingLink;
       meeting.acceptStatus = true;
     }
-    // Handle other state changes
+    // ! Handle other state changes
     else if (meetingData.state && meeting.state === "accepted") {
       meeting.state = meetingData.state;
     }

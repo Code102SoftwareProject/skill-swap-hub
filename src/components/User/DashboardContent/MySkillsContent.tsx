@@ -1,13 +1,15 @@
+// File: src/components/User/DashboardContent/MySkillsContent.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { getUserSkills, deleteUserSkill, getSkillsUsedInListings } from '@/services/skillService';
+import { getUserSkills, deleteUserSkill } from '@/services/skillService';
+import { getSkillsUsedInMatches } from '@/services/trendingService';
 import { UserSkill } from '@/types/userSkill';
 import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
 import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
-import { Info } from 'lucide-react';
+import { Info, AlertTriangle, Users, Calendar } from 'lucide-react';
 
 const SkillsPage = () => {
   const { showToast } = useToast();
@@ -21,8 +23,9 @@ const SkillsPage = () => {
   const [deletingSkillId, setDeletingSkillId] = useState<string | null>(null);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
 
-  // Skills used in listings
+  // Skills used in listings and matches
   const [usedSkillIds, setUsedSkillIds] = useState<string[]>([]);
+  const [matchUsedSkills, setMatchUsedSkills] = useState<any>(null);
 
   // Fetch user skills and used skill IDs on component mount
   useEffect(() => {
@@ -36,8 +39,16 @@ const SkillsPage = () => {
       // Fetch skills
       const skillsResponse = await getUserSkills();
       
-      // Fetch skills used in listings
-      const usedSkillsResponse = await getSkillsUsedInListings();
+      // Fetch skills used in listings (existing functionality)
+      const usedSkillsResponse = await fetch('/api/myskills/used-in-listings', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      const usedSkillsData = await usedSkillsResponse.json();
+      
+      // Fetch skills used in matches (new functionality)
+      const matchUsedResponse = await getSkillsUsedInMatches();
       
       if (skillsResponse.success && skillsResponse.data) {
         setSkills(skillsResponse.data as UserSkill[]);
@@ -45,8 +56,12 @@ const SkillsPage = () => {
         showToast(skillsResponse.message || 'Failed to load skills', 'error');
       }
       
-      if (usedSkillsResponse.success && usedSkillsResponse.data) {
-        setUsedSkillIds(usedSkillsResponse.data as string[]);
+      if (usedSkillsData.success && usedSkillsData.data) {
+        setUsedSkillIds(usedSkillsData.data as string[]);
+      }
+      
+      if (matchUsedResponse.success && matchUsedResponse.data) {
+        setMatchUsedSkills(matchUsedResponse.data);
       }
     } catch (error) {
       console.error('Error in fetchUserData:', error);
@@ -61,11 +76,39 @@ const SkillsPage = () => {
     return usedSkillIds.includes(skillId);
   };
 
+  // Check if a skill is used in active matches
+  const isSkillUsedInMatches = (skillId: string) => {
+    return matchUsedSkills?.usedSkillIds?.includes(skillId) || false;
+  };
+
+  // Get match details for a skill
+  const getSkillMatchDetails = (skillTitle: string) => {
+    if (!matchUsedSkills?.matchDetails) return [];
+    return matchUsedSkills.matchDetails.filter((match: any) => 
+      match.usedSkills.includes(skillTitle)
+    );
+  };
+
+  // Check if skill can be modified (not in listings or matches)
+  const canModifySkill = (skillId: string) => {
+    return !isSkillUsedInListing(skillId) && !isSkillUsedInMatches(skillId);
+  };
+
   // Handle skill deletion confirmation
   const confirmDeleteSkill = (skillId: string) => {
+    const skill = skills.find(s => s.id === skillId);
+    if (!skill) return;
+
     // Check if skill can be deleted
     if (isSkillUsedInListing(skillId)) {
       showToast('This skill cannot be deleted because it is used in a listing', 'error');
+      return;
+    }
+
+    if (isSkillUsedInMatches(skillId)) {
+      const matchDetails = getSkillMatchDetails(skill.skillTitle);
+      const matchTypes = matchDetails.map((m: any) => m.matchType).join(', ');
+      showToast(`This skill cannot be deleted because it is used in active skill matches (${matchTypes})`, 'error');
       return;
     }
     
@@ -123,6 +166,13 @@ const SkillsPage = () => {
       showToast('This skill cannot be edited because it is used in a listing', 'error');
       return;
     }
+
+    if (isSkillUsedInMatches(skill.id)) {
+      const matchDetails = getSkillMatchDetails(skill.skillTitle);
+      const matchTypes = matchDetails.map((m: any) => m.matchType).join(', ');
+      showToast(`This skill cannot be edited because it is used in active skill matches (${matchTypes})`, 'error');
+      return;
+    }
     
     setEditingSkill(skill);
   };
@@ -138,19 +188,50 @@ const SkillsPage = () => {
     return text.slice(0, maxLength) + '...';
   };
 
+  // Get skill status indicators
+  const getSkillStatusIndicators = (skill: UserSkill) => {
+    const indicators = [];
+    
+    if (isSkillUsedInListing(skill.id)) {
+      indicators.push({
+        type: 'listing',
+        color: 'blue',
+        text: 'Used in listing'
+      });
+    }
+    
+    if (isSkillUsedInMatches(skill.id)) {
+      const matchDetails = getSkillMatchDetails(skill.skillTitle);
+      indicators.push({
+        type: 'match',
+        color: 'purple',
+        text: `Used in ${matchDetails.length} active match${matchDetails.length > 1 ? 'es' : ''}`
+      });
+    }
+    
+    return indicators;
+  };
+
   // Render skill card - matching your screenshot exactly
   const renderSkillCard = (skill: UserSkill) => {
-    const isUsed = isSkillUsedInListing(skill.id);
+    const isUsedInListing = isSkillUsedInListing(skill.id);
+    const isUsedInMatch = isSkillUsedInMatches(skill.id);
+    const canModify = canModifySkill(skill.id);
+    const statusIndicators = getSkillStatusIndicators(skill);
     
     return (
       <div 
         key={skill.id} 
-        className={`bg-white rounded-lg shadow-sm w-full h-[150px] ${isUsed ? 'border-l-4 border-l-blue-500' : 'border border-gray-100'}`}
+        className={`bg-white rounded-lg shadow-sm w-full h-[170px] relative ${
+          isUsedInListing ? 'border-l-4 border-l-blue-500' : 
+          isUsedInMatch ? 'border-l-4 border-l-purple-500' : 
+          'border border-gray-100'
+        }`}
       >
         <div className="px-5 py-5 h-full flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <h3 className="text-lg font-semibold text-blue-700">{truncateText(skill.skillTitle, 14)}</h3>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`inline-block px-2.5 py-0.5 text-xs rounded-full font-medium ${
                 skill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
                 skill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
@@ -159,13 +240,39 @@ const SkillsPage = () => {
                 {skill.proficiencyLevel}
               </span>
               
-              {isUsed && (
-                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
+              {/* Status indicators */}
+              {statusIndicators.map((indicator, index) => (
+                <div 
+                  key={index}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                    indicator.color === 'blue' ? 'bg-blue-500' :
+                    indicator.color === 'purple' ? 'bg-purple-500' : 'bg-gray-500'
+                  }`}
+                  title={indicator.text}
+                >
+                  {indicator.type === 'listing' && (
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  )}
+                  {indicator.type === 'match' && (
+                    <Users className="w-3 h-3 text-white" />
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           </div>
+          
+          {/* Status text */}
+          {statusIndicators.length > 0 && (
+            <div className="text-xs text-gray-600 mb-2">
+              {statusIndicators.map((indicator, index) => (
+                <div key={index} className="flex items-center gap-1">
+                  {indicator.type === 'match' && <Users className="w-3 h-3" />}
+                  {indicator.type === 'listing' && <Calendar className="w-3 h-3" />}
+                  {indicator.text}
+                </div>
+              ))}
+            </div>
+          )}
           
           <div className="flex items-center justify-between w-full">
             <button
@@ -175,7 +282,7 @@ const SkillsPage = () => {
               <Info className="w-4 h-4 mr-1" /> View Details
             </button>
             
-            {!isUsed ? (
+            {canModify ? (
               <div className="flex space-x-2">
                 <button
                   onClick={() => attemptToEditSkill(skill)}
@@ -198,7 +305,12 @@ const SkillsPage = () => {
                   </svg>
                 </button>
               </div>
-            ) : null}
+            ) : (
+              <div className="flex items-center text-xs text-gray-500">
+                <AlertTriangle className="w-4 h-4 mr-1" />
+                Protected
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -216,6 +328,22 @@ const SkillsPage = () => {
           Add My Skills
         </button>
       </div>
+
+      {/* Info banner about skill protection */}
+      {matchUsedSkills?.totalActiveMatches > 0 && (
+        <div className="mb-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <Users className="w-5 h-5 text-purple-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-medium text-purple-800">Active Skill Matches</h3>
+              <p className="text-sm text-purple-700">
+                You have {matchUsedSkills.totalActiveMatches} active skill match{matchUsedSkills.totalActiveMatches > 1 ? 'es' : ''}. 
+                Skills involved in these matches cannot be modified until the matches are completed or cancelled.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center h-64">
@@ -275,12 +403,24 @@ const SkillsPage = () => {
                   {viewingSkill.categoryName}
                 </div>
                 
-                {isSkillUsedInListing(viewingSkill.id) && (
-                  <div className="mt-2 flex items-center text-sm text-blue-700">
-                    <span className="w-4 h-4 bg-blue-500 rounded-full mr-2 flex items-center justify-center">
-                      <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
-                    </span>
-                    This skill is being used in an active listing
+                {/* Status indicators */}
+                {(isSkillUsedInListing(viewingSkill.id) || isSkillUsedInMatches(viewingSkill.id)) && (
+                  <div className="mt-2 space-y-1">
+                    {isSkillUsedInListing(viewingSkill.id) && (
+                      <div className="flex items-center text-sm text-blue-700">
+                        <span className="w-4 h-4 bg-blue-500 rounded-full mr-2 flex items-center justify-center">
+                          <span className="w-1.5 h-1.5 bg-white rounded-full"></span>
+                        </span>
+                        This skill is being used in an active listing
+                      </div>
+                    )}
+                    
+                    {isSkillUsedInMatches(viewingSkill.id) && (
+                      <div className="flex items-center text-sm text-purple-700">
+                        <Users className="w-4 h-4 text-purple-500 mr-2" />
+                        This skill is involved in active skill matches
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -298,22 +438,20 @@ const SkillsPage = () => {
                   Close
                 </button>
                 
-                {!isSkillUsedInListing(viewingSkill.id) && (
-                  <>
-                    <button
-                      onClick={() => {
-                        setViewingSkill(null);
-                        attemptToEditSkill(viewingSkill);
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
-                    >
-                      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" className="mr-1.5">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                      Edit Skill
-                    </button>
-                  </>
+                {canModifySkill(viewingSkill.id) && (
+                  <button
+                    onClick={() => {
+                      setViewingSkill(null);
+                      attemptToEditSkill(viewingSkill);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" strokeWidth="2.5" fill="none" className="mr-1.5">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                    Edit Skill
+                  </button>
                 )}
               </div>
             </div>

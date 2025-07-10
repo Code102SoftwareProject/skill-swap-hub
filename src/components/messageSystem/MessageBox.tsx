@@ -8,7 +8,7 @@ import { CornerUpLeft } from "lucide-react";
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
 
-import { fetchChatMessages, fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
+import { fetchChatMessages, fetchChatRoom, fetchUserProfile, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
 
 
 interface MessageBoxProps {
@@ -37,9 +37,31 @@ function DateBadge({ date }: { date: Date }) {
   }).format(date);
   
   return (
-    <div className="flex items-center justify-center my-4 w-full">
-      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-3 py-1">
+    <div className="flex items-center justify-center my-2 md:my-4 w-full">
+      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-2 md:px-3 py-1 font-body">
         {formattedDate}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * SkillMatchInfoMessage component to show when chat was created due to skill match
+ */
+function SkillMatchInfoMessage({ participantName }: { participantName?: string }) {
+  return (
+    <div className="flex items-center justify-center my-4 md:my-6 w-full">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 max-w-md mx-auto">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+          <span className="text-blue-700 font-semibold text-sm font-body">
+            New Skill Match! 🎉
+          </span>
+        </div>
+        <p className="text-blue-600 text-sm font-body text-center">
+          This chat was created because you and {participantName || 'your chat partner'} were matched based on your skills! 
+          You can now discuss your skill exchange and schedule a skill sharing session.
+        </p>
       </div>
     </div>
   );
@@ -58,7 +80,7 @@ function TypingIndicator() {
   );
 }
 
-// Reply Message 
+//  ! Reply Message 
 function ReplyMessage({ 
   replyInfo, 
   isMine, 
@@ -72,14 +94,14 @@ function ReplyMessage({
   
   return (
     <div
-      className={`reply-box rounded-md p-2 mb-1 cursor-pointer bg-gray-100
+      className={`reply-box rounded-md p-1 md:p-2 mb-1 cursor-pointer bg-gray-100
         ${isMine ? "border-l-4 border-secondary" : "border-l-4 border-gray-400"}`}
       onClick={onReplyClick}
     >
-      <span className={`text-xs font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
+      <span className={`text-xs font-body font-semibold ${isMine ? "text-primary" : "text-gray-900"}`}>
         {replyInfo.sender}
       </span>
-      <span className="text-sm text-gray-700 truncate block">
+      <span className="text-xs md:text-sm font-body text-gray-700 truncate block">
         {replyInfo.content}
       </span>
     </div>
@@ -93,7 +115,7 @@ export default function MessageBox({
   onReplySelect,
   participantInfo,
 }: MessageBoxProps) {
-  const { socket, markMessageAsRead } = useSocket();
+  const { socket, onlineUsers } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -101,18 +123,12 @@ export default function MessageBox({
 
   // Store refs for each message to enable scrolling to original message
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
-  const [lastMessageId, setLastMessageId] = useState<string | null>(null);
-  const [processedMessageIds, setProcessedMessageIds] = useState<Set<string>>(new Set());
-
-  // Add state to store all participant names
+ 
+  //  state to store all participant names
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
 
-  // Add state for highlighted message
+  // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
-
-  // Add state for last user message index
-  const [lastUserMessageIndex, setLastUserMessageIndex] = useState<number>(-1);
 
   // Helper function to check if two dates are from different days
   const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
@@ -126,7 +142,7 @@ export default function MessageBox({
           d1.getDate() !== d2.getDate();
   };
 
-  // Fetch participant names when component mounts or chatRoomId changes
+  // ! Fetch participant names when component mounts or chatRoomId changes
   useEffect(() => {
     async function fetchParticipantNames() {
       try {
@@ -141,7 +157,7 @@ export default function MessageBox({
         if (chatRoom?.participants) {
           // For each participant we don't already have info for
           for (const participantId of chatRoom.participants) {
-            // Skip current user and participants we already have
+            // Skip current user
             if (participantId !== userId && !namesMap[participantId]) {
               const userData = await fetchUserProfile(participantId);
               if (userData) {
@@ -159,8 +175,8 @@ export default function MessageBox({
     
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
-
-  // Fetch chat history on mount
+  
+  // ! Fetch chat history on mount
   useEffect(() => {
     async function fetchMessages() {
       // Clear existing messages FIRST to prevent showing old messages
@@ -178,11 +194,12 @@ export default function MessageBox({
     fetchMessages();
   }, [chatRoomId, userId]);
 
-  // Append new messages if they arrive
+  // ! Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
+    
     setMessages((prev) => [...prev, newMessage]);
-  }, [newMessage, chatRoomId, userId]);
+  }, [newMessage, chatRoomId, userId, socket]);
 
   // Add/update typing event listeners
   useEffect(() => {
@@ -190,17 +207,7 @@ export default function MessageBox({
 
     // Reset typing status when chat changes
     setIsTyping(false);
-
-    // Add additional logging to track socket events
-    console.log("Setting up all message listeners for chatRoomId:", chatRoomId);
-
-    // Add explicit debug event to check socket connectivity
-    socket.emit("debug_connection", {
-      userId,
-      chatRoomId,
-      timestamp: new Date().toISOString(),
-    });
-
+    
     const handleUserTyping = (data: { userId: string; chatRoomId: string }) => {
       // Only show typing indicator if it's for the current chat room
       if (data.chatRoomId === chatRoomId && data.userId !== userId) {
@@ -217,7 +224,7 @@ export default function MessageBox({
         setIsTyping(false);
       }
     };
-
+    
     socket.on("user_typing", handleUserTyping);
     socket.on("user_stopped_typing", handleUserStoppedTyping);
 
@@ -227,10 +234,37 @@ export default function MessageBox({
     };
   }, [socket, chatRoomId, userId]);
 
-  // Auto-scroll to the bottom when messages update
+  // Handle message delivery status updates
+  useEffect(() => {
+    if (!socket) return;
+
+    // Remove this entire useEffect since we're removing delivery status
+    return () => {};
+  }, [socket, chatRoomId]);
+
+  // Mark messages as read when entering chat room using API
+  useEffect(() => {
+    if (!chatRoomId || !userId) return;
+
+    // Use API to mark unread messages as read (no sockets)
+    const markMessagesRead = async () => {
+      try {
+        const result = await markChatRoomMessagesAsRead(chatRoomId, userId);
+        if (result.success && result.modifiedCount > 0) {
+          console.log(`Marked ${result.modifiedCount} messages as read`);
+        }
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
+    };
+
+    markMessagesRead();
+  }, [chatRoomId, userId]); // Only run when chat room or user changes, not on every message update
+
+  // ! Auto-scroll to the bottom when messages update
   useEffect(() => {
     if (containerRef.current) {
-      // Add a small delay to ensure complete rendering
+      // delay for complete render
       setTimeout(() => {
         containerRef.current?.scrollTo({
           top: containerRef.current.scrollHeight,
@@ -240,58 +274,7 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
-  // Optimize by combining multiple message processing operations
-  useEffect(() => {
-    if (messages.length === 0) return;
-    
-    // Track both unread messages and last user message in one pass
-    const unreadMessages: IMessage[] = [];
-    let lastUserMsgIdx = -1;
-    
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const msg = messages[i];
-      
-      // Check for unread messages
-      if (msg.senderId !== userId && 
-          msg._id && 
-          !processedMessageIds.has(msg._id) &&
-          msg.readStatus === false) {
-        unreadMessages.push(msg);
-      }
-      
-      // Find last user message (only once)
-      if (lastUserMsgIdx === -1 && msg.senderId === userId) {
-        lastUserMsgIdx = i;
-      }
-    }
-    
-    // Update last user message index
-    if (lastUserMsgIdx !== -1) {
-      setLastUserMessageIndex(lastUserMsgIdx);
-    }
-    
-    // Handle unread messages...
-    if (unreadMessages.length > 0) {
-      // Extract just the IDs and filter out any undefined values
-      const unreadIds = unreadMessages
-        .map(msg => msg._id)
-        .filter((id): id is string => id !== undefined);
-      
-      // Update local tracking state immediately to prevent duplicate requests
-      const newProcessedIds = new Set([...processedMessageIds, ...unreadIds]);
-      setProcessedMessageIds(newProcessedIds);
-      
-      // Use markMessageAsRead from context for each message ID
-      Promise.all(unreadIds.map(messageId => 
-        markMessageAsRead(messageId, chatRoomId, userId)
-      ))
-      .catch((error: unknown) => {
-        console.error('Error marking messages as read:', error);
-      });
-    }
-  }, [messages, userId, processedMessageIds, markMessageAsRead, chatRoomId]);
-
-  // Function to scroll to a particular message (used for reply clicks)
+  // ! Function to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
@@ -303,11 +286,10 @@ export default function MessageBox({
     }
   };
 
-  // Replace the getReplyContent function with this improved version
   const getReplyContent = (
     replyFor: string | { _id?: string; senderId?: string; content?: string }
   ): ReplyContent => {
-    // Case 1: replyFor is a complete message object
+    
     if (typeof replyFor === "object" && replyFor !== null) {
       if ("content" in replyFor && "senderId" in replyFor) {
         let senderName: string;
@@ -327,21 +309,48 @@ export default function MessageBox({
         };
       }
     }
+    
+    // NEW: Handle case where replyFor is just a message ID string
+    if (typeof replyFor === "string") {
+      // Find the original message in the current messages array
+      const originalMessage = messages.find(msg => msg._id === replyFor);
+      
+      if (originalMessage) {
+        let senderName: string;
+        
+        if (originalMessage.senderId === userId) {
+          senderName = "You";
+        } else {
+          // Use fetched participant name or fallback to a generic name
+          senderName = originalMessage.senderId && participantNames[originalMessage.senderId] 
+            ? participantNames[originalMessage.senderId] 
+            : "Chat Partner";
+        }
+        
+        return {
+          sender: senderName,
+          content: originalMessage.content || "No content available"
+        };
+      }
+    }
+    
     // Fallback
     return {
       sender: "Unknown",
-      content: typeof replyFor === "string" ? replyFor : "Message unavailable"
+      content: typeof replyFor === "string" ? "Message not found" : "Message unavailable"
     };
   };
 
   return (
     <div
       ref={containerRef}
-      className="flex flex-col w-full h-full bg-white overflow-y-auto p-4"
+      className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
     >
+      {/* Always show skill match info message at the top of new chat rooms */}
+      <SkillMatchInfoMessage participantName={participantInfo?.name} />
+      
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
-        const isLastUserMessage = i === lastUserMessageIndex;
         
         // Get current message date
         const currentDate = msg.sentAt ? new Date(msg.sentAt) : undefined;
@@ -357,15 +366,16 @@ export default function MessageBox({
         return (
           <React.Fragment key={msg._id || `msg-${i}`}>
             {showDateBadge && currentDate && <DateBadge date={currentDate} />}
+            
             <div
               ref={(el) => {
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
-              className={`mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
+              className={`mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
                 ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
             >
               <div
-                className={`p-2 rounded-lg max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words
+                className={`p-2 md:p-3 rounded-lg max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words word-wrap overflow-wrap-anywhere
                   ${isMine ? "bg-secondary text-textcolor" : "bg-gray-200 text-black"} 
                   relative group`}
               >
@@ -378,7 +388,7 @@ export default function MessageBox({
                   <CornerUpLeft className="w-3 h-3" />
                 </button>
 
-                {/* Reply box (if applicable) */}
+                {/* Reply box for Reply Messages */}
                 <ReplyMessage 
                   replyInfo={replyInfo} 
                   isMine={isMine} 
@@ -397,31 +407,27 @@ export default function MessageBox({
 
                 {/* Main message content or File */}
                 {msg.content.startsWith("File:") ? (
-                  <FileMessage fileInfo={msg.content} />
+                  <FileMessage 
+                    fileInfo={msg.content} 
+                    sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} 
+                    isMine={isMine}
+                  />
                 ) : (
-                  <TextMessage content={msg.content} />
+                  <TextMessage 
+                    content={msg.content} 
+                    sentAt={msg.sentAt ? new Date(msg.sentAt) : undefined} 
+                    isMine={isMine}
+                  />
                 )}
-
-                {/* Timestamp inside bubble */}
-                <div className="flex justify-end items-center mt-1">
-                  <div className={`text-xs text-[10px] ${isMine ? "text-black/80" : "text-gray-500"}`}>
-                    {msg.sentAt
-                      ? new Date(msg.sentAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })
-                      : ""}
-                  </div>
-                </div>
               </div>
             </div>
           </React.Fragment>
         );
       })}
 
-      {/* Typing indicator */}
+      {/* ! IMPORTANT: Typing indicator section */}
       {isTyping && (
-        <div className="mb-3 text-left">
+        <div className="mb-2 md:mb-3 text-left">
           <TypingIndicator />
         </div>
       )}

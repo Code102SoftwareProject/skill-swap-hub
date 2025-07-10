@@ -27,6 +27,8 @@ export async function POST(req: Request) {
       email: string;
     };
 
+    console.log('Reset token verified for email:', decoded.email);
+
     // Connect to database
     await dbConnect();
     
@@ -34,11 +36,14 @@ export async function POST(req: Request) {
     const user = await User.findOne({ email: decoded.email });
     
     if (!user) {
+      console.log('User not found for email:', decoded.email);
       return NextResponse.json({ 
         success: false, 
         message: 'User not found' 
       }, { status: 404 });
     }
+
+    console.log('Updating password for user:', user.email);
 
     // Update user's password - let the schema handle hashing
     user.password = password;
@@ -47,6 +52,7 @@ export async function POST(req: Request) {
     
     // Clean up by deleting all OTP verification records for this user
     await OtpVerification.deleteMany({ userId: user._id });
+    console.log('OTP verification records cleaned up');
 
     return NextResponse.json({ 
       success: true, 
@@ -56,10 +62,17 @@ export async function POST(req: Request) {
     console.error('Reset password error:', error);
     
     // Check if it's a token verification error
+    if (error instanceof jwt.TokenExpiredError) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Reset token has expired. Please restart the process.' 
+      }, { status: 401 });
+    }
+    
     if (error instanceof jwt.JsonWebTokenError) {
       return NextResponse.json({ 
         success: false, 
-        message: 'Invalid or expired reset token' 
+        message: 'Invalid reset token. Please restart the process.' 
       }, { status: 401 });
     }
     

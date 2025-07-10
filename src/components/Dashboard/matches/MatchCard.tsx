@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { SkillMatch } from '@/types/skillMatch';
-import { BadgeCheck, ArrowRightLeft } from 'lucide-react';
+import { BadgeCheck, ArrowRightLeft, Eye } from 'lucide-react';
 
 interface MatchCardProps {
   match: SkillMatch;
@@ -135,13 +135,14 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
       {/* Card Footer */}
       <div className="bg-gray-50 px-4 py-3 text-right">
         <button
-          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+          className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors"
           onClick={(e) => {
             e.stopPropagation();
             onClick();
           }}
         >
-          View Details →
+          <Eye className="w-4 h-4 mr-1" />
+          View Details
         </button>
       </div>
     </div>

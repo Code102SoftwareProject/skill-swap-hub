@@ -27,7 +27,7 @@ const LikeDislikeButtons: React.FC<LikeDislikeButtonsProps> = ({
   const [animatingDislike, setAnimatingDislike] = useState(false);
   const router = useRouter();
 
-  // Mock user ID - in a real app, get this from authentication
+
   const currentUserId = 'current-user-id';
 
   const handleLike = async () => {
@@ -42,15 +42,15 @@ const LikeDislikeButtons: React.FC<LikeDislikeButtonsProps> = ({
       let operation: string;
       
       if (likeStatus === 'liked') {
-        // User is unliking the post
+      
         operation = 'unlike';
       } else {
-        // User is liking the post
+       
         operation = 'like';
         
         // If user has previously disliked, remove that dislike
         if (likeStatus === 'disliked') {
-          // Reset dislike animation if needed
+
           setAnimatingDislike(true);
           setTimeout(() => setAnimatingDislike(false), 300);
         }
@@ -83,7 +83,7 @@ const LikeDislikeButtons: React.FC<LikeDislikeButtonsProps> = ({
         onUpdate(data.post.likes, data.post.dislikes);
       }
 
-      // Refresh the page data (optional)
+      // Refresh the page data 
       router.refresh();
     } catch (error) {
       console.error('Error updating like status:', error);
@@ -104,15 +104,15 @@ const LikeDislikeButtons: React.FC<LikeDislikeButtonsProps> = ({
       let operation: string;
       
       if (likeStatus === 'disliked') {
-        // User is undisliking the post
+        
         operation = 'undislike';
       } else {
-        // User is disliking the post
+      
         operation = 'dislike';
         
         // If user has previously liked, remove that like
         if (likeStatus === 'liked') {
-          // Reset like animation if needed
+        
           setAnimatingLike(true);
           setTimeout(() => setAnimatingLike(false), 300);
         }

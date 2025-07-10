@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Loader, MessageSquare, Flag, PlusCircle } from 'lucide-react';
+import { Loader, MessageSquare, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
+import WatchPostButton from './WatchPostButton';
 import { useAuth } from '@/lib/context/AuthContext';
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 interface Post {
   _id: string;
@@ -25,6 +27,7 @@ interface Post {
   likedBy: string[];
   dislikedBy: string[];
   replies: number;
+  views?: number;
 }
 
 interface ForumPostsProps {
@@ -34,15 +37,16 @@ interface ForumPostsProps {
 const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const { trackInteraction } = useUserPreferences();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   
-  // Mock user ID - in a real app, get this from authentication
+  
   const currentUserId = user ? user._id : 'current-user-id';
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/forums/${forumId}/posts`);
@@ -59,13 +63,13 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [forumId]);
 
   useEffect(() => {
     if (forumId) {
       fetchPosts();
     }
-  }, [forumId]);
+  }, [forumId, fetchPosts]);
 
   const handleCreatePost = () => {
     setIsCreatePostOpen(true);
@@ -120,7 +124,17 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   };
 
   // Add this function to handle post click navigation
-  const handlePostClick = (postId: string) => {
+  const handlePostClick = async (postId: string) => {
+    // Track view interaction only for authenticated users
+    if (user) {
+      await trackInteraction({
+        postId,
+        forumId,
+        interactionType: 'view',
+        timeSpent: 0
+      });
+    }
+    
     router.push(`/forum/${forumId}/posts/${postId}`);
   };
 
@@ -232,7 +246,10 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                   )}
                   
                   <div className="prose max-w-none mt-5">
-                    <p className="whitespace-pre-line text-gray-700 leading-relaxed">{post.content}</p>
+                    <div 
+                      className="whitespace-pre-line text-gray-700 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: post.content }}
+                    />
                   </div>
                   
                   <div className="flex items-center justify-between mt-8 pt-5 border-t border-blue-50">
@@ -263,15 +280,19 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                         <MessageSquare className="w-5 h-5" />
                         <span className="font-medium">{post.replies}</span>
                       </motion.button>
+
+                      {/* View count */}
+                      <div className="flex items-center space-x-1 text-gray-500">
+                        <span className="text-sm">{post.views || 0} views</span>
+                      </div>
                     </div>
                     
-                    <motion.button 
-                      whileHover={{ scale: 1.1 }}
-                      className="text-blue-400 hover:text-red-500 transition-colors"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <Flag className="w-5 h-5" />
-                    </motion.button>
+                    <div className="flex items-center space-x-3">
+                      {/* Save Post Button */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <WatchPostButton postId={post._id} size="sm" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>

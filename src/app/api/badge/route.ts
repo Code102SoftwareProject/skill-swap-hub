@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import Badge from "@/lib/models/badgeSchema";
 import { NextRequest } from "next/server";
 import { Types } from "mongoose";
-import type { BadgeInput, BadgeUpdateInput } from "@/services/badgeService";
 
 /**
  * Helper function to validate badge ID
@@ -54,7 +53,7 @@ export const GET = async (req: Request) => {
 export const POST = async (req: NextRequest) => {
   try {
     // Parse request body for badge data
-    const body: BadgeInput = await req.json();
+    const body = await req.json();
     // Connect to database
     await connect();
     // Create new badge document
@@ -82,7 +81,7 @@ export const POST = async (req: NextRequest) => {
 export const PATCH = async (req: NextRequest) => {
   try {
     // Parse request body for badge update data
-    const body: BadgeUpdateInput = await req.json();
+    const body = await req.json();
     const { badgeId, badgeName, badgeImage, criteria, description } = body;
 
     // Validate badgeId
@@ -90,7 +89,7 @@ export const PATCH = async (req: NextRequest) => {
     if (validationError) return validationError;
 
     // Check for fields to update
-    const updateData: Partial<BadgeInput> = {};
+    const updateData: any = {};
 
     if (badgeName) {
       updateData.badgeName = badgeName;

@@ -14,10 +14,15 @@ export interface UserSkill {
 }
 
 // Type for API responses
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message?: string;
   data?: T;
+  meta?: {
+    totalMatches?: number;
+    generatedAt?: string;
+    [key: string]: unknown;
+  }; // Optional metadata for responses that include additional info
 }
 
 // Interface for new skill data

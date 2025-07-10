@@ -13,6 +13,7 @@ export interface IMessage {
     messageIds?: string[]; 
     fileUrl?: string; 
     fileName?: string; 
+    deliveryStatus?: 'sent' | 'delivered' | 'read';
 }
 
 export interface IChatRoom {
