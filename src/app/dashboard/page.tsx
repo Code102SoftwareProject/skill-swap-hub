@@ -63,7 +63,12 @@ export default function UserDashboardPage() {
   const renderContent = () => {
     switch (activeComponent) {
       case 'dashboard':
-        return <UserDashboardContent key={activeComponent} />;
+        return (
+    <UserDashboardContent
+      key={activeComponent}
+      onNavigateToMySkills={() => setActiveComponent('myskill')}
+    />
+  );
       case 'myskill':
         return <MySkillsContent key={activeComponent} />;
       case 'listings':
@@ -81,7 +86,12 @@ export default function UserDashboardPage() {
       case 'setting':
         return <SettingContent key={activeComponent} />;
       default:
-        return <UserDashboardContent key={activeComponent} />;
+        return (
+          <UserDashboardContent
+            key={activeComponent}
+            onNavigateToMySkills={() => setActiveComponent('myskill')}
+          />
+        );
     }
   };
 

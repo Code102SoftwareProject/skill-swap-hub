@@ -346,7 +346,7 @@ const ListingsContent: React.FC = () => {
               <input
                 type="text"
                 placeholder="Search skills, descriptions..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -356,7 +356,7 @@ const ListingsContent: React.FC = () => {
             <div className="relative">
               <Filter className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
               <select
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-gray-900"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
@@ -369,7 +369,7 @@ const ListingsContent: React.FC = () => {
             {/* Category Filter */}
             <div className="relative">
               <select
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-gray-900"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
               >
@@ -406,7 +406,7 @@ const ListingsContent: React.FC = () => {
           )}
 
           {/* Results count */}
-          <div className="mt-3 text-sm text-gray-600">
+          <div className="mt-3 text-sm font-medium text-gray-700">
             Showing {filteredListings.length} of {listings.length} listings
           </div>
         </div>
@@ -425,22 +425,22 @@ const ListingsContent: React.FC = () => {
           <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
             <Users className="w-8 h-8 text-blue-600" />
           </div>
-          <h3 className="text-xl font-medium text-gray-700 mb-2">No listings yet</h3>
-          <p className="text-gray-500 mb-6">Create your first skill listing to start connecting with other learners</p>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">No listings yet</h3>
+          <p className="text-gray-600 mb-6">Create your first skill listing to start connecting with other learners</p>
           {userSkills.length > 0 ? (
             <button
               onClick={() => setShowNewForm(true)}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
             >
               <Plus className="w-4 h-4 mr-2" />
               Create Your First Listing
             </button>
           ) : (
             <div className="space-y-2">
-              <p className="text-sm text-gray-600">First, add some skills to your profile:</p>
+              <p className="text-sm text-gray-700">First, add some skills to your profile:</p>
               <a
                 href="/dashboard?component=myskill"
-                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
               >
                 Add Skills First
               </a>
@@ -453,8 +453,8 @@ const ListingsContent: React.FC = () => {
       {!loading && listings.length > 0 && filteredListings.length === 0 && (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <Search className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-medium text-gray-700 mb-2">No listings found</h3>
-          <p className="text-gray-500 mb-4">Try adjusting your search criteria or filters</p>
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">No listings found</h3>
+          <p className="text-gray-600 mb-4">Try adjusting your search criteria or filters</p>
           <button
             onClick={() => {
               setSearchTerm('');
