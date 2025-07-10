@@ -99,7 +99,7 @@ const WatchPostButton: React.FC<WatchPostButtonProps> = ({
         )}
         
         {showText && (
-          <span>{isWatched ? 'Watching' : 'Watch'}</span>
+          <span>{isWatched ? 'Saved' : 'Save'}</span>
         )}
       </motion.button>
 
@@ -111,7 +111,7 @@ const WatchPostButton: React.FC<WatchPostButtonProps> = ({
           exit={{ opacity: 0, y: -5 }}
           className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-nowrap z-50"
         >
-          {isWatched ? 'Remove from watchlist' : 'Add to watchlist'}
+          {isWatched ? 'Remove from saved posts' : 'Save post'}
           <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-gray-800" />
         </motion.div>
       )}

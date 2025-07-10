@@ -75,9 +75,9 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
     router.push('/user/chat');
   };
 
-  const handleWatchlistClick = () => {
+  const handleSavedPostsClick = () => {
     setIsMobileMenuOpen(false);
-    router.push('/watchlist');
+    router.push('/savedlist');
   };
 
   const isLoggedIn = !!user;
@@ -139,9 +139,6 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
               <button className="text-white" onClick={handleChatClick}>
                 <MessageSquare className="w-6 h-6" />
               </button>
-              <button className="text-white" onClick={handleWatchlistClick}>
-                <Bookmark className="w-6 h-6" />
-              </button>
               <button onClick={handleNotificationsClick} className="text-white">
                 <Bell className="w-6 h-6" />
               </button>
@@ -172,6 +169,13 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                     >
                       <User className="w-4 h-4 mr-2" />
                       Dashboard
+                    </button>
+                    <button 
+                      className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={handleSavedPostsClick}
+                    >
+                      <Bookmark className="w-4 h-4 mr-2" />
+                      Saved Posts
                     </button>
                     <button 
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -284,18 +288,18 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
               
               <button 
                 className="flex items-center gap-3 w-full py-2 text-white"
-                onClick={handleWatchlistClick}
-              >
-                <Bookmark className="w-5 h-5" />
-                Watchlist
-              </button>
-              
-              <button 
-                className="flex items-center gap-3 w-full py-2 text-white"
                 onClick={handleNotificationsClick}
               >
                 <Bell className="w-5 h-5" />
                 Notifications
+              </button>
+              
+              <button 
+                className="flex items-center gap-3 w-full py-2 text-white"
+                onClick={handleSavedPostsClick}
+              >
+                <Bookmark className="w-5 h-5" />
+                Saved Posts
               </button>
               
               <div className="pt-3 border-t border-white/20">

@@ -220,20 +220,37 @@ export const useUserPreferences = () => {
     }
 
     try {
+      // Get auth headers and handle token issues gracefully
+      let headers;
+      try {
+        headers = getAuthHeaders();
+      } catch (authError) {
+        return { 
+          success: false, 
+          error: 'Authentication required. Please log in again.' 
+        };
+      }
+
       const response = await fetch('/api/user/watch-posts', {
-        headers: getAuthHeaders()
+        headers
       });
 
       if (response.ok) {
         const data = await response.json();
-        return { success: true, data: data.data };
+        return { success: true, data: data.data || [] };
+      } else if (response.status === 401) {
+        return { 
+          success: false, 
+          error: 'Authentication expired. Please log in again.' 
+        };
       } else {
-        throw new Error('Failed to fetch watched posts');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch saved posts');
       }
     } catch (err) {
       return { 
         success: false, 
-        error: err instanceof Error ? err.message : 'Unknown error' 
+        error: err instanceof Error ? err.message : 'Unknown error occurred while fetching saved posts' 
       };
     }
   }, [mounted, user]);

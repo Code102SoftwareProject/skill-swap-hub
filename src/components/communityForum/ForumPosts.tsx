@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Loader, MessageSquare, Flag, PlusCircle } from 'lucide-react';
+import { Loader, MessageSquare, PlusCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
@@ -27,6 +27,7 @@ interface Post {
   likedBy: string[];
   dislikedBy: string[];
   replies: number;
+  views?: number;
 }
 
 interface ForumPostsProps {
@@ -279,21 +280,18 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                         <MessageSquare className="w-5 h-5" />
                         <span className="font-medium">{post.replies}</span>
                       </motion.button>
+
+                      {/* View count */}
+                      <div className="flex items-center space-x-1 text-gray-500">
+                        <span className="text-sm">{post.views || 0} views</span>
+                      </div>
                     </div>
                     
                     <div className="flex items-center space-x-3">
-                      {/* Watch Post Button */}
+                      {/* Save Post Button */}
                       <div onClick={(e) => e.stopPropagation()}>
                         <WatchPostButton postId={post._id} size="sm" />
                       </div>
-                      
-                      <motion.button 
-                        whileHover={{ scale: 1.1 }}
-                        className="text-blue-400 hover:text-red-500 transition-colors"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <Flag className="w-5 h-5" />
-                      </motion.button>
                     </div>
                   </div>
                 </div>

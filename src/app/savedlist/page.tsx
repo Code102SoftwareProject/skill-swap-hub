@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/homepage/Navbar';
 import WatchPostButton from '@/components/communityForum/WatchPostButton';
 
-interface WatchedPost {
+interface SavedPost {
   _id: string;
   title: string;
   content: string;
@@ -29,18 +29,18 @@ interface WatchedPost {
   createdAt: string;
 }
 
-export default function WatchListPage() {
+export default function SavedListPage() {
   const { user, isLoading: authLoading } = useAuth();
   const { getWatchedPosts } = useUserPreferences();
   const router = useRouter();
   
-  const [watchedPosts, setWatchedPosts] = useState<WatchedPost[]>([]);
+  const [savedPosts, setSavedPosts] = useState<SavedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Fetch watched posts with retry logic
-  const fetchWatchedPosts = async (isRefresh = false, retryCount = 0) => {
+  // Fetch saved posts with retry logic
+  const fetchSavedPosts = async (isRefresh = false, retryCount = 0) => {
     // Don't fetch if auth is still loading or user is not available
     if (authLoading || !user) {
       return;
@@ -59,7 +59,7 @@ export default function WatchListPage() {
       const response = await getWatchedPosts();
       
       if (response.success) {
-        setWatchedPosts(response.data);
+        setSavedPosts(response.data);
         setError(null);
       } else {
         // For authentication errors, don't retry automatically
@@ -70,17 +70,17 @@ export default function WatchListPage() {
         // For other errors, retry once after a short delay
         if (retryCount < 1) {
           setTimeout(() => {
-            fetchWatchedPosts(isRefresh, retryCount + 1);
+            fetchSavedPosts(isRefresh, retryCount + 1);
           }, 1000);
           return;
         }
         
-        throw new Error(response.error || 'Failed to fetch watched posts');
+        throw new Error(response.error || 'Failed to fetch saved posts');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       setError(errorMessage);
-      console.error('Error fetching watched posts:', err);
+      console.error('Error fetching saved posts:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -88,7 +88,7 @@ export default function WatchListPage() {
   };
 
   // Handle post click
-  const handlePostClick = (post: WatchedPost) => {
+  const handlePostClick = (post: SavedPost) => {
     router.push(`/forum/${post.forumId._id}/posts/${post._id}`);
   };
 
@@ -103,22 +103,22 @@ export default function WatchListPage() {
     });
   };
 
-  // Refresh watched posts
-  const refreshWatchedPosts = () => {
-    fetchWatchedPosts(true);
+  // Refresh saved posts
+  const refreshSavedPosts = () => {
+    fetchSavedPosts(true);
   };
 
   // Handle manual retry
   const handleRetry = () => {
     setError(null);
-    fetchWatchedPosts();
+    fetchSavedPosts();
   };
 
   useEffect(() => {
     // Wait for auth to finish loading before attempting to fetch
     if (!authLoading) {
       if (user) {
-        fetchWatchedPosts();
+        fetchSavedPosts();
       } else {
         // If auth finished loading but no user, stop loading state
         setLoading(false);
@@ -147,7 +147,7 @@ export default function WatchListPage() {
         <Navbar />
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Please log in to view your watchlist</h2>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-4">Please log in to view your saved posts</h2>
             <button
               onClick={() => router.push('/login')}
               className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -169,11 +169,11 @@ export default function WatchListPage() {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center space-x-3">
               <Bookmark className="w-8 h-8 text-blue-600" />
-              <h1 className="text-3xl font-bold text-gray-900">Your Watchlist</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Your Saved Posts</h1>
             </div>
             
             <button
-              onClick={refreshWatchedPosts}
+              onClick={refreshSavedPosts}
               disabled={refreshing}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
@@ -195,7 +195,7 @@ export default function WatchListPage() {
           {/* Error state */}
           {error && (
             <div className="text-center py-10 px-4 bg-red-50 border border-red-100 rounded-lg">
-              <p className="text-red-600 mb-4">Error loading watchlist: {error}</p>
+              <p className="text-red-600 mb-4">Error loading saved posts: {error}</p>
               <button
                 onClick={handleRetry}
                 className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
@@ -208,15 +208,15 @@ export default function WatchListPage() {
           {/* Content */}
           {!loading && !error && (
             <>
-              {watchedPosts.length === 0 ? (
+              {savedPosts.length === 0 ? (
                 <motion.div 
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   className="text-center py-20 px-4 bg-white rounded-xl border-2 border-dashed border-blue-200"
                 >
                   <BookmarkX className="w-16 h-16 text-blue-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-600 mb-2">Your watchlist is empty</h3>
-                  <p className="text-gray-500 mb-6">Start watching posts to see them here.</p>
+                  <h3 className="text-xl font-semibold text-gray-600 mb-2">Your saved posts list is empty</h3>
+                  <p className="text-gray-500 mb-6">Save posts by clicking the bookmark icon on any post to see them here.</p>
                   <button
                     onClick={() => router.push('/forum')}
                     className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -227,7 +227,7 @@ export default function WatchListPage() {
               ) : (
                 <div className="space-y-6">
                   <AnimatePresence>
-                    {watchedPosts.map((post, index) => (
+                    {savedPosts.map((post, index) => (
                       <motion.div
                         key={post._id}
                         initial={{ opacity: 0, y: 20 }}
@@ -245,7 +245,7 @@ export default function WatchListPage() {
                                   {post.forumId.title}
                                 </span>
                                 <span className="text-sm text-gray-500">
-                                  Added to watchlist
+                                  Added to saved posts
                                 </span>
                               </div>
                               
@@ -291,8 +291,8 @@ export default function WatchListPage() {
                                 size="sm" 
                                 showText={false}
                                 onStatusChange={() => {
-                                  // Remove from local state when unwatched
-                                  setWatchedPosts(prev => prev.filter(p => p._id !== post._id));
+                                  // Remove from local state when unsaved
+                                  setSavedPosts(prev => prev.filter(p => p._id !== post._id));
                                 }}
                               />
                             </div>

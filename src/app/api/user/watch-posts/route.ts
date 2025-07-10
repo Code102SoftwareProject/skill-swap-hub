@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from "@/lib/db";
 import UserPreference, { IUserPreference } from '@/lib/models/UserPreference';
+import Post from '@/lib/models/postSchema';
+import { Forum } from '@/lib/models/Forum';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 
@@ -103,7 +105,7 @@ export async function POST(request: NextRequest) {
         watchedPosts: userPreference.watchedPosts,
         isWatching: action === 'watch'
       },
-      message: `Post ${action === 'watch' ? 'added to' : 'removed from'} watchlist`
+      message: `Post ${action === 'watch' ? 'added to' : 'removed from'} saved posts`
     });
 
   } catch (error) {
@@ -128,14 +130,20 @@ export async function GET(request: NextRequest) {
   try {
     await dbConnect();
     
+    // Ensure models are loaded
+    if (!mongoose.models.Post) {
+      throw new Error('Post model not loaded');
+    }
+    if (!mongoose.models.Forum) {
+      throw new Error('Forum model not loaded');
+    }
+    
     const userPreference = await UserPreference.findOne({ userId })
       .populate({
         path: 'watchedPosts',
-        model: 'Post',
-        select: 'title content forumId author createdAt likes dislikes replies',
+        select: 'title content forumId author createdAt likes dislikes replies views',
         populate: {
           path: 'forumId',
-          model: 'Forum',
           select: 'title'
         }
       })

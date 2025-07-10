@@ -23,6 +23,7 @@ interface Post {
   likes: number;
   dislikes: number;
   replies: number;
+  views?: number;
   createdAt: string;
 }
 
