@@ -1,135 +1,111 @@
-import React, { useEffect, useState } from 'react';
-import { Edit2 } from 'lucide-react';
-import { useAuth } from '@/lib/context/AuthContext';
+'use client';
 
-interface UserSkill {
-  id: string;
-  skillTitle: string;
-  proficiencyLevel: 'Beginner' | 'Intermediate' | 'Expert';
-  categoryName: string;
-  description: string;
+import React, { useEffect, useState } from 'react';
+import { getUserSkills } from '@/services/skillService';
+import { getSkillsUsedInMatches } from '@/services/trendingService';
+import { UserSkill } from '@/types/userSkill';
+import { Calendar, Users } from 'lucide-react';
+
+interface SkillsOverviewProps {
+  onViewMore: () => void;
 }
 
-export default function UserSkills() {
-  const { user } = useAuth();
+export default function SkillsOverview({ onViewMore }: SkillsOverviewProps) {
   const [skills, setSkills] = useState<UserSkill[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [usedSkillIds, setUsedSkillIds] = useState<string[]>([]);
+  const [matchUsedSkills, setMatchUsedSkills] = useState<any>(null);
 
   useEffect(() => {
-    const fetchSkills = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/myskills', {
+        const skillsRes = await getUserSkills();
+        const listingUsedRes = await fetch('/api/myskills/used-in-listings', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
           },
         });
+        const matchRes = await getSkillsUsedInMatches();
 
-        if (!response.ok) {
-          throw new Error('Failed to fetch skills');
+        const listingData = await listingUsedRes.json();
+
+        if (skillsRes.success && skillsRes.data) {
+          setSkills(skillsRes.data.slice(0, 6)); // show 6 skills in grid
         }
-
-        const data = await response.json();
-        if (data.success) {
-          setSkills(data.data);
-        } else {
-          throw new Error(data.message || 'Failed to fetch skills');
+        if (listingData.success && listingData.data) {
+          setUsedSkillIds(listingData.data);
+        }
+        if (matchRes.success && matchRes.data) {
+          setMatchUsedSkills(matchRes.data);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-      } finally {
-        setLoading(false);
+        console.error('Error loading skills overview:', err);
       }
     };
 
-    fetchSkills();
+    fetchData();
   }, []);
 
-  // Function to get color based on proficiency level
-  const getProficiencyColor = (level: string) => {
-    switch (level) {
-      case 'Beginner':
-        return 'green';
-      case 'Intermediate':
-        return 'blue';
-      case 'Expert':
-        return 'red';
-      default:
-        return 'gray';
-    }
+  const isSkillUsedInListing = (skillId: string) => {
+    return usedSkillIds.includes(skillId);
   };
 
-  // Function to get abbreviation from skill title
-  const getAbbreviation = (title: string) => {
-    return title
-      .split(' ')
-      .map(word => word[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
+  const isSkillUsedInMatches = (skillId: string) => {
+    return matchUsedSkills?.usedSkillIds?.includes(skillId) || false;
   };
-
-  if (loading) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">My Skills</h2>
-        </div>
-        <div className="text-center py-4">Loading skills...</div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">My Skills</h2>
-        </div>
-        <div className="text-center py-4 text-red-500">{error}</div>
-      </div>
-    );
-  }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg mb-6">
+    <div className="bg-white p-6 rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">My Skills</h2>
-        <button className="text-blue-600 hover:text-blue-800" aria-label="Edit Skills">
-          <Edit2 className="w-5 h-5" />
+        <h3 className="text-lg font-semibold">My Skills</h3>
+        <button
+          onClick={onViewMore}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          View More →
         </button>
       </div>
 
       {skills.length === 0 ? (
-        <div className="text-center py-4 text-gray-500">No skills added yet</div>
+        <p className="text-sm text-gray-500">No skills added yet.</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {skills.map((skill) => {
-            const color = getProficiencyColor(skill.proficiencyLevel);
-            return (
-              <div
-                key={skill.id}
-                className="border border-gray-200 rounded-lg p-4 shadow hover:shadow-md transition"
-              >
-                <div className="flex items-center mb-2">
-                  <div
-                    className={`w-8 h-8 bg-${color}-100 rounded-md flex items-center justify-center`}
-                  >
-                    <span className={`text-${color}-600 text-xs font-bold`}>
-                      {getAbbreviation(skill.skillTitle)}
-                    </span>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {skills.map((skill) => (
+            <div
+              key={skill.id}
+              className={`border rounded-lg p-3 flex flex-col items-center text-center ${
+                isSkillUsedInListing(skill.id)
+                  ? 'border-blue-400 bg-blue-50'
+                  : isSkillUsedInMatches(skill.id)
+                  ? 'border-purple-400 bg-purple-50'
+                  : 'border-gray-200 bg-gray-50'
+              }`}
+            >
+              <div className="w-full flex justify-between items-start mb-2">
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  skill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
+                  skill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {skill.proficiencyLevel.charAt(0)}
+                </span>
+                
+                {(isSkillUsedInListing(skill.id) || isSkillUsedInMatches(skill.id)) && (
+                  <div className="flex gap-1">
+                    {isSkillUsedInListing(skill.id) && (
+                      <Calendar className="w-3 h-3 text-blue-600" />
+                    )}
+                    {isSkillUsedInMatches(skill.id) && (
+                      <Users className="w-3 h-3 text-purple-600" />
+                    )}
                   </div>
-                  <div className="ml-2">
-                    <h3 className="text-sm font-medium">{skill.skillTitle}</h3>
-                    <p className="text-xs text-gray-500">
-                      {skill.proficiencyLevel} • {skill.categoryName}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-gray-600 mt-2 line-clamp-2">{skill.description}</p>
+                )}
               </div>
-            );
-          })}
+
+              <h4 className="text-sm font-medium text-gray-800 line-clamp-2">
+                {skill.skillTitle}
+              </h4>
+            </div>
+          ))}
         </div>
       )}
     </div>
