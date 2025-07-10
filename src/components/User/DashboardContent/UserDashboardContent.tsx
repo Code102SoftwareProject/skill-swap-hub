@@ -7,6 +7,7 @@ import { SkillsRequested, SkillsOffered } from "@/components/Dashboard/SkillsReq
 import { TimeSpent } from "@/components/Dashboard/TimeSpentChart";
 import UserSkills from "@/components/Dashboard/UserSkills";
 import EarnedBadges from "@/components/Dashboard/EarnedBadges";
+import SkillMatchOverview from "@/components/Dashboard/SkillMatchOverview";
 
 export default function UserDashboardContent({ onNavigateToMySkills }: { onNavigateToMySkills: () => void })  {
   const { user } = useAuth();
@@ -67,24 +68,7 @@ export default function UserDashboardContent({ onNavigateToMySkills }: { onNavig
           {/* Skill Matches */}
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <h3 className="text-lg font-semibold mb-4">Skill Matches</h3>
-            <ul className="space-y-3">
-              <li className="flex justify-between items-center">
-                <span>Python Programming Mentors</span>
-                <span className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-xs font-semibold">14</span>
-              </li>
-              <li className="flex justify-between items-center">
-                <span>JavaScript Debugging Help</span>
-                <span className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-xs font-semibold">7</span>
-              </li>
-              <li className="flex justify-between items-center">
-                <span>UI/UX Design Review Sessions</span>
-                <span className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-xs font-semibold">26</span>
-              </li>
-              <li className="flex justify-between items-center">
-                <span>Java Training Sessions</span>
-                <span className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-xs font-semibold">3</span>
-              </li>
-            </ul>
+            <SkillMatchOverview onViewAll={() => { /* TODO: Implement navigation to matches or handle as needed */ }} />
           </div>
         </div>
       </div>
