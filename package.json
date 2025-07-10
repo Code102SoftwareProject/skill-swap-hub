@@ -28,6 +28,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
     "@aws-sdk/s3-request-presigner": "^3.744.0",
+    "@daily-co/daily-js": "^0.80.0",
     "@elastic/elasticsearch": "^8.17.0",
     "@fontsource/manrope": "^5.1.0",
     "@fontsource/roboto": "^5.1.0",
