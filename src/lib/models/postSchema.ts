@@ -16,6 +16,7 @@ export interface IPost extends Document {
   likedBy: string[];
   dislikedBy: string[];
   replies: number;
+  views: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -71,6 +72,10 @@ const PostSchema = new Schema(
       default: [],
     },
     replies: {
+      type: Number,
+      default: 0,
+    },
+    views: {
       type: Number,
       default: 0,
     },
