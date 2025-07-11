@@ -212,6 +212,8 @@ export default function MeetingPage() {
         onLeave={handleLeaveMeeting}
         meetingId={meeting._id}
         userName={`${user?.firstName} ${user?.lastName}`}
+        otherUserName={otherUser ? `${otherUser.firstName} ${otherUser.lastName}` : undefined}
+        meetingDescription={meeting.description}
       />
     </div>
   );

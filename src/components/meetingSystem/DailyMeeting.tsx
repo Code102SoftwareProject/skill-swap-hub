@@ -17,6 +17,35 @@ import {
   Minimize2 
 } from 'lucide-react';
 
+// Add custom styles for video containers
+const videoStyles = `
+  .screen-share-main video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  
+  .participant-video video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .camera-box {
+    min-width: 128px;
+    min-height: 96px;
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.type = 'text/css';
+  styleSheet.innerText = videoStyles;
+  document.head.appendChild(styleSheet);
+}
+
 // Global singleton to prevent duplicate Daily instances
 let globalDailyInstance: DailyCall | null = null;
 let instanceRefCount = 0;
@@ -26,9 +55,11 @@ interface DailyMeetingProps {
   onLeave?: () => void;
   meetingId?: string;
   userName?: string;
+  otherUserName?: string;
+  meetingDescription?: string;
 }
 
-export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: DailyMeetingProps) {
+export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName, otherUserName, meetingDescription }: DailyMeetingProps) {
   // UI State
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -74,30 +105,6 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
       // Set up event listeners
       const call = callRef.current;
 
-      // Joined meeting
-      call.on('joined-meeting', (event: DailyEventObject) => {
-        console.log('Successfully joined meeting', event);
-        setIsJoined(true);
-        setIsConnecting(false);
-        setError(null);
-        
-        const currentParticipants = call.participants();
-        setParticipants(currentParticipants);
-        setParticipantCount(Object.keys(currentParticipants).length);
-      });
-
-      // Left meeting
-      call.on('left-meeting', () => {
-        console.log('Left meeting');
-        setIsJoined(false);
-        setParticipants({} as DailyParticipantsObject);
-        setParticipantCount(0);
-        setError(null);
-        setIsAudioMuted(false);
-        setIsVideoMuted(false);
-        setIsScreenSharing(false);
-      });
-
       // Participant updates
       const handleParticipantUpdate = () => {
         const currentParticipants = call.participants();
@@ -111,7 +118,49 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
           setIsVideoMuted(!localParticipant.tracks.video?.state || localParticipant.tracks.video.state !== 'playable');
           setIsScreenSharing(!!localParticipant.tracks.screenVideo?.state && localParticipant.tracks.screenVideo.state === 'playable');
         }
+        
+        // Force video refresh to ensure proper display
+        setTimeout(() => {
+          const videos = document.querySelectorAll('video');
+          videos.forEach(video => {
+            if (video.srcObject && video.paused) {
+              video.play().catch(console.error);
+            }
+          });
+        }, 100);
       };
+
+      // Also update states when joining
+      call.on('joined-meeting', (event: DailyEventObject) => {
+        console.log('Successfully joined meeting', event);
+        setIsJoined(true);
+        setIsConnecting(false);
+        setError(null);
+        
+        const currentParticipants = call.participants();
+        setParticipants(currentParticipants);
+        setParticipantCount(Object.keys(currentParticipants).length);
+        
+        // Initialize local participant states
+        const localParticipant = Object.values(currentParticipants).find(p => p.local);
+        if (localParticipant) {
+          setIsAudioMuted(!call.localAudio());
+          setIsVideoMuted(!call.localVideo());
+          setIsScreenSharing(false); // Screen sharing starts as false
+        }
+      });
+
+      // Left meeting
+      call.on('left-meeting', () => {
+        console.log('Left meeting');
+        setIsJoined(false);
+        setParticipants({} as DailyParticipantsObject);
+        setParticipantCount(0);
+        setError(null);
+        setIsAudioMuted(false);
+        setIsVideoMuted(false);
+        setIsScreenSharing(false);
+      });
 
       call.on('participant-joined', handleParticipantUpdate);
       call.on('participant-updated', handleParticipantUpdate);
@@ -127,6 +176,56 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
       call.on('camera-error', (event: DailyEventObject) => {
         console.error('Camera error:', event);
         setError('Camera access failed. Please check your camera permissions.');
+      });
+
+      // Screen share events with immediate UI updates
+      call.on('local-screen-share-started', () => {
+        console.log('Local screen sharing started');
+        setIsScreenSharing(true);
+        // Force immediate participant update
+        setTimeout(() => {
+          const currentParticipants = call.participants();
+          setParticipants(currentParticipants);
+          setParticipantCount(Object.keys(currentParticipants).length);
+        }, 100);
+      });
+
+      call.on('local-screen-share-stopped', () => {
+        console.log('Local screen sharing stopped');
+        setIsScreenSharing(false);
+        // Force immediate participant update
+        setTimeout(() => {
+          const currentParticipants = call.participants();
+          setParticipants(currentParticipants);
+          setParticipantCount(Object.keys(currentParticipants).length);
+        }, 100);
+      });
+
+      // Remote screen share events - improved detection
+      call.on('track-started', (event: DailyEventObject) => {
+        console.log('Track started', event);
+        if (event.track?.kind === 'video' && (event.participant?.screen || event.track?.label?.includes('screen'))) {
+          console.log('Remote screen sharing started');
+          // Force immediate participant update
+          setTimeout(() => {
+            const currentParticipants = call.participants();
+            setParticipants(currentParticipants);
+            setParticipantCount(Object.keys(currentParticipants).length);
+          }, 100);
+        }
+      });
+
+      call.on('track-stopped', (event: DailyEventObject) => {
+        console.log('Track stopped', event);
+        if (event.track?.kind === 'video' && (event.participant?.screen || event.track?.label?.includes('screen'))) {
+          console.log('Remote screen sharing stopped');
+          // Force immediate participant update
+          setTimeout(() => {
+            const currentParticipants = call.participants();
+            setParticipants(currentParticipants);
+            setParticipantCount(Object.keys(currentParticipants).length);
+          }, 100);
+        }
       });
 
       // Add window beforeunload cleanup
@@ -145,9 +244,56 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
 
       window.addEventListener('beforeunload', handleBeforeUnload);
 
-      // Cleanup function for removing the beforeunload listener
+      // Periodic state refresh to ensure UI stays in sync
+      const stateRefreshInterval = setInterval(() => {
+        if (call && call.meetingState() === 'joined-meeting') {
+          try {
+            const currentParticipants = call.participants();
+            const participantKeys = Object.keys(currentParticipants);
+            
+            // Always update to ensure UI is in sync
+            console.log('Periodic state refresh - updating participants');
+            setParticipants(currentParticipants);
+            setParticipantCount(participantKeys.length);
+            
+            // Update local participant states
+            const localParticipant = Object.values(currentParticipants).find(p => p.local);
+            if (localParticipant) {
+              const currentAudioMuted = !localParticipant.tracks.audio?.state || localParticipant.tracks.audio.state !== 'playable';
+              const currentVideoMuted = !localParticipant.tracks.video?.state || localParticipant.tracks.video.state !== 'playable';
+              const currentScreenSharing = !!localParticipant.tracks.screenVideo?.state && localParticipant.tracks.screenVideo.state === 'playable';
+              
+              setIsAudioMuted(currentAudioMuted);
+              setIsVideoMuted(currentVideoMuted);
+              setIsScreenSharing(currentScreenSharing);
+            }
+            
+            // Force video refresh to ensure all videos are playing
+            setTimeout(() => {
+              const videos = document.querySelectorAll('video');
+              videos.forEach(video => {
+                if (video.srcObject && video.paused) {
+                  video.play().catch(console.error);
+                }
+              });
+              
+              const audios = document.querySelectorAll('audio');
+              audios.forEach(audio => {
+                if (audio.srcObject && audio.paused) {
+                  audio.play().catch(console.error);
+                }
+              });
+            }, 200);
+          } catch (error) {
+            console.error('Error during periodic state refresh:', error);
+          }
+        }
+      }, 1000); // Refresh every second
+
+      // Cleanup function for removing the beforeunload listener and interval
       const cleanup = () => {
         window.removeEventListener('beforeunload', handleBeforeUnload);
+        clearInterval(stateRefreshInterval);
       };
 
       return cleanup;
@@ -228,26 +374,26 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
     if (!callRef.current) return;
 
     try {
-      const newMutedState = !isAudioMuted;
-      await callRef.current.setLocalAudio(!newMutedState);
-      setIsAudioMuted(newMutedState);
+      const currentState = callRef.current.localAudio();
+      await callRef.current.setLocalAudio(!currentState);
+      setIsAudioMuted(!currentState);
     } catch (err) {
       console.error('Failed to toggle audio:', err);
     }
-  }, [isAudioMuted]);
+  }, []);
 
   // Toggle video
   const toggleVideo = useCallback(async () => {
     if (!callRef.current) return;
 
     try {
-      const newMutedState = !isVideoMuted;
-      await callRef.current.setLocalVideo(!newMutedState);
-      setIsVideoMuted(newMutedState);
+      const currentState = callRef.current.localVideo();
+      await callRef.current.setLocalVideo(!currentState);
+      setIsVideoMuted(!currentState);
     } catch (err) {
       console.error('Failed to toggle video:', err);
     }
-  }, [isVideoMuted]);
+  }, []);
 
   // Toggle screen sharing
   const toggleScreenShare = useCallback(async () => {
@@ -256,10 +402,11 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
     try {
       if (isScreenSharing) {
         await callRef.current.stopScreenShare();
+        setIsScreenSharing(false);
       } else {
         await callRef.current.startScreenShare();
+        setIsScreenSharing(true);
       }
-      setIsScreenSharing(!isScreenSharing);
     } catch (err) {
       console.error('Failed to toggle screen share:', err);
       setError('Screen sharing failed. Please try again.');
@@ -307,71 +454,122 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
   }, []);
 
   // Render participant video
-  const renderParticipantVideo = (participant: DailyParticipant) => {
+  const renderParticipantVideo = (participant: DailyParticipant, isScreenShareActive: boolean = false) => {
     const { session_id, local, tracks, user_name } = participant;
     const videoTrack = tracks.video;
     const screenTrack = tracks.screenVideo;
+    const audioTrack = tracks.audio;
+    
+    // Check if this participant is sharing screen
+    const isThisParticipantSharingScreen = !!screenTrack?.persistentTrack && screenTrack?.state === 'playable';
     
     return (
       <div
         key={session_id}
-        className={`relative bg-gray-900 rounded-lg overflow-hidden ${
+        className={`relative bg-gray-900 rounded-lg overflow-hidden participant-video ${
           local ? 'border-2 border-blue-500' : 'border border-gray-600'
-        }`}
+        } ${isThisParticipantSharingScreen && isScreenShareActive ? 'screen-share-main' : ''}`}
       >
-        {/* Video element */}
-        <video
-          ref={(video) => {
-            if (video && videoTrack?.persistentTrack) {
-              video.srcObject = new MediaStream([videoTrack.persistentTrack]);
-              video.play().catch(console.error);
-            }
-          }}
-          autoPlay
-          muted={local} // Mute local video to prevent echo
-          playsInline
-          className={`w-full h-full object-cover ${
-            videoTrack?.state === 'playable' ? 'block' : 'hidden'
-          }`}
-        />
-
-        {/* Screen share video */}
-        {screenTrack?.persistentTrack && (
+        {/* Screen share video (prioritized when sharing) */}
+        {isThisParticipantSharingScreen && (
           <video
             ref={(video) => {
-              if (video && screenTrack.persistentTrack) {
-                video.srcObject = new MediaStream([screenTrack.persistentTrack]);
-                video.play().catch(console.error);
+              if (video && screenTrack?.persistentTrack) {
+                try {
+                  const mediaStream = new MediaStream([screenTrack.persistentTrack]);
+                  if (video.srcObject !== mediaStream) {
+                    video.srcObject = mediaStream;
+                  }
+                  if (video.paused) {
+                    video.play().catch(console.error);
+                  }
+                } catch (error) {
+                  console.error('Error setting screen share source:', error);
+                }
               }
             }}
             autoPlay
             muted={local}
             playsInline
-            className="w-full h-full object-contain"
+            className="w-full h-full object-contain bg-black"
+            onLoadedMetadata={(e) => {
+              const video = e.target as HTMLVideoElement;
+              video.play().catch(console.error);
+            }}
+          />
+        )}
+
+        {/* Camera video (shown when not screen sharing or as small overlay) */}
+        {(!isThisParticipantSharingScreen || !isScreenShareActive) && videoTrack?.persistentTrack && videoTrack?.state === 'playable' && (
+          <video
+            ref={(video) => {
+              if (video && videoTrack.persistentTrack) {
+                try {
+                  const mediaStream = new MediaStream([videoTrack.persistentTrack]);
+                  if (video.srcObject !== mediaStream) {
+                    video.srcObject = mediaStream;
+                  }
+                  if (video.paused) {
+                    video.play().catch(console.error);
+                  }
+                } catch (error) {
+                  console.error('Error setting video source:', error);
+                }
+              }
+            }}
+            autoPlay
+            muted={local}
+            playsInline
+            className="w-full h-full object-cover"
+            onLoadedMetadata={(e) => {
+              const video = e.target as HTMLVideoElement;
+              video.play().catch(console.error);
+            }}
           />
         )}
 
         {/* Audio element for remote participants */}
-        {!local && tracks.audio?.persistentTrack && (
+        {!local && audioTrack?.persistentTrack && audioTrack?.state === 'playable' && (
           <audio
             ref={(audio) => {
-              if (audio && tracks.audio?.persistentTrack) {
-                audio.srcObject = new MediaStream([tracks.audio.persistentTrack]);
-                audio.play().catch(console.error);
+              if (audio && audioTrack.persistentTrack) {
+                try {
+                  const mediaStream = new MediaStream([audioTrack.persistentTrack]);
+                  if (audio.srcObject !== mediaStream) {
+                    audio.srcObject = mediaStream;
+                  }
+                  if (audio.paused) {
+                    audio.play().catch(console.error);
+                  }
+                } catch (error) {
+                  console.error('Error setting audio source:', error);
+                }
               }
             }}
             autoPlay
             playsInline
+            onLoadedMetadata={(e) => {
+              const audio = e.target as HTMLAudioElement;
+              audio.play().catch(console.error);
+            }}
           />
         )}
 
+        {/* Screen share indicator */}
+        {isThisParticipantSharingScreen && (
+          <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center">
+            <Monitor className="w-3 h-3 mr-1" />
+            Screen Share
+          </div>
+        )}
+
         {/* Participant info overlay */}
-        <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+        <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
           {user_name || 'Anonymous'} {local && '(You)'}
         </div>
 
         {/* Video off indicator */}
-        {(!videoTrack || videoTrack.state !== 'playable') && (
+        {(!isThisParticipantSharingScreen && (!videoTrack || videoTrack.state !== 'playable')) && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
             <div className="text-center text-white">
               <VideoOff className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -381,9 +579,100 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
         )}
 
         {/* Audio muted indicator */}
-        {tracks.audio?.state !== 'playable' && (
-          <div className="absolute top-2 right-2">
-            <MicOff className="w-5 h-5 text-red-500" />
+        {(!audioTrack || audioTrack.state !== 'playable') && (
+          <div className="absolute top-2 right-2 bg-red-500 rounded-full p-1">
+            <MicOff className="w-4 h-4 text-white" />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Create a separate component for camera-only participants during screen share
+  const renderCameraBox = (participant: DailyParticipant) => {
+    const { session_id, local, tracks, user_name } = participant;
+    const videoTrack = tracks.video;
+    const audioTrack = tracks.audio;
+    
+    return (
+      <div
+        key={`camera-${session_id}`}
+        className={`relative bg-gray-900 rounded-lg overflow-hidden w-32 h-24 ${
+          local ? 'border-2 border-blue-500' : 'border border-gray-600'
+        } camera-box`}
+      >
+        {/* Camera video */}
+        {videoTrack?.persistentTrack && videoTrack?.state === 'playable' && (
+          <video
+            ref={(video) => {
+              if (video && videoTrack.persistentTrack) {
+                try {
+                  const mediaStream = new MediaStream([videoTrack.persistentTrack]);
+                  if (video.srcObject !== mediaStream) {
+                    video.srcObject = mediaStream;
+                  }
+                  if (video.paused) {
+                    video.play().catch(console.error);
+                  }
+                } catch (error) {
+                  console.error('Error setting camera box video source:', error);
+                }
+              }
+            }}
+            autoPlay
+            muted={local}
+            playsInline
+            className="w-full h-full object-cover"
+            onLoadedMetadata={(e) => {
+              const video = e.target as HTMLVideoElement;
+              video.play().catch(console.error);
+            }}
+          />
+        )}
+
+        {/* Audio element for remote participants */}
+        {!local && audioTrack?.persistentTrack && audioTrack?.state === 'playable' && (
+          <audio
+            ref={(audio) => {
+              if (audio && audioTrack.persistentTrack) {
+                try {
+                  const mediaStream = new MediaStream([audioTrack.persistentTrack]);
+                  if (audio.srcObject !== mediaStream) {
+                    audio.srcObject = mediaStream;
+                  }
+                  if (audio.paused) {
+                    audio.play().catch(console.error);
+                  }
+                } catch (error) {
+                  console.error('Error setting camera box audio source:', error);
+                }
+              }
+            }}
+            autoPlay
+            playsInline
+            onLoadedMetadata={(e) => {
+              const audio = e.target as HTMLAudioElement;
+              audio.play().catch(console.error);
+            }}
+          />
+        )}
+
+        {/* Participant name */}
+        <div className="absolute bottom-1 left-1 bg-black bg-opacity-75 text-white px-1 py-0.5 rounded text-xs">
+          {user_name || 'Anonymous'} {local && '(You)'}
+        </div>
+
+        {/* Video off indicator */}
+        {(!videoTrack || videoTrack.state !== 'playable') && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+            <VideoOff className="w-4 h-4 text-white opacity-50" />
+          </div>
+        )}
+
+        {/* Audio muted indicator */}
+        {(!audioTrack || audioTrack.state !== 'playable') && (
+          <div className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5">
+            <MicOff className="w-3 h-3 text-white" />
           </div>
         )}
       </div>
@@ -406,7 +695,14 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
       {/* Header */}
       <div className="bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-lg font-semibold">Meeting Room</h1>
+          <div>
+            <h1 className="text-lg font-semibold">
+              {otherUserName ? `Meeting with ${otherUserName}` : 'Meeting Room'}
+            </h1>
+            {meetingDescription && (
+              <p className="text-sm text-gray-500">{meetingDescription}</p>
+            )}
+          </div>
           <div className="flex items-center space-x-2 text-sm text-gray-600">
             <Users className="w-4 h-4" />
             <span>{participantCount} participant{participantCount !== 1 ? 's' : ''}</span>
@@ -437,15 +733,43 @@ export default function DailyMeeting({ roomUrl, onLeave, meetingId, userName }: 
         ref={videoContainerRef}
         className="flex-1 p-4 overflow-hidden"
       >
-        <div className={`
-          grid gap-4 h-full
-          ${Object.keys(participants).length === 1 ? 'grid-cols-1' : 
-            Object.keys(participants).length === 2 ? 'grid-cols-2' : 
-            Object.keys(participants).length <= 4 ? 'grid-cols-2 grid-rows-2' : 
-            'grid-cols-3 grid-rows-3'}
-        `}>
-          {Object.values(participants).map(renderParticipantVideo)}
-        </div>
+        {/* Check if anyone is screen sharing */}
+        {(() => {
+          const participantList = Object.values(participants);
+          const screenSharingParticipant = participantList.find(p => 
+            p.tracks.screenVideo?.persistentTrack && p.tracks.screenVideo?.state === 'playable'
+          );
+          
+          if (screenSharingParticipant) {
+            // Screen sharing layout
+            return (
+              <div className="flex h-full gap-4">
+                {/* Main screen share area */}
+                <div className="flex-1">
+                  {renderParticipantVideo(screenSharingParticipant, true)}
+                </div>
+                
+                {/* Camera videos sidebar */}
+                <div className="w-40 flex flex-col gap-2 overflow-y-auto">
+                  {participantList.map(participant => renderCameraBox(participant))}
+                </div>
+              </div>
+            );
+          } else {
+            // Normal grid layout
+            return (
+              <div className={`
+                grid gap-4 h-full
+                ${participantList.length === 1 ? 'grid-cols-1' : 
+                  participantList.length === 2 ? 'grid-cols-2' : 
+                  participantList.length <= 4 ? 'grid-cols-2 grid-rows-2' : 
+                  'grid-cols-3 grid-rows-3'}
+              `}>
+                {participantList.map(participant => renderParticipantVideo(participant, false))}
+              </div>
+            );
+          }
+        })()}
       </div>
 
       {/* Controls */}
