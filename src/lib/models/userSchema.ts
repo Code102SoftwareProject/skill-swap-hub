@@ -15,11 +15,6 @@ export interface IUser extends Document {
   isGoogleUser?: boolean;
   // Flag to track if user needs to complete profile
   profileCompleted?: boolean;
-  suspension: {
-    isSuspended: boolean;
-    suspendedAt?: Date;
-    reason?: string;
-  };
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -38,11 +33,6 @@ const UserSchema: Schema = new Schema<IUser>(
     googleId: { type: String, unique: true, sparse: true }, // sparse allows null/undefined
     isGoogleUser: { type: Boolean, default: false },
     profileCompleted: { type: Boolean, default: false },
-    suspension: {
-      isSuspended: { type: Boolean, default: false },
-      suspendedAt: { type: Date },
-      reason: { type: String },
-    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -74,7 +64,7 @@ UserSchema.methods.comparePassword = async function (
     if (this.isGoogleUser && !this.password) {
       return false;
     }
-    
+
     // If no password is set, return false
     if (!this.password) {
       return false;

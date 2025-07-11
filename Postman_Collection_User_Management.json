@@ -1,0 +1,564 @@
+{
+  "info": {
+    "name": "Skill Swap Hub - User Management & Suspension System",
+    "description": "Complete API collection for testing user registration, login, suspension, and management features",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "item": [
+    {
+      "name": "User Authentication",
+      "item": [
+        {
+          "name": "Register New User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"1234567890\",\n  \"title\": \"Software Engineer\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "register"]
+            },
+            "description": "Register a new user account. This will check if the user is suspended and prevent registration if they are."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phone\": \"1234567890\",\n  \"title\": \"Software Engineer\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/register",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "register"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Registration successful\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user\": {\n    \"_id\": \"507f1f77bcf86cd799439011\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"1234567890\",\n    \"title\": \"Software Engineer\",\n    \"profileCompleted\": false,\n    \"createdAt\": \"2025-07-11T10:30:00.000Z\",\n    \"updatedAt\": \"2025-07-11T10:30:00.000Z\"\n  }\n}"
+            },
+            {
+              "name": "Suspended User Error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"firstName\": \"Suspended\",\n  \"lastName\": \"User\",\n  \"email\": \"suspended@example.com\",\n  \"phone\": \"9876543210\",\n  \"title\": \"Engineer\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/register",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "register"]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Your account has been suspended due to: Violating community guidelines. You are not allowed to create a new account. Please contact support for more information.\",\n  \"suspensionDetails\": {\n    \"reason\": \"Violating community guidelines\",\n    \"suspendedAt\": \"2025-07-11T11:00:00.000Z\",\n    \"notes\": \"User reported for inappropriate behavior in forum discussions\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"rememberMe\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "login"]
+            },
+            "description": "Login with email and password. Suspended users will be blocked from logging in."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"john.doe@example.com\",\n  \"password\": \"password123\",\n  \"rememberMe\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\",\n  \"user\": {\n    \"_id\": \"507f1f77bcf86cd799439011\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"1234567890\",\n    \"title\": \"Software Engineer\",\n    \"profileCompleted\": true\n  }\n}"
+            },
+            {
+              "name": "Suspended User Error",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"suspended@example.com\",\n  \"password\": \"password123\",\n  \"rememberMe\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "login"]
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Your account has been suspended due to: Violating community guidelines. Please contact support for more information.\",\n  \"suspensionDetails\": {\n    \"reason\": \"Violating community guidelines\",\n    \"suspendedAt\": \"2025-07-11T11:00:00.000Z\",\n    \"notes\": \"User reported for inappropriate behavior in forum discussions\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Google OAuth Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"credential\": \"eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkYzBkNjNhMjc5ZmNhOWRjNGU3NzQ5NzE1NjQ5NzQ5YWEwZDJjNjMiLCJ0eXAiOiJKV1QifQ...\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "google"]
+            },
+            "description": "Login with Google OAuth. You need to replace the credential with a real Google ID token."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/User-managment?page=1&limit=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "User-managment"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get all users with pagination and search. Admin authentication required."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminToken={{adminToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/User-managment?page=1&limit=10&search=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "User-managment"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "search",
+                      "value": ""
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"_id\": \"507f1f77bcf86cd799439011\",\n      \"firstName\": \"John\",\n      \"lastName\": \"Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"phone\": \"1234567890\",\n      \"title\": \"Software Engineer\",\n      \"profileCompleted\": true,\n      \"createdAt\": \"2025-07-11T10:30:00.000Z\",\n      \"updatedAt\": \"2025-07-11T10:30:00.000Z\"\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNextPage\": false,\n    \"hasPrevPage\": false\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Suspend User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"suspended\": true,\n  \"suspensionReason\": \"Violating community guidelines\",\n  \"suspensionNotes\": \"User reported for inappropriate behavior in forum discussions\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/User-managment?userId=507f1f77bcf86cd799439011",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "User-managment"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "507f1f77bcf86cd799439011",
+                  "description": "Replace with actual user ID"
+                }
+              ]
+            },
+            "description": "Suspend a user by moving them to the suspended users table. Admin authentication required."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Cookie",
+                    "value": "adminToken={{adminToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"suspended\": true,\n  \"suspensionReason\": \"Violating community guidelines\",\n  \"suspensionNotes\": \"User reported for inappropriate behavior in forum discussions\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/User-managment?userId=507f1f77bcf86cd799439011",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "User-managment"],
+                  "query": [
+                    {
+                      "key": "userId",
+                      "value": "507f1f77bcf86cd799439011"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"User suspended successfully\",\n  \"suspendedUser\": {\n    \"_id\": \"507f1f77bcf86cd799439012\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"1234567890\",\n    \"title\": \"Software Engineer\",\n    \"originalCreatedAt\": \"2025-07-11T10:30:00.000Z\",\n    \"originalUpdatedAt\": \"2025-07-11T10:35:00.000Z\",\n    \"suspendedAt\": \"2025-07-11T11:00:00.000Z\",\n    \"suspendedBy\": \"admin123\",\n    \"suspensionReason\": \"Violating community guidelines\",\n    \"suspensionNotes\": \"User reported for inappropriate behavior in forum discussions\",\n    \"originalUserId\": \"507f1f77bcf86cd799439011\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/User-managment?userId=507f1f77bcf86cd799439011",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "User-managment"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "507f1f77bcf86cd799439011",
+                  "description": "Replace with actual user ID"
+                }
+              ]
+            },
+            "description": "Permanently delete a user from the main users table. Admin authentication required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin - Suspended Users Management",
+      "item": [
+        {
+          "name": "Get All Suspended Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/suspended-users?page=1&limit=10&search=",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "suspended-users"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get all suspended users with pagination and search. Admin authentication required."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminToken={{adminToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/suspended-users?page=1&limit=10&search=",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "suspended-users"],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "search",
+                      "value": ""
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"_id\": \"507f1f77bcf86cd799439012\",\n      \"firstName\": \"John\",\n      \"lastName\": \"Doe\",\n      \"email\": \"john.doe@example.com\",\n      \"phone\": \"1234567890\",\n      \"title\": \"Software Engineer\",\n      \"originalCreatedAt\": \"2025-07-11T10:30:00.000Z\",\n      \"originalUpdatedAt\": \"2025-07-11T10:35:00.000Z\",\n      \"suspendedAt\": \"2025-07-11T11:00:00.000Z\",\n      \"suspendedBy\": \"admin123\",\n      \"suspensionReason\": \"Violating community guidelines\",\n      \"suspensionNotes\": \"User reported for inappropriate behavior\",\n      \"originalUserId\": \"507f1f77bcf86cd799439011\"\n    }\n  ],\n  \"pagination\": {\n    \"page\": 1,\n    \"limit\": 10,\n    \"total\": 1,\n    \"totalPages\": 1,\n    \"hasNextPage\": false,\n    \"hasPrevPage\": false\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Unsuspend User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/suspended-users?userId=507f1f77bcf86cd799439012",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "suspended-users"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "507f1f77bcf86cd799439012",
+                  "description": "Replace with actual suspended user ID"
+                }
+              ]
+            },
+            "description": "Unsuspend a user by moving them back to the main users table. Admin authentication required."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Cookie",
+                    "value": "adminToken={{adminToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/suspended-users?userId=507f1f77bcf86cd799439012",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "suspended-users"],
+                  "query": [
+                    {
+                      "key": "userId",
+                      "value": "507f1f77bcf86cd799439012"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"User unsuspended successfully\",\n  \"user\": {\n    \"_id\": \"507f1f77bcf86cd799439011\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john.doe@example.com\",\n    \"phone\": \"1234567890\",\n    \"title\": \"Software Engineer\",\n    \"profileCompleted\": true,\n    \"createdAt\": \"2025-07-11T10:30:00.000Z\",\n    \"updatedAt\": \"2025-07-11T10:35:00.000Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Permanently Delete Suspended User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "adminToken={{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/suspended-users?userId=507f1f77bcf86cd799439012",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "suspended-users"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "507f1f77bcf86cd799439012",
+                  "description": "Replace with actual suspended user ID"
+                }
+              ]
+            },
+            "description": "Permanently delete a suspended user. This action cannot be undone. Admin authentication required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Authentication",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "login"]
+            },
+            "description": "Login as admin to get authentication token for managing users and suspended users."
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/admin/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "admin", "login"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"admin\": {\n    \"userId\": \"admin123\",\n    \"username\": \"admin\",\n    \"role\": \"super_admin\",\n    \"permissions\": [\"manage_users\", \"manage_admins\", \"view_dashboard\"]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001",
+      "description": "Base URL for the Skill Swap Hub API"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "description": "Admin authentication token (set after admin login)"
+    }
+  ]
+}
