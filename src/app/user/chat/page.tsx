@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
 
@@ -66,10 +66,10 @@ export default function ChatPage() {
     setSessionUpdateTrigger(prev => prev + 1);
   };
 
-  const handleMeetingUpdate = () => {
+  const handleMeetingUpdate = useCallback(() => {
     // Trigger re-render for ChatHeader to refresh meeting status
     setSessionUpdateTrigger(prev => prev + 1);
-  };
+  }, []);
 
   const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);

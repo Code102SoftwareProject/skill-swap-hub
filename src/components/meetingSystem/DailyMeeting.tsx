@@ -22,31 +22,23 @@ import {
   VideoOff, 
   PhoneOff, 
   Monitor, 
+  MonitorOff, 
   Settings, 
-  Users, 
-  Maximize2,
-  Minimize2,
-  FileText,
-  Download,
-  ChevronRight,
-  ChevronLeft
+  Users,
+  Maximize,
+  Minimize,
+  StickyNote
 } from 'lucide-react';
+import { MeetingNotesSidebar } from './MeetingNotesSidebar';
 
 interface DailyMeetingProps {
   roomUrl: string;
   onLeave?: () => void;
   meetingId?: string;
   userName?: string;
+  userId?: string;
   otherUserName?: string;
   meetingDescription?: string;
-}
-
-interface TranscriptEntry {
-  id: string;
-  speaker: string;
-  text: string;
-  timestamp: Date;
-  sessionId: string;
 }
 
 // Custom styles for video containers
@@ -90,7 +82,8 @@ function DailyMeetingInner({
   otherUserName, 
   meetingDescription,
   meetingId,
-  userName 
+  userName,
+  userId 
 }: Omit<DailyMeetingProps, 'roomUrl'>) {
   // Daily React hooks
   const daily = useDaily();
@@ -102,21 +95,10 @@ function DailyMeetingInner({
   // UI State
   const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showTranscript, setShowTranscript] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Transcript State
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-  const [isTranscribing, setIsTranscribing] = useState(false);
-  const [isRecognitionSupported, setIsRecognitionSupported] = useState(true);
-  const [recognitionError, setRecognitionError] = useState<string | null>(null);
-  const [interimTranscript, setInterimTranscript] = useState<string>('');
-  const [transcriptionLang, setTranscriptionLang] = useState<string>('en-US');
-  const recognitionRef = useRef<any>(null);
-  const isRecognitionRunning = useRef(false);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
-
-  // Meeting control functions
+  // Meeting control functions  
   const toggleAudio = useCallback(async () => {
     if (!daily) return;
     await daily.setLocalAudio(!localParticipant?.audio);
@@ -140,214 +122,8 @@ function DailyMeetingInner({
     }
   }, [daily, isSharingScreen, startScreenShare, stopScreenShare]);
 
-  // Transcript functionality
-  const initializeTranscription = useCallback(() => {
-    // Check browser support
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      setIsRecognitionSupported(false);
-      setRecognitionError('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
-      return;
-    }
-    setIsRecognitionSupported(true);
-    setRecognitionError(null);
-
-    // @ts-ignore
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    // @ts-ignore
-    const recognition: any = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = transcriptionLang;
-
-    // @ts-ignore
-    recognition.onstart = () => {
-      isRecognitionRunning.current = true;
-    };
-    // @ts-ignore
-    recognition.onend = () => {
-      isRecognitionRunning.current = false;
-      setInterimTranscript('');
-      // Auto-restart if still transcribing and not throttled
-      if (isTranscribing) {
-        const now = Date.now();
-        restartTimestamps = restartTimestamps.filter(ts => now - ts < 60000); // last 60s
-        if (restartTimestamps.length < MAX_RESTARTS_PER_MINUTE) {
-          restartTimestamps.push(now);
-          setTimeout(() => {
-            try {
-              recognition.start();
-            } catch (e) {
-              setRecognitionError('Failed to restart speech recognition.');
-            }
-          }, 500);
-        } else {
-          setRecognitionError('Speech recognition auto-restart limit reached. Please wait a minute.');
-        }
-      }
-    };
-    // @ts-ignore
-    recognition.onresult = (event: any) => {
-      let finalTranscript = '';
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript + ' ';
-        } else {
-          interim += result[0].transcript;
-        }
-      }
-      setInterimTranscript(interim);
-      if (finalTranscript) {
-        const newEntry: TranscriptEntry = {
-          id: Date.now().toString(),
-          speaker: localParticipant?.user_name || 'You',
-          text: finalTranscript.trim(),
-          timestamp: new Date(),
-          sessionId: localParticipant?.session_id || 'unknown'
-        };
-        setTranscript(prev => [...prev, newEntry]);
-      }
-    };
-    // @ts-ignore
-    recognition.onerror = (event: any) => {
-      setRecognitionError(event.error || 'Speech recognition error');
-      if (event.error === 'not-allowed') {
-        setIsTranscribing(false);
-        alert('Microphone access is required for transcription. Please enable microphone access and try again.');
-        return;
-      }
-      if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'aborted') {
-        // Try to auto-restart after a short delay if not throttled
-        if (isTranscribing) {
-          const now = Date.now();
-          restartTimestamps = restartTimestamps.filter(ts => now - ts < 60000);
-          if (restartTimestamps.length < MAX_RESTARTS_PER_MINUTE) {
-            restartTimestamps.push(now);
-            setTimeout(() => {
-              try {
-                recognition.start();
-              } catch (e) {}
-            }, 1000);
-          } else {
-            setRecognitionError('Speech recognition auto-restart limit reached. Please wait a minute.');
-          }
-        }
-      } else {
-        setIsTranscribing(false);
-      }
-    };
-    recognitionRef.current = recognition;
-  }, [localParticipant?.user_name, localParticipant?.session_id, isTranscribing, transcriptionLang]);
-
-  const toggleTranscription = useCallback(() => {
-    if (!isRecognitionSupported) {
-      setRecognitionError('Speech recognition is not supported in this browser.');
-      return;
-    }
-    if (!recognitionRef.current) {
-      initializeTranscription();
-    }
-    if (isTranscribing) {
-      if (recognitionRef.current && isRecognitionRunning.current) {
-        recognitionRef.current.stop();
-      }
-      setIsTranscribing(false);
-      setInterimTranscript('');
-    } else {
-      try {
-        if (recognitionRef.current && !isRecognitionRunning.current) {
-          recognitionRef.current.lang = transcriptionLang;
-          recognitionRef.current.start();
-          setIsTranscribing(true);
-          setRecognitionError(null);
-        }
-      } catch (error: any) {
-        setRecognitionError('Failed to start transcription: ' + (error?.message || 'Unknown error'));
-      }
-    }
-  }, [isTranscribing, initializeTranscription, isRecognitionSupported, transcriptionLang]);
-
-  const saveTranscript = useCallback(async () => {
-    if (transcript.length === 0) {
-      alert('No transcript to save');
-      return;
-    }
-
-    try {
-      const content = transcript
-        .map(entry => `[${entry.timestamp.toLocaleTimeString()}] ${entry.speaker}: ${entry.text}`)
-        .join('\n');
-
-      const participants = Array.from(new Set(transcript.map(entry => entry.speaker)));
-
-      const response = await fetch('/api/transcripts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          meetingId: meetingId || 'unknown',
-          userId: localParticipant?.session_id || 'unknown',
-          userName: localParticipant?.user_name || 'Anonymous',
-          content,
-          participants
-        }),
-      });
-
-      if (response.ok) {
-        alert('Transcript saved successfully!');
-      } else {
-        alert('Failed to save transcript');
-      }
-    } catch (error) {
-      console.error('Error saving transcript:', error);
-      alert('Failed to save transcript');
-    }
-  }, [transcript, meetingId, localParticipant]);
-
-  const downloadTranscript = useCallback(() => {
-    if (transcript.length === 0) {
-      alert('No transcript to download');
-      return;
-    }
-
-    // Create RTF content
-    const rtfHeader = '{\\rtf1\\ansi\\deff0 {\\fonttbl {\\f0 Times New Roman;}}';
-    const rtfTitle = '\\f0\\fs24\\b Meeting Transcript\\b0\\fs20\\par\\par';
-    
-    const rtfContent = transcript
-      .map(entry => {
-        const timeStr = entry.timestamp.toLocaleTimeString();
-        return `\\b ${entry.speaker}\\b0 (${timeStr}): ${entry.text}\\par`;
-      })
-      .join('');
-
-    const rtfDocument = `${rtfHeader}${rtfTitle}${rtfContent}}`;
-
-    const blob = new Blob([rtfDocument], { type: 'application/rtf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meeting-transcript-${new Date().toISOString().split('T')[0]}.rtf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [transcript]);
-
+  // Enhanced leave meeting function
   const leaveMeeting = useCallback(async () => {
-    // Stop transcription and save transcript before leaving
-    if (recognitionRef.current && isTranscribing) {
-      recognitionRef.current.stop();
-      setIsTranscribing(false);
-    }
-
-    // Save transcript if there's content
-    if (transcript.length > 0) {
-      await saveTranscript();
-    }
-
     // Leave the Daily meeting
     if (daily) {
       await daily.leave();
@@ -357,33 +133,7 @@ function DailyMeetingInner({
     if (onLeave) {
       onLeave();
     }
-  }, [daily, isTranscribing, transcript, saveTranscript, onLeave]);
-
-  // Auto-scroll transcript to bottom
-  useEffect(() => {
-    if (transcriptEndRef.current) {
-      transcriptEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [transcript]);
-
-  // Initialize transcription when component mounts if supported
-  useEffect(() => {
-    if (meetingState === 'joined-meeting') {
-      initializeTranscription();
-      // Auto-start transcription when meeting starts
-      setTimeout(() => {
-        if (!isTranscribing && isRecognitionSupported) {
-          toggleTranscription();
-        }
-      }, 2000);
-    }
-    return () => {
-      if (recognitionRef.current && isRecognitionRunning.current) {
-        recognitionRef.current.stop();
-        isRecognitionRunning.current = false;
-      }
-    };
-  }, [meetingState, initializeTranscription, toggleTranscription, isTranscribing, isRecognitionSupported]);
+  }, [daily, onLeave]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -500,20 +250,11 @@ function DailyMeetingInner({
         
         <div className="flex items-center space-x-2">
           <Button
-            variant={showTranscript ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowTranscript(!showTranscript)}
-          >
-            <FileText className="w-4 h-4 mr-1" />
-            Transcript
-          </Button>
-          
-          <Button
             variant="outline"
             size="sm"
             onClick={toggleFullscreen}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
           </Button>
           
           <Button
@@ -526,12 +267,12 @@ function DailyMeetingInner({
         </div>
       </div>
 
-      {/* Main content with video and transcript */}
+      {/* Main content with video */}
       <div className="flex-1 flex overflow-hidden">
         {/* Video Area */}
         <div 
           ref={videoContainerRef}
-          className={`${showTranscript ? 'flex-1' : 'w-full'} p-4 overflow-hidden`}
+          className="w-full p-4 overflow-hidden"
         >
           {screens.length > 0 ? (
             renderScreenShare()
@@ -547,120 +288,6 @@ function DailyMeetingInner({
             </div>
           )}
         </div>
-
-        {/* Transcript Sidebar */}
-        {showTranscript && (
-          <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-semibold text-gray-900">Live Transcript</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowTranscript(false)}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
-              <div className="flex items-center space-x-2 mb-3">
-                <Button
-                  variant={isTranscribing ? "destructive" : "default"}
-                  size="sm"
-                  onClick={toggleTranscription}
-                  disabled={!isRecognitionSupported}
-                >
-                  {isTranscribing ? 'Stop' : 'Start'} Transcription
-                </Button>
-                {isTranscribing && (
-                  <div className="flex items-center text-sm text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2"></div>
-                    Recording
-                  </div>
-                )}
-                {!isRecognitionSupported && (
-                  <div className="text-xs text-red-500 ml-2">Speech recognition not supported in this browser.</div>
-                )}
-                {recognitionError && (
-                  <div className="text-xs text-red-500 ml-2">{recognitionError}</div>
-                )}
-              </div>
-              <div className="flex space-x-2 mb-2 items-center">
-                <label htmlFor="transcription-lang" className="text-xs text-gray-600">Language:</label>
-                <select
-                  id="transcription-lang"
-                  className="border rounded px-2 py-1 text-xs"
-                  value={transcriptionLang}
-                  onChange={e => setTranscriptionLang(e.target.value)}
-                  disabled={isTranscribing}
-                >
-                  <option value="en-US">English (US)</option>
-                  <option value="en-GB">English (UK)</option>
-                  <option value="hi-IN">Hindi (India)</option>
-                  <option value="es-ES">Spanish (Spain)</option>
-                  <option value="fr-FR">French (France)</option>
-                  <option value="de-DE">German</option>
-                  <option value="zh-CN">Chinese (Mandarin)</option>
-                  {/* Add more as needed */}
-                </select>
-              </div>
-              <div className="text-xs text-gray-500 mb-2">Only your speech is transcribed (from your microphone).</div>
-              <div className="flex space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={saveTranscript}
-                  disabled={transcript.length === 0}
-                >
-                  Save
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadTranscript}
-                  disabled={transcript.length === 0}
-                >
-                  <Download className="w-4 h-4 mr-1" />
-                  Download RTF
-                </Button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {transcript.length === 0 && !interimTranscript ? (
-                <div className="text-center text-gray-500 py-8">
-                  <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No transcript yet</p>
-                  <p className="text-sm">Start transcription to see live captions</p>
-                </div>
-              ) : (
-                <>
-                  {transcript.map((entry) => (
-                    <div key={entry.id} className="mb-3 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm text-gray-900">
-                          {entry.speaker}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {entry.timestamp.toLocaleTimeString()}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700">{entry.text}</p>
-                    </div>
-                  ))}
-                  {interimTranscript && (
-                    <div className="mb-3 p-3 bg-blue-50 rounded-lg animate-pulse">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium text-sm text-blue-900">You (live)</span>
-                        <span className="text-xs text-blue-500">...</span>
-                      </div>
-                      <p className="text-sm text-blue-700">{interimTranscript}</p>
-                    </div>
-                  )}
-                </>
-              )}
-              <div ref={transcriptEndRef} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Controls */}
@@ -694,6 +321,16 @@ function DailyMeetingInner({
           </Button>
 
           <Button
+            variant={showNotes ? "default" : "outline"}
+            size="lg"
+            onClick={() => setShowNotes(!showNotes)}
+            className="w-12 h-12 rounded-full p-0"
+            title="Toggle Notes"
+          >
+            <StickyNote className="w-5 h-5" />
+          </Button>
+
+          <Button
             variant="destructive"
             size="lg"
             onClick={leaveMeeting}
@@ -703,6 +340,15 @@ function DailyMeetingInner({
           </Button>
         </div>
       </div>
+
+      {/* Meeting Notes Sidebar */}
+      <MeetingNotesSidebar
+        meetingId={meetingId}
+        userId={userId}
+        userName={userName}
+        isVisible={showNotes}
+        onToggle={() => setShowNotes(!showNotes)}
+      />
     </div>
   );
 }
@@ -801,7 +447,8 @@ export default function DailyMeeting({
   roomUrl, 
   onLeave, 
   meetingId, 
-  userName, 
+  userName,
+  userId, 
   otherUserName, 
   meetingDescription 
 }: DailyMeetingProps) {
@@ -843,6 +490,7 @@ export default function DailyMeeting({
         onLeave={onLeave}
         meetingId={meetingId}
         userName={userName}
+        userId={userId}
         otherUserName={otherUserName}
         meetingDescription={meetingDescription}
       />

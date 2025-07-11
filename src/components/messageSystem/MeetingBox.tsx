@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, Plus, AlertCircle, Clock, ChevronDown, ChevronRight, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { X, Plus, AlertCircle, Clock, ChevronDown, ChevronRight, Calendar, CheckCircle, XCircle, Download, Video, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
-import PendingMeetingList from '@/components/meetingSystem/PendingMeetingList';
-import UpcomingMeetingList from '@/components/meetingSystem/UpcomingMeetingList';
 import Meeting from '@/types/meeting';
 import { fetchMeetings, createMeeting, updateMeeting } from "@/services/meetingApiServices";
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
@@ -37,6 +36,7 @@ interface MeetingBoxProps {
 }
 
 export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdate }: MeetingBoxProps) {
+  const router = useRouter();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
@@ -47,6 +47,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
   const [showPastMeetings, setShowPastMeetings] = useState(false);
   const [showCancelledMeetings, setShowCancelledMeetings] = useState(false);
+  const [meetingNotesStatus, setMeetingNotesStatus] = useState<{[meetingId: string]: boolean}>({});
+  const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -137,6 +139,13 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
 
   // Track if meetings have been loaded to prevent duplicate onMeetingUpdate calls
   const hasFetchedMeetings = useRef(false);
+  // Store the callback in a ref to avoid dependency issues
+  const onMeetingUpdateRef = useRef(onMeetingUpdate);
+  
+  // Update the ref when the callback changes
+  useEffect(() => {
+    onMeetingUpdateRef.current = onMeetingUpdate;
+  }, [onMeetingUpdate]);
 
   // Fetch chat room to get other user ID
   useEffect(() => {
@@ -176,9 +185,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         setMeetings(data);
 
         // Notify parent component about meeting updates (only once per mount)
-        if (onMeetingUpdate && !hasFetchedMeetings.current) {
+        if (onMeetingUpdateRef.current && !hasFetchedMeetings.current) {
           hasFetchedMeetings.current = true;
-          onMeetingUpdate();
+          onMeetingUpdateRef.current();
         }
       } catch (error) {
         console.error('Error fetching meetings:', error);
@@ -189,7 +198,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     
     hasFetchedMeetings.current = false; // Reset for new otherUserId
     loadMeetings();
-  }, [otherUserId, userId]); // Remove onMeetingUpdate dependency
+  }, [otherUserId, userId]);
 
   // Fetch meetings data
   const fetchMeetingsData = useCallback(async (otherUserID: string) => {
@@ -199,15 +208,15 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       setMeetings(data);
 
       // Notify parent component about meeting updates
-      if (onMeetingUpdate) {
-        onMeetingUpdate();
+      if (onMeetingUpdateRef.current) {
+        onMeetingUpdateRef.current();
       }
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
       setLoading(false);
     }
-  }, [userId, onMeetingUpdate]); // Remove fetchRecentCancellations dependency
+  }, [userId]);
 
   // Fetch user profiles for all meeting participants with stable dependencies
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
@@ -266,7 +275,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [meetings.length, fetchUserProfiles]); // Stable dependencies only
+  }, [meetings, fetchUserProfiles]); // Include meetings dependency
 
   // Fetch recent cancellations with stable dependencies
   const fetchRecentCancellations = useCallback(async (currentMeetings: Meeting[]) => {
@@ -352,7 +361,72 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     }, 500);
     
     return () => clearTimeout(timeoutId);
-  }, [meetings.length, fetchRecentCancellations]); // Stable dependencies only
+  }, [meetings, fetchRecentCancellations]); // Include meetings dependency
+
+  // Check if notes exist for meetings
+  const checkMeetingNotes = useCallback(async (currentMeetings: Meeting[]) => {
+    const pastAndCompletedMeetings = currentMeetings.filter(m => 
+      (m.state === 'completed' || m.state === 'accepted') && 
+      new Date(m.meetingTime) <= new Date()
+    );
+
+    if (pastAndCompletedMeetings.length === 0) {
+      setMeetingNotesStatus({});
+      setCheckingNotes({});
+      return;
+    }
+
+    const notesStatus: {[meetingId: string]: boolean} = {};
+    const checking: {[meetingId: string]: boolean} = {};
+
+    // Set all meetings as checking initially
+    pastAndCompletedMeetings.forEach(meeting => {
+      checking[meeting._id] = true;
+    });
+    setCheckingNotes(checking);
+
+    // Check notes for each meeting with caching
+    for (const meeting of pastAndCompletedMeetings) {
+      const cacheKey = `notes-check-${meeting._id}-${userId}`;
+      
+      try {
+        const hasNotes = await debouncedApiService.makeRequest(
+          cacheKey,
+          async () => {
+            const response = await fetch(`/api/meeting-notes?meetingId=${meeting._id}&userId=${userId}`);
+            const data = await response.json();
+            return response.ok && data._id && data.content && data.content.trim().length > 0;
+          },
+          300000 // Cache for 5 minutes
+        );
+        
+        notesStatus[meeting._id] = hasNotes;
+      } catch (error) {
+        console.error(`Error checking notes for meeting ${meeting._id}:`, error);
+        notesStatus[meeting._id] = false;
+      } finally {
+        checking[meeting._id] = false;
+      }
+    }
+
+    setMeetingNotesStatus(notesStatus);
+    setCheckingNotes(checking);
+  }, [userId]);
+
+  // Check for notes when meetings change
+  useEffect(() => {
+    if (meetings.length === 0) {
+      setMeetingNotesStatus({});
+      setCheckingNotes({});
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      checkMeetingNotes(meetings);
+    }, 300);
+    
+    return () => clearTimeout(timeoutId);
+  }, [meetings, checkMeetingNotes]);
 
   // Meeting action handler
   const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
@@ -378,19 +452,22 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
             showAlert('success', `Meeting ${actionText}ed successfully!`);
           }
           
-          // Refresh meetings after accepting
-          if (action === 'accept' && otherUserId) {
-            fetchMeetingsData(otherUserId);
-          }
-          
           // Invalidate cache for both users
           if (otherUserId) {
             invalidateUsersCaches(userId, otherUserId);
           }
           
           // Notify parent component about meeting updates
-          if (onMeetingUpdate) {
-            onMeetingUpdate();
+          if (onMeetingUpdateRef.current) {
+            onMeetingUpdateRef.current();
+          }
+          
+          // Only refresh meetings list if it's an accept action and we need latest data
+          if (action === 'accept' && otherUserId) {
+            // Small delay to ensure state is updated before fetching
+            setTimeout(() => {
+              fetchMeetingsData(otherUserId);
+            }, 100);
           }
         } catch (error) {
           console.error(`Error ${action}ing meeting:`, error);
@@ -425,8 +502,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         }
         
         // Notify parent component about meeting updates
-        if (onMeetingUpdate) {
-          onMeetingUpdate();
+        if (onMeetingUpdateRef.current) {
+          onMeetingUpdateRef.current();
         }
       }
     } catch (error) {
@@ -469,8 +546,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       }
       
       // Notify parent component about meeting updates
-      if (onMeetingUpdate) {
-        onMeetingUpdate();
+      if (onMeetingUpdateRef.current) {
+        onMeetingUpdateRef.current();
       }
     } catch (error) {
       console.error('Error cancelling meeting:', error);
@@ -521,61 +598,284 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     }
   };
 
-  // Simple meeting item component for past/cancelled meetings
-  const MeetingItem = ({ meeting, type }: { meeting: Meeting; type: 'past' | 'cancelled' }) => {
-    const otherUser = meeting.senderId === userId 
-      ? userProfiles[meeting.receiverId] 
-      : userProfiles[meeting.senderId];
-    
-    const formatDate = (date: string | Date) => {
-      return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
+  // Download notes for a meeting
+  const downloadMeetingNotes = async (meetingId: string, meetingTitle: string, meetingDate: string) => {
+    try {
+      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+      const data = await response.json();
+      
+      if (response.ok && data._id && data.content && data.content.trim().length > 0) {
+        // Create a well-formatted markdown document
+        const formattedDate = new Date(meetingDate).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        const formattedTime = new Date(meetingDate).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        });
 
-    // Get cancellation info for cancelled meetings from alerts
-    const cancellationInfo = type === 'cancelled' 
-      ? cancellationAlerts.find(alert => alert.meetingId === meeting._id)
-      : null;
+        // Keep markdown formatting intact and clean it up
+        let formattedContent = data.content
+          .replace(/^## (.*$)/gm, '## $1')  // Ensure proper heading format
+          .replace(/^# (.*$)/gm, '# $1')    // Ensure proper heading format
+          .replace(/^> (.*$)/gm, '> $1')    // Ensure proper quote format
+          .replace(/^- (.*$)/gm, '- $1')    // Ensure proper list format
+          .trim();
+
+        const wordCount = data.content.trim().split(/\s+/).filter((word: string) => word.length > 0).length;
+        
+        const markdownDocument = `# Meeting Notes
+
+---
+
+## Meeting Information
+
+- **Meeting:** ${data.title || meetingTitle}
+- **Date:** ${formattedDate}
+- **Time:** ${formattedTime}
+- **Meeting ID:** \`${meetingId}\`
+- **Author:** ${data.userName || 'Unknown'}
+
+---
+
+## Content
+
+${formattedContent}
+
+---
+
+## Meeting Details
+
+- **Word Count:** ${wordCount}
+- **Tags:** ${data.tags?.join(', ') || 'None'}
+- **Created:** ${new Date(data.createdAt || meetingDate).toLocaleDateString()}
+- **Last Updated:** ${data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : 'N/A'}
+
+---
+
+*Generated by SkillSwap Hub - Meeting Notes System*
+        `;
+        
+        const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `meeting-notes-${meetingId}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showAlert('success', 'Notes downloaded successfully as Markdown file!');
+      } else {
+        showAlert('info', 'No notes found for this meeting');
+      }
+    } catch (error) {
+      console.error('Error downloading notes:', error);
+      showAlert('error', 'Failed to download notes');
+    }
+  };
+
+  // Function to refresh notes status for a specific meeting
+  const refreshNotesStatus = useCallback((meetingId: string) => {
+    const cacheKey = `notes-check-${meetingId}-${userId}`;
+    debouncedApiService.invalidate(cacheKey);
+    
+    // Re-check notes for this meeting
+    checkMeetingNotes(meetings);
+  }, [userId, meetings, checkMeetingNotes]);
+
+  // Format date and time utilities
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const formatTime = (date: string | Date) => {
+    return new Date(date).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Handle join meeting button click
+  const handleJoinMeeting = (meetingId: string) => {
+    router.push(`/meeting/${meetingId}`);
+  };
+
+  // Get user display name
+  const getUserDisplayName = (userId: string): string => {
+    const profile = userProfiles[userId];
+    if (profile?.firstName && profile?.lastName) {
+      return `${profile.firstName} ${profile.lastName}`;
+    }
+    return profile?.firstName || 'User';
+  };
+
+  // Meeting status utilities
+  const getStatusColor = (meeting: Meeting) => {
+    switch (meeting.state) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'accepted': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (meeting: Meeting) => {
+    if (meeting.state === 'pending' && meeting.senderId === userId) {
+      return 'Awaiting Response';
+    }
+    return meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
+  };
+
+  // Inline Meeting Item Component
+  const MeetingItem = ({ meeting, type }: { meeting: Meeting; type: 'pending' | 'upcoming' | 'past' | 'cancelled' }) => {
+    const otherUserId = meeting.senderId === userId ? meeting.receiverId : meeting.senderId;
+    const otherUserName = getUserDisplayName(otherUserId);
+    const isPendingReceiver = type === 'pending' && meeting.receiverId === userId;
+    const canCancel = type === 'upcoming' && (meeting.senderId === userId || meeting.state === 'accepted');
 
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <h4 className="text-sm font-medium text-gray-900">
-                Meeting with {otherUser?.firstName || 'User'}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center space-x-3">
+            <div className="flex-shrink-0">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="w-4 h-4 text-blue-600" />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-900">
+                {type === 'pending' && isPendingReceiver 
+                  ? `Meeting Request from ${otherUserName}` 
+                  : `Meeting with ${otherUserName}`}
               </h4>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                type === 'cancelled' 
-                  ? 'bg-red-100 text-red-700' 
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                {type === 'cancelled' ? 'Cancelled' : 'Completed'}
+              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(meeting)}`}>
+                {getStatusLabel(meeting)}
               </span>
             </div>
-            
-            <p className="text-sm text-gray-600 mb-2">
-              {meeting.description}
-            </p>
-            
-            {type === 'cancelled' && cancellationInfo && (
-              <p className="text-xs text-red-600 mb-2 flex items-center">
-                <XCircle className="w-3 h-3 mr-1" />
-                Cancelled by {cancellationInfo.cancellerName}: {cancellationInfo.reason}
-              </p>
-            )}
-            
-            <p className="text-xs text-gray-500 flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {formatDate(meeting.meetingTime)}
+          </div>
+        </div>
+
+        {/* Meeting Description */}
+        {meeting.description && (
+          <p className="text-sm text-gray-600 mb-3">{meeting.description}</p>
+        )}
+
+        {/* Date and Time */}
+        <div className="flex items-center space-x-4 text-sm text-gray-500 mb-3">
+          <div className="flex items-center space-x-1">
+            <Calendar className="w-4 h-4" />
+            <span>{formatDate(meeting.meetingTime)}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Clock className="w-4 h-4" />
+            <span>{formatTime(meeting.meetingTime)}</span>
+          </div>
+          {/* Notes indicator for past meetings */}
+          {type === 'past' && (
+            <>
+              {checkingNotes[meeting._id] ? (
+                <div className="flex items-center space-x-1 text-gray-400">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+                  <span className="text-xs">Checking notes...</span>
+                </div>
+              ) : meetingNotesStatus[meeting._id] ? (
+                <div className="flex items-center space-x-1 text-blue-600">
+                  <Download className="w-4 h-4" />
+                  <span className="text-xs font-medium">Notes available</span>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+
+        {/* Meeting ready indicator for upcoming meetings */}
+        {type === 'upcoming' && meeting.state === 'accepted' && meeting.meetingLink && (
+          <div className="flex items-center text-blue-600 text-sm font-medium mb-3">
+            <Video className="w-4 h-4 mr-2" />
+            <span>Meeting ready to join</span>
+          </div>
+        )}
+
+        {/* Cancellation details for cancelled meetings */}
+        {type === 'cancelled' && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-3">
+            <p className="text-sm text-red-600 flex items-center">
+              <XCircle className="w-4 h-4 mr-2" />
+              Meeting cancelled
             </p>
           </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end space-x-2">
+          {/* Pending meeting actions */}
+          {isPendingReceiver && (
+            <>
+              <button
+                onClick={() => handleMeetingAction(meeting._id, 'accept')}
+                className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm font-medium transition-colors"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => handleMeetingAction(meeting._id, 'reject')}
+                className="px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium transition-colors"
+              >
+                Decline
+              </button>
+            </>
+          )}
+
+          {/* Join meeting button - only for upcoming meetings */}
+          {type === 'upcoming' && meeting.state === 'accepted' && meeting.meetingLink && (
+            <button
+              onClick={() => handleJoinMeeting(meeting._id)}
+              className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2 transition-colors"
+            >
+              <Video className="w-4 h-4" />
+              <span>Join Meeting</span>
+            </button>
+          )}
+
+          {/* Cancel button */}
+          {canCancel && (
+            <button
+              onClick={() => showCancelMeetingModal(meeting._id)}
+              className="px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+
+          {/* Download notes button for past meetings - only show if notes exist */}
+          {type === 'past' && meetingNotesStatus[meeting._id] && !checkingNotes[meeting._id] && (
+            <button
+              onClick={() => downloadMeetingNotes(
+                meeting._id, 
+                `Meeting with ${otherUserName}`, 
+                meeting.meetingTime.toString()
+              )}
+              className="px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md hover:bg-blue-100 text-sm font-medium flex items-center space-x-1 transition-colors"
+              title="Download meeting notes"
+            >
+              <Download className="w-4 h-4" />
+              <span>Download Notes</span>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -593,15 +893,18 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   return (
     <div className="p-4 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Meetings</h2>
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Meetings</h2>
+        </div>
         <button 
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
           title="Schedule New Meeting"
         >
           <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">New Meeting</span>
+          <span>New</span>
         </button>
       </div>
 
@@ -611,12 +914,11 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       {/* Meetings List */}
       <div className="flex-1 overflow-y-auto space-y-4">
         {meetings.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-medium mb-2">No meetings scheduled</p>
-            <p className="text-gray-400 text-sm mb-6">Start collaborating by scheduling your first meeting</p>
+          <div className="text-center py-8">
+            <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm mb-4">No meetings scheduled</p>
             <button 
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto text-sm"
               onClick={() => setShowCreateModal(true)}
             >
               <Plus className="w-4 h-4 mr-2" />
@@ -627,39 +929,46 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
           <>
             {/* Pending Meeting Requests */}
             {pendingRequests.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-2 text-yellow-500" />
                   Pending Requests ({pendingRequests.length})
                 </h3>
-                <PendingMeetingList
-                  meetings={pendingRequests}
-                  userId={userId}
-                  userProfiles={userProfiles}
-                  onAccept={(id) => handleMeetingAction(id, 'accept')}
-                  onReject={(id) => handleMeetingAction(id, 'reject')}
-                />
+                <div className="space-y-3">
+                  {pendingRequests.map((meeting) => (
+                    <MeetingItem 
+                      key={meeting._id} 
+                      meeting={meeting} 
+                      type="pending" 
+                    />
+                  ))}
+                </div>
               </div>
             )}
             
             {/* Upcoming Meetings */}
             {upcomingMeetings.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+              <div className="mb-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                  <Clock className="w-4 h-4 mr-2 text-blue-500" />
                   Upcoming Meetings ({upcomingMeetings.length})
                 </h3>
-                <UpcomingMeetingList
-                  meetings={upcomingMeetings}
-                  userId={userId}
-                  userProfiles={userProfiles}
-                  onCancel={showCancelMeetingModal}
-                />
+                <div className="space-y-3">
+                  {upcomingMeetings.map((meeting) => (
+                    <MeetingItem 
+                      key={meeting._id} 
+                      meeting={meeting} 
+                      type="upcoming" 
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
             {/* No Active Meetings Message */}
             {!hasActiveMeetingsOrRequests && (
-              <div className="text-center py-8">
-                <CheckCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <div className="text-center py-6">
+                <CheckCircle className="w-6 h-6 text-gray-400 mx-auto mb-2" />
                 <p className="text-gray-500 text-sm">
                   No active meetings or pending requests
                 </p>
@@ -668,12 +977,15 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
 
             {/* Past Meetings - Collapsible */}
             {pastMeetings.length > 0 && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 rounded-lg overflow-hidden mb-4">
                 <button
                   onClick={() => setShowPastMeetings(!showPastMeetings)}
                   className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
                 >
-                  <span>Past Meetings ({pastMeetings.length})</span>
+                  <div className="flex items-center">
+                    <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                    <span>Past Meetings ({pastMeetings.length})</span>
+                  </div>
                   {showPastMeetings ? (
                     <ChevronDown className="w-4 h-4" />
                   ) : (
@@ -682,7 +994,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
                 </button>
                 {showPastMeetings && (
                   <div className="p-4 bg-white space-y-3">
-                    {pastMeetings.map((meeting) => (
+                    {pastMeetings.slice().reverse().map((meeting) => (
                       <MeetingItem 
                         key={meeting._id} 
                         meeting={meeting} 
@@ -701,7 +1013,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
                   onClick={() => setShowCancelledMeetings(!showCancelledMeetings)}
                   className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
                 >
-                  <span>Cancelled Meetings ({cancelledMeetings.length})</span>
+                  <div className="flex items-center">
+                    <XCircle className="w-4 h-4 mr-2 text-red-500" />
+                    <span>Cancelled Meetings ({cancelledMeetings.length})</span>
+                  </div>
                   {showCancelledMeetings ? (
                     <ChevronDown className="w-4 h-4" />
                   ) : (
@@ -710,7 +1025,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
                 </button>
                 {showCancelledMeetings && (
                   <div className="p-4 bg-white space-y-3">
-                    {cancelledMeetings.map((meeting) => (
+                    {cancelledMeetings.slice().reverse().map((meeting) => (
                       <MeetingItem 
                         key={meeting._id} 
                         meeting={meeting} 
