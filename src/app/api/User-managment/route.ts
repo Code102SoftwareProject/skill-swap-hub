@@ -8,8 +8,11 @@ export const GET = async (request: Request) => {
   try {
     await connect();
     const { searchParams } = new URL(request.url);
+    // Page size selector support: validate and cap limit
+    let limit = parseInt(searchParams.get('limit') || '10', 10);
+    if (isNaN(limit) || limit < 1) limit = 10;
+    if (limit > 100) limit = 100; // Max page size is 100
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
     const search = searchParams.get('search') || '';
     const skip = (page - 1) * limit;
 

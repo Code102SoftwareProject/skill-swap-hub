@@ -53,6 +53,7 @@ interface DeleteModalProps {
 // Constants
 const USERS_PER_PAGE = 10;
 const DEBOUNCE_DELAY = 300;
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
 
 // Helper functions
 const getInitials = (firstName: string, lastName: string): string => {
@@ -284,7 +285,7 @@ const UserTableRow: React.FC<{ user: User; onDelete: (userId: string) => void }>
   </tr>
 );
 
-// --- ENHANCED UserTable for horizontal scroll ---
+// --- ENHANCED UserTable for color palette and header polish ---
 const UserTable: React.FC<UserTableProps> = ({ users, onDelete, loading }) => {
   if (loading) return <LoadingSkeleton />;
   if (users.length === 0) return <EmptyState />;
@@ -292,15 +293,15 @@ const UserTable: React.FC<UserTableProps> = ({ users, onDelete, loading }) => {
   return (
     <div className="overflow-x-auto w-full">
       <table className="min-w-full text-gray-900 p-12">
-        <thead className="bg-gray-100 sticky top-0 z-10">
+        <thead className="bg-gradient-to-r from-blue-50 to-blue-100 sticky top-0 z-10">
           <tr>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Avatar</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Name</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Email</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Phone</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Title</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Joined</th>
-            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Action</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Avatar</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Name</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Email</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Phone</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Title</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Joined</th>
+            <th className="px-4 py-3 text-left font-bold text-sm uppercase tracking-wider text-blue-800 border-b border-blue-200 bg-blue-50/80">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -378,15 +379,16 @@ const UsersContent: React.FC = () => {
   });
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
+  const [pageSize, setPageSize] = useState(10);
 
-  // Fetch users from API with pagination, search, and sorting
-  const fetchUsers = useCallback(async (pageNum = 1, searchTerm = '', sortField = sortBy, sortDir = sortOrder) => {
+  // Fetch users from API with pagination, search, sorting, and page size
+  const fetchUsers = useCallback(async (pageNum = 1, searchTerm = '', sortField = sortBy, sortDir = sortOrder, limit = pageSize) => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({
         page: pageNum.toString(),
-        limit: USERS_PER_PAGE.toString(),
+        limit: limit.toString(),
         sortBy: sortField,
         sortOrder: sortDir,
       });
@@ -405,12 +407,12 @@ const UsersContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [sortBy, sortOrder]);
+  }, [sortBy, sortOrder, pageSize]);
 
   // Initial and paginated fetch
   useEffect(() => {
-    fetchUsers(page, search, sortBy, sortOrder);
-  }, [page, search, sortBy, sortOrder, fetchUsers]);
+    fetchUsers(page, search, sortBy, sortOrder, pageSize);
+  }, [page, search, sortBy, sortOrder, pageSize, fetchUsers]);
 
   // Handle delete user
   const handleDelete = async () => {
@@ -478,6 +480,12 @@ const UsersContent: React.FC = () => {
     setPage(1);
   };
 
+  // Page size selector handler
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setPageSize(Number(e.target.value));
+    setPage(1);
+  };
+
   return (
     <div className="p-2 sm:p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
       <ToastContainer />
@@ -531,6 +539,21 @@ const UsersContent: React.FC = () => {
             >
               {SORT_ORDERS.map((order) => (
                 <option key={order.value} value={order.value}>{order.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <span className="inline-flex items-center gap-1">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none" /><path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+              Page size:
+            </span>
+            <select
+              className="border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition text-gray-900 bg-white hover:border-blue-400"
+              value={pageSize}
+              onChange={handlePageSizeChange}
+            >
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>{size} / page</option>
               ))}
             </select>
           </label>
