@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
-import  connect  from "@/lib/db";
-import { Types } from "mongoose";
+import { NextRequest, NextResponse } from "next/server";
+import connect from "@/lib/db";
 import User from "@/lib/models/userSchema";
+import { Types } from "mongoose";
 
-// 🟩Fetch all users
-export const GET = async (request: Request) => {
+// GET: Fetch paginated, searchable, sortable, non-deleted users
+export async function GET(request: NextRequest) {
   try {
     await connect();
     const { searchParams } = new URL(request.url);
@@ -40,70 +40,80 @@ export const GET = async (request: Request) => {
       .limit(limit);
     const total = await User.countDocuments(query);
 
-    return new NextResponse(
-      JSON.stringify({
-        users,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages: Math.ceil(total / limit),
-          hasNextPage: page < Math.ceil(total / limit),
-          hasPrevPage: page > 1,
-        },
+    return NextResponse.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNextPage: page < Math.ceil(total / limit),
+        hasPrevPage: page > 1,
         sortBy,
         sortOrder,
-      }),
-      { status: 200 }
-    );
+      },
+    });
   } catch (error: any) {
     return new NextResponse("Error in fetching users" + error.message, { status: 500 });
   }
-};
+}
 
-
-// 🟩Remove a user by ID
-export const DELETE = async (request: Request) => {
+// DELETE: Soft delete a user by ID
+export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-
     if (!userId) {
-      return new NextResponse(
-        JSON.stringify({ message: "ID not found" }),
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "ID not found" }, { status: 400 });
     }
-
     if (!Types.ObjectId.isValid(userId)) {
-      return new NextResponse(
-        JSON.stringify({ message: "Invalid user Id" }),
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "Invalid user Id" }, { status: 400 });
     }
-
     await connect();
-
     // Soft delete: set isDeleted to true
     const updatedUser = await User.findByIdAndUpdate(
       new Types.ObjectId(userId),
       { isDeleted: true },
       { new: true }
     );
-
     if (!updatedUser) {
-      return new NextResponse(
-        JSON.stringify({ message: "User not found in the database" }),
-        { status: 400 }
-      );
+      return NextResponse.json({ message: "User not found in the database" }, { status: 400 });
     }
-
-    return new NextResponse(
-      JSON.stringify({ message: "User is soft deleted", user: updatedUser }),
-      { status: 200 }
-    );
-
+    return NextResponse.json({ message: "User is soft deleted", user: updatedUser }, { status: 200 });
   } catch (error: any) {
     return new NextResponse("Error in deleting user" + error.message, { status: 500 });
   }
-};
+}
+
+// PATCH: Suspend/unsuspend a user by ID
+export async function PATCH(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    if (!userId) {
+      return NextResponse.json({ message: "ID not found" }, { status: 400 });
+    }
+    if (!Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ message: "Invalid user Id" }, { status: 400 });
+    }
+    const body = await request.json();
+    const { suspended, suspensionReason } = body;
+    await connect();
+    const update: any = {
+      'suspension.isSuspended': !!suspended,
+      'suspension.suspendedAt': suspended ? new Date() : null,
+      'suspension.reason': suspended ? suspensionReason : null,
+    };
+    const updatedUser = await User.findByIdAndUpdate(
+      new Types.ObjectId(userId),
+      update,
+      { new: true }
+    );
+    if (!updatedUser) {
+      return NextResponse.json({ message: "User not found in the database" }, { status: 400 });
+    }
+    return NextResponse.json({ message: suspended ? "User suspended" : "User unsuspended", user: updatedUser }, { status: 200 });
+  } catch (error: any) {
+    return new NextResponse("Error in suspending user" + error.message, { status: 500 });
+  }
+}

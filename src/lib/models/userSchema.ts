@@ -15,11 +15,13 @@ export interface IUser extends Document {
   isGoogleUser?: boolean;
   // Flag to track if user needs to complete profile
   profileCompleted?: boolean;
+  // Suspension info
   suspension: {
     isSuspended: boolean;
     suspendedAt?: Date;
     reason?: string;
   };
+  // Soft delete flag
   isDeleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -31,19 +33,21 @@ const UserSchema: Schema = new Schema<IUser>(
     firstName: { type: String, required: true },
     lastName: { type: String, required: true },
     email: { type: String, unique: true, required: true, trim: true },
-    phone: { type: String, required: false }, // Not required for Google OAuth initially
-    title: { type: String, required: false }, // Not required for Google OAuth initially
-    password: { type: String, required: false }, // Not required for Google OAuth
+    phone: { type: String, required: false },
+    title: { type: String, required: false },
+    password: { type: String, required: false },
     avatar: { type: String },
     // Google OAuth fields
-    googleId: { type: String, unique: true, sparse: true }, // sparse allows null/undefined
+    googleId: { type: String, unique: true, sparse: true },
     isGoogleUser: { type: Boolean, default: false },
     profileCompleted: { type: Boolean, default: false },
+    // Suspension info
     suspension: {
       isSuspended: { type: Boolean, default: false },
       suspendedAt: { type: Date },
       reason: { type: String },
     },
+    // Soft delete flag
     isDeleted: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
@@ -76,7 +80,7 @@ UserSchema.methods.comparePassword = async function (
     if (this.isGoogleUser && !this.password) {
       return false;
     }
-    
+
     // If no password is set, return false
     if (!this.password) {
       return false;
