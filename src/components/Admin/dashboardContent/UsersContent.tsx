@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { debounce } from 'lodash-es';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 // Types
 interface User {
@@ -192,14 +193,15 @@ const UserAvatar: React.FC<{ user: User; size?: 'sm' | 'md' | 'lg' }> = ({ user,
     lg: 'w-12 h-12 text-lg'
   };
 
+  const avatarSrc = processAvatarUrl(user.avatar) || '/default-avatar.png';
   return user.avatar ? (
     <img
-      src={user.avatar}
+      src={avatarSrc}
       alt={`${user.firstName} ${user.lastName}'s avatar`}
       className={`rounded-full object-cover border ${sizeClasses[size]}`}
     />
   ) : (
-    <div className={`rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border ${sizeClasses[size]}`}>
+    <div className={`bg-gray-200 text-gray-500 flex items-center justify-center rounded-full border ${sizeClasses[size]}`}>
       {getInitials(user.firstName, user.lastName)}
     </div>
   );
