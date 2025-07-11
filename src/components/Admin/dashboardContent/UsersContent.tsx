@@ -230,31 +230,35 @@ const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({ onClic
   </button>
 );
 
+// --- ENHANCED UserCard for mobile ---
 const UserCard: React.FC<UserCardProps> = ({ user, onDelete }) => (
-  <div className="bg-white rounded-lg shadow p-4 flex items-start gap-4">
-    <UserAvatar user={user} size="lg" />
-    <div className="flex-1">
-      <h3 className="font-medium text-gray-900">
-        {user.firstName} {user.lastName}
-        {user.role && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{user.role}</span>}
-      </h3>
-      <p className="text-sm text-gray-600">
-        <span className="font-medium">Email:</span> {user.email}
-      </p>
-      <p className="text-sm text-gray-600">
-        <span className="font-medium">Phone:</span> {formatPhoneNumber(user.phone)}
-      </p>
-      <p className="text-sm text-gray-600">
-        <span className="font-medium">Title:</span> {user.title}
-      </p>
-      <p className="text-sm text-gray-500 mt-1">
-        <span className="font-medium">Joined:</span> {formatDate(user.createdAt)}
-      </p>
+  <div className="bg-white rounded-2xl shadow-md p-4 flex flex-col sm:flex-row items-start gap-4 border border-gray-100 relative transition hover:shadow-lg focus-within:shadow-lg">
+    <div className="flex-shrink-0 self-center sm:self-start mb-2 sm:mb-0">
+      <UserAvatar user={user} size="lg" />
     </div>
-    <DeleteButton 
-      onClick={() => onDelete(user._id)} 
-      label={`Delete ${user.firstName} ${user.lastName}`}
-    />
+    <div className="flex-1 w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+        <h3 className="font-semibold text-gray-900 text-lg flex items-center gap-2">
+          {user.firstName} {user.lastName}
+          {user.role && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">{user.role}</span>}
+        </h3>
+        <button
+          onClick={() => onDelete(user._id)}
+          className="mt-2 sm:mt-0 p-2 rounded-full hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+          aria-label={`Delete ${user.firstName} ${user.lastName}`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="#ef4444" className="w-6 h-6">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+          </svg>
+        </button>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 mt-2 text-sm text-gray-700">
+        <div><span className="font-medium text-gray-500">Email:</span> <span className="break-all">{user.email}</span></div>
+        <div><span className="font-medium text-gray-500">Phone:</span> {formatPhoneNumber(user.phone)}</div>
+        <div><span className="font-medium text-gray-500">Title:</span> {user.title}</div>
+        <div><span className="font-medium text-gray-500">Joined:</span> {formatDate(user.createdAt)}</div>
+      </div>
+    </div>
   </div>
 );
 
@@ -280,29 +284,32 @@ const UserTableRow: React.FC<{ user: User; onDelete: (userId: string) => void }>
   </tr>
 );
 
+// --- ENHANCED UserTable for horizontal scroll ---
 const UserTable: React.FC<UserTableProps> = ({ users, onDelete, loading }) => {
   if (loading) return <LoadingSkeleton />;
   if (users.length === 0) return <EmptyState />;
 
   return (
-    <table className="min-w-full text-gray-900 p-12">
-      <thead className="bg-gray-100 sticky top-0 z-10">
-        <tr>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Avatar</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Name</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Email</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Phone</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Title</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Joined</th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        {users.map((user) => (
-          <UserTableRow key={user._id} user={user} onDelete={onDelete} />
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto w-full">
+      <table className="min-w-full text-gray-900 p-12">
+        <thead className="bg-gray-100 sticky top-0 z-10">
+          <tr>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Avatar</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Name</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Email</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Phone</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Title</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Joined</th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <UserTableRow key={user._id} user={user} onDelete={onDelete} />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
@@ -456,7 +463,7 @@ const UsersContent: React.FC = () => {
   }, [users]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
+    <div className="p-2 sm:p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
       <ToastContainer />
       
       {/* Header */}
@@ -477,7 +484,7 @@ const UsersContent: React.FC = () => {
       {/* Content */}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden">
         {/* Desktop: Table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block">
           {error ? (
             <ErrorMessage message={error} />
           ) : (
@@ -490,7 +497,7 @@ const UsersContent: React.FC = () => {
         </div>
 
         {/* Mobile: Cards */}
-        <div className="md:hidden space-y-4 p-4">
+        <div className="md:hidden flex flex-col gap-4 p-2 sm:p-4">
           {loading ? (
             <LoadingSkeleton count={5} />
           ) : error ? (
