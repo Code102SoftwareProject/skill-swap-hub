@@ -25,8 +25,14 @@ export const GET = async (request: Request) => {
       ];
     }
 
+    const allowedSortFields = ['firstName', 'lastName', 'email', 'title', 'role', 'createdAt'];
+    let sortBy = searchParams.get('sortBy') || 'createdAt';
+    let sortOrder = searchParams.get('sortOrder') || 'desc';
+    if (!allowedSortFields.includes(sortBy)) sortBy = 'createdAt';
+    const sortValue = sortOrder === 'asc' ? 1 : -1;
+
     const users = await User.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ [sortBy]: sortValue })
       .skip(skip)
       .limit(limit);
     const total = await User.countDocuments(query);
@@ -42,6 +48,8 @@ export const GET = async (request: Request) => {
           hasNextPage: page < Math.ceil(total / limit),
           hasPrevPage: page > 1,
         },
+        sortBy,
+        sortOrder,
       }),
       { status: 200 }
     );

@@ -347,6 +347,19 @@ const DeleteModal: React.FC<DeleteModalProps> = ({ isOpen, onClose, onConfirm, u
   );
 };
 
+const SORT_FIELDS = [
+  { value: 'createdAt', label: 'Created At' },
+  { value: 'firstName', label: 'First Name' },
+  { value: 'lastName', label: 'Last Name' },
+  { value: 'email', label: 'Email' },
+  { value: 'title', label: 'Title' },
+  { value: 'role', label: 'Role' },
+];
+const SORT_ORDERS = [
+  { value: 'asc', label: 'Ascending' },
+  { value: 'desc', label: 'Descending' },
+];
+
 const UsersContent: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -363,15 +376,19 @@ const UsersContent: React.FC = () => {
     hasNextPage: false,
     hasPrevPage: false,
   });
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
 
-  // Fetch users from API with pagination and search
-  const fetchUsers = useCallback(async (pageNum = 1, searchTerm = '') => {
+  // Fetch users from API with pagination, search, and sorting
+  const fetchUsers = useCallback(async (pageNum = 1, searchTerm = '', sortField = sortBy, sortDir = sortOrder) => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({
         page: pageNum.toString(),
         limit: USERS_PER_PAGE.toString(),
+        sortBy: sortField,
+        sortOrder: sortDir,
       });
       if (searchTerm) params.append('search', searchTerm);
       const res = await fetch(`/api/User-managment?${params.toString()}`);
@@ -379,6 +396,8 @@ const UsersContent: React.FC = () => {
       const data = await res.json();
       setUsers(data.users);
       setPagination(data.pagination);
+      setSortBy(data.pagination.sortBy || sortBy);
+      setSortOrder(data.pagination.sortOrder || sortOrder);
     } catch (err) {
       const error = err as Error;
       setError(error.message);
@@ -386,12 +405,12 @@ const UsersContent: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sortBy, sortOrder]);
 
   // Initial and paginated fetch
   useEffect(() => {
-    fetchUsers(page, search);
-  }, [page, search, fetchUsers]);
+    fetchUsers(page, search, sortBy, sortOrder);
+  }, [page, search, sortBy, sortOrder, fetchUsers]);
 
   // Handle delete user
   const handleDelete = async () => {
@@ -449,6 +468,16 @@ const UsersContent: React.FC = () => {
     }
   }, [users]);
 
+  // Sorting controls handlers
+  const handleSortByChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortBy(e.target.value);
+    setPage(1);
+  };
+  const handleSortOrderChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSortOrder(e.target.value);
+    setPage(1);
+  };
+
   return (
     <div className="p-2 sm:p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
       <ToastContainer />
@@ -465,6 +494,47 @@ const UsersContent: React.FC = () => {
           onChange={handleSearchChange} 
           onClear={clearSearch} 
         />
+      </div>
+      {/* Sorting Controls */}
+      <div className="mb-4 p-4">
+        <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-stretch sm:items-center bg-white/80 rounded-xl shadow-sm px-4 py-3 border border-gray-200">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <span className="sr-only">Sort by</span>
+            <span className="inline-flex items-center gap-1">
+              <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h12M3 17h6" /></svg>
+              Sort by:
+            </span>
+            <select
+              className="border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition text-gray-900 bg-white hover:border-blue-400"
+              value={sortBy}
+              onChange={handleSortByChange}
+            >
+              {SORT_FIELDS.map((field) => (
+                <option key={field.value} value={field.value}>{field.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <span className="sr-only">Sort order</span>
+            <span className="inline-flex items-center gap-1">
+              {sortOrder === 'asc' ? (
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" /></svg>
+              ) : (
+                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              )}
+              Order:
+            </span>
+            <select
+              className={`border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition text-gray-900 bg-white hover:border-blue-400 ${sortOrder === 'asc' ? 'font-semibold text-blue-700' : 'font-semibold text-blue-700'}`}
+              value={sortOrder}
+              onChange={handleSortOrderChange}
+            >
+              {SORT_ORDERS.map((order) => (
+                <option key={order.value} value={order.value}>{order.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
       {/* Content */}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden">
