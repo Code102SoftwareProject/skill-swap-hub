@@ -25,28 +25,28 @@ export function useSessionTimer(userId: string | null) {
         endTime: endTime.toISOString(),
         duration,
       };
+      console.log("[SessionTimer] Sending session data:", sessionData);
       try {
         await axios.post("/api/sessionTimer/save", sessionData);
+        console.log("[SessionTimer] Session data sent successfully");
       } catch (err) {
-        // Optionally handle error
+        console.error("[SessionTimer] Failed to send session data", err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        handleSessionEnd();
       }
     };
 
     window.addEventListener("beforeunload", handleSessionEnd);
-    window.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
-        handleSessionEnd();
-      }
-    });
+    window.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       handleSessionEnd();
       window.removeEventListener("beforeunload", handleSessionEnd);
-      window.removeEventListener("visibilitychange", () => {
-        if (document.visibilityState === "hidden") {
-          handleSessionEnd();
-        }
-      });
+      window.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [userId]);
 } 
