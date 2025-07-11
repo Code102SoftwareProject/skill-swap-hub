@@ -1,12 +1,12 @@
-// Users page in admin dashboard
-// This page displays a list of users with search and delete functionality
+// Suspended Users page in admin dashboard
+// This page displays a list of suspended users with search and unsuspend functionality
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { debounce } from "lodash-es";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // Types
-interface User {
+interface SuspendedUser {
   _id: string;
   firstName: string;
   lastName: string;
@@ -14,9 +14,12 @@ interface User {
   phone: string;
   title: string;
   avatar?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  role?: string;
+  originalCreatedAt: string;
+  suspendedAt: string;
+  suspendedBy: string;
+  suspensionReason: string;
+  suspensionNotes?: string;
+  originalUserId: string;
 }
 
 interface PaginationProps {
@@ -25,17 +28,17 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
-interface UserTableProps {
-  users: User[];
+interface SuspendedUserTableProps {
+  users: SuspendedUser[];
+  onUnsuspend: (userId: string) => void;
   onDelete: (userId: string) => void;
-  onSuspend: (userId: string) => void;
   loading: boolean;
 }
 
-interface UserCardProps {
-  user: User;
+interface SuspendedUserCardProps {
+  user: SuspendedUser;
+  onUnsuspend: (userId: string) => void;
   onDelete: (userId: string) => void;
-  onSuspend: (userId: string) => void;
 }
 
 interface SearchInputProps {
@@ -61,13 +64,15 @@ const getInitials = (firstName: string, lastName: string): string => {
 };
 
 const formatPhoneNumber = (phone: string): string => {
-  // Simple formatting - can be enhanced with libphonenumber-js for better formatting
   return phone.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3");
 };
 
-const formatDate = (dateString?: string): string => {
-  if (!dateString) return "N/A";
+const formatDate = (dateString: string): string => {
   return new Date(dateString).toLocaleDateString();
+};
+
+const formatDateTime = (dateString: string): string => {
+  return new Date(dateString).toLocaleString();
 };
 
 // Components
@@ -99,7 +104,7 @@ const ErrorMessage: React.FC<{ message: string }> = ({ message }) => (
 
 const EmptyState: React.FC = () => (
   <div className="py-10 text-center text-gray-400">
-    <span className="inline-block mr-2">🕵️‍♂️</span> No users found.
+    <span className="inline-block mr-2">🚫</span> No suspended users found.
   </div>
 );
 
@@ -111,11 +116,11 @@ const SearchInput: React.FC<SearchInputProps> = ({
   <div className="relative w-full sm:w-80">
     <input
       type="text"
-      placeholder="Search by name, email, or title..."
+      placeholder="Search by name, email, or reason..."
       className="w-full pl-10 pr-10 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500 transition-all"
       onChange={(e) => onChange(e.target.value)}
       value={value}
-      aria-label="Search users"
+      aria-label="Search suspended users"
     />
     <svg
       className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500"
@@ -215,10 +220,10 @@ const Pagination: React.FC<PaginationProps> = ({
   );
 };
 
-const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
-  user,
-  size = "md",
-}) => {
+const UserAvatar: React.FC<{
+  user: SuspendedUser;
+  size?: "sm" | "md" | "lg";
+}> = ({ user, size = "md" }) => {
   const sizeClasses = {
     sm: "w-8 h-8 text-sm",
     md: "w-10 h-10 text-base",
@@ -233,12 +238,38 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
     />
   ) : (
     <div
-      className={`rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border ${sizeClasses[size]}`}
+      className={`rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold border ${sizeClasses[size]}`}
     >
       {getInitials(user.firstName, user.lastName)}
     </div>
   );
 };
+
+const UnsuspendButton: React.FC<{ onClick: () => void; label: string }> = ({
+  onClick,
+  label,
+}) => (
+  <button
+    onClick={onClick}
+    className="p-2 rounded-full hover:bg-green-100 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+    aria-label={label}
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="#10b981"
+      className="w-6 h-6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  </button>
+);
 
 const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   onClick,
@@ -266,65 +297,19 @@ const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   </button>
 );
 
-const SuspendButton: React.FC<{
-  onClick: () => void;
-  label: string;
-  isSuspended: boolean;
-}> = ({ onClick, label, isSuspended }) => (
-  <button
-    onClick={onClick}
-    className={`p-2 rounded-full transition-colors focus:outline-none focus:ring-2 ${
-      isSuspended
-        ? "hover:bg-green-100 focus:ring-green-500"
-        : "hover:bg-yellow-100 focus:ring-yellow-500"
-    }`}
-    aria-label={label}
-  >
-    {isSuspended ? (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="#10b981"
-        className="w-6 h-6"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ) : (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="#f59e0b"
-        className="w-6 h-6"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-        />
-      </svg>
-    )}
-  </button>
-);
-
-const UserCard: React.FC<UserCardProps> = ({ user, onDelete, onSuspend }) => (
-  <div className="bg-white rounded-lg shadow p-4 flex items-start gap-4">
+const SuspendedUserCard: React.FC<SuspendedUserCardProps> = ({
+  user,
+  onUnsuspend,
+  onDelete,
+}) => (
+  <div className="bg-white rounded-lg shadow p-4 flex items-start gap-4 border-l-4 border-red-500">
     <UserAvatar user={user} size="lg" />
     <div className="flex-1">
       <h3 className="font-medium text-gray-900">
         {user.firstName} {user.lastName}
-        {user.role && (
-          <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-            {user.role}
-          </span>
-        )}
+        <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+          Suspended
+        </span>
       </h3>
       <p className="text-sm text-gray-600">
         <span className="font-medium">Email:</span> {user.email}
@@ -336,109 +321,127 @@ const UserCard: React.FC<UserCardProps> = ({ user, onDelete, onSuspend }) => (
       <p className="text-sm text-gray-600">
         <span className="font-medium">Title:</span> {user.title}
       </p>
-      <p className="text-sm text-gray-500 mt-1">
-        <span className="font-medium">Joined:</span>{" "}
-        {formatDate(user.createdAt)}
+      <p className="text-sm text-gray-600">
+        <span className="font-medium">Reason:</span> {user.suspensionReason}
       </p>
+      <p className="text-sm text-gray-500 mt-1">
+        <span className="font-medium">Originally joined:</span>{" "}
+        {formatDate(user.originalCreatedAt)}
+      </p>
+      <p className="text-sm text-gray-500">
+        <span className="font-medium">Suspended:</span>{" "}
+        {formatDateTime(user.suspendedAt)}
+      </p>
+      {user.suspensionNotes && (
+        <p className="text-sm text-gray-500">
+          <span className="font-medium">Notes:</span> {user.suspensionNotes}
+        </p>
+      )}
     </div>
     <div className="flex gap-2">
-      <SuspendButton
-        onClick={() => onSuspend(user._id)}
-        label={`Suspend ${user.firstName} ${user.lastName}`}
-        isSuspended={false}
+      <UnsuspendButton
+        onClick={() => onUnsuspend(user._id)}
+        label={`Unsuspend ${user.firstName} ${user.lastName}`}
       />
       <DeleteButton
         onClick={() => onDelete(user._id)}
-        label={`Delete ${user.firstName} ${user.lastName}`}
+        label={`Permanently delete ${user.firstName} ${user.lastName}`}
       />
     </div>
   </div>
 );
 
-const UserTableRow: React.FC<{
-  user: User;
+const SuspendedUserTableRow: React.FC<{
+  user: SuspendedUser;
+  onUnsuspend: (userId: string) => void;
   onDelete: (userId: string) => void;
-  onSuspend: (userId: string) => void;
-}> = ({ user, onDelete, onSuspend }) => (
-  <tr className="hover:bg-gray-50 transition-colors border-b last:border-b-0">
+}> = ({ user, onUnsuspend, onDelete }) => (
+  <tr className="hover:bg-gray-50 transition-colors border-b last:border-b-0 border-l-4 border-red-500">
     <td className="px-6 py-3">
       <UserAvatar user={user} />
     </td>
     <td className="px-6 py-3 font-medium">
       {user.firstName} {user.lastName}
-      {user.role && (
-        <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-          {user.role}
-        </span>
-      )}
+      <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+        Suspended
+      </span>
     </td>
     <td className="px-6 py-3">{user.email}</td>
     <td className="px-6 py-3">{formatPhoneNumber(user.phone)}</td>
     <td className="px-6 py-3">{user.title}</td>
-    <td className="px-6 py-3">{formatDate(user.createdAt)}</td>
+    <td className="px-6 py-3">{user.suspensionReason}</td>
+    <td className="px-6 py-3">{formatDate(user.originalCreatedAt)}</td>
+    <td className="px-6 py-3">{formatDateTime(user.suspendedAt)}</td>
     <td className="px-6 py-3">
       <div className="flex gap-2">
-        <SuspendButton
-          onClick={() => onSuspend(user._id)}
-          label={`Suspend ${user.firstName} ${user.lastName}`}
-          isSuspended={false}
+        <UnsuspendButton
+          onClick={() => onUnsuspend(user._id)}
+          label={`Unsuspend ${user.firstName} ${user.lastName}`}
         />
         <DeleteButton
           onClick={() => onDelete(user._id)}
-          label={`Delete ${user.firstName} ${user.lastName}`}
+          label={`Permanently delete ${user.firstName} ${user.lastName}`}
         />
       </div>
     </td>
   </tr>
 );
 
-const UserTable: React.FC<UserTableProps> = ({
+const SuspendedUserTable: React.FC<SuspendedUserTableProps> = ({
   users,
+  onUnsuspend,
   onDelete,
-  onSuspend,
   loading,
 }) => {
   if (loading) return <LoadingSkeleton />;
   if (users.length === 0) return <EmptyState />;
 
   return (
-    <table className="min-w-full text-gray-900 p-12">
-      <thead className="bg-gray-100 sticky top-0 z-10">
-        <tr>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Avatar
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Name
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Email
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Phone
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Title
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Joined
-          </th>
-          <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
-            Actions
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        {users.map((user) => (
-          <UserTableRow
-            key={user._id}
-            user={user}
-            onDelete={onDelete}
-            onSuspend={onSuspend}
-          />
-        ))}
-      </tbody>
-    </table>
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-gray-900">
+        <thead className="bg-gray-100 sticky top-0 z-10">
+          <tr>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Avatar
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Name
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Email
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Phone
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Title
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Reason
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Originally Joined
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Suspended
+            </th>
+            <th className="px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider text-gray-600">
+              Actions
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <SuspendedUserTableRow
+              key={user._id}
+              user={user}
+              onUnsuspend={onUnsuspend}
+              onDelete={onDelete}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
@@ -454,12 +457,12 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Confirm Deletion
+          Confirm Permanent Deletion
         </h3>
         <p className="text-gray-600 mb-6">
-          Are you sure you want to delete{" "}
-          {userName ? `user ${userName}` : "this user"}? This action cannot be
-          undone.
+          Are you sure you want to permanently delete{" "}
+          {userName ? `suspended user ${userName}` : "this suspended user"}?
+          This action cannot be undone and all their data will be lost forever.
         </p>
         <div className="flex justify-end gap-4">
           <button
@@ -474,7 +477,7 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
             className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors"
             aria-label="Confirm deletion"
           >
-            Delete
+            Delete Permanently
           </button>
         </div>
       </div>
@@ -482,26 +485,25 @@ const DeleteModal: React.FC<DeleteModalProps> = ({
   );
 };
 
-const UsersContent: React.FC = () => {
-  const [users, setUsers] = useState<User[]>([]);
+const SuspendedUsersContent: React.FC = () => {
+  const [suspendedUsers, setSuspendedUsers] = useState<SuspendedUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [userToDelete, setUserToDelete] = useState<SuspendedUser | null>(null);
 
-  // Fetch users
+  // Fetch suspended users
   useEffect(() => {
-    const fetchUsers = async () => {
+    const fetchSuspendedUsers = async () => {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/User-managment");
-        if (!res.ok) throw new Error("Failed to fetch users");
-        const response = await res.json();
-        // The API returns an object with data property containing the users array
-        setUsers(response.data || []);
+        const res = await fetch("/api/suspended-users");
+        if (!res.ok) throw new Error("Failed to fetch suspended users");
+        const data = await res.json();
+        setSuspendedUsers(data.data || []);
       } catch (err) {
         const error = err as Error;
         setError(error.message);
@@ -511,26 +513,59 @@ const UsersContent: React.FC = () => {
       }
     };
 
-    fetchUsers();
+    fetchSuspendedUsers();
   }, []);
 
-  // Handle delete user
+  // Handle unsuspend user
+  const handleUnsuspend = async (userId: string) => {
+    const user = suspendedUsers.find((u) => u._id === userId);
+    if (!user) return;
+
+    const confirmUnsuspend = window.confirm(
+      `Are you sure you want to unsuspend ${user.firstName} ${user.lastName}? They will be able to access their account again.`
+    );
+
+    if (!confirmUnsuspend) return;
+
+    try {
+      const res = await fetch(`/api/suspended-users?userId=${userId}`, {
+        method: "PATCH",
+      });
+
+      if (!res.ok) throw new Error("Failed to unsuspend user");
+
+      setSuspendedUsers((prev) => prev.filter((u) => u._id !== userId));
+      toast.success(
+        `User ${user.firstName} ${user.lastName} unsuspended successfully`,
+        {
+          position: "top-right",
+        }
+      );
+    } catch (err) {
+      const error = err as Error;
+      toast.error(error.message, { position: "top-right" });
+    }
+  };
+
+  // Handle delete suspended user
   const handleDelete = async () => {
     if (!userToDelete) return;
 
     try {
       const res = await fetch(
-        `/api/User-managment?userId=${userToDelete._id}`,
+        `/api/suspended-users?userId=${userToDelete._id}`,
         {
           method: "DELETE",
         }
       );
 
-      if (!res.ok) throw new Error("Failed to delete user");
+      if (!res.ok) throw new Error("Failed to delete suspended user");
 
-      setUsers((prev) => prev.filter((u) => u._id !== userToDelete._id));
+      setSuspendedUsers((prev) =>
+        prev.filter((u) => u._id !== userToDelete._id)
+      );
       toast.success(
-        `User ${userToDelete.firstName} ${userToDelete.lastName} deleted successfully`,
+        `Suspended user ${userToDelete.firstName} ${userToDelete.lastName} deleted permanently`,
         {
           position: "top-right",
         }
@@ -544,54 +579,12 @@ const UsersContent: React.FC = () => {
     }
   };
 
-  // Handle suspend user
-  const handleSuspend = async (userId: string) => {
-    const user = users.find((u) => u._id === userId);
-    if (!user) return;
-
-    // Show confirmation dialog for suspension
-    const suspensionReason = prompt(
-      `Are you sure you want to suspend ${user.firstName} ${user.lastName}?\n\nPlease provide a reason for suspension:`,
-      "Policy violation"
-    );
-
-    if (!suspensionReason) return; // User cancelled
-
-    try {
-      const res = await fetch(`/api/User-managment?userId=${userId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          suspended: true,
-          suspensionReason,
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to suspend user");
-
-      // Remove user from the current users list since they're moved to suspended users table
-      setUsers((prev) => prev.filter((u) => u._id !== userId));
-
-      toast.success(
-        `User ${user.firstName} ${user.lastName} suspended successfully`,
-        {
-          position: "top-right",
-        }
-      );
-    } catch (err) {
-      const error = err as Error;
-      toast.error(error.message, { position: "top-right" });
-    }
-  };
-
   // Debounced search
   const debouncedSearchHandler = useMemo(
     () =>
       debounce((value: string) => {
         setSearch(value);
-        setPage(1); // Reset to first page on search
+        setPage(1);
       }, DEBOUNCE_DELAY),
     []
   );
@@ -611,22 +604,16 @@ const UsersContent: React.FC = () => {
 
   // Filter and paginate users
   const filteredUsers = useMemo(() => {
-    // Ensure users is always an array
-    if (!Array.isArray(users)) {
-      console.warn("Users is not an array:", users);
-      return [];
-    }
-
     const searchTerm = search.toLowerCase();
-    return users.filter(
+    return suspendedUsers.filter(
       (user) =>
         user.firstName.toLowerCase().includes(searchTerm) ||
         user.lastName.toLowerCase().includes(searchTerm) ||
         user.email.toLowerCase().includes(searchTerm) ||
         user.title.toLowerCase().includes(searchTerm) ||
-        (user.role && user.role.toLowerCase().includes(searchTerm))
+        user.suspensionReason.toLowerCase().includes(searchTerm)
     );
-  }, [users, search]);
+  }, [suspendedUsers, search]);
 
   const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1;
   const paginatedUsers = useMemo(() => {
@@ -650,13 +637,13 @@ const UsersContent: React.FC = () => {
 
   const handleDeleteClick = useCallback(
     (userId: string) => {
-      const user = users.find((u) => u._id === userId);
+      const user = suspendedUsers.find((u) => u._id === userId);
       if (user) {
         setUserToDelete(user);
         setShowModal(true);
       }
     },
-    [users]
+    [suspendedUsers]
   );
 
   return (
@@ -667,11 +654,12 @@ const UsersContent: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-[#026aa1]">
-            User Management
+            Suspended Users
           </h2>
           <p className="text-sm text-gray-500 mt-1">
             {filteredUsers.length}{" "}
-            {filteredUsers.length === 1 ? "user" : "users"} found
+            {filteredUsers.length === 1 ? "suspended user" : "suspended users"}{" "}
+            found
           </p>
         </div>
         <SearchInput
@@ -684,14 +672,14 @@ const UsersContent: React.FC = () => {
       {/* Content */}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden">
         {/* Desktop: Table */}
-        <div className="hidden md:block overflow-x-auto">
+        <div className="hidden md:block">
           {error ? (
             <ErrorMessage message={error} />
           ) : (
-            <UserTable
+            <SuspendedUserTable
               users={paginatedUsers}
+              onUnsuspend={handleUnsuspend}
               onDelete={handleDeleteClick}
-              onSuspend={handleSuspend}
               loading={loading}
             />
           )}
@@ -707,11 +695,11 @@ const UsersContent: React.FC = () => {
             <EmptyState />
           ) : (
             paginatedUsers.map((user) => (
-              <UserCard
+              <SuspendedUserCard
                 key={user._id}
                 user={user}
+                onUnsuspend={handleUnsuspend}
                 onDelete={handleDeleteClick}
-                onSuspend={handleSuspend}
               />
             ))
           )}
@@ -744,4 +732,4 @@ const UsersContent: React.FC = () => {
   );
 };
 
-export default UsersContent;
+export default SuspendedUsersContent;

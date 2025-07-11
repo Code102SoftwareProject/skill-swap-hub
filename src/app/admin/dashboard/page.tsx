@@ -8,6 +8,7 @@ import AdminNavbar from "@/components/Admin/AdminNavbar";
 import DashboardContent from "@/components/Admin/dashboardContent/DashboardContent";
 import KYCContent from "@/components/Admin/dashboardContent/KYCContent";
 import UsersContent from "@/components/Admin/dashboardContent/UsersContent";
+import SuspendedUsersContent from "@/components/Admin/dashboardContent/SuspendedUsersContent";
 import SuggestionsContent from "@/components/Admin/dashboardContent/SuggestionsContent";
 import SystemContent from "@/components/Admin/dashboardContent/SystemContent";
 import VerificationRequests from "@/components/Admin/skillverifications";
@@ -23,6 +24,7 @@ const COMPONENTS = {
   ADMIN_MANAGEMENT: "admin-management",
   KYC: "kyc",
   USERS: "users",
+  SUSPENDED_USERS: "suspended-users",
   SUCCESS_STORIES: "success-stories",
   SUGGESTIONS: "suggestions",
   SYSTEM: "system",
@@ -298,6 +300,8 @@ export default function AdminDashboard() {
           return <KYCContent key={activeComponent} />;
         case COMPONENTS.USERS:
           return <UsersContent key={activeComponent} />;
+        case COMPONENTS.SUSPENDED_USERS:
+          return <SuspendedUsersContent key={activeComponent} />;
         case COMPONENTS.SUCCESS_STORIES:
           return <SuccessStoriesContent key={activeComponent} />;
         case COMPONENTS.SUGGESTIONS:
