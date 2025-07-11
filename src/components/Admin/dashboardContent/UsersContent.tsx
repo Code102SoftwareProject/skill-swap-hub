@@ -355,41 +355,54 @@ const UsersContent: React.FC = () => {
   const [page, setPage] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: USERS_PER_PAGE,
+    total: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
 
-  // Fetch users
-  useEffect(() => {
-    const fetchUsers = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch('/api/User-managment');
-        if (!res.ok) throw new Error('Failed to fetch users');
-        const data = await res.json();
-        setUsers(data);
-      } catch (err) {
-        const error = err as Error;
-        setError(error.message);
-        toast.error(error.message, { position: 'top-right' });
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchUsers();
+  // Fetch users from API with pagination and search
+  const fetchUsers = useCallback(async (pageNum = 1, searchTerm = '') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: USERS_PER_PAGE.toString(),
+      });
+      if (searchTerm) params.append('search', searchTerm);
+      const res = await fetch(`/api/User-managment?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
+      setUsers(data.users);
+      setPagination(data.pagination);
+    } catch (err) {
+      const error = err as Error;
+      setError(error.message);
+      toast.error(error.message, { position: 'top-right' });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // Initial and paginated fetch
+  useEffect(() => {
+    fetchUsers(page, search);
+  }, [page, search, fetchUsers]);
 
   // Handle delete user
   const handleDelete = async () => {
     if (!userToDelete) return;
-    
     try {
       const res = await fetch(`/api/User-managment?userId=${userToDelete._id}`, {
         method: 'DELETE',
       });
-      
       if (!res.ok) throw new Error('Failed to delete user');
-      
-      setUsers((prev) => prev.filter((u) => u._id !== userToDelete._id));
+      // Refetch current page after delete
+      fetchUsers(page, search);
       toast.success(`User ${userToDelete.firstName} ${userToDelete.lastName} was soft deleted (hidden from list)`, { 
         position: 'top-right' 
       });
@@ -405,8 +418,8 @@ const UsersContent: React.FC = () => {
   // Debounced search
   const debouncedSearchHandler = useMemo(
     () => debounce((value: string) => {
+      setPage(1);
       setSearch(value);
-      setPage(1); // Reset to first page on search
     }, DEBOUNCE_DELAY),
     []
   );
@@ -420,32 +433,6 @@ const UsersContent: React.FC = () => {
     setPage(1);
     debouncedSearchHandler.cancel();
   }, [debouncedSearchHandler]);
-
-  // Filter and paginate users
-  const filteredUsers = useMemo(() => {
-    const searchTerm = search.toLowerCase();
-    return users.filter(
-      (user) =>
-        user.firstName.toLowerCase().includes(searchTerm) ||
-        user.lastName.toLowerCase().includes(searchTerm) ||
-        user.email.toLowerCase().includes(searchTerm) ||
-        user.title.toLowerCase().includes(searchTerm) ||
-        (user.role && user.role.toLowerCase().includes(searchTerm))
-    );
-  }, [users, search]);
-
-  const totalPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE) || 1;
-  const paginatedUsers = useMemo(() => {
-    return filteredUsers.slice(
-      (page - 1) * USERS_PER_PAGE,
-      page * USERS_PER_PAGE
-    );
-  }, [filteredUsers, page]);
-
-  // Reset page if it's out of bounds after filtering
-  useEffect(() => {
-    if (page > totalPages) setPage(1);
-  }, [totalPages, page]);
 
   // Clean up debounce on unmount
   useEffect(() => {
@@ -465,13 +452,12 @@ const UsersContent: React.FC = () => {
   return (
     <div className="p-2 sm:p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
       <ToastContainer />
-      
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-[#026aa1]">User Management</h2>
           <p className="text-sm text-gray-500 mt-1">
-            {filteredUsers.length} {filteredUsers.length === 1 ? 'user' : 'users'} found
+            {pagination.total} {pagination.total === 1 ? 'user' : 'users'} found
           </p>
         </div>
         <SearchInput 
@@ -480,7 +466,6 @@ const UsersContent: React.FC = () => {
           onClear={clearSearch} 
         />
       </div>
-
       {/* Content */}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden">
         {/* Desktop: Table */}
@@ -489,23 +474,22 @@ const UsersContent: React.FC = () => {
             <ErrorMessage message={error} />
           ) : (
             <UserTable 
-              users={paginatedUsers} 
+              users={users} 
               onDelete={handleDeleteClick} 
               loading={loading} 
             />
           )}
         </div>
-
         {/* Mobile: Cards */}
         <div className="md:hidden flex flex-col gap-4 p-2 sm:p-4">
           {loading ? (
             <LoadingSkeleton count={5} />
           ) : error ? (
             <ErrorMessage message={error} />
-          ) : paginatedUsers.length === 0 ? (
+          ) : users.length === 0 ? (
             <EmptyState />
           ) : (
-            paginatedUsers.map((user) => (
+            users.map((user) => (
               <UserCard 
                 key={user._id} 
                 user={user} 
@@ -515,18 +499,16 @@ const UsersContent: React.FC = () => {
           )}
         </div>
       </div>
-
       {/* Pagination */}
-      {filteredUsers.length > USERS_PER_PAGE && (
+      {pagination.totalPages > 1 && (
         <div className="flex justify-center items-center gap-4 mt-8">
           <Pagination 
-            currentPage={page} 
-            totalPages={totalPages} 
+            currentPage={pagination.page} 
+            totalPages={pagination.totalPages} 
             onPageChange={setPage} 
           />
         </div>
       )}
-
       {/* Delete Confirmation Modal */}
       <DeleteModal
         isOpen={showModal}

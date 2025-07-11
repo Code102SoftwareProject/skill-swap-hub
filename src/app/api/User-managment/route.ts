@@ -4,12 +4,47 @@ import { Types } from "mongoose";
 import User from "@/lib/models/userSchema";
 
 // 🟩Fetch all users
-export const GET = async () => {
+export const GET = async (request: Request) => {
   try {
     await connect();
-    // Only return users that are not soft deleted
-    const users = await User.find({ isDeleted: { $ne: true } });
-    return new NextResponse(JSON.stringify(users), { status: 200 });
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const search = searchParams.get('search') || '';
+    const skip = (page - 1) * limit;
+
+    // Build query for non-deleted users and search
+    const query: any = { isDeleted: { $ne: true } };
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: 'i' } },
+        { lastName: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } },
+        { title: { $regex: search, $options: 'i' } },
+        { role: { $regex: search, $options: 'i' } },
+      ];
+    }
+
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+    const total = await User.countDocuments(query);
+
+    return new NextResponse(
+      JSON.stringify({
+        users,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+          hasNextPage: page < Math.ceil(total / limit),
+          hasPrevPage: page > 1,
+        },
+      }),
+      { status: 200 }
+    );
   } catch (error: any) {
     return new NextResponse("Error in fetching users" + error.message, { status: 500 });
   }
