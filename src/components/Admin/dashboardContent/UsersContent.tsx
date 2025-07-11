@@ -599,7 +599,7 @@ const UsersContent: React.FC = () => {
         <SearchInput value={search} onChange={handleSearchChange} onClear={clearSearch} />
       </div>
       {/* Sorting & Page Size Controls */}
-      <div className="mb-4">
+      <div className="mb-4 p-4">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-stretch sm:items-center bg-white/80 rounded-xl shadow-sm px-4 py-3 border border-gray-200">
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <span className="inline-flex items-center gap-1">
