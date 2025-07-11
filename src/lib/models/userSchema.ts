@@ -20,6 +20,7 @@ export interface IUser extends Document {
     suspendedAt?: Date;
     reason?: string;
   };
+  isDeleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -43,6 +44,7 @@ const UserSchema: Schema = new Schema<IUser>(
       suspendedAt: { type: Date },
       reason: { type: String },
     },
+    isDeleted: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },

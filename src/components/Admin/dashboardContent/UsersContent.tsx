@@ -390,7 +390,7 @@ const UsersContent: React.FC = () => {
       if (!res.ok) throw new Error('Failed to delete user');
       
       setUsers((prev) => prev.filter((u) => u._id !== userToDelete._id));
-      toast.success(`User ${userToDelete.firstName} ${userToDelete.lastName} deleted successfully`, { 
+      toast.success(`User ${userToDelete.firstName} ${userToDelete.lastName} was soft deleted (hidden from list)`, { 
         position: 'top-right' 
       });
     } catch (err) {
