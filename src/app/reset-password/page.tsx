@@ -6,6 +6,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/lib/context/ToastContext';
 
+interface FormErrors {
+  password?: string;
+  confirmPassword?: string;
+}
+
 const ResetPassword = () => {
   const router = useRouter();
   const { showToast } = useToast();
@@ -13,6 +18,7 @@ const ResetPassword = () => {
     password: '',
     confirmPassword: '',
   });
+  const [errors, setErrors] = useState<FormErrors>({});
   const [email, setEmail] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -28,7 +34,12 @@ const ResetPassword = () => {
     const storedEmail = localStorage.getItem('resetEmail');
     const storedToken = localStorage.getItem('resetToken');
     
+    console.log('Reset password page loaded');
+    console.log('Stored email:', storedEmail);
+    console.log('Stored token exists:', !!storedToken);
+    
     if (!storedEmail || !storedToken) {
+      console.log('Missing email or token, redirecting to forgot-password');
       setRedirected(true); // Set flag to prevent loop
       showToast('Please complete the verification process first', 'info');
       router.push('/forgot-password');
@@ -38,7 +49,8 @@ const ResetPassword = () => {
     // Validate token with backend
     const validateToken = async () => {
       try {
-        const response = await fetch('/api/validate-token', {
+        console.log('Validating reset token...');
+        const response = await fetch('/api/validate-reset-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -47,15 +59,19 @@ const ResetPassword = () => {
         });
         
         const data = await response.json();
+        console.log('Token validation response:', data);
         
         if (!data.success) {
+          console.log('Token validation failed:', data.message);
           setRedirected(true); // Set flag to prevent loop
-          showToast('Reset token has expired. Please restart the process.', 'error');
+          showToast(data.message || 'Reset token has expired. Please restart the process.', 'error');
           localStorage.removeItem('resetEmail');
           localStorage.removeItem('resetToken');
           router.push('/forgot-password');
           return;
         }
+        
+        console.log('Token validation successful');
       } catch (error) {
         console.error('Error validating token:', error);
         setRedirected(true); // Set flag to prevent loop
@@ -79,9 +95,23 @@ const ResetPassword = () => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
     
+    // Clear errors when typing
+    if (errors[name as keyof FormErrors]) {
+      setErrors({ ...errors, [name]: undefined });
+    }
+    
     // Check password strength if password field is changed
     if (name === 'password') {
       checkPasswordStrength(value);
+    }
+    
+    // Check if passwords match when confirmPassword is changed
+    if (name === 'confirmPassword' && formData.password && value) {
+      if (formData.password !== value) {
+        setErrors({ ...errors, confirmPassword: 'Passwords do not match' });
+      } else {
+        setErrors({ ...errors, confirmPassword: undefined });
+      }
     }
   };
   
@@ -137,25 +167,42 @@ const ResetPassword = () => {
     setPasswordFeedback(feedback);
   };
 
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
+    
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
+    } else if (passwordStrength < 3) {
+      newErrors.password = 'Please use a stronger password';
+    }
+    
+    // Confirm password validation
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'Please confirm your password';
+    } else if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
-    
-    // Check if passwords match
-    if (formData.password !== formData.confirmPassword) {
-      showToast('Passwords do not match', 'error');
-      setIsLoading(false);
-      return;
-    }
-    
-    // Check password strength
-    if (passwordStrength < 3) {
-      showToast('Please use a stronger password', 'error');
-      setIsLoading(false);
-      return;
-    }
 
     try {
+      console.log('Submitting password reset...');
+      console.log('Reset token exists:', !!resetToken);
+      
       const response = await fetch('/api/reset-password', {
         method: 'POST',
         headers: {
@@ -168,6 +215,7 @@ const ResetPassword = () => {
       });
 
       const data = await response.json();
+      console.log('Password reset response:', data);
 
       if (data.success) {
         showToast('Password has been reset successfully!', 'success');
@@ -184,6 +232,7 @@ const ResetPassword = () => {
           router.push('/login');
         }, 2000);
       } else {
+        console.log('Password reset failed:', data.message);
         showToast(data.message || 'Failed to reset password', 'error');
       }
     } catch (error) {
@@ -244,15 +293,21 @@ const ResetPassword = () => {
                   id="password"
                   name="password"
                   type="password"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="********"
                   value={formData.password}
                   onChange={handleChange}
                   required
                   minLength={8}
                   autoFocus
+                  aria-invalid={errors.password ? 'true' : 'false'}
+                  aria-describedby={errors.password ? "password-error" : undefined}
                 />
               </div>
+              
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600" id="password-error">{errors.password}</p>
+              )}
               
               {formData.password && (
                 <div className="mt-2">
@@ -292,16 +347,18 @@ const ResetPassword = () => {
                   id="confirmPassword"
                   name="confirmPassword"
                   type="password"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="********"
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
                   minLength={8}
+                  aria-invalid={errors.confirmPassword ? 'true' : 'false'}
+                  aria-describedby={errors.confirmPassword ? "confirm-password-error" : undefined}
                 />
               </div>
-              {formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword && (
-                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+              {errors.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1" id="confirm-password-error">{errors.confirmPassword}</p>
               )}
             </div>
 

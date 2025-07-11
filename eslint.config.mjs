@@ -11,22 +11,15 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends(
-    "next/core-web-vitals",
-    "plugin:@typescript-eslint/recommended" // Adds recommended TypeScript linting rules
+    "next/core-web-vitals"
   ),
   {
-    parser: "@typescript-eslint/parser", // Specify TypeScript parser
-    parserOptions: {
-      ecmaVersion: 2020,
-      sourceType: "module",
-    },
-    plugins: ["@typescript-eslint"], // Include TypeScript plugin
     rules: {
-      indent: ["error", "tab"], // Enforce tab indentation
-      "@typescript-eslint/no-unused-vars": ["warn"], // Warn on unused variables
-      "no-console": "warn", // Warn about console statements
-    },
-  },
+      "react/no-unescaped-entities": "off",
+      "react-hooks/exhaustive-deps": "warn",
+      "@next/next/no-img-element": "warn"
+    }
+  }
 ];
 
 export default eslintConfig;

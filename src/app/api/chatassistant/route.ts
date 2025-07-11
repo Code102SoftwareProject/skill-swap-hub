@@ -1,27 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAnswerFromGemini } from '@/lib/chatassistant/gemini';
+import connect from '@/lib/db';
+import VerificationRequestModel from '@/lib/models/VerificationRequest';
 
 /**
  * Agent function to handle skill verification request status
  * @param userId - The user ID to check verification status for
  */
+
 async function checkVerificationStatus(userId: string) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/verification-request?userId=${userId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch verification status: ${response.status}`);
-    }
-
-    const responseData = await response.json();
+    await connect();
     
-    // The API now returns an array of requests under the data property
-    const verificationRequests = responseData.data;
+    // Query database directly instead of making an HTTP call
+    const verificationRequests = await VerificationRequestModel.find({ userId })
+      .sort({ createdAt: -1 });
+    
+    // If no requests found, return early with a message
+    if (!verificationRequests || verificationRequests.length === 0) {
+      return {
+        type: 'verification_status',
+        data: [],
+        message: "You don't have any verification requests at the moment."
+      };
+    }
     
     return {
       type: 'verification_status',
@@ -37,16 +40,13 @@ async function checkVerificationStatus(userId: string) {
   }
 }
 
-/**
- * Formats verification status data into a readable message
- */
+
 function formatVerificationResponse(requests: any[]) {
   if (!requests || requests.length === 0) {
     return "You don't have any verification requests at the moment.";
   }
 
-  // Sort requests by date (newest first) - they should already be sorted from the API
-  // but we'll ensure it here
+ 
   const sortedRequests = [...requests].sort((a, b) => 
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
@@ -86,9 +86,7 @@ function formatVerificationResponse(requests: any[]) {
   return statusMessage;
 }
 
-/**
- * Determines intent from user question
- */
+
 function determineIntent(question: string) {
   const lowerQuestion = question.toLowerCase();
   
@@ -112,7 +110,7 @@ function determineIntent(question: string) {
  */
 async function handleTechnicalQuestion(question: string) {
   try {
-    // No need for external search, directly ask Gemini
+    //  directly ask Gemini
     const answer = await getAnswerFromGemini(question);
     
     return {

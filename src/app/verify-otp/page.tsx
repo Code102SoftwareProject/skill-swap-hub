@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, ClipboardEvent, KeyboardEvent, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -11,6 +11,7 @@ const VerifyOTP = () => {
   const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [otpError, setOtpError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -43,7 +44,8 @@ const VerifyOTP = () => {
     return () => clearInterval(timer);
   }, [router, showToast]);
 
-  const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  // Handle input change for individual digits
+  const handleOtpChange = (e: ChangeEvent<HTMLInputElement>, index: number) => {
     const value = e.target.value;
     
     // Allow only digits
@@ -54,21 +56,90 @@ const VerifyOTP = () => {
     newOtp[index] = value.slice(0, 1);
     setOtp(newOtp);
     
+    // Clear OTP error if present
+    if (otpError) {
+      setOtpError(null);
+    }
+    
     // Move to next input if a digit was entered
     if (value && index < 5 && inputRefs.current[index + 1]) {
       inputRefs.current[index + 1]?.focus();
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+  // Handle pasting OTP
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>, index: number) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text/plain').trim();
+    
+    // Check if pasted content contains only digits
+    if (!/^\d+$/.test(pastedData)) {
+      showToast('Please paste numbers only', 'error');
+      return;
+    }
+    
+    // Extract up to 6 digits
+    const digits = pastedData.slice(0, 6).split('');
+    
+    // Fill the OTP array
+    const newOtp = [...otp];
+    
+    digits.forEach((digit, i) => {
+      if (index + i < 6) {
+        newOtp[index + i] = digit;
+      }
+    });
+    
+    setOtp(newOtp);
+    
+    // Clear OTP error if present
+    if (otpError) {
+      setOtpError(null);
+    }
+    
+    // Focus the appropriate field
+    const newFocusIndex = Math.min(index + digits.length, 5);
+    if (inputRefs.current[newFocusIndex]) {
+      inputRefs.current[newFocusIndex]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, index: number) => {
     // Move to previous input on backspace if current input is empty
     if (e.key === 'Backspace' && !otp[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
+    
+    // Handle arrow keys for navigation between inputs
+    if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs.current[index - 1]?.focus();
+    }
+    
+    if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const validateOtp = (): boolean => {
+    const otpString = otp.join('');
+    
+    if (otpString.length !== 6) {
+      setOtpError('Please enter a complete 6-digit OTP');
+      return false;
+    }
+    
+    return true;
   };
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!validateOtp()) {
+      return;
+    }
+    
     setIsLoading(true);
     
     const otpString = otp.join('');
@@ -99,6 +170,7 @@ const VerifyOTP = () => {
           router.push('/reset-password');
         }, 1500);
       } else {
+        setOtpError('Invalid OTP. Please check and try again.');
         showToast(data.message || 'Invalid OTP', 'error');
       }
     } catch (error) {
@@ -177,21 +249,30 @@ const VerifyOTP = () => {
                   <input
                     key={idx}
                     type="text"
+                    inputMode="numeric"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(e, idx)}
                     onKeyDown={(e) => handleKeyDown(e, idx)}
+                    onPaste={(e) => handlePaste(e, idx)}
                     ref={(el) => { inputRefs.current[idx] = el }}
-                    className="w-12 h-12 text-center text-xl font-bold border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black"
+                    className={`w-12 h-12 text-center text-xl font-bold border ${otpError ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black`}
                     required
                     autoFocus={idx === 0}
                     disabled={isLoading}
+                    aria-label={`OTP digit ${idx + 1}`}
                   />
                 ))}
               </div>
+              {otpError && (
+                <p className="mt-2 text-sm text-red-600 text-center">{otpError}</p>
+              )}
               <div className="text-center mt-2">
                 <p className="text-sm text-gray-600">
                   Time remaining: <span className="font-medium">{formatTime(countdown)}</span>
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  You can also paste the entire OTP here
                 </p>
               </div>
             </div>

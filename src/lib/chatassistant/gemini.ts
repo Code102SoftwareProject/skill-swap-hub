@@ -1,23 +1,18 @@
-/**
- * Integration with Gemini API for getting answers to technical questions
- */
 
-// Import Gemini API client
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Initialize the Gemini API client
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 /**
- * Get answer from Gemini AI for a given question
  * @param question The user's question
  * @param context Optional additional context to provide to Gemini
  * @returns The generated answer
  */
+
 export async function getAnswerFromGemini(question: string, context?: string): Promise<string> {
   try {
-    // Get the generative model (using Gemini Pro)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    // Get the generative model 
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Construct the prompt
     let prompt = `You are a helpful technical assistant that provides accurate and concise information.

@@ -1,42 +1,49 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
-// This function runs for every request
-export function middleware(request: NextRequest) {
-  // Check if the request is for an admin route
-  if (request.nextUrl.pathname.startsWith("/admin")) {
-    // Allow access to login page
-    if (request.nextUrl.pathname === "/admin/login") {
-      return NextResponse.next();
-    }
-
-    // Get the admin token from cookies
-    const adminToken = request.cookies.get("adminToken")?.value;
-
-    // If there's no token, redirect to login
-    if (!adminToken) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
-    }
-
-    try {
-      // We'll verify token asynchronously but since middleware must be synchronous,
-      // we'll just check if token exists and handle detailed validation in protected pages
-      // This is a simpler approach for middleware
-
-      // Allow access if token exists (detailed verification happens in protected pages)
-      return NextResponse.next();
-    } catch (error) {
-      // Token is invalid or expired, redirect to login
-      return NextResponse.redirect(new URL("/admin/login", request.url));
-    }
-  }
-
-  // Allow all other requests
-  return NextResponse.next();
+// Ensure JWT secret exists - fail fast if missing
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error("JWT_SECRET environment variable is required");
 }
 
-// Specify which routes this middleware should run for
+// Encode the secret once at module load time
+const secret = new TextEncoder().encode(jwtSecret);
+
+/**
+ * Middleware function to protect admin routes
+ * Verifies admin authentication before allowing access to protected routes
+ */
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip authentication check for the login page itself
+  if (pathname === "/admin/login") {
+    return NextResponse.next();
+  }
+
+  // Extract admin authentication token from cookies
+  const token = request.cookies.get("adminToken")?.value;
+
+  // Redirect to login if no token exists
+  if (!token) {
+    return NextResponse.redirect(new URL("/admin/login", request.url));
+  }
+
+  try {
+    // Verify JWT token using the pre-encoded secret
+    await jwtVerify(token, secret);
+
+    // Allow request to proceed if token is valid
+    return NextResponse.next();
+  } catch (error) {
+    // Handle token verification failure
+    console.error("Token verification failed:", error);
+    return NextResponse.redirect(new URL("/admin/login", request.url));
+  }
+}
+
+// Configure middleware to run only on admin routes
 export const config = {
   matcher: ["/admin/:path*"],
 };

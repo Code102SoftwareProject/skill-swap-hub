@@ -1,7 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/r2";
-import { systemApiAuth } from "@/lib/middleware/systemApiAuth";
+
 
 /**
  ** GET handler - Retrieves a file from Cloudflare R2 storage
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     
     console.log("File download request:", { fileName, fileUrl, fileContent });
     
-    // Determine the key (filename) to retrieve
+    // Determine the filename to retrieve
     let key;
     
     if (fileName) {
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
       }
     } else if (fileUrl) {
       try {
-        // For R2 URLs, extract the path including folder structure
+        // Format: "https://example.com/path/to/file.ext"
         if (fileUrl.includes('r2.cloudflarestorage.com')) {
           const bucketName = process.env.R2_BUCKET_NAME || "skillswaphub";
           const bucketIndex = fileUrl.indexOf(bucketName);
@@ -145,7 +145,7 @@ export async function GET(req: NextRequest) {
           response = await s3Client.send(command);
           key = altKey; // Update key for later use
         } else {
-          // Re-throw if we can't try an alternative
+          // No Way Home
           throw error;
         }
       }
@@ -169,14 +169,26 @@ export async function GET(req: NextRequest) {
       // Extract just the filename without the folder path for the Content-Disposition header
       const filenameForHeader = key.includes('/') ? key.split('/').pop() : key;
       
+      // Check if this is an image file
+      const isImage = response.ContentType?.startsWith('image/') || 
+                     key.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+      
       // Return the file with appropriate headers
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type": response.ContentType || "application/octet-stream",
-          "Content-Length": response.ContentLength?.toString() || buffer.length.toString(),
-          "Content-Disposition": `attachment; filename="${encodeURIComponent(filenameForHeader || key)}"`,
-        },
-      });
+      const headers: Record<string, string> = {
+        "Content-Type": response.ContentType || "application/octet-stream",
+        "Content-Length": response.ContentLength?.toString() || buffer.length.toString(),
+      };
+
+      // For images, set inline disposition so they display in browser
+      // For other files, force download
+      if (isImage) {
+        headers["Content-Disposition"] = `inline; filename="${encodeURIComponent(filenameForHeader || key)}"`;
+        headers["Cache-Control"] = "public, max-age=3600"; // Cache images for 1 hour
+      } else {
+        headers["Content-Disposition"] = `attachment; filename="${encodeURIComponent(filenameForHeader || key)}"`;
+      }
+      
+      return new NextResponse(buffer, { headers });
     } catch (error: any) {
       console.error("Error retrieving file from R2:", error);
       return NextResponse.json(

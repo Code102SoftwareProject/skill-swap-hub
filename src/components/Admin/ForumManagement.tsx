@@ -43,7 +43,7 @@ export default function ForumManagement() {
     }
   };
 
-  // Handle form input changes - the fix is here, making sure we properly capture input
+  // Handle form input changes 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({

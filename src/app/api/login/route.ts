@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
-import jwt from 'jsonwebtoken';
-import dbConnect from '@/lib/db';
-import User from '@/lib/models/userSchema';
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import dbConnect from "@/lib/db";
+import User from "@/lib/models/userSchema";
+import SuspendedUser from "@/lib/models/suspendedUserSchema";
 
 if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is not defined');
+  throw new Error("JWT_SECRET is not defined");
 }
 
 export async function POST(req: Request) {
@@ -12,54 +13,95 @@ export async function POST(req: Request) {
 
   // Validate inputs
   if (!email || !password) {
-    return NextResponse.json({ success: false, message: 'Email and password are required' }, { status: 400 });
+    return NextResponse.json(
+      { success: false, message: "Email and password are required" },
+      { status: 400 }
+    );
   }
 
-  // In your login route.ts
+  try {
+    // Connect to database
+    await dbConnect();
 
-try {
-  // Connect to database
-  await dbConnect();
-  
-  // Find user by email - add some logging
-  console.log(`Looking for user with email: ${email}`);
-  const user = await User.findOne({ email });
-  
-  if (!user) {
-    console.log('User not found');
-    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-  }
+    // Check if user is suspended
+    const suspendedUser = await SuspendedUser.findOne({ email });
 
-  // Verify password - add more logging
-  console.log('User found, verifying password...');
-  const isPasswordValid = await user.comparePassword(password);
-  console.log(`Password valid: ${isPasswordValid}`);
-  
-  if (!isPasswordValid) {
-    return NextResponse.json({ success: false, message: 'Invalid email or password' }, { status: 401 });
-  }
+    if (suspendedUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          suspended: true,
+          message: `Your account has been suspended due to: ${suspendedUser.suspensionReason}. Please contact support for more information.`,
+          suspensionDetails: {
+            reason: suspendedUser.suspensionReason,
+            suspendedAt: suspendedUser.suspendedAt,
+            notes:
+              suspendedUser.suspensionNotes || "No additional notes provided.",
+          },
+        },
+        { status: 403 }
+      );
+    }
 
-  // Rest of your login code...
-    // Generate JWT token
+    // Find user by email
+    console.log(`Looking for user with email: ${email}`);
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      console.log("User not found");
+      return NextResponse.json(
+        { success: false, message: "Invalid email or password" },
+        { status: 401 }
+      );
+    }
+
+    // Verify password
+    console.log("User found, verifying password...");
+    const isPasswordValid = await user.comparePassword(password);
+    console.log(`Password valid: ${isPasswordValid}`);
+
+    if (!isPasswordValid) {
+      return NextResponse.json(
+        { success: false, message: "Invalid email or password" },
+        { status: 401 }
+      );
+    }
+
+    // 🔥 TESTING: Generate JWT token with 10 second expiry for normal login
     const token = jwt.sign(
       {
         userId: user._id,
         email: user.email,
-        name: `${user.firstName} ${user.lastName}`
+        name: `${user.firstName} ${user.lastName}`,
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: rememberMe ? '30d' : '24h' }
+      { expiresIn: rememberMe ? "30d" : "24h" } // 🚨 10 SECONDS FOR TESTING
     );
 
-    // Return success response with token and user info (password is automatically excluded by toJSON method)
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Login successful',
+    // Optional: Log for debugging
+    console.log(
+      "🧪 TEST TOKEN: Normal login expires in 10 seconds, Remember Me in 30 days"
+    );
+    console.log("🕐 Current time:", new Date().toLocaleTimeString());
+    console.log(
+      "⏰ Token will expire at:",
+      new Date(
+        Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 10000)
+      ).toLocaleTimeString()
+    );
+
+    // Return success response with token and user info
+    return NextResponse.json({
+      success: true,
+      message: "Login successful",
       token,
-      user: user
+      user: user,
     });
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json({ success: false, message: 'An error occurred during login' }, { status: 500 });
+    console.error("Login error:", error);
+    return NextResponse.json(
+      { success: false, message: "An error occurred during login" },
+      { status: 500 }
+    );
   }
 }

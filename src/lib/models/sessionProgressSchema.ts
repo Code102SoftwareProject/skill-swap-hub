@@ -6,7 +6,7 @@ interface ISessionProgress extends Document {
   startDate: Date;
   dueDate: Date;
   completionPercentage: number;
-  status: "not_started" | "in_progress" | "completed" | "abondoned";
+  status: "not_started" | "in_progress" | "completed" | "abandoned";
   notes: string;
   createdAt: Date;
   updatedAt: Date;
@@ -21,7 +21,7 @@ const sessionProgressSchema = new Schema(
     completionPercentage: { type: Number, default: 0 },
     status: {
       type: String,
-      enum: ["not_started", "in_progress", "completed", "abondoned"],
+      enum: ["not_started", "in_progress", "completed", "abandoned"],
       default: "not_started"
     },
     notes: { type: String },

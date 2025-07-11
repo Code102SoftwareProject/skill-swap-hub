@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Mic, StopCircle } from 'lucide-react';
-import { sendMessage } from '@/lib/services/chatbotservice';
+import { sendMessage } from '@/services/chatbotservice';
 import { useAuth } from '@/lib/context/AuthContext';
 
 // Define SpeechRecognition interfaces
@@ -71,12 +71,12 @@ export default function Chatbot() {
   
   const { user } = useAuth();
 
-  // Scroll to bottom when messages update
+  
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Debug effect to log state changes
+
   useEffect(() => {
     console.log('Chatbot isOpen state:', isOpen);
   }, [isOpen]);
@@ -98,7 +98,7 @@ export default function Chatbot() {
   const stopRecording = () => {
     setIsRecording(false);
     
-    // First, store the current transcription to a variable
+  
     const finalTranscriptText = transcribedText.trim();
     
     // Add a small delay to allow final transcript to process
@@ -147,7 +147,7 @@ export default function Chatbot() {
     }, 500); // 500ms delay to ensure final transcript is processed
   };
   
-  // Update startRecording function to improve the speech recognition handling
+ 
   
   const startRecording = async () => {
     try {
@@ -163,15 +163,14 @@ export default function Chatbot() {
   
       // This event is triggered when actual data is available
       mediaRecorder.ondataavailable = () => {
-        // This ensures we've actually started recording and aren't just clicking the button
+    
         hasStartedRecording.current = true;
       };
   
-      // Since we now handle message submission in stopRecording(),
-      // mediaRecorder.onstop only needs to handle cleanup if needed
+
       mediaRecorder.onstop = () => {
-        // Any final cleanup if needed
-        // Most logic has been moved to stopRecording()
+        console.log('Recording stopped');
+       
       };
   
       // Initialize Web Speech API for speech recognition
@@ -181,7 +180,7 @@ export default function Chatbot() {
         recognitionRef.current = recognition;
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'en-US'; // You can make this configurable
+        recognition.lang = 'en-US'; 
         
         recognition.onresult = (event) => {
           let finalTranscript = '';

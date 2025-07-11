@@ -12,6 +12,9 @@ import {
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 
+// Regular expression for validating search input - only allows alphabets, numbers, and spaces
+const SEARCH_VALIDATION_REGEX = /^[a-zA-Z0-9\s]*$/;
+
 // Define the possible verification statuses for KYC documents
 const KYC_STATUSES = {
   NOT_REVIEWED: "Not Reviewed",
@@ -39,13 +42,6 @@ const statusColorMap: Record<string, { bg: string; text: string }> = {
   [KYC_STATUSES.NOT_REVIEWED]: { bg: "bg-gray-100", text: "text-gray-800" },
   [KYC_STATUSES.ACCEPTED]: { bg: "bg-green-50", text: "text-green-800" },
   [KYC_STATUSES.REJECTED]: { bg: "bg-red-50", text: "text-red-800" },
-};
-
-// Color mapping for status indicator dots
-const dotColorMap: Record<string, string> = {
-  [KYC_STATUSES.NOT_REVIEWED]: "bg-gray-200",
-  [KYC_STATUSES.REJECTED]: "bg-red-100",
-  [KYC_STATUSES.ACCEPTED]: "bg-green-100",
 };
 
 export default function KYCContent() {
@@ -368,7 +364,16 @@ export default function KYCContent() {
                 type="text"
                 placeholder="Search by recipient name"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "" || SEARCH_VALIDATION_REGEX.test(value)) {
+                    setSearchTerm(value);
+                  } else {
+                    toast.error(
+                      "Only letters, numbers, and spaces are allowed"
+                    );
+                  }
+                }}
                 className="pl-10 pr-4 py-2 border rounded w-full md:w-64"
               />
             </div>

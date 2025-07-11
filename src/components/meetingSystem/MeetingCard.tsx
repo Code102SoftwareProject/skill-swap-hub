@@ -1,8 +1,10 @@
 import React from 'react';
-import { Calendar, Clock, Check, X as XMark } from 'lucide-react';
+import { Calendar, Clock, Check, X as XMark, Video } from 'lucide-react';
 import { format } from 'date-fns';
 import Meeting from '@/types/meeting';
+import CancellationDetails from './CancellationDetails';
 
+// Props interface definition
 interface MeetingCardProps {
   meeting: Meeting;
   userId: string;
@@ -11,11 +13,21 @@ interface MeetingCardProps {
   isUpcoming?: boolean;
   isPast?: boolean;
   isCancelled?: boolean;
+  cancellationInfo?: {
+    _id: string;
+    reason: string;
+    cancelledAt: string;
+    acknowledged: boolean;
+    acknowledgedAt: string | null;
+    cancelledBy: string;
+  };
   onAccept?: (meetingId: string) => void;
   onReject?: (meetingId: string) => void;
   onCancel?: (meetingId: string) => void;
+  onAcknowledgeCancellation?: (cancellationId: string) => void;
 }
 
+//!Utility function Date format Time Format
 export const formatDate = (date: Date | string) => {
   const dateObj = new Date(date);
   return format(dateObj, 'MMM d, yyyy');
@@ -26,30 +38,28 @@ export const formatTime = (date: Date | string) => {
   return format(dateObj, 'h:mm a');
 };
 
+// Status classes and helper functions
+const STATUS_CLASSES = {
+  pending: 'bg-yellow-600 text-white-800',
+  accepted: 'bg-blue-100 text-blue-800',
+  completed: 'bg-green-100 text-green-800',
+  rejected: 'bg-red-100 text-red-800',
+  cancelled: 'bg-red-100 text-red-800',
+  default: 'bg-gray-100 text-gray-800'
+};
+
 export const getStatusClassName = (meeting: Meeting) => {
-  switch (meeting.state) {
-    case 'pending':
-      return 'bg-yellow-600 text-white-800';
-    case 'accepted':
-      return 'bg-blue-100 text-blue-800';
-    case 'completed':
-      return 'bg-green-100 text-green-800';
-    case 'rejected':
-    case 'cancelled':
-      return 'bg-red-100 text-red-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
+  return STATUS_CLASSES[meeting.state] || STATUS_CLASSES.default;
 };
 
 export const getStatusLabel = (meeting: Meeting, userId: string) => {
-  if (meeting.state === 'pending' && meeting.senderId === userId) {
-    return 'Awaiting Response';
-  }
-  return meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
+  return (meeting.state === 'pending' && meeting.senderId === userId)
+    ? 'Awaiting Response'
+    : meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
 };
 
-const MeetingCard: React.FC<MeetingCardProps> = ({
+// Component definition
+const MeetingCard = ({
   meeting,
   userId,
   userName,
@@ -57,73 +67,82 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
   isUpcoming = false,
   isPast = false,
   isCancelled = false,
+  cancellationInfo,
   onAccept,
   onReject,
-  onCancel
-}) => {
-  const bgClass = isPending 
-    ? 'bg-yellow-50' 
-    : isCancelled 
-    ? 'bg-gray-50 opacity-75' 
-    : isPast 
-    ? 'bg-gray-50' 
-    : '';
-
+  onCancel,
+  onAcknowledgeCancellation
+}: MeetingCardProps) => {
   return (
-    <div className={`border rounded-lg p-4 shadow-sm hover:shadow ${bgClass}`}>
+    <div className="border rounded-lg p-4 shadow-sm hover:shadow">
+      {/* Header section title badge */}
       <div className="flex justify-between items-start">
-        <h3 className="font-semibold text-lg">
+        {/* Meeting title */}
+        <h3 className="font-semibold text-lg font-heading">
           {isPending 
             ? `Meeting Request from ${userName}` 
             : `Meeting with ${userName}`}
         </h3>
+        {/* Status badge  */}
         <span className={`px-2 py-1 rounded-full text-xs ${getStatusClassName(meeting)}`}>
           {getStatusLabel(meeting, userId)}
         </span>
       </div>
       
+      {/* Meeting details section */}
       <div className="mt-2 space-y-2 text-sm text-gray-600">
+        {/* Date display row with calendar icon */}
         <div className="flex items-center">
           <Calendar className="w-4 h-4 mr-2" />
           <span>{formatDate(meeting.meetingTime)}</span>
         </div>
         
+        {/* Time display row with clock icon */}
         <div className="flex items-center">
           <Clock className="w-4 h-4 mr-2" />
           <span>{formatTime(meeting.meetingTime)}</span>
         </div>
         
+        {/* Zoom meeting indicator*/}
         {isUpcoming && meeting.state === 'accepted' && meeting.meetingLink && (
           <div className="flex items-center text-blue-600 font-medium">
-            <svg 
-              className="w-4 h-4 mr-2" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M16.2 8.4V7.1c0-.8-.7-1.5-1.5-1.5H5c-.8 0-1.5.7-1.5 1.5v9.1c0 .8.7 1.5 1.5 1.5h9.7c.8 0 1.5-.7 1.5-1.5v-1.3l4.7 2.7c.5.3 1.1-.1 1.1-.7V6.3c0-.6-.6-1-1.1-.7l-4.7 2.8z" />
-            </svg>
+            <Video className="w-4 h-4 mr-2" />
             <span className="truncate">Zoom meeting ready</span>
           </div>
         )}
       </div>
       
+      {/* Meeting description - only shows if available */}
       {meeting.description && (
-        <p className="mt-2 text-gray-700">{meeting.description}</p>
+        <p className="mt-2 text-gray-700 font-body">{meeting.description}</p>
+      )}
+
+      {/* Cancellation details */}
+      {isCancelled && cancellationInfo && (
+        <CancellationDetails
+          cancellation={cancellationInfo}
+          cancelledByName={userName}
+          isCurrentUser={cancellationInfo.cancelledBy === userId}
+          onAcknowledge={onAcknowledgeCancellation}
+        />
       )}
       
+      {/* Action buttons section - */}
       <div className="mt-4 flex justify-end space-x-2">
+        {/* Accept/Decline buttons - only for pending meetings */}
         {isPending && onAccept && onReject && (
           <>
+            {/* Accept button*/}
             <button 
-              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center"
+              className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm flex items-center font-body"
               onClick={() => onAccept(meeting._id)}
             >
               <Check className="w-4 h-4 mr-1" />
               Accept
             </button>
+            {/* Decline Button*/}
             <button 
-              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center"
+              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm flex items-center font-body"
               onClick={() => onReject(meeting._id)}
             >
               <XMark className="w-4 h-4 mr-1" />
@@ -132,6 +151,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
           </>
         )}
         
+        {/* Join Zoom Meeting button */}
         {(isUpcoming || isPast) && meeting.state === 'accepted' && meeting.meetingLink && (
           <a 
             href={meeting.meetingLink} 
@@ -140,18 +160,12 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
                       text-sm flex items-center shadow-sm transition-colors"
           >
-            <svg 
-              className="w-4 h-4 mr-2" 
-              viewBox="0 0 24 24" 
-              fill="currentColor"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M16.2 8.4V7.1c0-.8-.7-1.5-1.5-1.5H5c-.8 0-1.5.7-1.5 1.5v9.1c0 .8.7 1.5 1.5 1.5h9.7c.8 0 1.5-.7 1.5-1.5v-1.3l4.7 2.7c.5.3 1.1-.1 1.1-.7V6.3c0-.6-.6-1-1.1-.7l-4.7 2.8z" />
-            </svg>
+            <Video className="w-4 h-4 mr-2" />
             Join Zoom Meeting
           </a>
         )}
         
+        {/* Cancel button - only for upcoming meetings created by user or accepted */}
         {isUpcoming && (meeting.senderId === userId || meeting.state === 'accepted') && onCancel && (
           <button 
             className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"

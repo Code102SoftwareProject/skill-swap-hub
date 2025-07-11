@@ -2,26 +2,15 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISkillMatch extends Document {
-  // The two listings involved in the match
-  listingOneId: string;  // First listing in the match
-  listingTwoId: string;  // Second listing in the match
-  
-  // The users involved in the match
-  userOneId: string;     // User who created the first listing
-  userTwoId: string;     // User who created the second listing
-  
-  // Match details
-  matchPercentage: number;  // 50 for partial, 100 for exact
+  listingOneId: string;
+  listingTwoId: string;
+  userOneId: string;
+  userTwoId: string;
+  matchPercentage: number; // 50 for partial, 100 for exact
   matchType: 'exact' | 'partial';
-  
-  // Match status
   status: 'pending' | 'accepted' | 'rejected' | 'completed';
   
-  // Timestamps
-  createdAt: Date;
-  updatedAt?: Date;
-  
-  // Additional data for UI display
+  // User details for quick access (denormalized for performance)
   userOneDetails: {
     firstName: string;
     lastName: string;
@@ -37,6 +26,10 @@ export interface ISkillMatch extends Document {
     offeringSkill: string;
     seekingSkill: string;
   };
+  
+  createdAt: Date;
+  updatedAt?: Date;
+  id?: string; // Add id property for the transformation
 }
 
 const SkillMatchSchema: Schema = new Schema({
@@ -63,7 +56,7 @@ const SkillMatchSchema: Schema = new Schema({
   matchPercentage: {
     type: Number,
     required: true,
-    enum: [50, 100]  // Only allow 50% or 100% matches
+    enum: [50, 100] // Only partial (50%) or exact (100%) matches
   },
   matchType: {
     type: String,
@@ -119,10 +112,10 @@ const SkillMatchSchema: Schema = new Schema({
     }
   }
 }, {
-  timestamps: true,
+  timestamps: true, // Automatically manage createdAt and updatedAt
   toJSON: { 
     virtuals: true,
-    transform: function(doc, ret) {
+    transform: function(doc: any, ret: any) {
       ret.id = ret._id;
       delete ret._id;
       delete ret.__v;
@@ -134,10 +127,14 @@ const SkillMatchSchema: Schema = new Schema({
   }
 });
 
-// Compound index to ensure uniqueness of matches
-SkillMatchSchema.index({ listingOneId: 1, listingTwoId: 1 }, { unique: true });
+// Compound indexes for efficient queries
+SkillMatchSchema.index({ userOneId: 1, status: 1 });
+SkillMatchSchema.index({ userTwoId: 1, status: 1 });
+SkillMatchSchema.index({ listingOneId: 1, listingTwoId: 1 }, { unique: true }); // Prevent duplicate matches
+SkillMatchSchema.index({ status: 1, matchType: 1 });
+SkillMatchSchema.index({ createdAt: -1 }); // For trending analysis
 
-// Check if the model already exists to prevent overwriting during hot reloads
+// Check if the model already exists to prevent recompilation during hot reloads
 const SkillMatch = mongoose.models.SkillMatch || mongoose.model<ISkillMatch>('SkillMatch', SkillMatchSchema);
 
 export default SkillMatch;
