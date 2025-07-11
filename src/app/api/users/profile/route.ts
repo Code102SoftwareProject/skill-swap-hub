@@ -15,7 +15,7 @@ export async function PUT(req: NextRequest) {
     const formData = await req.formData();
     console.log('Form data received');
 
-    const userId = formData.get('userId') as string;
+    const userId = formData.get('userId') as string; 
     console.log('User ID:', userId);
 
     if (!mongoose.Types.ObjectId.isValid(userId)) {
