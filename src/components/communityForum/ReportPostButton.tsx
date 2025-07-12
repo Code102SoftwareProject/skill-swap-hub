@@ -121,7 +121,7 @@ const ReportPostButton: React.FC<ReportPostButtonProps> = ({
 			{/* Report Modal */}
 			{isModalOpen && (
 				<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-					<div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+					<div className="bg-white rounded-lg max-w-md w-full">
 						<div className="p-6">
 							{/* Header */}
 							<div className="flex items-center justify-between mb-4">
@@ -148,7 +148,7 @@ const ReportPostButton: React.FC<ReportPostButtonProps> = ({
 										{reportTypes.map((type) => (
 											<label
 												key={type.value}
-												className="flex items-center space-x-2 cursor-pointer"
+												className="flex items-center space-x-2 text-black cursor-pointer"
 											>
 												<input
 													type="radio"
@@ -176,7 +176,7 @@ const ReportPostButton: React.FC<ReportPostButtonProps> = ({
 										value={description}
 										onChange={(e) => setDescription(e.target.value)}
 										placeholder="Please provide specific details about why you're reporting this post..."
-										className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary resize-none"
+										className="w-full p-3 border text-black border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary resize-none"
 										rows={4}
 										maxLength={1000}
 										disabled={isSubmitting}
@@ -188,13 +188,13 @@ const ReportPostButton: React.FC<ReportPostButtonProps> = ({
 								</div>
 
 								{/* Submit Button */}
-								<div className="flex space-x-3 pt-4">
+								<div className="flex text-black space-x-3 pt-4">
 									<Button
 										type="button"
 										variant="outline"
 										onClick={() => setIsModalOpen(false)}
 										disabled={isSubmitting}
-										className="flex-1"
+										className="flex-1 bg-slate-600 hover:bg-slate-700"
 									>
 										Cancel
 									</Button>

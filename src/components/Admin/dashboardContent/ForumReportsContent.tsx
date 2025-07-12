@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import Swal from 'sweetalert2';
 import {
 	AlertTriangle,
 	Eye,
@@ -152,8 +153,97 @@ const ForumReportsContent: React.FC = () => {
 
 	// Handle admin actions
 	const handleAction = async (reportId: string, action: string, adminResponse: string = '') => {
+		// Get action details for confirmation
+		const getActionDetails = (action: string) => {
+			switch (action) {
+				case 'dismiss':
+					return {
+						title: 'Dismiss Report',
+						text: 'Are you sure you want to dismiss this report? This action will mark the report as dismissed.',
+						icon: 'question' as const,
+						confirmButtonText: 'Yes, dismiss it',
+						confirmButtonColor: '#6b7280'
+					};
+				case 'remove_post':
+					return {
+						title: 'Remove Post',
+						text: 'Are you sure you want to remove this post? This action cannot be undone and the post will be permanently deleted.',
+						icon: 'warning' as const,
+						confirmButtonText: 'Yes, remove it',
+						confirmButtonColor: '#dc2626'
+					};
+				case 'warn_user':
+					return {
+						title: 'Warn User',
+						text: 'Are you sure you want to issue a warning to this user? They will receive a notification about this warning.',
+						icon: 'warning' as const,
+						confirmButtonText: 'Yes, warn user',
+						confirmButtonColor: '#f59e0b'
+					};
+				case 'suspend_user':
+					return {
+						title: 'Suspend User',
+						text: 'Are you sure you want to suspend this user? They will be temporarily banned from posting and participating in the forum.',
+						icon: 'warning' as const,
+						confirmButtonText: 'Yes, suspend user',
+						confirmButtonColor: '#ea580c'
+					};
+				case 'ban_user':
+					return {
+						title: 'Ban User',
+						text: 'Are you sure you want to permanently ban this user? This is a severe action that will permanently block their access to the forum.',
+						icon: 'error' as const,
+						confirmButtonText: 'Yes, ban user',
+						confirmButtonColor: '#dc2626'
+					};
+				default:
+					return {
+						title: 'Confirm Action',
+						text: 'Are you sure you want to perform this action?',
+						icon: 'question' as const,
+						confirmButtonText: 'Yes, proceed',
+						confirmButtonColor: '#3b82f6'
+					};
+			}
+		};
+
+		const actionDetails = getActionDetails(action);
+
+		// Show confirmation dialog
+		const result = await Swal.fire({
+			title: actionDetails.title,
+			text: actionDetails.text,
+			icon: actionDetails.icon,
+			showCancelButton: true,
+			confirmButtonColor: actionDetails.confirmButtonColor,
+			cancelButtonColor: '#6b7280',
+			confirmButtonText: actionDetails.confirmButtonText,
+			cancelButtonText: 'Cancel',
+			reverseButtons: true,
+			customClass: {
+				popup: 'text-black'
+			}
+		});
+
+		// If user cancelled, return early
+		if (!result.isConfirmed) {
+			return;
+		}
+
 		try {
 			setProcessingAction(reportId);
+
+			// Show loading toast
+			Swal.fire({
+				title: 'Processing...',
+				text: 'Please wait while we process your request.',
+				allowOutsideClick: false,
+				allowEscapeKey: false,
+				showConfirmButton: false,
+				didOpen: () => {
+					Swal.showLoading();
+				}
+			});
 
 			const response = await fetch('/api/admin/forum-reports', {
 				method: 'PATCH',
@@ -170,15 +260,44 @@ const ForumReportsContent: React.FC = () => {
 			const data = await response.json();
 
 			if (data.success) {
+				// Show success message
+				await Swal.fire({
+					title: 'Success!',
+					text: `Action "${actionDetails.title}" has been completed successfully.`,
+					icon: 'success',
+					confirmButtonColor: '#10b981',
+					customClass: {
+						popup: 'text-black'
+					}
+				});
+
 				// Refresh reports
 				await fetchReports();
 				setSelectedReport(null);
 			} else {
-				alert(data.message || 'Action failed');
+				// Show error message
+				await Swal.fire({
+					title: 'Error!',
+					text: data.message || 'Action failed. Please try again.',
+					icon: 'error',
+					confirmButtonColor: '#dc2626',
+					customClass: {
+						popup: 'text-black'
+					}
+				});
 			}
 		} catch (error) {
 			console.error('Error performing action:', error);
-			alert('Action failed. Please try again.');
+			// Show error message
+			await Swal.fire({
+				title: 'Error!',
+				text: 'Action failed. Please try again.',
+				icon: 'error',
+				confirmButtonColor: '#dc2626',
+				customClass: {
+					popup: 'text-black'
+				}
+			});
 		} finally {
 			setProcessingAction(null);
 		}
@@ -238,7 +357,40 @@ const ForumReportsContent: React.FC = () => {
 						Review and manage reported forum posts with AI-powered analysis
 					</p>
 				</div>
-				<Button onClick={fetchReports} variant="outline" size="sm">
+				<Button 
+					onClick={async () => {
+						const result = await Swal.fire({
+							title: 'Refresh Reports',
+							text: 'Do you want to refresh the reports list?',
+							icon: 'question',
+							showCancelButton: true,
+							confirmButtonColor: '#3b82f6',
+							cancelButtonColor: '#6b7280',
+							confirmButtonText: 'Yes, refresh',
+							cancelButtonText: 'Cancel',
+							reverseButtons: true,
+							customClass: {
+								popup: 'text-black'
+							}
+						});
+						
+						if (result.isConfirmed) {
+							await fetchReports();
+							await Swal.fire({
+								title: 'Refreshed!',
+								text: 'Reports have been refreshed successfully.',
+								icon: 'success',
+								timer: 2000,
+								showConfirmButton: false,
+								customClass: {
+									popup: 'text-black'
+								}
+							});
+						}
+					}} 
+					variant="outline" 
+					size="sm"
+				>
 					<RefreshCw className="h-4 w-4 mr-2" />
 					Refresh
 				</Button>
@@ -311,7 +463,7 @@ const ForumReportsContent: React.FC = () => {
 									placeholder="Search reports..."
 									value={searchQuery}
 									onChange={(e) => setSearchQuery(e.target.value)}
-									className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+									className="pl-10 pr-4 text-black py-2 w-full border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
 								/>
 							</div>
 						</div>
@@ -321,7 +473,7 @@ const ForumReportsContent: React.FC = () => {
 							<select
 								value={statusFilter}
 								onChange={(e) => setStatusFilter(e.target.value)}
-								className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+								className="px-3 py-2 border border-gray-300 text-black rounded-md   "
 							>
 								<option value="all">All Status</option>
 								<option value="pending">Pending</option>
@@ -334,7 +486,7 @@ const ForumReportsContent: React.FC = () => {
 							<select
 								value={priorityFilter}
 								onChange={(e) => setPriorityFilter(e.target.value)}
-								className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+								className="px-3 py-2 border border-gray-300 rounded-md  text-black "
 							>
 								<option value="all">All Priority</option>
 								<option value="low">Low</option>
@@ -346,7 +498,7 @@ const ForumReportsContent: React.FC = () => {
 							<select
 								value={aiResultFilter}
 								onChange={(e) => setAiResultFilter(e.target.value)}
-								className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+								className="px-3 py-2 border border-gray-300 rounded-md text-black "
 							>
 								<option value="all">All AI Results</option>
 								<option value="safe">Safe</option>
@@ -463,37 +615,88 @@ const ForumReportsContent: React.FC = () => {
 													{report.status.replace(/_/g, ' ')}
 												</Badge>
 											</td>
-											<td className="px-6 py-4">
-												<div className="flex space-x-2">
+											<td className="px-6 py-4 text-black">
+												<div className="flex flex-wrap gap-2">
 													<Button
 														size="sm"
 														variant="outline"
 														onClick={() => setSelectedReport(report)}
+														className="flex items-center gap-1"
 													>
 														<Eye className="h-4 w-4" />
+														<span className="hidden sm:inline">View</span>
 													</Button>
 													
+													{/* Show action buttons only for pending and under_review, and hide remove post for resolved */}
 													{report.status === 'pending' || report.status === 'under_review' ? (
 														<>
+															{/* Always show dismiss button for pending/under_review */}
 															<Button
 																size="sm"
 																variant="outline"
-																onClick={() => handleAction(report._id, 'dismiss')}
+																onClick={async () => {
+																	const result = await Swal.fire({
+																		title: 'Dismiss Report',
+																		text: 'Are you sure you want to dismiss this report?',
+																		icon: 'question',
+																		showCancelButton: true,
+																		confirmButtonColor: '#6b7280',
+																		cancelButtonColor: '#6b7280',
+																		confirmButtonText: 'Yes, dismiss it',
+																		cancelButtonText: 'Cancel',
+																		reverseButtons: true,
+																		customClass: {
+																			popup: 'text-black'
+																		}
+																	});
+																	
+																	if (result.isConfirmed) {
+																		await handleAction(report._id, 'dismiss');
+																	}
+																}}
 																disabled={processingAction === report._id}
-																className="text-gray-600 hover:text-gray-800"
+																className="text-gray-600 hover:text-gray-800 flex items-center gap-1"
 															>
 																<XCircle className="h-4 w-4" />
+																<span className="hidden sm:inline">Dismiss</span>
 															</Button>
-															<Button
-																size="sm"
-																variant="outline"
-																onClick={() => handleAction(report._id, 'remove_post')}
-																disabled={processingAction === report._id}
-																className="text-red-600 hover:text-red-800"
-															>
-																<AlertOctagon className="h-4 w-4" />
-															</Button>
+															{/* Only show remove post button for pending status */}
+															{report.status === 'pending' && (
+																<Button
+																	size="sm"
+																	variant="outline"
+																	onClick={async () => {
+																		const result = await Swal.fire({
+																			title: 'Remove Post',
+																			text: 'Are you sure you want to remove this post? This action cannot be undone.',
+																			icon: 'warning',
+																			showCancelButton: true,
+																			confirmButtonColor: '#dc2626',
+																			cancelButtonColor: '#6b7280',
+																			confirmButtonText: 'Yes, remove it',
+																			cancelButtonText: 'Cancel',
+																			reverseButtons: true,
+																			customClass: {
+																				popup: 'text-black'
+																			}
+																		});
+																		
+																		if (result.isConfirmed) {
+																			await handleAction(report._id, 'remove post');
+																		}
+																	}}
+																	disabled={processingAction === report._id}
+																	className="text-red-600 hover:text-red-800 flex items-center gap-1"
+																>
+																	<AlertOctagon className="h-4 w-4" />
+																	<span className="hidden sm:inline">Remove Post</span>
+																</Button>
+															)}
 														</>
+													) : report.status === 'resolved' ? (
+														<Badge variant="outline" className="text-xs">
+															{report.adminAction || 'Resolved'}
+														</Badge>
 													) : (
 														<Badge variant="outline" className="text-xs">
 															{report.adminAction || 'Completed'}
@@ -570,7 +773,7 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
 	const actions = [
 		{ value: 'dismiss', label: 'Dismiss Report', color: 'text-gray-600', icon: XCircle },
-		{ value: 'remove_post', label: 'Remove Post', color: 'text-red-600', icon: AlertOctagon },
+		...(report.status === 'pending' ? [{ value: 'remove_post', label: 'Remove Post', color: 'text-red-600', icon: AlertOctagon }] : []),
 		{ value: 'warn_user', label: 'Warn User', color: 'text-yellow-600', icon: AlertTriangle },
 		{ value: 'suspend_user', label: 'Suspend User', color: 'text-orange-600', icon: UserX },
 		{ value: 'ban_user', label: 'Ban User', color: 'text-red-700', icon: Ban },
@@ -578,11 +781,53 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 
 	const handleSubmit = async () => {
 		if (!selectedAction) return;
+
+		// Get action details for confirmation
+		const getActionDetails = (action: string) => {
+			switch (action) {
+				case 'dismiss':
+					return { title: 'Dismiss Report', text: 'Are you sure you want to dismiss this report?' };
+				case 'remove_post':
+					return { title: 'Remove Post', text: 'Are you sure you want to remove this post? This action cannot be undone.' };
+				case 'warn_user':
+					return { title: 'Warn User', text: 'Are you sure you want to issue a warning to this user?' };
+				case 'suspend_user':
+					return { title: 'Suspend User', text: 'Are you sure you want to suspend this user?' };
+				case 'ban_user':
+					return { title: 'Ban User', text: 'Are you sure you want to permanently ban this user? This is a severe action.' };
+				default:
+					return { title: 'Confirm Action', text: 'Are you sure you want to perform this action?' };
+			}
+		};
+
+		const actionDetails = getActionDetails(selectedAction);
+
+		// Show confirmation dialog
+		const result = await Swal.fire({
+			title: actionDetails.title,
+			text: actionDetails.text,
+			icon: selectedAction === 'ban_user' || selectedAction === 'remove_post' ? 'warning' : 'question',
+			showCancelButton: true,
+			confirmButtonColor: selectedAction === 'ban_user' || selectedAction === 'remove_post' ? '#dc2626' : '#3b82f6',
+			cancelButtonColor: '#6b7280',
+			confirmButtonText: `Yes, ${selectedAction.replace('_', ' ')}`,
+			cancelButtonText: 'Cancel',
+			reverseButtons: true,
+			customClass: {
+				popup: 'text-black'
+			}
+		});
+
+		// If user cancelled, return early
+		if (!result.isConfirmed) {
+			return;
+		}
+
 		await onAction(report._id, selectedAction, adminResponse);
 	};
 
 	return (
-		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+		<div className="fixed inset-0 bg-black text-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 			<div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
 				<div className="p-6">
 					{/* Header */}

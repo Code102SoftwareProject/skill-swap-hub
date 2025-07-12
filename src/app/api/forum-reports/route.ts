@@ -8,6 +8,9 @@ import User from '@/lib/models/userSchema';
 import GeminiService from '@/lib/services/geminiService';
 import { getUserIdFromToken } from '@/utils/jwtAuth';
 
+// Ensure Forum model is registered
+Forum;
+
 // POST - Create a new forum post report
 export async function POST(request: NextRequest) {
 	try {
@@ -33,7 +36,11 @@ export async function POST(request: NextRequest) {
 
 		// Check if post exists and get post details
 		const post = await Post.findById(postId)
-			.populate('forumId', 'title')
+			.populate({
+				path: 'forumId',
+				model: Forum,
+				select: 'title'
+			})
 			.lean() as any;
 
 		if (!post) {

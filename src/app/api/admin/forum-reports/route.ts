@@ -3,9 +3,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import ForumPostReport from '@/lib/models/forumPostReportSchema';
 import Post from '@/lib/models/postSchema';
+import { Forum } from '@/lib/models/Forum';
 import User from '@/lib/models/userSchema';
 import Admin from '@/lib/models/adminSchema';
 import { getUserIdFromToken } from '@/utils/jwtAuth';
+
+// Ensure Forum model is registered
+Forum;
 
 // GET - Get all forum post reports for admin dashboard
 export async function GET(request: NextRequest) {
@@ -163,10 +167,40 @@ export async function PATCH(request: NextRequest) {
 			updateData.adminResponse = adminResponse;
 		}
 
+		// Helper function to send notification
+		const sendNotification = async (userId: string, typeno: number, description: string) => {
+			try {
+				await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notification`, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						userId,
+						typeno,
+						description,
+						targetDestination: '/forum',
+						broadcast: false,
+					}),
+				});
+			} catch (error) {
+				console.error('Error sending notification:', error);
+			}
+		};
+
 		switch (action) {
 			case 'dismiss':
 				updateData.status = 'dismissed';
 				updateData.resolvedAt = new Date();
+				
+				// Send notification to reporter (type 23 - Report Dismissed)
+				if (report.reportedBy?._id) {
+					await sendNotification(
+						report.reportedBy._id.toString(),
+						23,
+						'Your forum post report has been reviewed and dismissed. No action was taken on the reported content.'
+					);
+				}
 				break;
 
 			case 'mark_under_review':
@@ -185,6 +219,24 @@ export async function PATCH(request: NextRequest) {
 				updateData.status = 'resolved';
 				updateData.adminAction = 'remove_post';
 				updateData.resolvedAt = new Date();
+				
+				// Send notifications
+				if (report.postSnapshot?.authorId) {
+					// Send notification to post author (type 25 - Post Removed)
+					await sendNotification(
+						report.postSnapshot.authorId.toString(),
+						25,
+						`Your forum post has been removed for violating community guidelines. ${adminResponse ? 'Reason: ' + adminResponse : ''}`
+					);
+				}
+				if (report.reportedBy?._id) {
+					// Send notification to reporter
+					await sendNotification(
+						report.reportedBy._id.toString(),
+						23,
+						'Thank you for your report. The reported post has been removed for violating community guidelines.'
+					);
+				}
 				break;
 
 			case 'warn_user':
@@ -192,6 +244,24 @@ export async function PATCH(request: NextRequest) {
 				updateData.status = 'resolved';
 				updateData.adminAction = 'warn_user';
 				updateData.resolvedAt = new Date();
+				
+				// Send notifications
+				if (report.postSnapshot?.authorId) {
+					// Send warning to post author (type 24 - Warning)
+					await sendNotification(
+						report.postSnapshot.authorId.toString(),
+						24,
+						`You have received a warning for your forum post. Please review our community guidelines. ${adminResponse ? 'Details: ' + adminResponse : ''}`
+					);
+				}
+				if (report.reportedBy?._id) {
+					// Send notification to reporter
+					await sendNotification(
+						report.reportedBy._id.toString(),
+						23,
+						'Thank you for your report. The reported user has been warned about their behavior.'
+					);
+				}
 				break;
 
 			case 'suspend_user':
@@ -202,6 +272,21 @@ export async function PATCH(request: NextRequest) {
 						'suspension.suspendedAt': new Date(),
 						'suspension.reason': `Forum post violation: ${adminResponse || 'Inappropriate content'}`,
 					});
+					
+					// Send suspension notification to user (type 26 - Account Suspended)
+					await sendNotification(
+						report.postSnapshot.authorId.toString(),
+						26,
+						`Your account has been suspended due to forum violations. ${adminResponse ? 'Reason: ' + adminResponse : ''} Please contact support if you have questions.`
+					);
+				}
+				if (report.reportedBy?._id) {
+					// Send notification to reporter
+					await sendNotification(
+						report.reportedBy._id.toString(),
+						23,
+						'Thank you for your report. The reported user has been suspended for violating community guidelines.'
+					);
 				}
 				updateData.status = 'resolved';
 				updateData.adminAction = 'suspend_user';
@@ -217,6 +302,21 @@ export async function PATCH(request: NextRequest) {
 						'suspension.reason': `Permanent ban: ${adminResponse || 'Severe violation'}`,
 						'suspension.isPermanent': true,
 					});
+					
+					// Send ban notification to user (type 27 - Account Banned)
+					await sendNotification(
+						report.postSnapshot.authorId.toString(),
+						27,
+						`Your account has been permanently banned due to severe violations of our community guidelines. ${adminResponse ? 'Reason: ' + adminResponse : ''}`
+					);
+				}
+				if (report.reportedBy?._id) {
+					// Send notification to reporter
+					await sendNotification(
+						report.reportedBy._id.toString(),
+						23,
+						'Thank you for your report. The reported user has been banned for severe violations of community guidelines.'
+					);
 				}
 				updateData.status = 'resolved';
 				updateData.adminAction = 'ban_user';
