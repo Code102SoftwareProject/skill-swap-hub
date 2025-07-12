@@ -195,10 +195,17 @@ export async function PATCH(request: NextRequest) {
 				
 				// Send notification to reporter (type 23 - Report Dismissed)
 				if (report.reportedBy?._id) {
+					// Create detailed dismissal message
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					
+					const dismissMessage = `Your report regarding the post ${postTitle}${forumName} has been reviewed and dismissed. After careful consideration, the content was found to comply with our community guidelines.${adminReason}\n\nThank you for helping keep our community safe by reporting content.`;
+					
 					await sendNotification(
 						report.reportedBy._id.toString(),
 						23,
-						'Your forum post report has been reviewed and dismissed. No action was taken on the reported content.'
+						dismissMessage
 					);
 				}
 				break;
@@ -222,19 +229,34 @@ export async function PATCH(request: NextRequest) {
 				
 				// Send notifications
 				if (report.postSnapshot?.authorId) {
+					// Create detailed notification message for post author
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
+					
+					const detailedMessage = `Your forum post ${postTitle}${forumName} has been removed for violating community guidelines.${reportReason}${adminReason}\n\nIf you believe this was done in error, please contact support.`;
+					
 					// Send notification to post author (type 25 - Post Removed)
 					await sendNotification(
 						report.postSnapshot.authorId.toString(),
 						25,
-						`Your forum post has been removed for violating community guidelines. ${adminResponse ? 'Reason: ' + adminResponse : ''}`
+						detailedMessage
 					);
 				}
 				if (report.reportedBy?._id) {
+					// Create detailed notification for reporter
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					
+					const reporterMessage = `Thank you for your report. The post ${postTitle}${forumName} has been reviewed and removed for violating community guidelines.${adminAction}`;
+					
 					// Send notification to reporter
 					await sendNotification(
 						report.reportedBy._id.toString(),
 						23,
-						'Thank you for your report. The reported post has been removed for violating community guidelines.'
+						reporterMessage
 					);
 				}
 				break;
@@ -247,19 +269,34 @@ export async function PATCH(request: NextRequest) {
 				
 				// Send notifications
 				if (report.postSnapshot?.authorId) {
+					// Create detailed warning message
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
+					
+					const warningMessage = `You have received a warning regarding your forum post ${postTitle}${forumName}. Please review our community guidelines to avoid further violations.${reportReason}${adminReason}\n\nRepeated violations may result in suspension or permanent ban.`;
+					
 					// Send warning to post author (type 24 - Warning)
 					await sendNotification(
 						report.postSnapshot.authorId.toString(),
 						24,
-						`You have received a warning for your forum post. Please review our community guidelines. ${adminResponse ? 'Details: ' + adminResponse : ''}`
+						warningMessage
 					);
 				}
 				if (report.reportedBy?._id) {
+					// Create detailed notification for reporter
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					
+					const reporterMessage = `Thank you for your report. The author of ${postTitle}${forumName} has been issued a warning for violating community guidelines.${adminAction}`;
+					
 					// Send notification to reporter
 					await sendNotification(
 						report.reportedBy._id.toString(),
 						23,
-						'Thank you for your report. The reported user has been warned about their behavior.'
+						reporterMessage
 					);
 				}
 				break;
@@ -273,19 +310,34 @@ export async function PATCH(request: NextRequest) {
 						'suspension.reason': `Forum post violation: ${adminResponse || 'Inappropriate content'}`,
 					});
 					
+					// Create detailed suspension message
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
+					
+					const suspensionMessage = `Your account has been temporarily suspended due to violations in your forum post ${postTitle}${forumName}.${reportReason}${adminReason}\n\nDuring suspension, you cannot post or participate in forums. Please review our community guidelines. Contact support if you have questions about this decision.`;
+					
 					// Send suspension notification to user (type 26 - Account Suspended)
 					await sendNotification(
 						report.postSnapshot.authorId.toString(),
 						26,
-						`Your account has been suspended due to forum violations. ${adminResponse ? 'Reason: ' + adminResponse : ''} Please contact support if you have questions.`
+						suspensionMessage
 					);
 				}
 				if (report.reportedBy?._id) {
+					// Create detailed notification for reporter
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					
+					const reporterMessage = `Thank you for your report. The author of ${postTitle}${forumName} has been suspended for violating community guidelines.${adminAction}`;
+					
 					// Send notification to reporter
 					await sendNotification(
 						report.reportedBy._id.toString(),
 						23,
-						'Thank you for your report. The reported user has been suspended for violating community guidelines.'
+						reporterMessage
 					);
 				}
 				updateData.status = 'resolved';
@@ -303,19 +355,34 @@ export async function PATCH(request: NextRequest) {
 						'suspension.isPermanent': true,
 					});
 					
+					// Create detailed ban message
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
+					
+					const banMessage = `Your account has been permanently banned due to severe violations of our community guidelines related to your forum post ${postTitle}${forumName}.${reportReason}${adminReason}\n\nThis decision is final. You will no longer be able to access the platform or participate in any forums.`;
+					
 					// Send ban notification to user (type 27 - Account Banned)
 					await sendNotification(
 						report.postSnapshot.authorId.toString(),
 						27,
-						`Your account has been permanently banned due to severe violations of our community guidelines. ${adminResponse ? 'Reason: ' + adminResponse : ''}`
+						banMessage
 					);
 				}
 				if (report.reportedBy?._id) {
+					// Create detailed notification for reporter
+					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
+					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
+					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
+					
+					const reporterMessage = `Thank you for your report. The author of ${postTitle}${forumName} has been permanently banned for severe violations of community guidelines.${adminAction}`;
+					
 					// Send notification to reporter
 					await sendNotification(
 						report.reportedBy._id.toString(),
 						23,
-						'Thank you for your report. The reported user has been banned for severe violations of community guidelines.'
+						reporterMessage
 					);
 				}
 				updateData.status = 'resolved';
