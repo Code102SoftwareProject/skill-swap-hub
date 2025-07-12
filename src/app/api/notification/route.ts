@@ -170,3 +170,23 @@ export async function GET(req: Request){
     );
   }
 }
+
+
+
+export async function DELETE(req: Request) {
+  await connect();
+  try{
+    //delete all notifications
+    await Notification.deleteMany({});
+    return NextResponse.json(
+      {success: true, message: "All notifications deleted"},
+      {status: 200}
+    );
+  } catch (error: any) {
+    console.error('Error deleting notifications:', error);
+    return NextResponse.json(
+      {success: false, message: error.message || "Server Error"},
+      {status: 500}
+    );
+  }
+}

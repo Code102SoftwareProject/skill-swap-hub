@@ -9,10 +9,12 @@ import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { debouncedApiService } from '@/services/debouncedApiService';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import { processAvatarUrl, getFirstLetter } from "@/utils/avatarUtils";
 
 interface UserProfile {
   firstName: string;
   lastName: string;
+  avatar?: string;
 }
 
 interface UserProfiles {
@@ -246,7 +248,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         if (profileData) {
           setUserProfiles(prev => {
             // Check if we already have this profile to prevent unnecessary updates
-            if (prev[id] && prev[id].firstName === profileData.firstName && prev[id].lastName === profileData.lastName) {
+            if (prev[id] && 
+                prev[id].firstName === profileData.firstName && 
+                prev[id].lastName === profileData.lastName &&
+                prev[id].avatar === profileData.avatar) {
               return prev; // No change needed
             }
             
@@ -254,7 +259,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
               ...prev,
               [id]: {
                 firstName: profileData.firstName,
-                lastName: profileData.lastName
+                lastName: profileData.lastName,
+                avatar: profileData.avatar
               }
             };
           });
@@ -720,6 +726,18 @@ ${formattedContent}
     return profile?.firstName || 'User';
   };
 
+  // Get user avatar URL
+  const getUserAvatar = (userId: string): string | undefined => {
+    const rawAvatarUrl = userProfiles[userId]?.avatar;
+    return processAvatarUrl(rawAvatarUrl);
+  };
+
+  // Get first letter for fallback
+  const getUserFirstLetter = (userId: string): string => {
+    const profile = userProfiles[userId];
+    return getFirstLetter(profile?.firstName, userId);
+  };
+
   // Meeting status utilities
   const getStatusColor = (meeting: Meeting) => {
     switch (meeting.state) {
@@ -739,8 +757,64 @@ ${formattedContent}
     return meeting.state.charAt(0).toUpperCase() + meeting.state.slice(1);
   };
 
+  // Separate Avatar Component to maintain stable state
+  const MeetingAvatar = React.memo(({ userId, userName }: { userId: string; userName: string }) => {
+    const avatarUrl = getUserAvatar(userId);
+    const firstLetter = getUserFirstLetter(userId);
+    const [imageError, setImageError] = useState(false);
+    const [imageLoading, setImageLoading] = useState(!!avatarUrl);
+
+    // Reset states when avatar changes
+    useEffect(() => {
+      if (avatarUrl) {
+        setImageError(false);
+        setImageLoading(true);
+      } else {
+        setImageError(false);
+        setImageLoading(false);
+      }
+    }, [avatarUrl]);
+
+    const handleImageError = () => {
+      setImageError(true);
+      setImageLoading(false);
+    };
+
+    const handleImageLoad = () => {
+      setImageLoading(false);
+    };
+
+    return (
+      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+        {avatarUrl && !imageError ? (
+          <>
+            {imageLoading && (
+              <div className="absolute w-8 h-8 rounded-full bg-gray-300 animate-pulse flex items-center justify-center">
+                <span className="text-xs text-gray-500">...</span>
+              </div>
+            )}
+            <img
+              src={avatarUrl}
+              alt={userName}
+              className={`w-8 h-8 rounded-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
+              onError={handleImageError}
+              onLoad={handleImageLoad}
+              loading="lazy"
+            />
+          </>
+        ) : (
+          <span className="text-gray-600 font-semibold text-sm">
+            {firstLetter}
+          </span>
+        )}
+      </div>
+    );
+  });
+
+  MeetingAvatar.displayName = 'MeetingAvatar';
+
   // Inline Meeting Item Component
-  const MeetingItem = ({ meeting, type }: { meeting: Meeting; type: 'pending' | 'upcoming' | 'past' | 'cancelled' }) => {
+  const MeetingItem = React.memo(({ meeting, type }: { meeting: Meeting; type: 'pending' | 'upcoming' | 'past' | 'cancelled' }) => {
     const otherUserId = meeting.senderId === userId ? meeting.receiverId : meeting.senderId;
     const otherUserName = getUserDisplayName(otherUserId);
     const isPendingReceiver = type === 'pending' && meeting.receiverId === userId;
@@ -752,9 +826,7 @@ ${formattedContent}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-blue-600" />
-              </div>
+              <MeetingAvatar userId={otherUserId} userName={otherUserName} />
             </div>
             <div>
               <h4 className="font-medium text-gray-900">
@@ -879,7 +951,9 @@ ${formattedContent}
         </div>
       </div>
     );
-  };
+  });
+
+  MeetingItem.displayName = 'MeetingItem';
 
   if (loading && meetings.length === 0) {
     return (
