@@ -3,6 +3,8 @@ import { debounce } from 'lodash-es';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import Image from 'next/image';
+
 
 // Types
 interface User {
@@ -206,11 +208,14 @@ const UserAvatar: React.FC<{ user: User; size?: 'sm' | 'md' | 'lg' }> = ({ user,
   };
   const avatarSrc = processAvatarUrl(user.avatar) || '/default-avatar.png';
   return user.avatar ? (
-    <img
-      src={avatarSrc}
-      alt={`${user.firstName} ${user.lastName}'s avatar`}
-      className={`rounded-full object-cover border ${sizeClasses[size]}`}
-    />
+    <Image
+  src={avatarSrc}
+  alt={`${user.firstName} ${user.lastName}'s avatar`}
+  width={100} // You can adjust this based on the actual size
+  height={100}
+  className={`rounded-full object-cover border ${sizeClasses[size]}`}
+  style={{ width: 'auto', height: 'auto' }} // Ensures it behaves like <img> if needed
+/>
   ) : (
     <div className={`rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border ${sizeClasses[size]}`}>
       {getInitials(user.firstName, user.lastName)}
