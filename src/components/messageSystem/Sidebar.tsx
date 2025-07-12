@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { IChatRoom } from "@/types/chat";
 import { Search } from "lucide-react";
 import {
   fetchUserChatRooms,
   fetchUserProfile,
+  fetchUnreadMessageCountsByRoom,
 } from "@/services/chatApiServices";
 import {useSocket} from "@/lib/context/SocketContext";
 import { processAvatarUrl, getFirstLetter } from "@/utils/avatarUtils";
@@ -30,13 +31,15 @@ function SidebarBox({
   lastMessage, 
   isSelected,
   avatarUrl,
-  firstLetter
+  firstLetter,
+  unreadCount = 0
 }: { 
   otherParticipantName: string; 
   lastMessage: string;
   isSelected?: boolean;
   avatarUrl?: string;
   firstLetter: string;
+  unreadCount?: number;
 }) {
   const [imageError, setImageError] = useState(false);
   const [imageLoading, setImageLoading] = useState(!!avatarUrl);
@@ -107,6 +110,13 @@ function SidebarBox({
           {lastMessage}
         </span>
       </div>
+
+      {/* Unread Count Badge */}
+      {unreadCount > 0 && (
+        <div className="flex-shrink-0 bg-primary text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </div>
+      )}
     </div>
   );
 }
@@ -123,10 +133,26 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
   const [userProfiles, setUserProfiles] = useState<{
     [key: string]: UserProfile;
   }>({});
+  const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const {socket}= useSocket();
 
   //* Component Specific Functions
+
+  /**
+   * Fetches unread message counts for all chat rooms
+   * @async
+   * @function fetchUnreadCounts
+   * @returns {Promise<void>}
+   */
+  const fetchUnreadCounts = useCallback(async () => {
+    try {
+      const unreadCountsData = await fetchUnreadMessageCountsByRoom(userId);
+      setUnreadCounts(unreadCountsData);
+    } catch (err) {
+      console.error("Error fetching unread counts:", err);
+    }
+  }, [userId]);
 
   /**
    * Fetches all chat rooms for the current user from the API
@@ -134,7 +160,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
    * @function fetchChatRooms
    * @returns {Promise<void>}
    */
-  async function fetchChatRooms() {
+  const fetchChatRooms = useCallback(async () => {
     try {
       setLoading(true);
       const chatRoomsData = await fetchUserChatRooms(userId);
@@ -146,7 +172,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
     } finally {
       setLoading(false);
     }
-  }
+  }, [userId]);
 
   /**
    * Fetches profile information for all unique users in the chat rooms
@@ -155,7 +181,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
    * @function fetchUserProfiles
    * @returns {Promise<void>}
    */
-  async function fetchUserProfilesSimple() {
+  const fetchUserProfilesSimple = useCallback(async () => {
     // Extract unique participant IDs except me
     const uniqueUserIds = new Set<string>();
     chatRooms.forEach((chat) => {
@@ -202,31 +228,32 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         }));
       }
     }
-  }
+  }, [chatRooms, userId]);
 
   /**
    * Effect hook that triggers chat room data fetching when component mounts
    * or when the userId dependency changes
    *
-   * @dependency [userId]
+   * @dependency [userId, fetchChatRooms, fetchUnreadCounts]
    */
   useEffect(() => {
     if (userId) {
       fetchChatRooms();
+      fetchUnreadCounts();
     }
-  }, [userId]);
+  }, [userId, fetchChatRooms, fetchUnreadCounts]);
 
   /**
    * Effect hook that fetches user profile data whenever the chat rooms list changes
    * Ensures we have profile information for all participants in the conversations
    *
-   * @dependency [chatRooms, userId]
+   * @dependency [fetchUserProfilesSimple, chatRooms.length]
    */
   useEffect(() => {
     if (chatRooms.length > 0) {
       fetchUserProfilesSimple();
     }
-  }, [chatRooms, userId]);
+  }, [fetchUserProfilesSimple, chatRooms.length]);
 
   /**
    * Effect hook that listens for new messages and updates the sidebar
@@ -262,6 +289,14 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
           return room;
         });
       });
+
+      // Update unread counts if the message is not from current user
+      if (messageData.senderId !== userId) {
+        setUnreadCounts(prevCounts => ({
+          ...prevCounts,
+          [messageData.chatRoomId]: (prevCounts[messageData.chatRoomId] || 0) + 1
+        }));
+      }
     };
 
     // Set up the listener
@@ -272,6 +307,20 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
       socket.off("receive_message", handleReceiveMessage);
     };
   }, [socket, userId, fetchChatRooms]);
+
+  /**
+   * Effect hook that clears unread count when a chat room is selected
+   * 
+   * @dependency [selectedChatRoomId]
+   */
+  useEffect(() => {
+    if (selectedChatRoomId && unreadCounts[selectedChatRoomId] > 0) {
+      setUnreadCounts(prevCounts => ({
+        ...prevCounts,
+        [selectedChatRoomId]: 0
+      }));
+    }
+  }, [selectedChatRoomId, unreadCounts]);
 
   /**
    * Renders a loading state while fetching initial data
@@ -379,6 +428,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                   isSelected={selectedChatRoomId === chat._id}
                   avatarUrl={processedAvatarUrl}
                   firstLetter={firstLetter}
+                  unreadCount={unreadCounts[chat._id] || 0}
                 />
               </li>
             );
