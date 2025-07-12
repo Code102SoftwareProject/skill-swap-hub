@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bookmark, MessageSquare, Clock, User, RefreshCw, BookmarkX } from 'lucide-react';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
@@ -40,7 +40,7 @@ export default function SavedListPage() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Fetch saved posts with retry logic
-  const fetchSavedPosts = async (isRefresh = false, retryCount = 0) => {
+  const fetchSavedPosts = useCallback(async (isRefresh = false, retryCount = 0) => {
     // Don't fetch if auth is still loading or user/token is not available
     if (authLoading || !user || !token) {
       if (!authLoading && (!user || !token)) {
@@ -89,7 +89,7 @@ export default function SavedListPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [authLoading, user, token, getWatchedPosts]);
 
   // Handle post click
   const handlePostClick = (post: SavedPost) => {
@@ -122,13 +122,17 @@ export default function SavedListPage() {
     // Wait for auth to finish loading before attempting to fetch
     if (!authLoading) {
       if (user && token) {
-        fetchSavedPosts();
+        // Add a small delay to ensure token is fully available
+        const timer = setTimeout(() => {
+          fetchSavedPosts();
+        }, 100);
+        return () => clearTimeout(timer);
       } else {
         // If auth finished loading but no user or token, stop loading state
         setLoading(false);
       }
     }
-  }, [user, token, authLoading]);
+  }, [user, token, authLoading, fetchSavedPosts]);
 
   // Show loading while authentication is being determined
   if (authLoading) {
@@ -187,7 +191,7 @@ export default function SavedListPage() {
           </div>
 
           {/* Loading state */}
-          {(loading || (user && !token)) && (
+          {(loading || (user && !token) || authLoading) && (
             <div className="flex justify-center py-20">
               <div className="relative w-16 h-16">
                 <div className="absolute w-16 h-16 rounded-full border-4 border-blue-100 opacity-30"></div>
@@ -210,7 +214,7 @@ export default function SavedListPage() {
           )}
 
           {/* Content */}
-          {!loading && !error && user && token && (
+          {!loading && !error && user && token && !authLoading && (
             <>
               {savedPosts.length === 0 ? (
                 <motion.div 

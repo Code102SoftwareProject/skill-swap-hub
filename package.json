@@ -23,6 +23,8 @@
     "test:admin-reports": "node -r dotenv/config scripts/testAdminReports.js",
     "test:email-service": "node -r dotenv/config scripts/testEmailService.js",
     "test:user-suspension": "node -r dotenv/config scripts/testUserSuspensionSimple.mjs",
+    "test:forum-reports": "node -r dotenv/config scripts/testForumReports.js",
+    "setup:forum-reports": "node -r dotenv/config scripts/setupForumReports.js",
     "assign:badges": "curl -X POST http://localhost:3000/api/badge-assignments"
   },
   "dependencies": {

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import CreatePostPopup from './CreatePostPopup';
 import LikeDislikeButtons from './likedislikebutton';
 import WatchPostButton from './WatchPostButton';
+import ReportPostButton from './ReportPostButton';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 
@@ -291,6 +292,11 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                       {/* Save Post Button */}
                       <div onClick={(e) => e.stopPropagation()}>
                         <WatchPostButton postId={post._id} size="sm" />
+                      </div>
+                      
+                      {/* Report Post Button */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <ReportPostButton postId={post._id} size="sm" />
                       </div>
                     </div>
                   </div>

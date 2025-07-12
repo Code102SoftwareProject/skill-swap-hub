@@ -17,6 +17,9 @@ export interface IPost extends Document {
   dislikedBy: string[];
   replies: number;
   views: number;
+  isDeleted?: boolean;
+  deletedReason?: string;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -78,6 +81,18 @@ const PostSchema = new Schema(
     views: {
       type: Number,
       default: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedReason: {
+      type: String,
+      default: null,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
     },
   },
   {
