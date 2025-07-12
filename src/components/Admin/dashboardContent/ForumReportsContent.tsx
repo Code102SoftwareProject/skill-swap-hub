@@ -350,7 +350,7 @@ const ForumReportsContent: React.FC = () => {
 	return (
 		<div className="space-y-6">
 			{/* Header */}
-			<div className="flex items-center justify-between">
+			<div className="flex items-center text-black  justify-between">
 				<div>
 					<h1 className="text-2xl font-bold text-gray-900">Forum Post Reports</h1>
 					<p className="text-gray-600 mt-1">
@@ -391,7 +391,7 @@ const ForumReportsContent: React.FC = () => {
 					variant="outline" 
 					size="sm"
 				>
-					<RefreshCw className="h-4 w-4 mr-2" />
+					<RefreshCw className="h-4 w-4 text-black mr-2" />
 					Refresh
 				</Button>
 			</div>
@@ -682,7 +682,7 @@ const ForumReportsContent: React.FC = () => {
 																		});
 																		
 																		if (result.isConfirmed) {
-																			await handleAction(report._id, 'remove post');
+																			await handleAction(report._id, 'remove_post');
 																		}
 																	}}
 																	disabled={processingAction === report._id}
