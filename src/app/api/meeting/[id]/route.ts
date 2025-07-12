@@ -2,11 +2,11 @@ import meetingSchema from "@/lib/models/meetingSchema";
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await connect();
   
   try {
-    const { id } = params;
+    const { id } = await params;
     
     if (!id) {
       return NextResponse.json({ message: "Meeting ID is required" }, { status: 400 });
@@ -25,11 +25,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await connect();
   
   try {
-    const { id } = params;
+    const { id } = await params;
     const updateData = await req.json();
     
     if (!id) {
