@@ -128,11 +128,32 @@ export async function PATCH(request: NextRequest) {
       isGoogleUser: suspendedUser.isGoogleUser,
       profileCompleted: suspendedUser.profileCompleted,
       createdAt: suspendedUser.originalCreatedAt,
-      updatedAt: suspendedUser.originalUpdatedAt,
+      updatedAt: new Date(), // Update the updatedAt timestamp
     };
 
-    const restoredUser = new User(restoredUserData);
-    await restoredUser.save();
+    // First, check if a user with this email already exists in the main collection
+    const existingUser = await User.findOne({ email: suspendedUser.email });
+
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "User with this email already exists in the system",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Insert the user data directly into the database to avoid pre-save middleware
+    // that would re-hash the already hashed password
+    const insertResult = await User.collection.insertOne(restoredUserData);
+    
+    if (!insertResult.acknowledged) {
+      throw new Error("Failed to insert restored user");
+    }
+    
+    // Get the inserted user for response
+    const restoredUser = await User.findById(insertResult.insertedId);
 
     // Delete from suspended users collection
     await SuspendedUser.findByIdAndDelete(suspendedUser._id);
