@@ -191,111 +191,194 @@ export default function SuggestionsContent() {
           </div>
         ) : (
           <>
-            {/* Table */}
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      User
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Submitted
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Title
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedSuggestions.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center justify-center text-gray-400">
-                          <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <p className="text-lg font-medium text-gray-500">No pending suggestions found</p>
-                          <p className="text-sm">Try adjusting your search or filter criteria</p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedSuggestions.map((suggestion) => (
-                      <tr key={suggestion._id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="flex-shrink-0 h-10 w-10 relative">
-                              <Image
-                                src={processAvatarUrl(suggestion.avatar) || '/default-avatar.png'}
-                                alt={suggestion.userName}
-                                width={40}
-                                height={40}
-                                className="rounded-full"
-                              />
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900">{suggestion.userName}</div>
-                              <div className="text-xs text-gray-500">{suggestion.role}</div>
-                            </div>
+            {/* Mobile Card View */}
+            <div className="md:hidden">
+              {paginatedSuggestions.length === 0 ? (
+                <div className="p-6 text-center">
+                  <div className="flex flex-col items-center justify-center text-gray-400">
+                    <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-lg font-medium text-gray-500">No pending suggestions found</p>
+                    <p className="text-sm">Try adjusting your search or filter criteria</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 space-y-4">
+                  {paginatedSuggestions.map((suggestion) => (
+                    <div key={suggestion._id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      {/* User Info */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-12 w-12 relative">
+                            <Image
+                              src={processAvatarUrl(suggestion.avatar) || '/default-avatar.png'}
+                              alt={suggestion.userName}
+                              width={48}
+                              height={48}
+                              className="rounded-full"
+                            />
                           </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
-                            {suggestion.category}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(suggestion.date).toLocaleDateString('en-US', { 
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">{suggestion.userName}</div>
+                            <div className="text-xs text-gray-500">{suggestion.role}</div>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          {suggestion.category}
+                        </span>
+                      </div>
+
+                      {/* Title and Date */}
+                      <div className="mb-3">
+                        <h3 className="text-sm font-medium text-gray-900 mb-1">{suggestion.title}</h3>
+                        <p className="text-xs text-gray-500">
+                          Submitted: {new Date(suggestion.date).toLocaleDateString('en-US', { 
                             month: 'short', 
                             day: 'numeric',
                             year: 'numeric'
                           })}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900 font-medium line-clamp-1">{suggestion.title}</div>
-                          <button 
-                            onClick={() => setSelectedSuggestion(suggestion)}
-                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between">
+                        <button 
+                          onClick={() => setSelectedSuggestion(suggestion)}
+                          className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+                        >
+                          View details
+                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => updateStatus(suggestion._id, 'Approved')}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-md text-xs font-medium hover:bg-green-100 transition-colors"
                           >
-                            View details
+                            <Check className="w-3 h-3" />
+                            Approve
                           </button>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => updateStatus(suggestion._id, 'Approved')}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-md text-xs font-medium hover:bg-green-100 transition-colors"
-                            >
-                              <Check className="w-3 h-3" />
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => updateStatus(suggestion._id, 'Rejected')}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors"
-                            >
-                              <X className="w-3 h-3" />
-                              Reject
-                            </button>
+                          <button
+                            onClick={() => updateStatus(suggestion._id, 'Rejected')}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors"
+                          >
+                            <X className="w-3 h-3" />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        User
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Category
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Submitted
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Title
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedSuggestions.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center">
+                          <div className="flex flex-col items-center justify-center text-gray-400">
+                            <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-lg font-medium text-gray-500">No pending suggestions found</p>
+                            <p className="text-sm">Try adjusting your search or filter criteria</p>
                           </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      paginatedSuggestions.map((suggestion) => (
+                        <tr key={suggestion._id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center">
+                              <div className="flex-shrink-0 h-10 w-10 relative">
+                                <Image
+                                  src={processAvatarUrl(suggestion.avatar) || '/default-avatar.png'}
+                                  alt={suggestion.userName}
+                                  width={40}
+                                  height={40}
+                                  className="rounded-full"
+                                />
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">{suggestion.userName}</div>
+                                <div className="text-xs text-gray-500">{suggestion.role}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                              {suggestion.category}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(suggestion.date).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 font-medium line-clamp-1">{suggestion.title}</div>
+                            <button 
+                              onClick={() => setSelectedSuggestion(suggestion)}
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                            >
+                              View details
+                            </button>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => updateStatus(suggestion._id, 'Approved')}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-md text-xs font-medium hover:bg-green-100 transition-colors"
+                              >
+                                <Check className="w-3 h-3" />
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => updateStatus(suggestion._id, 'Rejected')}
+                                className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                                Reject
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Pagination */}
             {pendingSuggestions.length > 0 && (
-              <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
-                <div className="text-sm text-gray-500">
+              <div className="bg-gray-50 px-6 py-3 flex flex-col sm:flex-row items-center justify-between border-t border-gray-200 gap-4">
+                <div className="text-sm text-gray-500 text-center sm:text-left">
                   Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(currentPage * itemsPerPage, pendingSuggestions.length)}</span> of{' '}
                   <span className="font-medium">{pendingSuggestions.length}</span> results
