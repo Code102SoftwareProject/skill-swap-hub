@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, Clock, User, TrendingUp, RefreshCw } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
+import Image from 'next/image';
 
 interface Post {
   _id: string;
@@ -213,10 +214,12 @@ const PublicForumFeed: React.FC<PublicForumFeedProps> = ({ className = '', forum
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center space-x-3">
                     <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-gray-100">
-                      <img 
+                      <Image 
                         src={'/user-avatar.png'} 
                         alt={post.author.name}
-                        className="w-full h-full object-cover"
+                        width={40}
+                        height={40}
+                        className="object-cover"
                       />
                     </div>
                     <div>
@@ -236,14 +239,15 @@ const PublicForumFeed: React.FC<PublicForumFeedProps> = ({ className = '', forum
                 {/* Post title */}
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">{post.title}</h3>
 
-                {/* Post image */}
+                {/* Post image if exists */}
                 {post.imageUrl && (
                   <div className="mb-4 border border-gray-200 rounded-lg overflow-hidden">
                     <div className="relative w-full h-64">
-                      <img 
+                      <Image 
                         src={getImageUrl(post.imageUrl)} 
                         alt={`Image for ${post.title}`}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     </div>
                   </div>
