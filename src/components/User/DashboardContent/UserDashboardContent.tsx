@@ -8,10 +8,12 @@ import { TimeSpentChart } from "@/components/Dashboard/TimeSpentChart";
 import UserSkills from "@/components/Dashboard/UserSkills";
 import EarnedBadges from "@/components/Dashboard/EarnedBadges";
 import SkillMatchOverview from "@/components/Dashboard/SkillMatchOverview";
+import { useSessionTimer } from '@/lib/hooks/useSessionTimer';
 
 export default function UserDashboardContent({ onNavigateToMySkills }: { onNavigateToMySkills: () => void })  {
   const { user } = useAuth();
   const fullName = user ? `${user.firstName} ${user.lastName}` : 'User';
+  useSessionTimer(user?._id ?? null);
 
   return (
     <div className="container mx-auto px-4 py-6 text-gray-700">
