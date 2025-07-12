@@ -6,6 +6,8 @@ import { toast } from 'react-toastify';
 import { useDebounce } from 'use-debounce';
 import Image from 'next/image';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import SuggestionSummaryModal from "@/components/Admin/SuggestionSummaryModal";
+
 
 interface Suggestion {
   _id: string;
@@ -33,6 +35,8 @@ export default function SuggestionsContent() {
   const [isAnalysisClosing, setIsAnalysisClosing] = useState(false);
 
   const itemsPerPage = 8;
+
+  const [showSummary, setShowSummary] = useState(false);
 
   // Fetch suggestions
   const fetchSuggestions = async () => {
@@ -151,7 +155,9 @@ export default function SuggestionsContent() {
         
         {/* Top Buttons */}
         <div className="flex gap-3 mt-4 md:mt-0">
-          <button className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
+          <button
+          onClick={() => setShowSummary(true)}
+          className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
             <Eye className="w-4 h-4" />
             View Summary
           </button>
@@ -164,6 +170,8 @@ export default function SuggestionsContent() {
           </button>
         </div>
       </div>
+
+      <SuggestionSummaryModal open={showSummary} onClose={() => setShowSummary(false)} />
 
       {/* Search & Filter Section */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-100 text-gray-600">
