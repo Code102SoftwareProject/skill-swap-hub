@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/context/AuthContext";
 import { SocketProvider } from "@/lib/context/SocketContext";
 import { ToastProvider } from "@/lib/context/ToastContext";
 import NotificationAlert from "@/components/notificationSystem/NotificationAlert";
+import { SuspendedPopupProvider } from "@/components/ui/SuspendedPopup";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -35,6 +36,7 @@ export default function RootLayout({
         <AuthProvider>
           <SocketProvider>
             <ToastProvider>
+              <SuspendedPopupProvider />
               {children}
               <NotificationAlert />
             </ToastProvider>

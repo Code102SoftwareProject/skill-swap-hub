@@ -68,7 +68,7 @@ export const TimeSpentChart: React.FC<TimeSpentChartProps> = ({ userId }) => {
             <XAxis dataKey="label" />
             <YAxis label={{ value: "Minutes", angle: -90, position: "insideLeft" }} />
             <Tooltip formatter={(value) => `${value} min`} />
-            <Bar dataKey="duration" fill="#2563eb" />
+            <Bar dataKey="duration" fill="#026aa1" />
           </BarChart>
         </ResponsiveContainer>
       )}

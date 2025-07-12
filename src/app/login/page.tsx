@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
 import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
+import { showSuspendedPopup } from '@/components/ui/SuspendedPopup';
 
 function LoginWithSearchParams() {
   const { useSearchParams } = require('next/navigation');
@@ -104,20 +105,26 @@ const Login = () => {
         formData.rememberMe
       );
 
-      if (result.success) {
-        showToast('Login successful! Redirecting...', 'success');
-        
-        // Check if there's a redirect URL stored
-        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-        if (redirectUrl) {
-          sessionStorage.removeItem('redirectAfterLogin');
-          router.push(redirectUrl);
-        } else {
-          router.push('/dashboard');
-        }
+      //  If user is suspended, show the popup and abort
+if (result.suspended) {
+  showSuspendedPopup(result.message, result.suspensionDetails);
+  return;
+}
+
+if (result.success) {
+  showToast('Login successful! Redirecting...', 'success');
+  // …redirect logic…
+  const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
       } else {
-        showToast(result.message || 'Login failed', 'error');
+        router.push('/dashboard');
       }
+} else {
+  showToast(result.message || 'Login failed', 'error');
+}
+ 
     } catch (error) {
       showToast('An error occurred. Please try again.', 'error');
       console.error('Login error:', error);
@@ -140,6 +147,16 @@ const Login = () => {
       const result = await googleLogin(credential);
       
       console.log('Google login result:', result);
+
+      // 2 Suspension check
+    if (result.suspended) {
+      showSuspendedPopup(
+        result.message,
+        result.suspensionDetails,
+        () => console.log('User closed suspension popup')
+      );
+      return; // stop here
+    }
 
       if (result.success) {
         // Cancel any remaining Google prompts to prevent additional popups

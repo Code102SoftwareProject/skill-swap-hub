@@ -7,5 +7,5 @@ const SessionSchema = new Schema({
   duration: { type: Number, required: true }, // in seconds
 });
 
-const SessionModel = models.Session || mongoose.model("Session", SessionSchema);
+const SessionModel = models.Session || mongoose.model("SessionTime", SessionSchema);
 export default SessionModel; 
