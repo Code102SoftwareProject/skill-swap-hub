@@ -8,6 +8,13 @@ import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessi
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
+// Import tab components
+import OverviewTab from '@/components/sessionTabs/OverviewTab';
+import SubmitWorkTab from '@/components/sessionTabs/SubmitWorkTab';
+import ViewWorksTab from '@/components/sessionTabs/ViewWorksTab';
+import ProgressTab from '@/components/sessionTabs/ProgressTab';
+import ReportTab from '@/components/sessionTabs/ReportTab';
+
 interface Session {
   _id: string;
   user1Id: any;
@@ -28,12 +35,20 @@ interface Session {
   updatedAt?: string;
 }
 
+interface WorkFile {
+  fileName: string;
+  fileURL: string;
+  fileTitle: string;
+  uploadedAt: string;
+}
+
 interface Work {
   _id: string;
   session: string;
   provideUser: any;
   receiveUser: any;
-  workURL: string;
+  workURL: string; // Keep for backwards compatibility
+  workFiles: WorkFile[]; // New field for multiple files
   workDescription: string;
   provideDate: string;
   acceptanceStatus: 'pending' | 'accepted' | 'rejected';
@@ -80,7 +95,7 @@ export default function SessionWorkspace() {
 
   // Submit work form state
   const [workDescription, setWorkDescription] = useState('');
-  const [workFile, setWorkFile] = useState<File | null>(null);
+  const [workFiles, setWorkFiles] = useState<{ file: File; title: string }[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Work review state
@@ -402,19 +417,41 @@ export default function SessionWorkspace() {
       return;
     }
 
+    // Validate file count
+    if (workFiles.length > 5) {
+      showAlert('warning', 'Maximum 5 files allowed per submission');
+      return;
+    }
+
+    // Validate file sizes (100MB each)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    for (const { file } of workFiles) {
+      if (file.size > maxSize) {
+        showAlert('warning', `File "${file.name}" exceeds 100MB limit`);
+        return;
+      }
+    }
+
     setUploading(true);
     
     try {
-      let workURL = '';
+      const uploadedFiles: WorkFile[] = [];
       
-      if (workFile) {
-        const uploadedUrl = await handleFileUpload(workFile);
+      // Upload each file if any
+      for (const { file, title } of workFiles) {
+        const uploadedUrl = await handleFileUpload(file);
         if (!uploadedUrl) {
-          showAlert('error', 'Failed to upload file');
+          showAlert('error', `Failed to upload file: ${file.name}`);
           setUploading(false);
           return;
         }
-        workURL = uploadedUrl;
+        
+        uploadedFiles.push({
+          fileName: file.name,
+          fileURL: uploadedUrl,
+          fileTitle: title.trim() || file.name.split('.').slice(0, -1).join('.') || 'Uploaded File',
+          uploadedAt: new Date().toISOString()
+        });
       }
 
       if (!session || !currentUserId) {
@@ -434,7 +471,8 @@ export default function SessionWorkspace() {
           session: sessionId,
           provideUser: currentUserId,
           receiveUser: otherUserId,
-          workURL: workURL || 'text-only',
+          workURL: uploadedFiles.length > 0 ? uploadedFiles[0].fileURL : 'text-only', // Keep for backwards compatibility
+          workFiles: uploadedFiles,
           workDescription,
         }),
       });
@@ -453,7 +491,7 @@ export default function SessionWorkspace() {
 
         showAlert('success', 'Work submitted successfully!');
         setWorkDescription('');
-        setWorkFile(null);
+        setWorkFiles([]);
         fetchWorks(); // Refresh works list
         setActiveTab('view-works');
       } else {
@@ -1368,57 +1406,7 @@ export default function SessionWorkspace() {
                 </div>
               </div>
 
-              {/* Work Submission Breakdown */}
-              {works.length > 0 && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h3 className="font-medium text-gray-900 mb-3">Work Submission Breakdown</h3>
-                  <div className="space-y-3">
-                    {/* Your submissions */}
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-blue-900">Your Submissions</span>
-                        <span className="text-sm text-blue-700">
-                          {works.filter(w => w.provideUser._id === currentUserId).length} total
-                        </span>
-                      </div>
-                      <div className="flex space-x-4 text-xs">
-                        <span className="text-green-700">
-                          ✓ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'accepted').length} accepted
-                        </span>
-                        <span className="text-red-700">
-                          ✗ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'rejected').length} rejected
-                        </span>
-                        <span className="text-yellow-700">
-                          ⏳ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'pending').length} pending
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Other user's submissions */}
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-green-900">
-                          {getOtherUserName()}'s Submissions
-                        </span>
-                        <span className="text-sm text-green-700">
-                          {works.filter(w => w.provideUser._id !== currentUserId).length} total
-                        </span>
-                      </div>
-                      <div className="flex space-x-4 text-xs">
-                        <span className="text-green-700">
-                          ✓ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'accepted').length} accepted
-                        </span>
-                        <span className="text-red-700">
-                          ✗ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'rejected').length} rejected
-                        </span>
-                        <span className="text-yellow-700">
-                          ⏳ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'pending').length} pending
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+            
             </div>
 
             {/* Session Details */}
@@ -1967,17 +1955,82 @@ export default function SessionWorkspace() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Attach File (Optional)
+                      Attach Files (Optional - Max 5 files, 100MB each)
                     </label>
+                    
+                    {/* File Upload Input */}
                     <input
                       type="file"
-                      onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        if (workFiles.length + files.length > 5) {
+                          showAlert('warning', 'Maximum 5 files allowed');
+                          return;
+                        }
+                        
+                        const newFiles = files.map(file => ({
+                          file,
+                          title: file.name.split('.').slice(0, -1).join('.') || 'Uploaded File'
+                        }));
+                        
+                        setWorkFiles([...workFiles, ...newFiles]);
+                        // Clear the input
+                        e.target.value = '';
+                      }}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip,.mp4,.mov,.avi,.mkv"
+                      multiple
                     />
                     <p className="text-xs text-gray-500 mt-1">
-                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
+                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP, MP4, MOV, AVI, MKV
                     </p>
+                    
+                    {/* Selected Files List */}
+                    {workFiles.length > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-sm font-medium text-gray-700">Selected Files ({workFiles.length}/5):</p>
+                        {workFiles.map((workFileItem, index) => (
+                          <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                  <span className="text-sm text-gray-700 truncate">{workFileItem.file.name}</span>
+                                  <span className="text-xs text-gray-500">
+                                    ({(workFileItem.file.size / (1024 * 1024)).toFixed(1)} MB)
+                                  </span>
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                                    Title for this file:
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={workFileItem.title}
+                                    onChange={(e) => {
+                                      const updatedFiles = [...workFiles];
+                                      updatedFiles[index].title = e.target.value;
+                                      setWorkFiles(updatedFiles);
+                                    }}
+                                    placeholder="Enter a descriptive title..."
+                                    className="w-full text-sm p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  />
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWorkFiles(workFiles.filter((_, i) => i !== index));
+                                }}
+                                className="ml-3 text-red-600 hover:text-red-700 flex-shrink-0"
+                              >
+                                <XCircle className="h-5 w-5" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end space-x-3">
@@ -1985,7 +2038,7 @@ export default function SessionWorkspace() {
                       type="button"
                       onClick={() => {
                         setWorkDescription('');
-                        setWorkFile(null);
+                        setWorkFiles([]);
                       }}
                       className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                     >
@@ -2035,14 +2088,41 @@ export default function SessionWorkspace() {
                             {work.acceptanceStatus}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(work.provideDate)}
-                        </div>
                       </div>
                       
                       <p className="text-gray-700 mb-3">{work.workDescription}</p>
                       
-                      {work.workURL && work.workURL !== 'text-only' && (
+                      {/* Display multiple files if available */}
+                      {work.workFiles && work.workFiles.length > 0 ? (
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-gray-700 mb-2">
+                            Attachments ({work.workFiles.length}):
+                          </div>
+                          <div className="space-y-2">
+                            {work.workFiles.map((file: any, index: number) => (
+                              <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                  <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-medium text-gray-900 truncate">
+                                      {file.fileTitle}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {file.fileName}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDownloadFile(file.fileURL, file.fileName)}
+                                  className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : work.workURL && work.workURL !== 'text-only' ? (
                         <div className="mb-3">
                           <button
                             onClick={() => handleDownloadFile(work.workURL)}
@@ -2052,7 +2132,7 @@ export default function SessionWorkspace() {
                             <span>Download Attachment</span>
                           </button>
                         </div>
-                      )}
+                      ) : null}
                       
                       {work.remark && work.acceptanceStatus === 'accepted' && (
                         <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
@@ -2105,14 +2185,41 @@ export default function SessionWorkspace() {
                             {work.acceptanceStatus}
                           </span>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(work.provideDate)}
-                        </div>
                       </div>
                       
                       <p className="text-gray-700 mb-3">{work.workDescription}</p>
                       
-                      {work.workURL && work.workURL !== 'text-only' && (
+                      {/* Display multiple files if available */}
+                      {work.workFiles && work.workFiles.length > 0 ? (
+                        <div className="mb-3">
+                          <div className="text-sm font-medium text-gray-700 mb-2">
+                            Attachments ({work.workFiles.length}):
+                          </div>
+                          <div className="space-y-2">
+                            {work.workFiles.map((file: any, index: number) => (
+                              <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                  <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-medium text-gray-900 truncate">
+                                      {file.fileTitle}
+                                    </div>
+                                    <div className="text-xs text-gray-500 truncate">
+                                      {file.fileName}
+                                    </div>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => handleDownloadFile(file.fileURL, file.fileName)}
+                                  className="ml-2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex-shrink-0"
+                                >
+                                  Download
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : work.workURL && work.workURL !== 'text-only' ? (
                         <div className="mb-3">
                           <button
                             onClick={() => handleDownloadFile(work.workURL)}
@@ -2122,7 +2229,7 @@ export default function SessionWorkspace() {
                             <span>Download Attachment</span>
                           </button>
                         </div>
-                      )}
+                      ) : null}
                       
                       {/* Action buttons for receiving user */}
                       {work.receiveUser._id === currentUserId && work.acceptanceStatus === 'pending' && (
@@ -2275,19 +2382,6 @@ export default function SessionWorkspace() {
                       <p className="text-gray-600 text-center">{getOtherUserName()} hasn't updated their progress yet</p>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-
-            {/* Progress History */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress Timeline</h3>
-              <div className="space-y-4">
-                {/* Combined progress timeline would go here */}
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                  <p>Progress timeline feature coming soon...</p>
-                  <p className="text-sm">Track all progress updates and milestones</p>
                 </div>
               </div>
             </div>
