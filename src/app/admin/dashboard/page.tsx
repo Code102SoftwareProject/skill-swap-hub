@@ -12,6 +12,7 @@ import SuggestionsContent from "@/components/Admin/dashboardContent/SuggestionsC
 import SystemContent from "@/components/Admin/dashboardContent/SystemContent";
 import VerificationRequests from "@/components/Admin/skillverifications";
 import ReportingContent from "@/components/Admin/dashboardContent/ReportingContent";
+import ForumReportsContent from "@/components/Admin/dashboardContent/ForumReportsContent";
 import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessStoriesContent";
 
 // Import AdminManagementContent directly to avoid chunk loading issues
@@ -28,6 +29,7 @@ const COMPONENTS = {
   SYSTEM: "system",
   VERIFY_DOCUMENTS: "verify-documents",
   REPORTING: "reporting",
+  FORUM_REPORTS: "forum-reports",
 };
 
 // Define interface for Admin data
@@ -308,6 +310,8 @@ export default function AdminDashboard() {
           return <VerificationRequests key={activeComponent} />;
         case COMPONENTS.REPORTING:
           return <ReportingContent key={activeComponent} />;
+        case COMPONENTS.FORUM_REPORTS:
+          return <ForumReportsContent key={activeComponent} />;
         default:
           return <DashboardContent key={activeComponent} />;
       }

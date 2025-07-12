@@ -78,6 +78,12 @@ const navItems = [
     icon: Flag,
     permission: "manage_reporting",
   },
+  {
+    id: "forum-reports",
+    label: "Forum Reports",
+    icon: Flag,
+    permission: "manage_forum_reports",
+  },
 ];
 
 // Component
@@ -109,6 +115,26 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
 
   return (
     <aside className="w-56 h-screen bg-white flex flex-col justify-between border-r border-gray-200 pt-28">
+      {/* Debug info for development */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="px-4 py-2 bg-gray-100 text-xs">
+          <details>
+            <summary className="cursor-pointer text-gray-600">Debug Info</summary>
+            <div className="mt-2 space-y-1">
+              <div>Admin: {adminData?.username || 'None'}</div>
+              <div>Role: {adminData?.role || 'None'}</div>
+              <div>Permissions: {adminData?.permissions?.length || 0}</div>
+              <div className="text-xs text-gray-500 max-h-20 overflow-y-auto">
+                {adminData?.permissions?.join(', ') || 'No permissions'}
+              </div>
+              <div className="font-semibold">
+                Forum Reports: {adminData?.permissions?.includes('manage_forum_reports') ? '✅' : '❌'}
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
+      
       {/* Navigation Section (conditionally rendered) */}
       <div className="flex flex-col w-full">
         {navItems.map((item) => {
