@@ -174,14 +174,29 @@ export async function GET(req: Request){
 
 
 export async function DELETE(req: Request) {
+  // validate with SYSTEM_API_KEY
+  if (req.headers.get('x-api-key') !== process.env.SYSTEM_API_KEY) {
+    return NextResponse.json(
+      { success: false, message: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
   await connect();
   try{
-    //delete all notifications
-    await Notification.deleteMany({});
+    //delete all notifications created before 2 weeks
+    const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const result = await Notification.deleteMany({ createdAt: { $lt: twoWeeksAgo } });  
+    if (result.deletedCount === 0) {
+      return NextResponse.json(
+        { success: false, message: 'No notifications to delete' },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
-      {success: true, message: "All notifications deleted"},
-      {status: 200}
+      { success: true, message: `${result.deletedCount} notifications deleted` },
+      { status: 200 }
     );
+    
   } catch (error: any) {
     console.error('Error deleting notifications:', error);
     return NextResponse.json(
