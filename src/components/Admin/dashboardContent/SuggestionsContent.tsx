@@ -29,6 +29,8 @@ export default function SuggestionsContent() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
   const [isModalClosing, setIsModalClosing] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [isAnalysisClosing, setIsAnalysisClosing] = useState(false);
 
   const itemsPerPage = 8;
 
@@ -99,6 +101,45 @@ export default function SuggestionsContent() {
     }, 300);
   };
 
+  // Close analysis modal with animation
+  const closeAnalysisModal = () => {
+    setIsAnalysisClosing(true);
+    setTimeout(() => {
+      setShowAnalysis(false);
+      setIsAnalysisClosing(false);
+    }, 300);
+  };
+
+  // Analysis data processing
+  const getAnalysisData = () => {
+    const categoryStats = suggestions.reduce((acc, suggestion) => {
+      if (!acc[suggestion.category]) {
+        acc[suggestion.category] = { total: 0, pending: 0, approved: 0, rejected: 0 };
+      }
+      acc[suggestion.category].total++;
+      
+      if (suggestion.status === 'Pending') acc[suggestion.category].pending++;
+      else if (suggestion.status === 'Approved') acc[suggestion.category].approved++;
+      else if (suggestion.status === 'Rejected') acc[suggestion.category].rejected++;
+      
+      return acc;
+    }, {} as Record<string, { total: number; pending: number; approved: number; rejected: number }>);
+
+    const statusStats = suggestions.reduce((acc, suggestion) => {
+      acc[suggestion.status] = (acc[suggestion.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const monthlyStats = suggestions.reduce((acc, suggestion) => {
+      const date = new Date(suggestion.date);
+      const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      acc[monthYear] = (acc[monthYear] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return { categoryStats, statusStats, monthlyStats };
+  };
+
   return (
     <div className="w-full h-full p-6">
       {/* Header */}
@@ -114,7 +155,10 @@ export default function SuggestionsContent() {
             <Eye className="w-4 h-4" />
             View Summary
           </button>
-          <button className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
+          <button 
+            onClick={() => setShowAnalysis(true)}
+            className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md"
+          >
             <BarChart2 className="w-4 h-4" />
             View Analysis
           </button>
@@ -622,6 +666,246 @@ export default function SuggestionsContent() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Analysis Modal */}
+      {showAnalysis && (
+        <div className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity ${isAnalysisClosing ? 'opacity-0' : 'opacity-100'}`}>
+          <div className={`bg-white rounded-xl overflow-hidden w-[95%] max-w-6xl max-h-[90vh] shadow-2xl relative transition-all ${isAnalysisClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6 text-white">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-2xl font-bold">Suggestions Analysis</h2>
+                  <p className="text-sm opacity-90 mt-1">Comprehensive overview of all suggestions by category and status</p>
+                </div>
+                <button
+                  onClick={closeAnalysisModal}
+                  className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
+                  aria-label="Close"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {(() => {
+                const { categoryStats, statusStats, monthlyStats } = getAnalysisData();
+                const totalSuggestions = suggestions.length;
+                
+                return (
+                  <div className="space-y-8">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-blue-600">Total Suggestions</p>
+                            <p className="text-2xl font-bold text-blue-900">{totalSuggestions}</p>
+                          </div>
+                          <div className="p-2 bg-blue-200 rounded-lg">
+                            <BarChart2 className="w-6 h-6 text-blue-600" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-yellow-600">Pending</p>
+                            <p className="text-2xl font-bold text-yellow-900">{statusStats.Pending || 0}</p>
+                          </div>
+                          <div className="p-2 bg-yellow-200 rounded-lg">
+                            <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="12" y1="8" x2="12" y2="12"></line>
+                              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-green-600">Approved</p>
+                            <p className="text-2xl font-bold text-green-900">{statusStats.Approved || 0}</p>
+                          </div>
+                          <div className="p-2 bg-green-200 rounded-lg">
+                            <Check className="w-6 h-6 text-green-600" />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-red-600">Rejected</p>
+                            <p className="text-2xl font-bold text-red-900">{statusStats.Rejected || 0}</p>
+                          </div>
+                          <div className="p-2 bg-red-200 rounded-lg">
+                            <X className="w-6 h-6 text-red-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Category Analysis */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Suggestions by Category</h3>
+                      <div className="space-y-4">
+                        {Object.entries(categoryStats).map(([category, stats]) => (
+                          <div key={category} className="border border-gray-100 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-medium text-gray-900">{category}</h4>
+                              <span className="text-sm font-medium text-gray-500">Total: {stats.total}</span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+                                <div className="text-xs text-gray-500">Pending</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-green-600">{stats.approved}</div>
+                                <div className="text-xs text-gray-500">Approved</div>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-2xl font-bold text-red-600">{stats.rejected}</div>
+                                <div className="text-xs text-gray-500">Rejected</div>
+                              </div>
+                            </div>
+                            {/* Progress Bar */}
+                            <div className="mt-3">
+                              <div className="flex h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                  className="bg-yellow-500 h-full transition-all duration-300"
+                                  style={{ width: `${(stats.pending / stats.total) * 100}%` }}
+                                ></div>
+                                <div 
+                                  className="bg-green-500 h-full transition-all duration-300"
+                                  style={{ width: `${(stats.approved / stats.total) * 100}%` }}
+                                ></div>
+                                <div 
+                                  className="bg-red-500 h-full transition-all duration-300"
+                                  style={{ width: `${(stats.rejected / stats.total) * 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Monthly Trends */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Trends</h3>
+                      <div className="space-y-3">
+                        {Object.entries(monthlyStats)
+                          .sort(([a], [b]) => a.localeCompare(b))
+                          .map(([monthYear, count]) => {
+                            const [year, month] = monthYear.split('-');
+                            const monthName = new Date(parseInt(year), parseInt(month) - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                            
+                            return (
+                              <div key={monthYear} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium text-gray-700">{monthName}</span>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-20 bg-gray-200 rounded-full h-2">
+                                    <div 
+                                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                      style={{ width: `${(count / Math.max(...Object.values(monthlyStats))) * 100}%` }}
+                                    ></div>
+                                  </div>
+                                  <span className="text-sm font-medium text-gray-600 min-w-[2rem] text-right">{count}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+
+                    {/* Status Distribution Chart */}
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Status Distribution</h3>
+                      <div className="flex items-center justify-center h-64">
+                        <div className="relative w-48 h-48">
+                          {/* Simple Pie Chart */}
+                          <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                            {(() => {
+                              const total = Object.values(statusStats).reduce((sum, count) => sum + count, 0);
+                              let currentAngle = 0;
+                              
+                              return Object.entries(statusStats).map(([status, count], index) => {
+                                const percentage = total > 0 ? (count / total) * 100 : 0;
+                                const angle = (percentage / 100) * 360;
+                                const radius = 40;
+                                const x1 = 50 + radius * Math.cos((currentAngle * Math.PI) / 180);
+                                const y1 = 50 + radius * Math.sin((currentAngle * Math.PI) / 180);
+                                const x2 = 50 + radius * Math.cos(((currentAngle + angle) * Math.PI) / 180);
+                                const y2 = 50 + radius * Math.sin(((currentAngle + angle) * Math.PI) / 180);
+                                
+                                const largeArcFlag = angle > 180 ? 1 : 0;
+                                const pathData = [
+                                  `M 50 50`,
+                                  `L ${x1} ${y1}`,
+                                  `A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2}`,
+                                  'Z'
+                                ].join(' ');
+                                
+                                const colors = ['#fbbf24', '#10b981', '#ef4444'];
+                                const color = colors[index % colors.length];
+                                
+                                currentAngle += angle;
+                                
+                                return (
+                                  <path
+                                    key={status}
+                                    d={pathData}
+                                    fill={color}
+                                    stroke="white"
+                                    strokeWidth="2"
+                                  />
+                                );
+                              });
+                            })()}
+                          </svg>
+                          
+                          {/* Center Label */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="text-2xl font-bold text-gray-700">{totalSuggestions}</div>
+                              <div className="text-sm text-gray-500">Total</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Legend */}
+                      <div className="flex justify-center gap-6 mt-4">
+                        {Object.entries(statusStats).map(([status, count], index) => {
+                          const colors = ['#fbbf24', '#10b981', '#ef4444'];
+                          const color = colors[index % colors.length];
+                          
+                          return (
+                            <div key={status} className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
+                              <span className="text-sm text-gray-600">{status}: {count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </div>
