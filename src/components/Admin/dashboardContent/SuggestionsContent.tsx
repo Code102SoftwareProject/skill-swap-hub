@@ -1,9 +1,7 @@
-// Suggestion page in the admin dashboard
-// This page displays a list of pending suggestions to review and approve or reject them
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Eye, BarChart2, Filter, Loader2, ChevronDown } from 'lucide-react';
+import { Eye, BarChart2, Filter, Loader2, ChevronDown, Search, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useDebounce } from 'use-debounce';
 import Image from 'next/image';
@@ -29,11 +27,10 @@ export default function SuggestionsContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  const itemsPerPage = 5;
-
-  //selected suggestion for details
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+  const [isModalClosing, setIsModalClosing] = useState(false);
+
+  const itemsPerPage = 8;
 
   // Fetch suggestions
   const fetchSuggestions = async () => {
@@ -61,11 +58,13 @@ export default function SuggestionsContent() {
   const pendingSuggestions = suggestions.filter(
     (s) =>
       s.status === 'Pending' &&
-      s.userName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) &&
+      (s.userName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+       s.title?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) &&
       (selectedCategory === 'All' || s.category === selectedCategory)
   );
 
   // Pagination
+  const totalPages = Math.ceil(pendingSuggestions.length / itemsPerPage);
   const paginatedSuggestions = pendingSuggestions.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
@@ -84,181 +83,288 @@ export default function SuggestionsContent() {
       
       toast.success(`Suggestion ${status.toLowerCase()} successfully!`);
       fetchSuggestions();
+      if (selectedSuggestion) setSelectedSuggestion(null);
     } catch (error) {
       console.error('Update failed:', error);
       toast.error('Failed to update status');
     }
   };
 
+  // Close modal with animation
+  const closeModal = () => {
+    setIsModalClosing(true);
+    setTimeout(() => {
+      setSelectedSuggestion(null);
+      setIsModalClosing(false);
+    }, 300);
+  };
+
   return (
-    <div className="w-full h-full p-6 mt-7">
-      {/* Top Buttons */}
-      <div className="flex justify-end gap-2 mb-2">
-        <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
-          <Eye className="w-4 h-4" />
-          View Summary
-        </button>
-        <button className="flex items-center gap-2 border border-[#026aa1] text-[#026aa1] px-4 py-2 rounded-full font-semibold text-sm hover:bg-blue-50 transition">
-          <BarChart2 className="w-4 h-4" />
-          View Analysis
-        </button>
+    <div className="w-full h-full p-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Suggestions Review</h1>
+          <p className="text-gray-500">Manage and review user-submitted suggestions</p>
+        </div>
+        
+        {/* Top Buttons */}
+        <div className="flex gap-3 mt-4 md:mt-0">
+          <button className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
+            <Eye className="w-4 h-4" />
+            View Summary
+          </button>
+          <button className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
+            <BarChart2 className="w-4 h-4" />
+            View Analysis
+          </button>
+        </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="flex items-center justify-between mt-7 mb-4 text-gray-900">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            placeholder="Search by name"
-            className="border rounded-lg p-2 w-64 text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <div className="relative">
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center gap-1 p-2 border rounded-lg hover:bg-gray-100"
-            >
-              <Filter className="w-4 h-4 text-gray-600" />
-              <ChevronDown className="w-4 h-4" />
-            </button>
-            {isFilterOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-10">
-                {categories.map((category) => (
+      {/* Search & Filter Section */}
+      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 border border-gray-100 text-gray-600">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search by name or title..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+          
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-none">
+              <button
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                className={`flex items-center gap-2 w-full md:w-40 px-3 py-2 border rounded-lg text-sm font-medium transition-all ${isFilterOpen ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+              >
+                <Filter className="w-4 h-4" />
+                <span>{selectedCategory === 'All' ? 'Filter' : selectedCategory}</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isFilterOpen ? 'transform rotate-180' : ''}`} />
+              </button>
+              {isFilterOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      onClick={() => {
+                        setSelectedCategory(category);
+                        setIsFilterOpen(false);
+                        setCurrentPage(1);
+                      }}
+                      className={`block w-full text-left px-4 py-2 text-sm transition-colors ${
+                        selectedCategory === category
+                          ? 'bg-blue-50 text-blue-600 font-medium'
+                          : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className="hidden md:block text-sm text-gray-500 whitespace-nowrap">
+              {pendingSuggestions.length} {pendingSuggestions.length === 1 ? 'suggestion' : 'suggestions'} pending
+              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100">
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="flex flex-col items-center">
+              <Loader2 className="w-8 h-8 animate-spin text-blue-500 mb-3" />
+              <p className="text-gray-500">Loading suggestions...</p>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      User
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Submitted
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Title
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedSuggestions.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center text-gray-400">
+                          <svg className="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          <p className="text-lg font-medium text-gray-500">No pending suggestions found</p>
+                          <p className="text-sm">Try adjusting your search or filter criteria</p>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedSuggestions.map((suggestion) => (
+                      <tr key={suggestion._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="flex-shrink-0 h-10 w-10 relative">
+                              <Image
+                                src={processAvatarUrl(suggestion.avatar) || '/default-avatar.png'}
+                                alt={suggestion.userName}
+                                width={40}
+                                height={40}
+                                className="rounded-full"
+                              />
+                            </div>
+                            <div className="ml-4">
+                              <div className="text-sm font-medium text-gray-900">{suggestion.userName}</div>
+                              <div className="text-xs text-gray-500">{suggestion.role}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                            {suggestion.category}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          {new Date(suggestion.date).toLocaleDateString('en-US', { 
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900 font-medium line-clamp-1">{suggestion.title}</div>
+                          <button 
+                            onClick={() => setSelectedSuggestion(suggestion)}
+                            className="text-xs text-blue-600 hover:text-blue-800 hover:underline mt-1"
+                          >
+                            View details
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => updateStatus(suggestion._id, 'Approved')}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-md text-xs font-medium hover:bg-green-100 transition-colors"
+                            >
+                              <Check className="w-3 h-3" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => updateStatus(suggestion._id, 'Rejected')}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 rounded-md text-xs font-medium hover:bg-red-100 transition-colors"
+                            >
+                              <X className="w-3 h-3" />
+                              Reject
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {pendingSuggestions.length > 0 && (
+              <div className="bg-gray-50 px-6 py-3 flex items-center justify-between border-t border-gray-200">
+                <div className="text-sm text-gray-500">
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to{' '}
+                  <span className="font-medium">{Math.min(currentPage * itemsPerPage, pendingSuggestions.length)}</span> of{' '}
+                  <span className="font-medium">{pendingSuggestions.length}</span> results
+                </div>
+                <div className="flex gap-2">
                   <button
-                    key={category}
-                    onClick={() => {
-                      setSelectedCategory(category);
-                      setIsFilterOpen(false);
-                    }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${
-                      selectedCategory === category
-                        ? 'bg-blue-50 text-blue-600'
-                        : 'hover:bg-gray-100'
-                    }`}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {category}
+                    <ChevronLeft className="w-4 h-4" />
                   </button>
-                ))}
+                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                    let pageNum;
+                    if (totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = i + 1;
+                    } else if (currentPage >= totalPages - 2) {
+                      pageNum = totalPages - 4 + i;
+                    } else {
+                      pageNum = currentPage - 2 + i;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`px-3 py-1 border rounded-md text-sm font-medium ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <span className="px-3 py-1 text-sm text-gray-500">...</span>
+                  )}
+                  {totalPages > 5 && currentPage < totalPages - 2 && (
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium bg-white text-gray-700 hover:bg-gray-50"
+                    >
+                      {totalPages}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
-          </div>
-        </div>
-        <div className="text-sm text-gray-500">
-          Showing {pendingSuggestions.length} Pending Suggestions
-          {selectedCategory !== 'All' && ` in ${selectedCategory}`}
-        </div>
+          </>
+        )}
       </div>
-
-      {/* Loading State */}
-      {isLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
-      ) : (
-        /* Table */
-        <div className="overflow-x-auto rounded-xl shadow bg-white">
-          <table className="min-w-full text-sm text-gray-700">
-            <thead className="text-left bg-gray-100">
-              <tr>
-                <th scope="col" className="p-3">
-                  <input type="checkbox" aria-label="Select all" />
-                </th>
-                <th scope="col" className="p-3">User</th>
-                <th scope="col" className="p-3">Category</th>
-                <th scope="col" className="p-3">Date</th>
-                <th scope="col" className="p-3">Description</th>
-                <th scope="col" className="p-3">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {paginatedSuggestions.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-4 text-center text-gray-500">
-                    No pending suggestions found.
-                  </td>
-                </tr>
-              ) : (
-                paginatedSuggestions.map((suggestion) => (
-                  <tr key={suggestion._id} className="border-b hover:bg-gray-50">
-                    <td className="p-3">
-                      <input type="checkbox" aria-label={`Select ${suggestion.userName}`} />
-                    </td>
-                    <td className="p-3 flex items-center gap-2">
-                      <Image
-                        src={processAvatarUrl(suggestion.avatar) || '/default-avatar.png'}
-                        alt={suggestion.userName}
-                        width={32}
-                        height={32}
-                        className="w-8 h-8 rounded-full"
-                      />
-                      <div>
-                        <div className="font-medium">{suggestion.userName}</div>
-                        <div className="text-xs text-gray-400">{suggestion.role}</div>
-                      </div>
-                    </td>
-                    <td className="p-3">{suggestion.category}</td>
-                    <td className="p-3">{suggestion.date}</td>
-                    <td className="p-3"> 
-                    <button
-                      className="text-blue-500 underline text-sm"
-                      onClick={() => setSelectedSuggestion(suggestion)}
-                    >
-                    View
-                    </button>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => updateStatus(suggestion._id, 'Approved')}
-                          className="px-3 py-1 border-2 border-[#156722] bg-[#c5f3d0] text-[#156722] rounded-lg text-xs hover:bg-[#a8e6b8]"
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => updateStatus(suggestion._id, 'Rejected')}
-                          className="px-3 py-1 border-2 border-red-500 bg-[#f8e8e8] text-red-500 rounded-lg text-xs hover:bg-[#f0d0d0]"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Pagination */}
-      {pendingSuggestions.length > 0 && (
-        <div className="flex justify-end mt-4 text-sm text-gray-500">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="border px-2 rounded-lg disabled:opacity-50 hover:bg-gray-100"
-            >
-              &lt;
-            </button>
-            <button
-              onClick={() => setCurrentPage((prev) => prev + 1)}
-              disabled={currentPage * itemsPerPage >= pendingSuggestions.length}
-              className="border px-2 rounded-lg disabled:opacity-50 hover:bg-gray-100"
-            >
-              &gt;
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Suggestion Details Modal */}
       {selectedSuggestion && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-all duration-300 ease-out">
-          <div className="bg-white rounded-xl overflow-hidden w-[95%] max-w-2xl shadow-2xl relative animate-scaleIn">
+        <div className={`fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity ${isModalClosing ? 'opacity-0' : 'opacity-100'}`}>
+          <div className={`bg-white rounded-xl overflow-hidden w-[95%] max-w-4xl shadow-2xl relative transition-all ${isModalClosing ? 'scale-95 opacity-0' : 'scale-100 opacity-100'}`}>
             {/* Gradient Header */}
-            <div className="bg-gradient-to-r from-[#026aa1] to-[#0a8fd8] p-6 text-white">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6 text-white">
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-bold">Suggestion Details</h2>
@@ -273,7 +379,7 @@ export default function SuggestionsContent() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setSelectedSuggestion(null)}
+                  onClick={closeModal}
                   className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10"
                   aria-label="Close"
                 >
@@ -287,7 +393,7 @@ export default function SuggestionsContent() {
 
             {/* User Profile Section */}
             <div className="px-6 pt-4 -mt-8">
-              <div className="flex items-center gap-4 bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+              <div className="flex items-center gap-4 bg-white rounded-lg p-4 shadow-sm border border-gray-100">
                 <div className="relative">
                   <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center overflow-hidden border-2 border-white shadow">
                     {selectedSuggestion.avatar ? (
@@ -311,6 +417,9 @@ export default function SuggestionsContent() {
                   <div className="flex gap-2 mt-1">
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
                       {selectedSuggestion.category}
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">
+                      Pending Review
                     </span>
                   </div>
                 </div>
@@ -352,24 +461,60 @@ export default function SuggestionsContent() {
                 </div>
               </div>
 
-              {/* Category Card */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-100 rounded-lg p-5">
-                <div className="flex items-center gap-3 text-sm font-medium text-blue-600 mb-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
-                  </svg>
-                  <span>Category</span>
+              {/* Meta Information */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Category Card */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-100 rounded-lg p-4">
+                  <div className="flex items-center gap-3 text-sm font-medium text-blue-600 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                    </svg>
+                    <span>Category</span>
+                  </div>
+                  <div className="text-sm font-semibold text-blue-900">{selectedSuggestion.category}</div>
                 </div>
-                <div className="text-lg font-semibold text-blue-900">{selectedSuggestion.category}</div>
+
+                {/* Status Card */}
+                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 border border-yellow-100 rounded-lg p-4">
+                  <div className="flex items-center gap-3 text-sm font-medium text-yellow-600 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="8" x2="12" y2="12"></line>
+                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>Status</span>
+                  </div>
+                  <div className="text-sm font-semibold text-yellow-900">Pending Review</div>
+                </div>
+
+                {/* Date Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-100 rounded-lg p-4">
+                  <div className="flex items-center gap-3 text-sm font-medium text-gray-600 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                    <span>Submitted</span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {new Date(selectedSuggestion.date).toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="px-6 pb-6 pt-4 bg-gray-50 border-t border-gray-100">
-              <div className="flex flex-col sm:flex-row justify-end gap-3">
+              <div className="flex flex-col sm:flex-row justify-between gap-3">
                 <button
-                  onClick={() => setSelectedSuggestion(null)}
-                  className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2"
+                  onClick={closeModal}
+                  className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2 justify-center"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -377,15 +522,22 @@ export default function SuggestionsContent() {
                   </svg>
                   Close
                 </button>
-                <button
-                  onClick={() => updateStatus(selectedSuggestion._id, 'Approved')}
-                  className="px-5 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm flex items-center gap-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  </svg>
-                  Approve
-                </button>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => updateStatus(selectedSuggestion._id, 'Rejected')}
+                    className="px-5 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-all shadow-sm flex items-center gap-2 justify-center flex-1 sm:flex-none"
+                  >
+                    <X className="w-4 h-4" />
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => updateStatus(selectedSuggestion._id, 'Approved')}
+                    className="px-5 py-2.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-all shadow-sm flex items-center gap-2 justify-center flex-1 sm:flex-none"
+                  >
+                    <Check className="w-4 h-4" />
+                    Approve
+                  </button>
+                </div>
               </div>
             </div>
           </div>
