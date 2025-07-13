@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import SuggestionForm from "@/components/Dashboard/Suggestion/SuggestionForm";
 import SuggestionCard from "@/components/Dashboard/Suggestion/SuggestionCard";
-import { useAuth } from "@/lib/context/AuthContext"; // Make sure this is correct path
+import { useAuth } from "@/lib/context/AuthContext";
 
 // Type definitions
 type Suggestion = {
@@ -25,28 +25,6 @@ export default function SuggestionContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Fetch suggestions from the API
-  const fetchSuggestions = async () => {
-    if (!userId) return;
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch(`/api/suggestions?userId=${userId}`);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(`Error ${res.status}: ${errorData.details || errorData.error || 'Unknown error'}`);
-      }
-      const data = await res.json();
-      setSuggestions(data);
-    } catch (err) {
-      console.error("Detailed error:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch suggestions.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Handle new suggestion submission
   const handleSubmit = async (suggestion: NewSuggestion) => {
     if (!userId) return;
@@ -56,16 +34,55 @@ export default function SuggestionContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...suggestion, userId }),
       });
-      fetchSuggestions(); // Refresh list after submission
+
+      // Re-fetch suggestions after submission
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await fetch(`/api/suggestions?userId=${userId}`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(`Error ${res.status}: ${errorData.details || errorData.error || 'Unknown error'}`);
+        }
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        console.error("Detailed error:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch suggestions.");
+      } finally {
+        setLoading(false);
+      }
     } catch (err) {
       console.error("Submit error:", err);
     }
   };
 
+  // useEffect with fetch logic inside
   useEffect(() => {
-    if (userId) {
-      fetchSuggestions();
-    }
+    if (!userId) return;
+
+    const fetchSuggestions = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        const res = await fetch(`/api/suggestions?userId=${userId}`);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(`Error ${res.status}: ${errorData.details || errorData.error || 'Unknown error'}`);
+        }
+        const data = await res.json();
+        setSuggestions(data);
+      } catch (err) {
+        console.error("Detailed error:", err);
+        setError(err instanceof Error ? err.message : "Failed to fetch suggestions.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSuggestions();
   }, [userId]);
 
   if (!userId) {

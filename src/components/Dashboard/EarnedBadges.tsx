@@ -20,9 +20,9 @@ export default function EarnedBadges({ userId }: Props) {
   useEffect(() => {
     const fetchBadges = async () => {
       try {
-        const res = await fetch(`/api/user/${userId}/badges`);
+        const res = await fetch('/api/badge');
         const data = await res.json();
-        setBadges(data.badges || []);
+        setBadges(data || []);
       } catch (err) {
         console.error('Error fetching badges:', err);
         setBadges([]);
@@ -49,8 +49,8 @@ export default function EarnedBadges({ userId }: Props) {
       {/* Badge Display */}
       <div className="flex flex-wrap gap-6 pt-6">
         {displayedBadges.length > 0 ? (
-          displayedBadges.map((badge) => (
-            <div key={badge.id} className="flex flex-col items-center">
+          displayedBadges.map((badge, idx) => (
+            <div key={badge.id || idx} className="flex flex-col items-center">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-2 text-lg">
                 {badge.icon}
               </div>
