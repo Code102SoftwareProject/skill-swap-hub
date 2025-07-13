@@ -334,6 +334,28 @@ export async function fetchUnreadMessageCount(userId: string) {
 }
 
 /**
+ * Get unread message counts per chat room for a user
+ * 
+ * @param userId - The user ID to get unread counts for
+ * @returns Promise with the unread counts map (chatRoomId -> count)
+ */
+export async function fetchUnreadMessageCountsByRoom(userId: string) {
+  try {
+    const response = await fetch(`/api/messages/unread-by-room?userId=${userId}`);
+    const data = await response.json();
+
+    if (data.success) {
+      return data.unreadCounts || {};
+    }
+
+    return {};
+  } catch (error) {
+    console.error("Error fetching unread message counts by room:", error);
+    return {};
+  }
+}
+
+/**
  * Mark unread messages as read for a specific chat room and user
  * 
  * @param chatRoomId - The chat room ID

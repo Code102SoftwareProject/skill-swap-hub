@@ -9,6 +9,7 @@ import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { debouncedApiService } from '@/services/debouncedApiService';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import OptimizedAvatar from '@/components/ui/OptimizedAvatar';
 import { processAvatarUrl, getFirstLetter } from "@/utils/avatarUtils";
 
 interface UserProfile {
@@ -485,6 +486,39 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     );
   };
 
+  // Check if users can create more meetings (limit of 2 active meetings)
+  const checkMeetingLimit = () => {
+    // Count active meetings (accepted with future time OR pending)
+    const now = new Date();
+    const activeMeetings = meetings.filter(meeting => {
+      const meetingTime = new Date(meeting.meetingTime);
+      return (
+        // Accepted meetings with future time
+        (meeting.state === 'accepted' && meetingTime > now) ||
+        // Pending meetings (not yet accepted/rejected)
+        meeting.state === 'pending'
+      );
+    });
+    
+    return activeMeetings.length;
+  };
+
+  // Handle Schedule Meeting button click with validation
+  const handleScheduleMeetingClick = () => {
+    const activeMeetingCount = checkMeetingLimit();
+    
+    if (activeMeetingCount >= 2) {
+      showAlert(
+        'warning', 
+        'You can only have a maximum of 2 active meetings (pending or scheduled) with this user at a time. Please wait for existing meetings to be completed or cancelled before scheduling new ones.',
+        'Meeting Limit Reached'
+      );
+      return;
+    }
+    
+    setShowCreateModal(true);
+  };
+
   // Create Meeting Function
   const handleCreateMeeting = async (meetingData: any) => {
     if (!otherUserId) return;
@@ -512,9 +546,16 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
           onMeetingUpdateRef.current();
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating meeting:', error);
-      showAlert('error', 'Failed to create meeting request');
+      // Show specific error message from backend if available
+      const errorMessage = error.message || 'Failed to create meeting request';
+      showAlert('error', errorMessage);
+      
+      // If it's a meeting limit error, close the modal
+      if (errorMessage.includes('maximum of 2 active meetings')) {
+        setShowCreateModal(false);
+      }
     }
   };
 
@@ -759,55 +800,19 @@ ${formattedContent}
 
   // Separate Avatar Component to maintain stable state
   const MeetingAvatar = React.memo(({ userId, userName }: { userId: string; userName: string }) => {
-    const avatarUrl = getUserAvatar(userId);
-    const firstLetter = getUserFirstLetter(userId);
-    const [imageError, setImageError] = useState(false);
-    const [imageLoading, setImageLoading] = useState(!!avatarUrl);
-
-    // Reset states when avatar changes
-    useEffect(() => {
-      if (avatarUrl) {
-        setImageError(false);
-        setImageLoading(true);
-      } else {
-        setImageError(false);
-        setImageLoading(false);
-      }
-    }, [avatarUrl]);
-
-    const handleImageError = () => {
-      setImageError(true);
-      setImageLoading(false);
-    };
-
-    const handleImageLoad = () => {
-      setImageLoading(false);
-    };
-
+    const profile = userProfiles[userId];
+    
     return (
-      <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-        {avatarUrl && !imageError ? (
-          <>
-            {imageLoading && (
-              <div className="absolute w-8 h-8 rounded-full bg-gray-300 animate-pulse flex items-center justify-center">
-                <span className="text-xs text-gray-500">...</span>
-              </div>
-            )}
-            <img
-              src={avatarUrl}
-              alt={userName}
-              className={`w-8 h-8 rounded-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-              onError={handleImageError}
-              onLoad={handleImageLoad}
-              loading="lazy"
-            />
-          </>
-        ) : (
-          <span className="text-gray-600 font-semibold text-sm">
-            {firstLetter}
-          </span>
-        )}
-      </div>
+      <OptimizedAvatar
+        userId={userId}
+        firstName={profile?.firstName}
+        lastName={profile?.lastName}
+        avatarUrl={profile?.avatar}
+        size="small"
+        className="flex-shrink-0"
+        priority={false}
+        lazy={true}
+      />
     );
   });
 
@@ -973,7 +978,7 @@ ${formattedContent}
           <h2 className="text-lg font-semibold text-gray-900">Meetings</h2>
         </div>
         <button 
-          onClick={() => setShowCreateModal(true)}
+          onClick={handleScheduleMeetingClick}
           className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
           title="Schedule New Meeting"
         >
@@ -993,7 +998,7 @@ ${formattedContent}
             <p className="text-gray-500 text-sm mb-4">No meetings scheduled</p>
             <button 
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto text-sm"
-              onClick={() => setShowCreateModal(true)}
+              onClick={handleScheduleMeetingClick}
             >
               <Plus className="w-4 h-4 mr-2" />
               Schedule Meeting

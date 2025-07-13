@@ -27,12 +27,18 @@ export async function GET(request: NextRequest) {
 
     await connectToDatabase();
 
-    const posts = await Post.find({ forumId })
+    const posts = await Post.find({ 
+      forumId, 
+      $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
+    })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Post.countDocuments({ forumId });
+    const total = await Post.countDocuments({ 
+      forumId, 
+      $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
+    });
 
     return NextResponse.json({
       posts,

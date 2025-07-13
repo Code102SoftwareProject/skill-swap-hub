@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { UploadCloud, CheckCircle, Trash2 } from 'lucide-react';
 import axios, { AxiosError } from 'axios';
 import Swal from 'sweetalert2';
@@ -42,13 +42,13 @@ const SkillVerificationPortal: React.FC = () => {
   const userId = user?._id || '';
 
   // Configure axios with authorization header
-  const getAuthConfig = () => {
+  const getAuthConfig = useCallback(() => {
     return {
       headers: {
         'Authorization': `Bearer ${token}`
       }
     };
-  };
+  }, [token]);
 
   // Fetch user skills
   useEffect(() => {
@@ -74,7 +74,7 @@ const SkillVerificationPortal: React.FC = () => {
     };
 
     fetchUserSkills();
-  }, [userId, token]);
+  }, [userId, token, getAuthConfig]);
 
   // Fetch verification requests
   useEffect(() => {
@@ -107,7 +107,7 @@ const SkillVerificationPortal: React.FC = () => {
     };
   
     fetchRequests();
-  }, [userId, token]);
+  }, [userId, token, getAuthConfig]);
 
   // Handle skill selection
   const handleSkillSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -308,14 +308,40 @@ const SkillVerificationPortal: React.FC = () => {
     // Prevent the click from triggering the parent element's onClick
     event.stopPropagation();
     
-    // Log for debugging
+    // Find the request to get its current status
+    const requestToDelete = requests.find(r => r.id === requestId);
+    
+    // Enhanced debugging
     console.log('Deleting request with ID:', requestId);
+    console.log('Request details:', requestToDelete);
+    console.log('Can delete this request?', requestToDelete ? canDeleteRequest(requestToDelete.status) : 'Request not found');
     
     if (!requestId) {
       Swal.fire({
         icon: 'error',
         title: 'Error',
         text: 'Invalid request ID',
+        confirmButtonColor: '#1e3a8a'
+      });
+      return;
+    }
+
+    if (!requestToDelete) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Request not found in local data',
+        confirmButtonColor: '#1e3a8a'
+      });
+      return;
+    }
+
+    // Double-check if the request can be deleted
+    if (!canDeleteRequest(requestToDelete.status)) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Cannot Delete',
+        text: `Cannot delete ${requestToDelete.status} verification requests. Only approved and rejected requests can be deleted.`,
         confirmButtonColor: '#1e3a8a'
       });
       return;
@@ -334,6 +360,8 @@ const SkillVerificationPortal: React.FC = () => {
       });
       
       if (result.isConfirmed) {
+        console.log('Making delete request to API...');
+        console.log('URL:', `/api/users/verification-request?requestId=${requestId}&userId=${userId}`);
         
         await axios.delete(
           `/api/users/verification-request?requestId=${requestId}&userId=${userId}`,
@@ -356,10 +384,26 @@ const SkillVerificationPortal: React.FC = () => {
       const axiosError = error as AxiosError;
       let errorMessage = 'Failed to delete verification request';
       
+      // Enhanced error handling with more detailed logging
+      console.log('Error response status:', axiosError.response?.status);
+      console.log('Error response data:', axiosError.response?.data);
+      console.log('Request being deleted - ID:', requestId, 'Status:', requests.find(r => r.id === requestId)?.status);
+      
       if (axiosError.response?.status === 403) {
-        errorMessage = 'Only accepted verification requests can be deleted';
+        // Check if the backend is sending a specific error message
+        const responseData = axiosError.response?.data as any;
+        const backendMessage = responseData?.message || responseData?.error;
+        errorMessage = backendMessage || 'Cannot delete this verification request';
       } else if (axiosError.response?.status === 404) {
         errorMessage = 'Verification request not found';
+      } else if (axiosError.response?.data) {
+        // Use backend error message if available
+        const responseData = axiosError.response.data as any;
+        if (responseData?.message) {
+          errorMessage = responseData.message;
+        } else if (responseData?.error) {
+          errorMessage = responseData.error;
+        }
       }
       
       Swal.fire({
@@ -412,9 +456,10 @@ const SkillVerificationPortal: React.FC = () => {
     }
   };
 
-  // Check if request can be deleted (only if status is "accepted")
+  // Check if request can be deleted (approved or rejected, but not pending)
   const canDeleteRequest = (status: string): boolean => {
-    return status.toLowerCase() === 'approved';
+    const statusLower = status.toLowerCase();
+    return statusLower === 'approved' || statusLower === 'rejected';
   };
 
   return (
@@ -547,7 +592,7 @@ const SkillVerificationPortal: React.FC = () => {
                       {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                     </span>
                     
-                    {/* Delete button - only shown for accepted requests */}
+                    {/* Delete button - only shown for approved and rejected requests */}
                     {canDeleteRequest(request.status) && (
                       <button
                         onClick={(e) => handleDeleteRequest(request.id, e)}
