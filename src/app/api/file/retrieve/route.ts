@@ -24,7 +24,8 @@ async function optimizeImage(buffer: Buffer, size: string, contentType?: string)
   // In production, implement actual image resizing here
   // You can use libraries like sharp or canvas for server-side image processing
   
-  return buffer;
+  // Ensure we return a proper Buffer
+  return Buffer.from(buffer);
 }
 
 
@@ -188,7 +189,7 @@ export async function GET(req: NextRequest) {
       
       // Convert the response body to a buffer instead of streaming directly
       const arrayBuffer = await response.Body.transformToByteArray();
-      const buffer = Buffer.from(arrayBuffer);
+      const buffer = Buffer.from(arrayBuffer.buffer || arrayBuffer);
       
       console.log("File size:", buffer.length, "bytes");
       
