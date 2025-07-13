@@ -131,6 +131,36 @@ export async function POST(req: Request) {
   await connect();
   try {
     const body = await req.json(); // Parse the JSON body first
+    
+    // Check if users already have 2 active meetings
+    const existingMeetings = await meetingSchema.find({
+      $or: [
+        { senderId: body.senderId, receiverId: body.receiverId },
+        { senderId: body.receiverId, receiverId: body.senderId }
+      ]
+    });
+    
+    // Count active meetings (accepted with future time OR pending)
+    const now = new Date();
+    const activeMeetings = existingMeetings.filter(meeting => {
+      const meetingTime = new Date(meeting.meetingTime);
+      return (
+        // Accepted meetings with future time
+        (meeting.state === 'accepted' && meetingTime > now) ||
+        // Pending meetings (not yet accepted/rejected)
+        meeting.state === 'pending'
+      );
+    });
+    
+    console.log(`Active meetings between users: ${activeMeetings.length}`);
+    
+    // Prevent creating a 3rd meeting when there are already 2 active meetings
+    if (activeMeetings.length >= 2) {
+      return NextResponse.json({ 
+        message: "You can only have a maximum of 2 active meetings (pending or scheduled) with this user at a time. Please wait for existing meetings to be completed or cancelled before scheduling new ones." 
+      }, { status: 400 });
+    }
+    
     const meeting = new meetingSchema(body);
     const newMeeting = await meeting.save();
     

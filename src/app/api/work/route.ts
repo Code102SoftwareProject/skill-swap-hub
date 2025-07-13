@@ -8,12 +8,20 @@ export async function POST(req: Request) {
   await connect();
   try {
     const body = await req.json();
-    const { session, provideUser, receiveUser, workURL, workDescription } = body;
+    const { session, provideUser, receiveUser, workURL, workFiles, workDescription } = body;
 
     // Validate required fields
     if (!session || !provideUser || !receiveUser || !workDescription) {
       return NextResponse.json(
         { success: false, message: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    // Validate that either workURL (legacy) or workFiles is provided
+    if (!workURL && (!workFiles || workFiles.length === 0)) {
+      return NextResponse.json(
+        { success: false, message: 'Either workURL or workFiles must be provided' },
         { status: 400 }
       );
     }
@@ -40,11 +48,38 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate workFiles if provided
+    if (workFiles && workFiles.length > 0) {
+      // Check maximum number of files
+      if (workFiles.length > 5) {
+        return NextResponse.json(
+          { success: false, message: 'Maximum 5 files allowed per work submission' },
+          { status: 400 }
+        );
+      }
+
+      // Validate each file
+      for (const [index, file] of workFiles.entries()) {
+        if (!file.fileName || !file.fileURL || !file.fileTitle) {
+          return NextResponse.json(
+            { success: false, message: `File ${index + 1}: fileName, fileURL, and fileTitle are required` },
+            { status: 400 }
+          );
+        }
+
+        // Auto-generate title if empty
+        if (!file.fileTitle.trim()) {
+          file.fileTitle = file.fileName.split('.').slice(0, -1).join('.') || `File ${index + 1}`;
+        }
+      }
+    }
+
     const work = await Work.create({
       session: new Types.ObjectId(session),
       provideUser: new Types.ObjectId(provideUser),
       receiveUser: new Types.ObjectId(receiveUser),
-      workURL: workURL || 'text-only',
+      workURL: workURL || 'text-only', // Keep for backwards compatibility
+      workFiles: workFiles || [], // New field for multiple files
       workDescription,
       provideDate: new Date(),
       acceptanceStatus: 'pending'
