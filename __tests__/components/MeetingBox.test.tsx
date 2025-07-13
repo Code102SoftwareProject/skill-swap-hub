@@ -8,10 +8,15 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 import MeetingBox from '@/components/messageSystem/MeetingBox';
 
+// Create shared mocks for router
+const mockPush = jest.fn();
+const mockRefresh = jest.fn();
+
 // Mock the router
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn()
+    push: mockPush,
+    refresh: mockRefresh
   })
 }));
 
@@ -169,7 +174,7 @@ describe('MeetingBox Component', () => {
       senderId: 'other-user-id',
       receiverId: '6873cc50ac4e1d6e1cddf33f',
       description: 'Test meeting 2',
-      meetingTime: '2025-07-25T14:00:00Z',
+      meetingTime: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
       state: 'accepted',
       acceptStatus: true,
       meetingLink: 'https://meet.example.com/room123'
@@ -508,6 +513,8 @@ describe('MeetingBox Component', () => {
       });
 
       const joinButton = screen.getByText('Join Meeting');
+      expect(joinButton).toBeInTheDocument();
+
       fireEvent.click(joinButton);
       
       expect(mockPush).toHaveBeenCalledWith('/meeting/meeting-2');
