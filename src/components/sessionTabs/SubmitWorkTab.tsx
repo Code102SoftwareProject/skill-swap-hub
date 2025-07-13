@@ -31,18 +31,33 @@ export default function SubmitWorkTab({
 }: SubmitWorkTabProps) {
   return (
     <div className="space-y-6">
-      {/* Session Completed Message or Submit Form */}
-      {session?.status === 'completed' ? (
+      {/* Session Completed or Cancelled Message or Submit Form */}
+      {(session?.status === 'completed' || session?.status === 'canceled') ? (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center py-8">
-            <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-            <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
-            <p className="text-gray-600 mb-4">
-              This session has been completed. You can no longer submit new work.
-            </p>
-            <p className="text-sm text-gray-500">
-              You can still view previously submitted work below.
-            </p>
+            {session?.status === 'completed' ? (
+              <>
+                <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
+                <p className="text-gray-600 mb-4">
+                  This session has been completed. You can no longer submit new work.
+                </p>
+                <p className="text-sm text-gray-500">
+                  You can still view previously submitted work below.
+                </p>
+              </>
+            ) : (
+              <>
+                <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Cancelled</h2>
+                <p className="text-gray-600 mb-4">
+                  This session has been cancelled. You can no longer submit new work.
+                </p>
+                <p className="text-sm text-gray-500">
+                  You can still view previously submitted work below.
+                </p>
+              </>
+            )}
           </div>
         </div>
       ) : (
@@ -170,7 +185,7 @@ export default function SubmitWorkTab({
       {/* Previously Submitted Works */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {session?.status === 'completed' ? 'Previously Submitted Works' : 'Your Submitted Works'} ({works.filter(w => w.provideUser._id === currentUserId).length})
+          {(session?.status === 'completed' || session?.status === 'canceled') ? 'Previously Submitted Works' : 'Your Submitted Works'} ({works.filter(w => w.provideUser._id === currentUserId).length})
         </h2>
         
         {works.filter(w => w.provideUser._id === currentUserId).length === 0 ? (
@@ -178,7 +193,7 @@ export default function SubmitWorkTab({
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Work Submitted</h3>
             <p className="text-gray-600">
-              {session?.status === 'completed' 
+              {(session?.status === 'completed' || session?.status === 'canceled')
                 ? 'You did not submit any work during this session.' 
                 : 'You haven\'t submitted any work yet.'
               }

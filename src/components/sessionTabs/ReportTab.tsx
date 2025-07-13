@@ -47,7 +47,7 @@ export default function ReportTab({
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            {session?.status === 'completed' ? 'Session Reports' : 'Previous Reports'}
+            {(session?.status === 'completed' || session?.status === 'canceled') ? 'Session Reports' : 'Previous Reports'}
           </h2>
           <button
             onClick={fetchReports}
@@ -66,7 +66,7 @@ export default function ReportTab({
           <div className="text-center py-8 text-gray-500">
             <Flag className="h-12 w-12 mx-auto mb-2 text-gray-400" />
             <p>No reports submitted for this session yet.</p>
-            {session?.status !== 'completed' && (
+            {session?.status === 'active' && (
               <p className="text-xs mt-1">You can report issues during active sessions.</p>
             )}
           </div>
@@ -104,16 +104,18 @@ export default function ReportTab({
       </div>
 
       {/* Submit New Report Section */}
-      {session?.status === 'completed' ? (
+      {(session?.status === 'completed' || session?.status === 'canceled') ? (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="text-center py-8">
             <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Session Completed</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Session {session?.status === 'completed' ? 'Completed' : 'Cancelled'}
+            </h3>
             <p className="text-gray-600 mb-4">
-              This session has been completed. You can no longer submit new reports.
+              This session has been {session?.status === 'completed' ? 'completed' : 'cancelled'}. You can no longer submit new reports.
             </p>
             <p className="text-sm text-gray-500">
-              If you have concerns about completed sessions, please contact support directly.
+              If you have concerns about {session?.status === 'completed' ? 'completed' : 'cancelled'} sessions, please contact support directly.
             </p>
           </div>
         </div>

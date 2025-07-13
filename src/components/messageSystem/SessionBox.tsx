@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye } from 'lucide-react';
+import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
@@ -91,6 +91,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
   const [rating, setRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [showCancelledSessions, setShowCancelledSessions] = useState(false);
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -705,18 +706,23 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
             </button>
           </div>
         ) : (
-          sessions.map((session) => {
-            const status = getSessionStatus(session);
-            const isReceiver = isCurrentUserReceiver(session);
-            
-            return (
-              <div key={session._id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                {/* Session Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                      {getStatusIcon(status)}
-                      <span className="capitalize">{status === 'completed' ? 'Completed' : status}</span>
+          <>
+            {/* Active Sessions (pending, accepted, completed) */}
+            {sessions.filter(session => {
+              const status = getSessionStatus(session);
+              return status !== 'canceled' && status !== 'rejected';
+            }).map((session) => {
+              const status = getSessionStatus(session);
+              const isReceiver = isCurrentUserReceiver(session);
+              
+              return (
+                <div key={session._id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+                  {/* Session Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                        {getStatusIcon(status)}
+                        <span className="capitalize">{status === 'completed' ? 'Completed' : status}</span>
                     </span>
                     {status === 'completed' && (
                       <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full flex items-center space-x-1">
@@ -1101,7 +1107,96 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
                 )}
               </div>
             );
-          })
+          })}
+
+          {/* Cancelled/Rejected Sessions Section */}
+          {sessions.filter(session => {
+            const status = getSessionStatus(session);
+            return status === 'canceled' || status === 'rejected';
+          }).length > 0 && (
+            <div className="border-t border-gray-200 pt-4 mt-6">
+              <button
+                onClick={() => setShowCancelledSessions(!showCancelledSessions)}
+                className="flex items-center justify-between w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <XCircle className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Cancelled & Rejected Sessions ({sessions.filter(session => {
+                      const status = getSessionStatus(session);
+                      return status === 'canceled' || status === 'rejected';
+                    }).length})
+                  </span>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${
+                  showCancelledSessions ? 'rotate-180' : ''
+                }`} />
+              </button>
+
+              {showCancelledSessions && (
+                <div className="mt-3 space-y-3">
+                  {sessions.filter(session => {
+                    const status = getSessionStatus(session);
+                    return status === 'canceled' || status === 'rejected';
+                  }).map((session) => {
+                    const status = getSessionStatus(session);
+                    
+                    return (
+                      <div key={`cancelled-${session._id}`} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        {/* Cancelled Session Header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                              status === 'canceled' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              <XCircle className="h-3 w-3" />
+                              <span className="capitalize">{status}</span>
+                            </span>
+                            {status === 'rejected' && session.rejectedBy && (
+                              <span className="text-xs text-gray-600">
+                                by {session.rejectedBy._id === userId ? 'you' : 
+                                (typeof session.rejectedBy === 'object' && session.rejectedBy.firstName && session.rejectedBy.lastName 
+                                  ? `${session.rejectedBy.firstName} ${session.rejectedBy.lastName}`
+                                  : 'other user')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {status === 'rejected' && session.rejectedAt ? formatDate(session.rejectedAt) :
+                             formatDate(session.createdAt)}
+                          </div>
+                        </div>
+
+                        {/* Session Skills Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div className="bg-white p-3 rounded border">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Offered:</div>
+                            <div className="text-sm font-semibold text-blue-900">
+                              {session.skill1Id?.skillTitle || session.skill1Id?.title || 'Skill not available'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded border">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Requested:</div>
+                            <div className="text-sm font-semibold text-green-900">
+                              {session.skill2Id?.skillTitle || session.skill2Id?.title || 'Skill not available'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cancellation/Rejection Reason if available */}
+                        {session.completionRejectionReason && (
+                          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+                            <span className="font-medium">Reason:</span> {session.completionRejectionReason}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </>
         )}
       </div>
 

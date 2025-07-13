@@ -73,7 +73,7 @@ export default function SessionWorkspace() {
   const router = useRouter();
   const { user } = useAuth();
   const sessionId = params.sessionId as string;
-  const currentUserId = user?._id;
+  const currentUserId = user?._id
   
   const [session, setSession] = useState<Session | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
@@ -134,6 +134,24 @@ export default function SessionWorkspace() {
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
+
+  // Cancellation state
+  const [cancelRequest, setCancelRequest] = useState<any>(null);
+  const [loadingCancelRequest, setLoadingCancelRequest] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCancelResponseModal, setShowCancelResponseModal] = useState(false);
+  const [showCancelFinalizeModal, setShowCancelFinalizeModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelDescription, setCancelDescription] = useState('');
+  const [cancelFiles, setCancelFiles] = useState<File[]>([]);
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelResponse, setCancelResponse] = useState<'agree' | 'dispute'>('agree');
+  const [cancelResponseDescription, setCancelResponseDescription] = useState('');
+  const [cancelResponseFiles, setCancelResponseFiles] = useState<File[]>([]);
+  const [workCompletionPercentage, setWorkCompletionPercentage] = useState(50);
+  const [submittingCancelResponse, setSubmittingCancelResponse] = useState(false);
+  const [cancelFinalNote, setCancelFinalNote] = useState('');
+  const [submittingCancelFinalize, setSubmittingCancelFinalize] = useState(false);
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -198,7 +216,7 @@ export default function SessionWorkspace() {
     title: string, 
     message: string, 
     onConfirm: () => void, 
-    type: 'danger' | 'warning' | 'info' | 'success' = 'warning',
+    type?: 'danger' | 'warning' | 'info' | 'success',
     confirmText?: string
   ) => {
     setConfirmation({
@@ -870,6 +888,14 @@ export default function SessionWorkspace() {
     );
   };
 
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      showAlert('warning', 'Please provide a reason for rejection');
+      return;
+    }
+    handleCompletionResponse('reject', rejectionReason);
+  };
+
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -929,7 +955,6 @@ export default function SessionWorkspace() {
         setReportDescription('');
         setReportFiles([]);
         setShowReportForm(false); // Close the form after successful submission
-        await fetchReports(); // Refresh reports list
         // Don't change tab, keep user on report tab to see their submitted report
       } else {
         showAlert('error', data.message || 'Failed to submit report');
@@ -945,22 +970,15 @@ export default function SessionWorkspace() {
   const handleReportFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (reportFiles.length + files.length > 5) {
-      showAlert('warning', 'Maximum 5 files allowed');
+      showAlert('warning', 'Maximum 5 files allowed for report evidence');
       return;
     }
-    setReportFiles([...reportFiles, ...files]);
+
+    setReportFiles(prev => [...prev, ...files]);
   };
 
   const handleReportFileRemove = (index: number) => {
-    setReportFiles(reportFiles.filter((_, i) => i !== index));
-  };
-
-  const handleRejectionSubmit = () => {
-    if (!rejectionReason.trim()) {
-      showAlert('warning', 'Please provide a reason for declining the completion request');
-      return;
-    }
-    handleCompletionResponse('reject', rejectionReason.trim());
+    setReportFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -1039,11 +1057,299 @@ export default function SessionWorkspace() {
     }
   };
 
+  // Cancellation functions
+  const fetchCancelRequest = async () => {
+    if (!sessionId) return;
+    
+    setLoadingCancelRequest(true);
+    try {
+      const response = await fetch(`/api/session/${sessionId}/cancel`);
+      
+      if (!response.ok) {
+        console.error('Fetch cancel request failed:', response.status, response.statusText);
+        return;
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON:', contentType);
+        const text = await response.text();
+        console.error('Response body:', text);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCancelRequest(data.cancelRequest);
+      }
+    } catch (error) {
+      console.error('Error fetching cancel request:', error);
+    } finally {
+      setLoadingCancelRequest(false);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (!session || !currentUserId) {
+      showAlert('error', 'Session or user information not available');
+      return;
+    }
+
+    if (!cancelReason || !cancelDescription.trim()) {
+      showAlert('warning', 'Please provide a reason and description for cancellation');
+      return;
+    }
+
+    setSubmittingCancel(true);
+    try {
+      // Upload evidence files if any
+      const evidenceFiles: string[] = [];
+      for (const file of cancelFiles) {
+        const fileUrl = await handleFileUpload(file);
+        if (fileUrl) {
+          evidenceFiles.push(fileUrl);
+        }
+      }
+
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          initiatorId: currentUserId,
+          reason: cancelReason,
+          description: cancelDescription,
+          evidenceFiles,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Cancel session request failed:', response.status, response.statusText);
+        const text = await response.text();
+        console.error('Response body:', text);
+        showAlert('error', `Failed to submit cancellation request: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON:', contentType);
+        const text = await response.text();
+        console.error('Response body:', text);
+        showAlert('error', 'Server returned an invalid response');
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          await sendNotification(
+            otherUserId,
+            15, // SESSION_CANCEL_REQUESTED
+            `${user?.firstName || 'Someone'} has requested to cancel your session. Please review the request.`,
+            `/session/${sessionId}`
+          );
+        }
+
+        showAlert('success', 'Cancellation request submitted successfully. The other user will be notified to review your request.');
+        setCancelRequest(data.cancelRequest);
+        setShowCancelModal(false);
+        setCancelReason('');
+        setCancelDescription('');
+        setCancelFiles([]);
+        
+        // Refresh session data to update the UI status
+        await fetchSessionData();
+      } else {
+        showAlert('error', data.message || 'Failed to submit cancellation request');
+      }
+    } catch (error) {
+      console.error('Error submitting cancellation request:', error);
+      showAlert('error', 'Failed to submit cancellation request');
+    } finally {
+      setSubmittingCancel(false);
+    }
+  };
+
+  const handleCancelResponse = async () => {
+    if (!cancelRequest || !currentUserId) {
+      showAlert('error', 'Cancellation request or user information not available');
+      return;
+    }
+
+    if (cancelResponse === 'dispute' && !cancelResponseDescription.trim()) {
+      showAlert('warning', 'Please provide a description when disputing the cancellation');
+      return;
+    }
+
+    setSubmittingCancelResponse(true);
+    try {
+      // Upload response evidence files if any
+      const responseEvidenceFiles: string[] = [];
+      for (const file of cancelResponseFiles) {
+        const fileUrl = await handleFileUpload(file);
+        if (fileUrl) {
+          responseEvidenceFiles.push(fileUrl);
+        }
+      }
+
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responderId: currentUserId,
+          action: cancelResponse,
+          responseDescription: cancelResponseDescription,
+          responseEvidenceFiles,
+          workCompletionPercentage,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the initiator
+        const initiatorId = cancelRequest.initiatorId._id || cancelRequest.initiatorId;
+        if (cancelResponse === 'agree') {
+          await sendNotification(
+            initiatorId,
+            16, // SESSION_CANCEL_AGREED
+            `${user?.firstName || 'Someone'} has agreed to your session cancellation request. The session has been cancelled.`,
+            `/session/${sessionId}`
+          );
+          showAlert('success', 'You have agreed to the cancellation. The session has been cancelled.');
+        } else {
+          await sendNotification(
+            initiatorId,
+            17, // SESSION_CANCEL_DISPUTED
+            `${user?.firstName || 'Someone'} has disputed your session cancellation request. Please review their response.`,
+            `/session/${sessionId}`
+          );
+          showAlert('info', 'You have disputed the cancellation request. The initiator will review your response.');
+        }
+
+        setCancelRequest(data.cancelRequest);
+        setShowCancelResponseModal(false);
+        setCancelResponse('agree');
+        setCancelResponseDescription('');
+        setCancelResponseFiles([]);
+        setWorkCompletionPercentage(50);
+
+        // Refresh session if cancelled
+        if (data.sessionUpdated) {
+          await fetchSessionData();
+        }
+      } else {
+        showAlert('error', data.message || 'Failed to respond to cancellation request');
+      }
+    } catch (error) {
+      console.error('Error responding to cancellation request:', error);
+      showAlert('error', 'Failed to respond to cancellation request');
+    } finally {
+      setSubmittingCancelResponse(false);
+    }
+  };
+
+  const handleCancelFinalize = async () => {
+    if (!cancelRequest || !currentUserId) {
+      showAlert('error', 'Cancellation request or user information not available');
+      return;
+    }
+
+    if (!cancelFinalNote.trim()) {
+      showAlert('warning', 'Please provide a final note for the cancellation');
+      return;
+    }
+
+    setSubmittingCancelFinalize(true);
+    try {
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responderId: currentUserId,
+          action: 'finalize',
+          finalNote: cancelFinalNote,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          await sendNotification(
+            otherUserId,
+            16, // SESSION_CANCEL_AGREED
+            `${user?.firstName || 'Someone'} has finalized the session cancellation. The session has been cancelled.`,
+            `/session/${sessionId}`
+          );
+        }
+
+        showAlert('success', 'Session cancellation has been finalized. The session has been cancelled.');
+        setCancelRequest(data.cancelRequest);
+        setShowCancelFinalizeModal(false);
+        setCancelFinalNote('');
+
+        // Refresh session data
+        await fetchSessionData();
+      } else {
+        showAlert('error', data.message || 'Failed to finalize cancellation');
+      }
+    } catch (error) {
+      console.error('Error finalizing cancellation:', error);
+      showAlert('error', 'Failed to finalize cancellation');
+    } finally {
+      setSubmittingCancelFinalize(false);
+    }
+  };
+
+  const handleCancelFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setCancelFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleCancelResponseFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setCancelResponseFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeCancelFile = (index: number) => {
+    setCancelFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeCancelResponseFile = (index: number) => {
+    setCancelResponseFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   useEffect(() => {
     if (sessionId) {
       fetchReviews();
+      fetchCancelRequest();
     }
   }, [sessionId]);
+
+  // Redirect to overview tab if user is on disabled tab when session is cancelled/completed
+  useEffect(() => {
+    if ((session?.status === 'canceled' || session?.status === 'completed') && 
+        (activeTab === 'submit-work' || activeTab === 'report')) {
+      setActiveTab('overview');
+    }
+  }, [session?.status, activeTab]);
 
   if (loading) {
     return (
@@ -1220,6 +1526,11 @@ export default function SessionWorkspace() {
                     ● Active
                   </span>
                 )}
+                {session?.status === 'canceled' && (
+                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                    ✕ Cancelled
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -1250,18 +1561,33 @@ export default function SessionWorkspace() {
               { id: 'report', label: 'Report Issue', icon: Flag },
             ].map((tab) => {
               const Icon = tab.icon;
+              const isDisabled = (session?.status === 'canceled' || session?.status === 'completed') && 
+                                (tab.id === 'submit-work' || tab.id === 'report');
+              
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  onClick={() => !isDisabled && setActiveTab(tab.id as any)}
+                  disabled={isDisabled}
+                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    isDisabled
+                      ? 'border-transparent text-gray-400 cursor-not-allowed opacity-60'
+                      : activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
+                  title={isDisabled ? 
+                    `Cannot ${tab.label.toLowerCase()} - session is ${session?.status}` : 
+                    undefined
+                  }
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
+                  {isDisabled && (
+                    <span className="text-xs text-gray-400 ml-1">
+                      ({session?.status === 'completed' ? 'Completed' : 'Cancelled'})
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1295,6 +1621,12 @@ export default function SessionWorkspace() {
             handleCompletionResponse={handleCompletionResponse}
             requestingCompletion={requestingCompletion}
             respondingToCompletion={respondingToCompletion}
+            cancelRequest={cancelRequest}
+            loadingCancelRequest={loadingCancelRequest}
+            setShowCancelModal={setShowCancelModal}
+            setShowCancelResponseModal={setShowCancelResponseModal}
+            setShowCancelFinalizeModal={setShowCancelFinalizeModal}
+            handleDownloadFile={handleDownloadFile}
           />
         )}
 
@@ -1630,6 +1962,294 @@ export default function SessionWorkspace() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Request Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Request Session Cancellation</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Cancellation *
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a reason</option>
+                  <option value="scheduling_conflict">Scheduling Conflict</option>
+                  <option value="changed_requirements">Changed Requirements</option>
+                  <option value="technical_issues">Technical Issues</option>
+                  <option value="personal_reasons">Personal Reasons</option>
+                  <option value="quality_concerns">Quality Concerns</option>
+                  <option value="communication_issues">Communication Issues</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Detailed Description *
+                </label>
+                <textarea
+                  value={cancelDescription}
+                  onChange={(e) => setCancelDescription(e.target.value)}
+                  placeholder="Please provide a detailed explanation for the cancellation request..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Evidence Files (Optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleCancelFileAdd}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  accept="image/*,.pdf,.doc,.docx"
+                />
+                {cancelFiles.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {cancelFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <button
+                          onClick={() => removeCancelFile(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                    setCancelDescription('');
+                    setCancelFiles([]);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelSession}
+                  disabled={submittingCancel || !cancelReason || !cancelDescription.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingCancel ? 'Submitting...' : 'Submit Cancellation Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Response Modal */}
+      {showCancelResponseModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Respond to Cancellation Request</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Response *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                                                                             <input
+                      type="radio"
+                      value="agree"
+                      checked={cancelResponse === 'agree'}
+                      onChange={(e) => setCancelResponse(e.target.value as 'agree' | 'dispute')}
+                      className="mr-2"
+                    />
+                    <span className="text-green-700">Agree to cancel the session</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="dispute"
+                      checked={cancelResponse === 'dispute'}
+                      onChange={(e) => setCancelResponse(e.target.value as 'agree' | 'dispute')}
+                      className="mr-2"
+                    />
+                    <span className="text-red-700">Dispute the cancellation</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Work Completion Percentage
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={workCompletionPercentage}
+                    onChange={(e) => setWorkCompletionPercentage(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="w-20">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={workCompletionPercentage}
+                      onChange={(e) => setWorkCompletionPercentage(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                      className="w-full p-2 border border-gray-300 rounded text-center"
+                    />
+                  </div>
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${workCompletionPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {cancelResponse === 'agree' ? 'Additional Comments (Optional)' : 'Explanation for Dispute *'}
+                </label>
+                <textarea
+                  value={cancelResponseDescription}
+                  onChange={(e) => setCancelResponseDescription(e.target.value)}
+                  placeholder={
+                    cancelResponse === 'agree' 
+                      ? 'Any additional comments about the cancellation...'
+                      : 'Please explain why you disagree with the cancellation request...'
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required={cancelResponse === 'dispute'}
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Evidence Files (Optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleCancelResponseFileAdd}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  accept="image/*,.pdf,.doc,.docx"
+                />
+                {cancelResponseFiles.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {cancelResponseFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <button
+                          onClick={() => removeCancelResponseFile(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelResponseModal(false);
+                    setCancelResponse('agree');
+                    setCancelResponseDescription('');
+                    setCancelResponseFiles([]);
+                    setWorkCompletionPercentage(50);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelResponse}
+                  disabled={submittingCancelResponse || (cancelResponse === 'dispute' && !cancelResponseDescription.trim())}
+                  className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    cancelResponse === 'agree' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {submittingCancelResponse ? 'Submitting...' : 
+                   cancelResponse === 'agree' ? 'Agree to Cancel' : 'Submit Dispute'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Finalize Modal */}
+      {showCancelFinalizeModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Finalize Session Cancellation</h3>
+              
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  The other user has disputed your cancellation request. You can now provide a final decision and reason to proceed with the cancellation.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Final Decision and Reason *
+                </label>
+                <textarea
+                  value={cancelFinalNote}
+                  onChange={(e) => setCancelFinalNote(e.target.value)}
+                  placeholder="Please provide your final reason for proceeding with the cancellation despite the dispute..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelFinalizeModal(false);
+                    setCancelFinalNote('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelFinalize}
+                  disabled={submittingCancelFinalize || !cancelFinalNote.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingCancelFinalize ? 'Finalizing...' : 'Finalize Cancellation'}
                 </button>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { CheckCircle, Clock, AlertCircle, User, BookOpen } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, User, BookOpen, XCircle } from 'lucide-react';
 
 interface OverviewTabProps {
   session: any;
@@ -25,6 +25,12 @@ interface OverviewTabProps {
   handleCompletionResponse: (action: 'approve' | 'reject') => void;
   requestingCompletion: boolean;
   respondingToCompletion: boolean;
+  cancelRequest: any;
+  loadingCancelRequest: boolean;
+  setShowCancelModal: (show: boolean) => void;
+  setShowCancelResponseModal: (show: boolean) => void;
+  setShowCancelFinalizeModal: (show: boolean) => void;
+  handleDownloadFile: (fileURL: string, fileName?: string) => Promise<void>;
 }
 
 export default function OverviewTab({
@@ -52,6 +58,12 @@ export default function OverviewTab({
   handleCompletionResponse,
   requestingCompletion,
   respondingToCompletion,
+  cancelRequest,
+  loadingCancelRequest,
+  setShowCancelModal,
+  setShowCancelResponseModal,
+  setShowCancelFinalizeModal,
+  handleDownloadFile,
 }: OverviewTabProps) {
   const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
   const mySkill = session.user1Id._id === currentUserId ? session.skill1Id : session.skill2Id;
@@ -231,14 +243,23 @@ export default function OverviewTab({
                   </button>
                 </>
               ) : completionStatus.canRequestCompletion ? (
-                <button
-                  onClick={handleRequestCompletion}
-                  disabled={requestingCompletion}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
-                </button>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleRequestCompletion}
+                    disabled={requestingCompletion}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                  >
+                    <CheckCircle className="h-4 w-4" />
+                    <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowCancelModal(true)}
+                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 text-sm"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    <span>Cancel Session</span>
+                  </button>
+                </div>
               ) : null}
             </div>
           )}
@@ -308,6 +329,234 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
+
+      {/* Session Cancellation Section */}
+      {(session?.status === 'active' || session?.status === 'canceled') && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Session Cancellation</h2>
+            <div className="flex items-center space-x-3">
+              {session?.status === 'canceled' && (
+                <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
+                  <XCircle className="h-4 w-4" />
+                  <span>Cancelled</span>
+                </span>
+              )}
+              {session?.status === 'active' && !cancelRequest && (
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2"
+                >
+                  <XCircle className="h-4 w-4" />
+                  <span>Cancel Session</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {loadingCancelRequest ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+              <span className="ml-2 text-gray-600">Loading cancellation status...</span>
+            </div>
+          ) : cancelRequest ? (
+            <div className="space-y-4">
+              {/* Cancellation Request Details */}
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <h4 className="font-medium text-gray-900">Cancellation Request</h4>
+                    <p className="text-sm text-gray-600">
+                      Initiated by {cancelRequest.initiatorId._id === currentUserId ? 'You' : 
+                        (cancelRequest.initiatorId.firstName + ' ' + cancelRequest.initiatorId.lastName).trim()}
+                    </p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    cancelRequest.resolution === 'canceled' ? 'bg-red-100 text-red-800' :
+                    cancelRequest.resolution === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}>
+                    {cancelRequest.resolution === 'canceled' ? 'Cancelled' : 
+                     cancelRequest.resolution === 'pending' ? 'Pending' : 
+                     cancelRequest.resolution}
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Reason:</label>
+                    <p className="text-sm text-gray-900 mt-1">{cancelRequest.reason}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Description:</label>
+                    <p className="text-sm text-gray-900 mt-1">{cancelRequest.description}</p>
+                  </div>
+
+                  {cancelRequest.evidenceFiles && cancelRequest.evidenceFiles.length > 0 && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Evidence Files:</label>
+                      <div className="mt-1 space-y-1">
+                        {cancelRequest.evidenceFiles.map((fileUrl: string, index: number) => {
+                          // Extract filename from URL for display
+                          const getFileNameFromUrl = (url: string) => {
+                            try {
+                              const urlObj = new URL(url);
+                              const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+                              return pathSegments.length > 0 ? 
+                                decodeURIComponent(pathSegments[pathSegments.length - 1]) : 
+                                `Evidence File ${index + 1}`;
+                            } catch (error) {
+                              return `Evidence File ${index + 1}`;
+                            }
+                          };
+
+                          return (
+                            <button
+                              key={index}
+                              onClick={() => handleDownloadFile(fileUrl, getFileNameFromUrl(fileUrl))}
+                              className="text-blue-600 hover:text-blue-800 text-sm underline block text-left"
+                            >
+                              {getFileNameFromUrl(fileUrl)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500">
+                    Submitted on {formatDate(cancelRequest.createdAt)}
+                  </div>
+                </div>
+              </div>
+
+              {/* Response Section */}
+              {cancelRequest.responseStatus !== 'pending' && (
+                <div className="border rounded-lg p-4 bg-blue-50">
+                  <h4 className="font-medium text-gray-900 mb-3">Response</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-700">Status:</span>
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        cancelRequest.responseStatus === 'agreed' ? 'bg-green-100 text-green-800' :
+                        cancelRequest.responseStatus === 'disputed' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {cancelRequest.responseStatus === 'agreed' ? 'Agreed' : 
+                         cancelRequest.responseStatus === 'disputed' ? 'Disputed' : 
+                         cancelRequest.responseStatus}
+                      </span>
+                    </div>
+
+                    {cancelRequest.responseDescription && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Response:</label>
+                        <p className="text-sm text-gray-900 mt-1">{cancelRequest.responseDescription}</p>
+                      </div>
+                    )}
+
+                    {cancelRequest.workCompletionPercentage !== undefined && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Work Completion:</label>
+                        <p className="text-sm text-gray-900 mt-1">{cancelRequest.workCompletionPercentage}%</p>
+                      </div>
+                    )}
+
+                    {cancelRequest.responseEvidenceFiles && cancelRequest.responseEvidenceFiles.length > 0 && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700">Response Evidence:</label>
+                        <div className="mt-1 space-y-1">
+                          {cancelRequest.responseEvidenceFiles.map((fileUrl: string, index: number) => {
+                            // Extract filename from URL for display
+                            const getFileNameFromUrl = (url: string) => {
+                              try {
+                                const urlObj = new URL(url);
+                                const pathSegments = urlObj.pathname.split('/').filter(Boolean);
+                                return pathSegments.length > 0 ? 
+                                  decodeURIComponent(pathSegments[pathSegments.length - 1]) : 
+                                  `Response Evidence ${index + 1}`;
+                              } catch (error) {
+                                return `Response Evidence ${index + 1}`;
+                              }
+                            };
+
+                            return (
+                              <button
+                                key={index}
+                                onClick={() => handleDownloadFile(fileUrl, getFileNameFromUrl(fileUrl))}
+                                className="text-blue-600 hover:text-blue-800 text-sm underline block text-left"
+                              >
+                                {getFileNameFromUrl(fileUrl)}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="text-xs text-gray-500">
+                      Responded on {formatDate(cancelRequest.responseDate)}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Final Note Section */}
+              {cancelRequest.finalNote && (
+                <div className="border rounded-lg p-4 bg-yellow-50">
+                  <h4 className="font-medium text-gray-900 mb-3">Final Decision</h4>
+                  <p className="text-sm text-gray-900">{cancelRequest.finalNote}</p>
+                  <div className="text-xs text-gray-500 mt-2">
+                    Finalized on {formatDate(cancelRequest.resolvedDate)}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              {session?.status === 'active' && cancelRequest.resolution === 'pending' && (
+                <div className="flex items-center justify-end space-x-3">
+                  {cancelRequest.initiatorId._id !== currentUserId && cancelRequest.responseStatus === 'pending' && (
+                    <>
+                      {/* Other user can respond to cancellation */}
+                      <button
+                        onClick={() => setShowCancelResponseModal(true)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Respond to Cancellation
+                      </button>
+                    </>
+                  )}
+                  
+                  {cancelRequest.initiatorId._id === currentUserId && cancelRequest.responseStatus === 'disputed' && (
+                    <>
+                      {/* Initiator can finalize after dispute */}
+                      <button
+                        onClick={() => setShowCancelFinalizeModal(true)}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Finalize Cancellation
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : session?.status === 'active' && (
+            <div className="text-center py-6">
+              <div className="text-gray-400 mb-3">
+                <XCircle className="mx-auto h-8 w-8" />
+              </div>
+              <p className="text-gray-600 mb-4">
+                No cancellation requests for this session.
+              </p>
+              <p className="text-sm text-gray-500">
+                If you need to cancel this session, use the "Cancel Session" button above.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Progress Summary */}
       {(myProgress || otherProgress) && (
