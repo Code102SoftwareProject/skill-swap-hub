@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
 import Alert from '@/components/ui/Alert';
 
@@ -42,6 +42,7 @@ export default function CreateSessionModal({
   const [startDate, setStartDate] = useState<string>('');
   const [expectedEndDate, setExpectedEndDate] = useState<string>('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [pendingCount, setPendingCount] = useState<number>(0);
 
   // Alert state
   const [alert, setAlert] = useState<{
@@ -69,23 +70,19 @@ export default function CreateSessionModal({
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Fetch skills when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchUserSkills();
-      // Set default start date to tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setStartDate(tomorrow.toISOString().split('T')[0]);
-      
-      // Set default expected end date to 30 days from tomorrow
-      const defaultEndDate = new Date();
-      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
-      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+  const fetchPendingCount = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/session/pending-count?user1Id=${currentUserId}&user2Id=${otherUserId}`);
+      const data = await response.json();
+      if (data.success) {
+        setPendingCount(data.pendingCount);
+      }
+    } catch (error) {
+      console.error('Error fetching pending count:', error);
     }
-  }, [isOpen, currentUserId, otherUserId]);
+  }, [currentUserId, otherUserId]);
 
-  const fetchUserSkills = async () => {
+  const fetchUserSkills = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch current user skills
@@ -108,7 +105,24 @@ export default function CreateSessionModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUserId, otherUserId]);
+
+  // Fetch skills and pending count when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserSkills();
+      fetchPendingCount();
+      // Set default start date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setStartDate(tomorrow.toISOString().split('T')[0]);
+      
+      // Set default expected end date to 30 days from tomorrow
+      const defaultEndDate = new Date();
+      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
+      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+    }
+  }, [isOpen, currentUserId, otherUserId, fetchUserSkills, fetchPendingCount]);
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -230,6 +244,25 @@ export default function CreateSessionModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Pending session limit info */}
+            {pendingCount > 0 && (
+              <div className={`p-3 rounded-lg ${pendingCount >= 3 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm ${pendingCount >= 3 ? 'text-red-700' : 'text-yellow-700'}`}>
+                  <span className="font-medium">
+                    {pendingCount >= 3 
+                      ? '⚠️ Request Limit Reached' 
+                      : `📝 Pending Requests: ${pendingCount}/3`
+                    }
+                  </span>
+                  <br />
+                  {pendingCount >= 3 
+                    ? 'You have reached the maximum of 3 pending requests. Please wait for a response before creating new requests.'
+                    : `You can send ${3 - pendingCount} more request${3 - pendingCount === 1 ? '' : 's'} to ${otherUserName}.`
+                  }
+                </p>
+              </div>
+            )}
+
             {/* What you offer section */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
@@ -360,10 +393,17 @@ export default function CreateSessionModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={submitting || pendingCount >= 3}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                  submitting || pendingCount >= 3
+                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title={pendingCount >= 3 ? 'You have reached the maximum of 3 pending requests' : ''}
               >
-                {submitting ? 'Sending...' : 'Send Session Request'}
+                {submitting ? 'Sending...' : 
+                 pendingCount >= 3 ? 'Request Limit Reached' : 
+                 'Send Session Request'}
               </button>
             </div>
           </form>

@@ -9,7 +9,9 @@ import {
   fetchUnreadMessageCountsByRoom,
 } from "@/services/chatApiServices";
 import {useSocket} from "@/lib/context/SocketContext";
-import { processAvatarUrl, getFirstLetter } from "@/utils/avatarUtils";
+import OptimizedAvatar from "@/components/ui/OptimizedAvatar";
+import { getFirstLetter } from "@/utils/avatarUtils";
+import { useBatchAvatarPreload } from "@/hooks/useOptimizedAvatar";
 
 interface SidebarProps {
   userId: string;
@@ -30,79 +32,30 @@ function SidebarBox({
   otherParticipantName, 
   lastMessage, 
   isSelected,
-  avatarUrl,
-  firstLetter,
+  profile,
+  userId,
   unreadCount = 0
 }: { 
   otherParticipantName: string; 
   lastMessage: string;
   isSelected?: boolean;
-  avatarUrl?: string;
-  firstLetter: string;
+  profile?: UserProfile;
+  userId: string;
   unreadCount?: number;
 }) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(!!avatarUrl);
-
-  // Reset states when avatarUrl changes
-  useEffect(() => {
-    if (avatarUrl) {
-      setImageError(false);
-      setImageLoading(true);
-    } else {
-      setImageError(false);
-      setImageLoading(false);
-    }
-  }, [avatarUrl]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log(`SidebarBox for ${otherParticipantName}:`, {
-      avatarUrl,
-      hasAvatar: !!avatarUrl,
-      imageError,
-      imageLoading
-    });
-  }, [otherParticipantName, avatarUrl, imageError, imageLoading]);
-
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log(`Image error for ${otherParticipantName}, URL:`, avatarUrl);
-    console.log('Error details:', e.nativeEvent);
-    setImageError(true);
-    setImageLoading(false);
-  };
-
-  const handleImageLoad = () => {
-    console.log(`Image loaded successfully for ${otherParticipantName}, URL:`, avatarUrl);
-    setImageLoading(false);
-  };
-
   return (
     <div className="flex flex-row items-center space-x-2 p-1">
-      {/* Avatar or First Letter */}
-      <div className="flex-shrink-0 w-8 h-8 md:w-10 md:h-10 rounded-full bg-primary flex items-center justify-center overflow-hidden">
-        {avatarUrl && !imageError ? (
-          <>
-            {imageLoading && (
-              <div className="absolute w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-300 animate-pulse flex items-center justify-center">
-                <span className="text-xs text-gray-500">...</span>
-              </div>
-            )}
-            <img 
-              src={avatarUrl} 
-              alt={`${otherParticipantName}'s avatar`}
-              className={`w-full h-full object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'} transition-opacity`}
-              onError={handleImageError}
-              onLoad={handleImageLoad}
-              loading="lazy"
-            />
-          </>
-        ) : (
-          <span className="text-white font-semibold text-sm md:text-base">
-            {firstLetter}
-          </span>
-        )}
-      </div>
+      {/* Optimized Avatar */}
+      <OptimizedAvatar
+        userId={userId}
+        firstName={profile?.firstName}
+        lastName={profile?.lastName}
+        avatarUrl={profile?.avatar}
+        size="small"
+        className="flex-shrink-0"
+        priority={false}
+        lazy={true}
+      />
       
       <div className="flex flex-col min-w-0 flex-1">
         <span className="font-heading text-sm md:text-base truncate">{otherParticipantName}</span>
@@ -136,6 +89,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
   const [unreadCounts, setUnreadCounts] = useState<{ [key: string]: number }>({});
   const [searchQuery, setSearchQuery] = useState("");
   const {socket}= useSocket();
+  const { preloadAvatars } = useBatchAvatarPreload();
 
   //* Component Specific Functions
 
@@ -196,6 +150,13 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
 
     console.log(`Fetching profiles for ${uniqueUserIds.size} users`);
 
+    // Prepare data for batch avatar preloading
+    const avatarData: Array<{
+      userId: string;
+      firstName?: string;
+      avatarUrl?: string;
+    }> = [];
+
     // Fetch each profile individually
     for (const id of uniqueUserIds) {
       try {
@@ -207,6 +168,13 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             ...prev,
             [id]: userData,
           }));
+
+          // Add to avatar preload data
+          avatarData.push({
+            userId: id,
+            firstName: userData.firstName,
+            avatarUrl: userData.avatar
+          });
         } else {
           console.log(`No profile found for user ${id}, setting fallback`);
           setUserProfiles((prev) => ({
@@ -228,7 +196,17 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
         }));
       }
     }
-  }, [chatRooms, userId]);
+
+    // Batch preload avatars for better performance
+    if (avatarData.length > 0) {
+      try {
+        await preloadAvatars(avatarData, 'small');
+        console.log(`Preloaded ${avatarData.length} avatars`);
+      } catch (error) {
+        console.warn('Avatar preloading failed:', error);
+      }
+    }
+  }, [chatRooms, userId, preloadAvatars]);
 
   /**
    * Effect hook that triggers chat room data fetching when component mounts
@@ -392,19 +370,6 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
 
             // ! Last Message 
             const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
-            
-            // Get first letter for fallback using utility
-            const firstLetter = getFirstLetter(profile?.firstName, otherParticipantId);
-
-            // Process avatar URL to use retrieval API
-            const processedAvatarUrl = processAvatarUrl(profile?.avatar);
-
-            console.log(`Chat ${chat._id} - User ${otherParticipantId}:`, {
-              profile,
-              originalAvatarUrl: profile?.avatar,
-              processedAvatarUrl,
-              hasAvatar: !!processedAvatarUrl
-            });
 
             return (
               /*
@@ -426,8 +391,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
                   otherParticipantName={otherParticipantName}
                   lastMessage={lastMessage}
                   isSelected={selectedChatRoomId === chat._id}
-                  avatarUrl={processedAvatarUrl}
-                  firstLetter={firstLetter}
+                  profile={profile}
+                  userId={otherParticipantId}
                   unreadCount={unreadCounts[chat._id] || 0}
                 />
               </li>

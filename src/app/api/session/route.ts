@@ -164,11 +164,49 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate ObjectIds
+    if (!Types.ObjectId.isValid(user1Id) || !Types.ObjectId.isValid(user2Id) ||
+        !Types.ObjectId.isValid(skill1Id) || !Types.ObjectId.isValid(skill2Id)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Prevent users from creating sessions with themselves
+    if (user1Id === user2Id) {
+      return NextResponse.json(
+        { success: false, message: 'Cannot create a session with yourself' },
+        { status: 400 }
+      );
+    }
+
+    // *  Check pending session limit (maximum 3 pending requests from user1 to user2)
+    const user1ObjectId = new Types.ObjectId(user1Id);
+    const user2ObjectId = new Types.ObjectId(user2Id);
+    
+    const pendingSessionsCount = await Session.countDocuments({
+      user1Id: user1ObjectId,
+      user2Id: user2ObjectId,
+      status: 'pending',
+      isAccepted: null
+    });
+
+    if (pendingSessionsCount >= 3) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'You have reached the maximum limit of 3 pending session requests to this user. Please wait for a response before creating new requests.' 
+        },
+        { status: 400 }
+      );
+    }
+
     const sessionData: any = {
-      user1Id: new Types.ObjectId(user1Id),
+      user1Id: user1ObjectId,
       skill1Id: new Types.ObjectId(skill1Id),
       descriptionOfService1,
-      user2Id: new Types.ObjectId(user2Id),
+      user2Id: user2ObjectId,
       skill2Id: new Types.ObjectId(skill2Id),
       descriptionOfService2,
       startDate: new Date(startDate),

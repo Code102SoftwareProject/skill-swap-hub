@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
@@ -93,6 +93,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [showCancelledSessions, setShowCancelledSessions] = useState(false);
+  const [pendingSessionCount, setPendingSessionCount] = useState(0);
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -120,10 +121,6 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     message: '',
     onConfirm: () => {}
   });
-
-  useEffect(() => {
-    fetchSessions();
-  }, [userId]);
 
   // Fetch other user's information
   useEffect(() => {
@@ -233,7 +230,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const response = await fetch(`/api/session/between-users?user1Id=${userId}&user2Id=${otherUserId}`);
       const data = await response.json();
@@ -241,6 +238,14 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
       if (data.success) {
         console.log('Fetched sessions:', data.sessions);
         setSessions(data.sessions);
+        
+        // Calculate pending session count (sessions created by current user that are still pending)
+        const pendingCount = data.sessions.filter((session: Session) => 
+          session.user1Id._id === userId && 
+          session.status === 'pending' && 
+          session.isAccepted === null
+        ).length;
+        setPendingSessionCount(pendingCount);
         
         // Fetch counter offers for each session
         await fetchCounterOffers(data.sessions);
@@ -255,7 +260,11 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, otherUserId, onSessionUpdate]);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [userId, fetchSessions]);
 
   const fetchCounterOffers = async (sessionList: Session[]) => {
     try {
@@ -683,10 +692,21 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={pendingSessionCount >= 3}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            pendingSessionCount >= 3 
+              ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+          title={pendingSessionCount >= 3 ? 'Maximum 3 pending requests allowed' : 'Create new session request'}
         >
           <Plus className="h-4 w-4" />
           <span>New Session</span>
+          {pendingSessionCount > 0 && (
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {pendingSessionCount}/3
+            </span>
+          )}
         </button>
       </div>
 
@@ -701,9 +721,20 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={pendingSessionCount >= 3}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                pendingSessionCount >= 3 
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title={pendingSessionCount >= 3 ? 'Maximum 3 pending requests allowed' : 'Create your first session'}
             >
               Create Session
+              {pendingSessionCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {pendingSessionCount}/3
+                </span>
+              )}
             </button>
           </div>
         ) : (

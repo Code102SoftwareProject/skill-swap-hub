@@ -6,9 +6,10 @@
  * Processes an avatar URL to use the file retrieval API if needed
  * 
  * @param avatarUrl - The original avatar URL from the database
+ * @param size - Optional size parameter for optimization
  * @returns Processed URL that can be used directly in img src
  */
-export function processAvatarUrl(avatarUrl: string | undefined): string | undefined {
+export function processAvatarUrl(avatarUrl: string | undefined, size?: 'small' | 'medium' | 'large'): string | undefined {
   if (!avatarUrl) return undefined;
 
   // If it's already a relative URL or doesn't need processing, return as-is
@@ -16,14 +17,24 @@ export function processAvatarUrl(avatarUrl: string | undefined): string | undefi
     return avatarUrl;
   }
 
+  // Build the API URL with optional size parameter
+  const buildApiUrl = (baseParam: string, value: string) => {
+    const url = new URL('/api/file/retrieve', typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    url.searchParams.set(baseParam, value);
+    if (size) {
+      url.searchParams.set('size', size);
+    }
+    return url.toString();
+  };
+
   // If it's an R2 URL, convert to use retrieval API
   if (avatarUrl.includes('r2.cloudflarestorage.com') || avatarUrl.includes('skillswaphub')) {
-    return `/api/file/retrieve?fileUrl=${encodeURIComponent(avatarUrl)}`;
+    return buildApiUrl('fileUrl', avatarUrl);
   }
 
   // If it's a direct filename (like avatars/userId-timestamp-filename.jpg)
   if (avatarUrl.startsWith('avatars/')) {
-    return `/api/file/retrieve?file=${encodeURIComponent(avatarUrl)}`;
+    return buildApiUrl('file', avatarUrl);
   }
 
   // For other URLs, try direct access first
