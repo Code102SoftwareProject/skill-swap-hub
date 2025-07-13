@@ -626,7 +626,7 @@ const UsersContent: React.FC = () => {
               Order:
             </span>
             <select
-              className={`border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition text-gray-900 bg-white hover:border-blue-400 font-semibold text-blue-700`}
+              className={`border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition text-gray-900 bg-white hover:border-blue-400 font-semibold `}
               value={sortOrder}
               onChange={handleSortOrderChange}
             >

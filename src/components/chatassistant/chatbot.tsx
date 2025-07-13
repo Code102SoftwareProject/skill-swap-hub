@@ -53,7 +53,7 @@ export default function Chatbot() {
   const [messages, setMessages] = useState<Message[]>([
     { 
       type: 'bot', 
-      content: 'Hi! I\'m your assistant. I can help you with verification status checks and answer technical questions. You can also send voice messages!' 
+      content: 'Hi! I\'m your SkillSwap assistant. I can help you with platform features, skill verification, and technical questions. Try asking about forums, sessions, or programming concepts!' 
     }
   ]);
   const [input, setInput] = useState('');
@@ -62,6 +62,7 @@ export default function Chatbot() {
   const [recordingTime, setRecordingTime] = useState(0);
   const [transcribedText, setTranscribedText] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -70,6 +71,18 @@ export default function Chatbot() {
   const hasStartedRecording = useRef<boolean>(false);
   
   const { user } = useAuth();
+
+  // Sample suggestion messages
+  const suggestionMessages = [
+    "How do I verify my skills?",
+    "How to create a forum post?",
+    "What is React useEffect?",
+    "How to schedule a session?",
+    "Check my verification status",
+    "How to earn badges?",
+    "What features does SkillSwap offer?",
+    "How to join a meeting?"
+  ];
 
   
   useEffect(() => {
@@ -87,7 +100,16 @@ export default function Chatbot() {
       if (recordingTimerRef.current) {
         clearInterval(recordingTimerRef.current);
       }
-      stopRecording();
+      // Stop recording safely without calling stopRecording to avoid dependency
+      setIsRecording(false);
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
     };
   }, []);
 
@@ -231,6 +253,21 @@ export default function Chatbot() {
   };
   const processTextMessage = async (text: string) => {
     setIsLoading(true);
+    setShowSuggestions(false); // Hide suggestions after first message
+    
+    // Check message length
+    if (text.length > 200) {
+      setMessages(prev => [
+        ...prev, 
+        { 
+          type: 'bot', 
+          content: 'Please keep your message shorter (under 200 characters) for better assistance. Try breaking down your question into smaller parts.' 
+        }
+      ]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const botResponse = await sendMessage(text, user?._id);
       
@@ -253,14 +290,32 @@ export default function Chatbot() {
     }
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setMessages(prev => [...prev, { type: 'user', content: suggestion }]);
+    processTextMessage(suggestion);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
 
     const userMessage = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
     
+    // Check message length before processing
+    if (userMessage.length > 200) {
+      setMessages(prev => [
+        ...prev, 
+        { type: 'user', content: userMessage },
+        { 
+          type: 'bot', 
+          content: 'Please keep your message shorter (under 200 characters) for better assistance. Try breaking down your question into smaller parts.' 
+        }
+      ]);
+      return;
+    }
+
+    setMessages(prev => [...prev, { type: 'user', content: userMessage }]);
     processTextMessage(userMessage);
   };
 
@@ -343,6 +398,25 @@ export default function Chatbot() {
             </div>
           </div>
         ))}
+        
+        {/* Sample suggestions - only show when no messages sent yet */}
+        {showSuggestions && messages.length === 1 && (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-500 text-center">Try asking:</p>
+            <div className="grid grid-cols-2 gap-2">
+              {suggestionMessages.slice(0, 6).map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="text-xs bg-blue-50 text-blue-700 p-2 rounded-lg hover:bg-blue-100 transition-colors text-left"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-gray-100 text-gray-800 p-3 rounded-lg">
@@ -366,6 +440,16 @@ export default function Chatbot() {
       </div>
 
       <form onSubmit={handleSubmit} className="p-4 border-t">
+        {/* Character counter */}
+        {input.length > 0 && (
+          <div className="text-xs text-gray-500 mb-2 text-right">
+            {input.length}/200 characters
+            {input.length > 200 && (
+              <span className="text-red-500 ml-2">Message too long!</span>
+            )}
+          </div>
+        )}
+        
         <div className="flex space-x-2 items-center">
           {isRecording ? (
             <button
@@ -391,14 +475,15 @@ export default function Chatbot() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Ask about SkillSwap or tech topics..."
             className="flex-1 text-black p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-800 focus:border-transparent"
             disabled={isRecording}
+            maxLength={250}
           />
           
           <button
             type="submit"
-            disabled={isLoading || isRecording || !input.trim()}
+            disabled={isLoading || isRecording || !input.trim() || input.length > 200}
             className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-900 transition-colors disabled:opacity-50"
             aria-label="Send message"
           >
