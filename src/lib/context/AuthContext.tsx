@@ -34,18 +34,14 @@ interface AuthContextType {
     suspended?: boolean;
     suspensionDetails?: any;
   }>;
-  googleLogin: (
-    credential: string
-  ) => Promise<{
+  googleLogin: (credential: string) => Promise<{
     success: boolean;
     message: string;
     needsProfileCompletion?: boolean;
     suspended?: boolean;
     suspensionDetails?: any;
   }>;
-  register: (
-    userData: RegisterData
-  ) => Promise<{
+  register: (userData: RegisterData) => Promise<{
     success: boolean;
     message: string;
     suspended?: boolean;
@@ -177,8 +173,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               },
             });
 
+            const validationData = await response.json();
+
             if (response.ok) {
-              const validationData = await response.json();
               // Token is valid
               setToken(storedToken);
               // Use the updated user data from server validation instead of localStorage
@@ -190,8 +187,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               // Set up automatic timer
               setupSessionTimer(storedToken);
             } else {
-              console.log("Token invalid on server validation");
-              handleSessionExpiry();
+              // Check if user is suspended
+              if (
+                validationData.suspended ||
+                validationData.suspensionDetails
+              ) {
+                console.log("🚨 User is suspended during token validation");
+                // Redirect to suspended page with suspension details
+                router.push(
+                  `/account-suspended?reason=${encodeURIComponent(validationData.suspensionDetails?.reason || "Account suspended")}&notes=${encodeURIComponent(validationData.suspensionDetails?.notes || "")}&date=${encodeURIComponent(validationData.suspensionDetails?.suspendedAt || "")}`
+                );
+              } else {
+                console.log("Token invalid on server validation");
+                handleSessionExpiry();
+              }
             }
           } catch (error) {
             console.error("Token validation failed:", error);
