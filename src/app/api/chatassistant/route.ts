@@ -100,8 +100,35 @@ function determineIntent(question: string) {
   ) {
     return 'check_verification_status';
   }
+
+  // Check for SkillSwap platform questions
+  if (
+    lowerQuestion.includes('skillswap') ||
+    lowerQuestion.includes('platform') ||
+    lowerQuestion.includes('forum') ||
+    lowerQuestion.includes('session') ||
+    lowerQuestion.includes('meeting') ||
+    lowerQuestion.includes('badge') ||
+    lowerQuestion.includes('profile') ||
+    lowerQuestion.includes('how to') ||
+    lowerQuestion.includes('navigate') ||
+    lowerQuestion.includes('feature')
+  ) {
+    return 'platform_question';
+  }
+
+  // Check for unrelated/personal questions
+  const unrelatedKeywords = [
+    'weather', 'news', 'sports', 'politics', 'personal', 'relationship',
+    'cooking', 'recipe', 'movie', 'music', 'entertainment', 'travel',
+    'health', 'medical', 'financial advice', 'investment', 'shopping'
+  ];
   
-  // Default to technical knowledge questions
+  if (unrelatedKeywords.some(keyword => lowerQuestion.includes(keyword))) {
+    return 'unrelated_question';
+  }
+  
+  // Default to technical questions
   return 'technical_question';
 }
 
@@ -110,7 +137,14 @@ function determineIntent(question: string) {
  */
 async function handleTechnicalQuestion(question: string) {
   try {
-    //  directly ask Gemini
+    // Check message length
+    if (question.length > 200) {
+      return {
+        type: 'text_response',
+        message: "Please keep your message shorter (under 200 characters) for better assistance. Try breaking down your question into smaller parts."
+      };
+    }
+
     const answer = await getAnswerFromGemini(question);
     
     return {
@@ -124,6 +158,44 @@ async function handleTechnicalQuestion(question: string) {
       message: "I encountered an error while processing your question. Please try asking in a different way."
     };
   }
+}
+
+/**
+ * Handles SkillSwap platform-related questions
+ */
+async function handlePlatformQuestion(question: string) {
+  try {
+    if (question.length > 200) {
+      return {
+        type: 'text_response',
+        message: "Please keep your message shorter for better assistance. What specific SkillSwap feature do you need help with?"
+      };
+    }
+
+    const platformContext = `This question is about the SkillSwap platform features, navigation, or usage.`;
+    const answer = await getAnswerFromGemini(question, platformContext);
+    
+    return {
+      type: 'text_response',
+      message: answer
+    };
+  } catch (error: any) {
+    console.error("Error handling platform question:", error);
+    return {
+      type: 'error',
+      message: "I couldn't process your SkillSwap question right now. Please try again."
+    };
+  }
+}
+
+/**
+ * Handles unrelated questions with appropriate boundaries
+ */
+function handleUnrelatedQuestion() {
+  return {
+    type: 'text_response',
+    message: "I'm the SkillSwap Chat Assistant and I can only help with platform-related questions, skill verification, or technical programming topics. Please ask about SkillSwap features, forums, sessions, or coding concepts."
+  };
 }
 
 export async function POST(req: NextRequest) {
@@ -149,6 +221,14 @@ export async function POST(req: NextRequest) {
           }, { status: 400 });
         }
         response = await checkVerificationStatus(userId);
+        break;
+
+      case 'platform_question':
+        response = await handlePlatformQuestion(question);
+        break;
+
+      case 'unrelated_question':
+        response = handleUnrelatedQuestion();
         break;
         
       case 'technical_question':

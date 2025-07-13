@@ -8,18 +8,18 @@ import "react-toastify/dist/ReactToastify.css";
 // Types
 interface SuspendedUser {
   _id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  title: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  title?: string;
   avatar?: string;
-  originalCreatedAt: string;
-  suspendedAt: string;
-  suspendedBy: string;
-  suspensionReason: string;
+  originalCreatedAt?: string;
+  suspendedAt?: string;
+  suspendedBy?: string;
+  suspensionReason?: string;
   suspensionNotes?: string;
-  originalUserId: string;
+  originalUserId?: string;
 }
 
 interface PaginationProps {
@@ -60,18 +60,23 @@ const DEBOUNCE_DELAY = 300;
 
 // Helper functions
 const getInitials = (firstName: string, lastName: string): string => {
-  return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
+  const first = firstName || "";
+  const last = lastName || "";
+  return `${first[0] || ""}${last[0] || ""}`.toUpperCase();
 };
 
 const formatPhoneNumber = (phone: string): string => {
+  if (!phone) return "";
   return phone.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3");
 };
 
 const formatDate = (dateString: string): string => {
+  if (!dateString) return "";
   return new Date(dateString).toLocaleDateString();
 };
 
 const formatDateTime = (dateString: string): string => {
+  if (!dateString) return "";
   return new Date(dateString).toLocaleString();
 };
 
@@ -233,14 +238,14 @@ const UserAvatar: React.FC<{
   return user.avatar ? (
     <img
       src={user.avatar}
-      alt={`${user.firstName} ${user.lastName}'s avatar`}
+      alt={`${user.firstName || "Unknown"} ${user.lastName || "User"}'s avatar`}
       className={`rounded-full object-cover border ${sizeClasses[size]}`}
     />
   ) : (
     <div
       className={`rounded-full bg-red-100 flex items-center justify-center text-red-700 font-bold border ${sizeClasses[size]}`}
     >
-      {getInitials(user.firstName, user.lastName)}
+      {getInitials(user.firstName || "", user.lastName || "")}
     </div>
   );
 };
@@ -306,31 +311,32 @@ const SuspendedUserCard: React.FC<SuspendedUserCardProps> = ({
     <UserAvatar user={user} size="lg" />
     <div className="flex-1">
       <h3 className="font-medium text-gray-900">
-        {user.firstName} {user.lastName}
+        {user.firstName || "Unknown"} {user.lastName || "User"}
         <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
           Suspended
         </span>
       </h3>
       <p className="text-sm text-gray-600">
-        <span className="font-medium">Email:</span> {user.email}
+        <span className="font-medium">Email:</span> {user.email || "N/A"}
       </p>
       <p className="text-sm text-gray-600">
         <span className="font-medium">Phone:</span>{" "}
-        {formatPhoneNumber(user.phone)}
+        {user.phone ? formatPhoneNumber(user.phone) : "N/A"}
       </p>
       <p className="text-sm text-gray-600">
-        <span className="font-medium">Title:</span> {user.title}
+        <span className="font-medium">Title:</span> {user.title || "N/A"}
       </p>
       <p className="text-sm text-gray-600">
-        <span className="font-medium">Reason:</span> {user.suspensionReason}
+        <span className="font-medium">Reason:</span>{" "}
+        {user.suspensionReason || "N/A"}
       </p>
       <p className="text-sm text-gray-500 mt-1">
         <span className="font-medium">Originally joined:</span>{" "}
-        {formatDate(user.originalCreatedAt)}
+        {user.originalCreatedAt ? formatDate(user.originalCreatedAt) : "N/A"}
       </p>
       <p className="text-sm text-gray-500">
         <span className="font-medium">Suspended:</span>{" "}
-        {formatDateTime(user.suspendedAt)}
+        {user.suspendedAt ? formatDateTime(user.suspendedAt) : "N/A"}
       </p>
       {user.suspensionNotes && (
         <p className="text-sm text-gray-500">
@@ -341,11 +347,11 @@ const SuspendedUserCard: React.FC<SuspendedUserCardProps> = ({
     <div className="flex gap-2">
       <UnsuspendButton
         onClick={() => onUnsuspend(user._id)}
-        label={`Unsuspend ${user.firstName} ${user.lastName}`}
+        label={`Unsuspend ${user.firstName || "Unknown"} ${user.lastName || "User"}`}
       />
       <DeleteButton
         onClick={() => onDelete(user._id)}
-        label={`Permanently delete ${user.firstName} ${user.lastName}`}
+        label={`Permanently delete ${user.firstName || "Unknown"} ${user.lastName || "User"}`}
       />
     </div>
   </div>
@@ -361,26 +367,32 @@ const SuspendedUserTableRow: React.FC<{
       <UserAvatar user={user} />
     </td>
     <td className="px-6 py-3 font-medium">
-      {user.firstName} {user.lastName}
+      {user.firstName || "Unknown"} {user.lastName || "User"}
       <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
         Suspended
       </span>
     </td>
-    <td className="px-6 py-3">{user.email}</td>
-    <td className="px-6 py-3">{formatPhoneNumber(user.phone)}</td>
-    <td className="px-6 py-3">{user.title}</td>
-    <td className="px-6 py-3">{user.suspensionReason}</td>
-    <td className="px-6 py-3">{formatDate(user.originalCreatedAt)}</td>
-    <td className="px-6 py-3">{formatDateTime(user.suspendedAt)}</td>
+    <td className="px-6 py-3">{user.email || "N/A"}</td>
+    <td className="px-6 py-3">
+      {user.phone ? formatPhoneNumber(user.phone) : "N/A"}
+    </td>
+    <td className="px-6 py-3">{user.title || "N/A"}</td>
+    <td className="px-6 py-3">{user.suspensionReason || "N/A"}</td>
+    <td className="px-6 py-3">
+      {user.originalCreatedAt ? formatDate(user.originalCreatedAt) : "N/A"}
+    </td>
+    <td className="px-6 py-3">
+      {user.suspendedAt ? formatDateTime(user.suspendedAt) : "N/A"}
+    </td>
     <td className="px-6 py-3">
       <div className="flex gap-2">
         <UnsuspendButton
           onClick={() => onUnsuspend(user._id)}
-          label={`Unsuspend ${user.firstName} ${user.lastName}`}
+          label={`Unsuspend ${user.firstName || "Unknown"} ${user.lastName || "User"}`}
         />
         <DeleteButton
           onClick={() => onDelete(user._id)}
-          label={`Permanently delete ${user.firstName} ${user.lastName}`}
+          label={`Permanently delete ${user.firstName || "Unknown"} ${user.lastName || "User"}`}
         />
       </div>
     </td>
@@ -522,7 +534,7 @@ const SuspendedUsersContent: React.FC = () => {
     if (!user) return;
 
     const confirmUnsuspend = window.confirm(
-      `Are you sure you want to unsuspend ${user.firstName} ${user.lastName}? They will be able to access their account again.`
+      `Are you sure you want to unsuspend ${user.firstName || "Unknown"} ${user.lastName || "User"}? They will be able to access their account again.`
     );
 
     if (!confirmUnsuspend) return;
@@ -536,9 +548,10 @@ const SuspendedUsersContent: React.FC = () => {
 
       setSuspendedUsers((prev) => prev.filter((u) => u._id !== userId));
       toast.success(
-        `User ${user.firstName} ${user.lastName} unsuspended successfully`,
+        `User ${user.firstName || "Unknown"} ${user.lastName || "User"} has been unsuspended successfully and can now login with their original credentials.`,
         {
           position: "top-right",
+          autoClose: 5000, // Show for 5 seconds
         }
       );
     } catch (err) {
@@ -565,7 +578,7 @@ const SuspendedUsersContent: React.FC = () => {
         prev.filter((u) => u._id !== userToDelete._id)
       );
       toast.success(
-        `Suspended user ${userToDelete.firstName} ${userToDelete.lastName} deleted permanently`,
+        `Suspended user ${userToDelete.firstName || "Unknown"} ${userToDelete.lastName || "User"} deleted permanently`,
         {
           position: "top-right",
         }
@@ -607,11 +620,11 @@ const SuspendedUsersContent: React.FC = () => {
     const searchTerm = search.toLowerCase();
     return suspendedUsers.filter(
       (user) =>
-        user.firstName.toLowerCase().includes(searchTerm) ||
-        user.lastName.toLowerCase().includes(searchTerm) ||
-        user.email.toLowerCase().includes(searchTerm) ||
-        user.title.toLowerCase().includes(searchTerm) ||
-        user.suspensionReason.toLowerCase().includes(searchTerm)
+        (user.firstName || "").toLowerCase().includes(searchTerm) ||
+        (user.lastName || "").toLowerCase().includes(searchTerm) ||
+        (user.email || "").toLowerCase().includes(searchTerm) ||
+        (user.title || "").toLowerCase().includes(searchTerm) ||
+        (user.suspensionReason || "").toLowerCase().includes(searchTerm)
     );
   }, [suspendedUsers, search]);
 

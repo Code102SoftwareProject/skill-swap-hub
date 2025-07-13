@@ -25,7 +25,9 @@ const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead 
   return (
     <div
       className={`p-4 mb-2 border-l-4 flex items-start rounded-md shadow-sm ${
-        notification.isRead ? 'bg-gray-50 border-gray-200' : 'bg-white border-l-4'
+        notification.isRead 
+          ? 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-600' 
+          : 'bg-white dark:bg-gray-800 border-l-4'
       } transition-colors duration-200`}
       style={{ borderLeftColor: notification.isRead ? '#e5e7eb' : typeColor }}
     >
@@ -45,15 +47,15 @@ const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead 
             {typeName}
           </span>
         </div>
-        <p className="text-sm font-medium text-gray-900 mt-1 font-body">{notification.description}</p>
-        <p className="text-xs text-gray-500 mt-1 font-body">{formattedDate}</p>
+        <p className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1 font-body">{notification.description}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-body">{formattedDate}</p>
       </div>
 
       <div className="ml-3 flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2">
         {!notification.isRead && (
           <button
             onClick={handleMarkReadClick}
-            className="flex items-center px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-md transition-colors font-body"
+            className="flex items-center px-2 py-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-900/50 rounded-md transition-colors font-body"
             aria-label="Mark as read"
           >
             <Check className="w-3 h-3 mr-1" />
@@ -63,7 +65,7 @@ const Notification: React.FC<NotificationProps> = ({ notification, onMarkAsRead 
         {notification.targetDestination && (
           <button
             onClick={handleViewClick}
-            className="flex  font-body items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-md transition-colors"
+            className="flex font-body items-center px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-md transition-colors"
             aria-label="View details"
           >
             <Eye className="w-3 h-3 mr-1" />

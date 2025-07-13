@@ -8,6 +8,7 @@ interface ISessionCounterOffer extends Document {
   skill2Id: mongoose.Types.ObjectId; // modified skill for user2
   descriptionOfService2: string; // modified description for user2
   startDate: Date; // modified start date
+  expectedEndDate?: Date; // modified expected end date
   counterOfferMessage: string; // explanation of changes
   status: "pending" | "accepted" | "rejected";
   createdAt: Date;
@@ -23,6 +24,7 @@ const sessionCounterOfferSchema = new Schema(
     skill2Id: { type: Schema.Types.ObjectId, ref: "UserSkill", required: true },
     descriptionOfService2: { type: String, required: true },
     startDate: { type: Date, required: true },
+    expectedEndDate: { type: Date },
     counterOfferMessage: { type: String, required: true },
     status: {
       type: String,

@@ -17,14 +17,15 @@ export async function POST(req: Request) {
       skill2Id,
       descriptionOfService2,
       startDate,
+      expectedEndDate,
       counterOfferMessage
     } = body;
 
     // Validate required fields
     if (!originalSessionId || !counterOfferedBy || !skill1Id || !descriptionOfService1 || 
-        !skill2Id || !descriptionOfService2 || !startDate || !counterOfferMessage) {
+        !skill2Id || !descriptionOfService2 || !startDate || !expectedEndDate || !counterOfferMessage) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Missing required fields including expected end date' },
         { status: 400 }
       );
     }
@@ -63,6 +64,7 @@ export async function POST(req: Request) {
       skill2Id: new Types.ObjectId(skill2Id),
       descriptionOfService2,
       startDate: new Date(startDate),
+      expectedEndDate: new Date(expectedEndDate), // Now always required
       counterOfferMessage,
       status: 'pending'
     });

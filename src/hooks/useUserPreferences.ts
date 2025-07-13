@@ -38,7 +38,7 @@ export const useUserPreferences = () => {
 
   // Helper function to get auth headers
   const getAuthHeaders = (authToken: string) => {
-    if (!authToken || authToken === 'null' || authToken === 'undefined') {
+    if (!authToken || authToken === 'null' || authToken === 'undefined' || authToken.trim() === '') {
       throw new Error('No valid authentication token found');
     }
     return {
@@ -213,8 +213,8 @@ export const useUserPreferences = () => {
       return { success: false, error: 'User not authenticated or component not mounted' };
     }
 
-    // Add small delay to ensure token is available
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Add small delay to ensure token is available and stable
+    await new Promise(resolve => setTimeout(resolve, 200));
 
     try {
       // Get auth headers and handle token issues gracefully
@@ -310,7 +310,7 @@ export const useUserPreferences = () => {
   // Initialize preferences on mount
   useEffect(() => {
     fetchPreferences();
-  }, [user, mounted, token]);
+  }, [fetchPreferences]);
 
   return {
     preferences,

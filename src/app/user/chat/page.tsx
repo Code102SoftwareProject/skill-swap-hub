@@ -13,7 +13,7 @@ import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
 import { ApiOptimizationProvider } from "@/lib/context/ApiOptimizationContext";
-import { fetchChatRoom } from "@/services/chatApiServices";
+import { fetchChatRoom, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
 
 /**
  * * ChatPage Component
@@ -71,12 +71,21 @@ export default function ChatPage() {
     setSessionUpdateTrigger(prev => prev + 1);
   }, []);
 
-  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+  const handleChatSelect = async (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
     setNewMessage(null); // Reset new message state when changing chats
     setSidebarOpen(false); // Close sidebar on mobile when chat is selected
     if (participantInfo) {
       setSelectedParticipantInfo(participantInfo);
+    }
+
+    // Mark messages as read when chat is selected
+    if (userId) {
+      try {
+        await markChatRoomMessagesAsRead(chatRoomId, userId);
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
     }
   };
 

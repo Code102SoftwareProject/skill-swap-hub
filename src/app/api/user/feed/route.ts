@@ -85,7 +85,8 @@ export async function GET(request: NextRequest) {
       const interestingPosts = await Post.aggregate([
         {
           $match: {
-            forumId: { $in: forumObjectIds }
+            forumId: { $in: forumObjectIds },
+            $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
           }
         },
         {
@@ -142,7 +143,8 @@ export async function GET(request: NextRequest) {
     if (posts.length < limit) {
       const remainingLimit = limit - posts.length;
       const recentPosts = await Post.find({
-        _id: { $nin: posts.map((p: any) => p._id) } // Exclude already fetched posts
+        _id: { $nin: posts.map((p: any) => p._id) }, // Exclude already fetched posts
+        $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }]
       })
       .populate('forumId', 'title')
       .sort({ 

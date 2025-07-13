@@ -53,7 +53,8 @@ export async function createMeeting(meetingData: {
     });
     
     if (!response.ok) {
-      throw new Error(`Error creating meeting: ${response.status}`);
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Error creating meeting: ${response.status}`);
     }
     
     const result = await response.json();
@@ -64,7 +65,8 @@ export async function createMeeting(meetingData: {
     return result;
   } catch (error) {
     console.error('Error creating meeting:', error);
-    return null;
+    // Re-throw the error so calling code can handle the specific message
+    throw error;
   }
 }
 

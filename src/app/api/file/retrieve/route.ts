@@ -2,6 +2,32 @@ import { NextResponse, NextRequest } from "next/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { s3Client } from "@/lib/r2";
 
+/**
+ * Optimize image buffer based on size parameter
+ */
+async function optimizeImage(buffer: Buffer, size: string, contentType?: string): Promise<Buffer> {
+  // Simple optimization - in production, you might want to use a proper image processing library
+  // like sharp, but for now we'll implement basic size constraints
+  
+  const sizeMap = {
+    'small': { maxWidth: 64, maxHeight: 64, quality: 80 },
+    'medium': { maxWidth: 128, maxHeight: 128, quality: 85 },
+    'large': { maxWidth: 256, maxHeight: 256, quality: 90 }
+  };
+
+  const config = sizeMap[size as keyof typeof sizeMap];
+  if (!config) {
+    return buffer; // Return original if size not recognized
+  }
+
+  // For now, return original buffer
+  // In production, implement actual image resizing here
+  // You can use libraries like sharp or canvas for server-side image processing
+  
+  // Ensure we return a proper Buffer
+  return Buffer.from(buffer);
+}
+
 
 /**
  ** GET handler - Retrieves a file from Cloudflare R2 storage
@@ -22,8 +48,9 @@ export async function GET(req: NextRequest) {
     const fileName = searchParams.get("file");
     const fileUrl = searchParams.get("fileUrl");
     const fileContent = searchParams.get("fileContent");
+    const size = searchParams.get("size"); // New parameter for image optimization
     
-    console.log("File download request:", { fileName, fileUrl, fileContent });
+    console.log("File download request:", { fileName, fileUrl, fileContent, size });
     
     // Determine the filename to retrieve
     let key;
@@ -162,7 +189,7 @@ export async function GET(req: NextRequest) {
       
       // Convert the response body to a buffer instead of streaming directly
       const arrayBuffer = await response.Body.transformToByteArray();
-      const buffer = Buffer.from(arrayBuffer);
+      const buffer = Buffer.from(arrayBuffer.buffer || arrayBuffer);
       
       console.log("File size:", buffer.length, "bytes");
       
@@ -173,10 +200,21 @@ export async function GET(req: NextRequest) {
       const isImage = response.ContentType?.startsWith('image/') || 
                      key.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
       
+      // Process image optimization if requested
+      let finalBuffer = buffer;
+      if (isImage && size && size !== 'original') {
+        try {
+          finalBuffer = await optimizeImage(buffer, size, response.ContentType);
+        } catch (optimizeError) {
+          console.warn('Image optimization failed, serving original:', optimizeError);
+          // Continue with original buffer if optimization fails
+        }
+      }
+      
       // Return the file with appropriate headers
       const headers: Record<string, string> = {
         "Content-Type": response.ContentType || "application/octet-stream",
-        "Content-Length": response.ContentLength?.toString() || buffer.length.toString(),
+        "Content-Length": finalBuffer.length.toString(),
       };
 
       // For images, set inline disposition so they display in browser
@@ -188,7 +226,7 @@ export async function GET(req: NextRequest) {
         headers["Content-Disposition"] = `attachment; filename="${encodeURIComponent(filenameForHeader || key)}"`;
       }
       
-      return new NextResponse(buffer, { headers });
+      return new NextResponse(finalBuffer, { headers });
     } catch (error: any) {
       console.error("Error retrieving file from R2:", error);
       return NextResponse.json(
