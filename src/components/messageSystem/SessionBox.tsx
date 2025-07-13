@@ -57,6 +57,7 @@ interface CounterOffer {
   descriptionOfService1: string;
   descriptionOfService2: string;
   startDate: string;
+  expectedEndDate?: string;
   counterOfferMessage: string;
   status: 'pending' | 'accepted' | 'rejected';
   createdAt: string;
@@ -1072,7 +1073,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
                           </div>
                           
                           <div className="text-xs text-gray-600 mb-3">
-                            Proposed date: {formatDate(counterOffer.startDate)}
+                            <div>Proposed date: {formatDate(counterOffer.startDate)}</div>
+                            {counterOffer.expectedEndDate && (
+                              <div>Expected end date: {formatDate(counterOffer.expectedEndDate)}</div>
+                            )}
                           </div>
                           
                           {/* Counter Offer Actions */}
