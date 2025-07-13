@@ -39,8 +39,8 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    // Get posts with forum information
-    const posts = await Post.find(query)
+    // Get posts with forum information (exclude deleted posts)
+    const posts = await Post.find({ ...query, $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] })
       .populate('forumId', 'title description')
       .populate('author', 'firstName lastName email')
       .sort(sortQuery)
