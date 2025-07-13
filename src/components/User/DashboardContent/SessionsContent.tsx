@@ -45,120 +45,78 @@ export default function SessionsContent() {
 
   useEffect(() => {
     if (user?._id) {
+      const fetchSessions = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(`/api/session?userId=${user._id}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            setSessions(data.sessions);
+          }
+        } catch (error) {
+          console.error('Error fetching sessions:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
       fetchSessions();
     }
-  }, [user]);
+  }, [user?._id]);
 
   useEffect(() => {
-    filterAndSortSessions();
-  }, [sessions, searchTerm, statusFilter, sortBy]);
+    const filterAndSort = () => {
+      let filtered = [...sessions];
 
-  const fetchSessions = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/session?userId=${user?._id}`);
-      const data = await response.json();
-      
-      if (data.success) {
-        let sessions = data.sessions;
-        
-        // Check if sessions are populated
-        const isPopulated = sessions.length > 0 && sessions[0].user1Id?.firstName;
-        
-        if (!isPopulated && sessions.length > 0) {
-          // Manually populate if needed
-          const userIds = new Set();
-          const skillIds = new Set();
+      // Apply status filter
+      if (statusFilter !== 'all') {
+        filtered = filtered.filter(session => session.status === statusFilter);
+      }
+
+      // Apply search filter
+      if (searchTerm) {
+        const searchLower = searchTerm.toLowerCase();
+        filtered = filtered.filter(session => {
+          const otherUser = getOtherUser(session);
+          const otherUserName = `${otherUser?.firstName || ''} ${otherUser?.lastName || ''}`.toLowerCase();
+          const mySkill = getMySkill(session);
+          const otherSkill = getOtherSkill(session);
           
-          sessions.forEach((session: any) => {
-            if (typeof session.user1Id === 'string') userIds.add(session.user1Id);
-            if (typeof session.user2Id === 'string') userIds.add(session.user2Id);
-            if (typeof session.skill1Id === 'string') skillIds.add(session.skill1Id);
-            if (typeof session.skill2Id === 'string') skillIds.add(session.skill2Id);
-          });
-          
-          if (userIds.size > 0 || skillIds.size > 0) {
-            const populateResponse = await fetch(
-              `/api/session/populate?userIds=${Array.from(userIds).join(',')}&skillIds=${Array.from(skillIds).join(',')}`
-            );
-            const populateData = await populateResponse.json();
-            
-            if (populateData.success) {
-              // Create lookup maps
-              const userMap = new Map();
-              const skillMap = new Map();
-              
-              populateData.users.forEach((user: any) => userMap.set(user._id, user));
-              populateData.skills.forEach((skill: any) => skillMap.set(skill._id, skill));
-              
-              // Populate sessions manually
-              sessions = sessions.map((session: any) => ({
-                ...session,
-                user1Id: userMap.get(session.user1Id) || { _id: session.user1Id, firstName: 'Unknown', lastName: 'User' },
-                user2Id: userMap.get(session.user2Id) || { _id: session.user2Id, firstName: 'Unknown', lastName: 'User' },
-                skill1Id: skillMap.get(session.skill1Id) || { _id: session.skill1Id, skillTitle: 'Unknown Skill', proficiencyLevel: '' },
-                skill2Id: skillMap.get(session.skill2Id) || { _id: session.skill2Id, skillTitle: 'Unknown Skill', proficiencyLevel: '' }
-              }));
-            }
-          }
+          return otherUserName.includes(searchLower) ||
+                 mySkill?.skillTitle?.toLowerCase().includes(searchLower) ||
+                 otherSkill?.skillTitle?.toLowerCase().includes(searchLower);
+        });
+      }
+
+      // Apply sorting
+      filtered.sort((a, b) => {
+        switch (sortBy) {
+          case 'newest':
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          case 'oldest':
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+          case 'progress':
+            const aProgress = getSessionProgress(a);
+            const bProgress = getSessionProgress(b);
+            return bProgress - aProgress;
+          case 'partner':
+            const aPartner = getOtherUser(a);
+            const bPartner = getOtherUser(b);
+            const aName = `${aPartner?.firstName || ''} ${aPartner?.lastName || ''}`;
+            const bName = `${bPartner?.firstName || ''} ${bPartner?.lastName || ''}`;
+            return aName.localeCompare(bName);
+          default:
+            return 0;
         }
-        
-        setSessions(sessions);
-      }
-    } catch (error) {
-      console.error('Error fetching sessions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterAndSortSessions = () => {
-    let filtered = [...sessions];
-
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(session => session.status === statusFilter);
-    }
-
-    // Apply search filter
-    if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(session => {
-        const otherUser = getOtherUser(session);
-        const otherUserName = `${otherUser?.firstName || ''} ${otherUser?.lastName || ''}`.toLowerCase();
-        const mySkill = getMySkill(session);
-        const otherSkill = getOtherSkill(session);
-        
-        return otherUserName.includes(searchLower) ||
-               mySkill?.skillTitle?.toLowerCase().includes(searchLower) ||
-               otherSkill?.skillTitle?.toLowerCase().includes(searchLower);
       });
-    }
 
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        case 'oldest':
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        case 'progress':
-          const aProgress = getSessionProgress(a);
-          const bProgress = getSessionProgress(b);
-          return bProgress - aProgress;
-        case 'partner':
-          const aPartner = getOtherUser(a);
-          const bPartner = getOtherUser(b);
-          const aName = `${aPartner?.firstName || ''} ${aPartner?.lastName || ''}`;
-          const bName = `${bPartner?.firstName || ''} ${bPartner?.lastName || ''}`;
-          return aName.localeCompare(bName);
-        default:
-          return 0;
-      }
-    });
+      setFilteredSessions(filtered);
+    };
 
-    setFilteredSessions(filtered);
-  };
+    filterAndSort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, searchTerm, statusFilter, sortBy]);
 
   const getOtherUser = (session: Session) => {
     const user1 = session.user1Id;

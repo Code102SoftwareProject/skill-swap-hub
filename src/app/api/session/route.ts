@@ -270,7 +270,7 @@ export async function PUT(req: NextRequest) {
     } else {
       // Handle rejection
       session.isAccepted = false;
-      session.status = "canceled";
+      session.status = "rejected";
     }
 
     // Save updated session
