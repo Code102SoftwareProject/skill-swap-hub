@@ -109,9 +109,16 @@ jest.mock('@/components/sessionTabs/OverviewTab', () => {
 
 jest.mock('@/components/sessionTabs/SubmitWorkTab', () => {
   return function MockSubmitWorkTab({ onSubmit, loading }: any) {
+    const handleSubmit = (e: any) => {
+      e.preventDefault();
+      if (onSubmit) {
+        onSubmit(e);
+      }
+    };
+
     return (
       <div data-testid="submit-work-tab">
-        <form onSubmit={onSubmit}>
+        <form onSubmit={handleSubmit}>
           <input 
             data-testid="work-description" 
             placeholder="Work description"
@@ -128,28 +135,34 @@ jest.mock('@/components/sessionTabs/SubmitWorkTab', () => {
 
 jest.mock('@/components/sessionTabs/ViewWorksTab', () => {
   return function MockViewWorksTab({ works, onReview, onDownload }: any) {
+    const handleReview = (workId: string, action: string) => {
+      if (onReview) {
+        onReview(workId, action, 'Test review message');
+      }
+    };
+
     return (
       <div data-testid="view-works-tab">
-        {works.map((work: any) => (
+        {works?.map((work: any) => (
           <div key={work._id} data-testid={`work-${work._id}`}>
             <div>{work.workDescription}</div>
-            <button onClick={() => onReview(work._id, 'accept')} data-testid={`accept-${work._id}`}>
+            <button onClick={() => handleReview(work._id, 'accept')} data-testid={`accept-${work._id}`}>
               Accept
             </button>
-            <button onClick={() => onReview(work._id, 'reject')} data-testid={`reject-${work._id}`}>
+            <button onClick={() => handleReview(work._id, 'reject')} data-testid={`reject-${work._id}`}>
               Reject
             </button>
             {work.workFiles?.map((file: any, index: number) => (
               <button 
                 key={index}
-                onClick={() => onDownload(file.fileURL, file.fileName)}
+                onClick={() => onDownload && onDownload(file.fileURL, file.fileName)}
                 data-testid={`download-${work._id}-${index}`}
               >
                 Download {file.fileName}
               </button>
             ))}
           </div>
-        ))}
+        )) || <div>No works</div>}
       </div>
     );
   };
@@ -286,11 +299,21 @@ describe('SessionWorkspace Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Reset completion status mock to default
+    const { getSessionCompletionStatus } = require('@/utils/sessionCompletion');
+    getSessionCompletionStatus.mockResolvedValue({
+      canRequestCompletion: true,
+      hasRequestedCompletion: false,
+      needsToApprove: false,
+      wasRejected: false,
+      isCompleted: false,
+      pendingRequests: []
+    });
+    
     // Mock successful API responses
     (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
-      console.log('Mocking fetch for:', url, options?.method);
-      
-      if (url.includes('/api/session/test-session-id') && !url.includes('completion') && !url.includes('cancel') && !url.includes('report')) {
+      // Session data endpoint
+      if (url === '/api/session/test-session-id') {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -417,6 +440,17 @@ describe('SessionWorkspace Page', () => {
         });
       }
       
+      if (url.includes('/api/session/test-session-id/cancel')) {
+        return Promise.resolve({
+          ok: false,
+          status: 404,
+          json: () => Promise.resolve({
+            success: false,
+            message: 'No cancel request found'
+          })
+        });
+      }
+      
       if (url.includes('/api/notification') && options?.method === 'POST') {
         return Promise.resolve({
           ok: true,
@@ -435,6 +469,7 @@ describe('SessionWorkspace Page', () => {
       // Default error response
       return Promise.resolve({
         ok: false,
+        status: 404,
         json: () => Promise.resolve({ error: 'Not found' })
       });
     });
@@ -445,8 +480,10 @@ describe('SessionWorkspace Page', () => {
   });
 
   describe('Initial Rendering and Data Loading', () => {
-    it('should show loading state initially', () => {
-      render(<SessionWorkspace />);
+    it('should show loading state initially', async () => {
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       expect(screen.getByText(/loading/i)).toBeInTheDocument();
     });
@@ -460,7 +497,9 @@ describe('SessionWorkspace Page', () => {
         error: null
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText(/Please log in/i)).toBeInTheDocument();
@@ -468,7 +507,9 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should fetch session data on mount', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(global.fetch).toHaveBeenCalledWith('/api/session/test-session-id');
@@ -476,7 +517,9 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should render session information when loaded', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
@@ -485,14 +528,22 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should show error if session not found', async () => {
-      (global.fetch as jest.Mock).mockImplementationOnce(() => 
-        Promise.resolve({
-          ok: false,
-          json: () => Promise.resolve({ error: 'Session not found' })
-        })
-      );
+      (global.fetch as jest.Mock).mockImplementationOnce((url: string) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: false,
+            json: () => Promise.resolve({ error: 'Session not found' })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        });
+      });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText(/Session not found/i)).toBeInTheDocument();
@@ -502,7 +553,9 @@ describe('SessionWorkspace Page', () => {
 
   describe('Tab Navigation', () => {
     it('should switch between tabs correctly', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
@@ -512,14 +565,18 @@ describe('SessionWorkspace Page', () => {
       expect(screen.getByText('Overview')).toBeInTheDocument();
 
       // Switch to submit work tab
-      const submitWorkTab = screen.getByText('Submit Work');
-      fireEvent.click(submitWorkTab);
+      await act(async () => {
+        const submitWorkTab = screen.getByText('Submit Work');
+        fireEvent.click(submitWorkTab);
+      });
       
       expect(screen.getByTestId('submit-work-tab')).toBeInTheDocument();
 
       // Switch to view works tab
-      const viewWorksTab = screen.getByText('View Works');
-      fireEvent.click(viewWorksTab);
+      await act(async () => {
+        const viewWorksTab = screen.getByText('View Works');
+        fireEvent.click(viewWorksTab);
+      });
       
       expect(screen.getByTestId('view-works-tab')).toBeInTheDocument();
     });
@@ -527,7 +584,7 @@ describe('SessionWorkspace Page', () => {
     it('should disable submit work and report tabs for completed sessions', async () => {
       // Mock completed session
       (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
-        if (url.includes('/api/session/test-session-id') && !url.includes('completion') && !url.includes('cancel') && !url.includes('report')) {
+        if (url === '/api/session/test-session-id') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
@@ -537,13 +594,52 @@ describe('SessionWorkspace Page', () => {
           });
         }
         // Return default success for other calls
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: [] })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ success: true, works: [], progressData: [], reports: [], reviews: [] })
+          json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
@@ -556,15 +652,19 @@ describe('SessionWorkspace Page', () => {
 
   describe('Work Submission', () => {
     it('should submit work successfully', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
       });
 
       // Switch to submit work tab
-      const submitWorkTab = screen.getByText('Submit Work');
-      fireEvent.click(submitWorkTab);
+      await act(async () => {
+        const submitWorkTab = screen.getByText('Submit Work');
+        fireEvent.click(submitWorkTab);
+      });
       
       await waitFor(() => {
         expect(screen.getByTestId('submit-work-tab')).toBeInTheDocument();
@@ -586,17 +686,23 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should show error for empty work description', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
         expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
       });
 
-      const submitWorkTab = screen.getByText('Submit Work');
-      fireEvent.click(submitWorkTab);
+      await act(async () => {
+        const submitWorkTab = screen.getByText('Submit Work');
+        fireEvent.click(submitWorkTab);
+      });
       
-      const submitButton = screen.getByTestId('submit-work');
-      fireEvent.click(submitButton);
+      await act(async () => {
+        const submitButton = screen.getByTestId('submit-work');
+        fireEvent.click(submitButton);
+      });
       
       await waitFor(() => {
         expect(screen.getByTestId('alert')).toBeInTheDocument();
@@ -607,8 +713,26 @@ describe('SessionWorkspace Page', () => {
 
   describe('Work Review', () => {
     it('should accept work successfully', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
-        if (url.includes('/api/work/work-1') && url.includes('PATCH')) {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              works: mockWorks
+            })
+          });
+        }
+        if (url.includes('/api/work/work-1') && options?.method === 'PATCH') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
@@ -617,21 +741,57 @@ describe('SessionWorkspace Page', () => {
             })
           });
         }
+        // Default responses for other endpoints
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
-        expect(screen.getByTestId('overview-tab')).toBeInTheDocument();
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
       });
 
       // Switch to view works tab
-      const viewWorksTab = screen.getByText('View Works');
-      fireEvent.click(viewWorksTab);
+      await act(async () => {
+        const viewWorksTab = screen.getByText('View Works');
+        fireEvent.click(viewWorksTab);
+      });
       
       await waitFor(() => {
         expect(screen.getByTestId('view-works-tab')).toBeInTheDocument();
@@ -650,11 +810,21 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should reject work with reason', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const viewWorksTab = screen.getByText('View Works');
         fireEvent.click(viewWorksTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('view-works-tab')).toBeInTheDocument();
       });
       
       const rejectButton = screen.getByTestId('reject-work-1');
@@ -669,8 +839,17 @@ describe('SessionWorkspace Page', () => {
 
   describe('Progress Management', () => {
     it('should update progress successfully', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
-        if (url.includes('/api/session-progress/test-session-id') && url.includes('PATCH')) {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id') && options?.method === 'PATCH') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
@@ -679,15 +858,59 @@ describe('SessionWorkspace Page', () => {
             })
           });
         }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const progressTab = screen.getByText('Progress');
         fireEvent.click(progressTab);
       });
@@ -707,11 +930,21 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should request session completion', async () => {
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const progressTab = screen.getByText('Progress');
         fireEvent.click(progressTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('progress-tab')).toBeInTheDocument();
       });
       
       const requestCompletionButton = screen.getByTestId('request-completion');
@@ -737,9 +970,15 @@ describe('SessionWorkspace Page', () => {
         pendingRequests: [{ requesterId: 'other-user-id' }]
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const progressTab = screen.getByText('Progress');
         fireEvent.click(progressTab);
       });
@@ -750,7 +989,16 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should handle completion request', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
         if (url.includes('/api/session/test-session-id/completion/request')) {
           return Promise.resolve({
             ok: true,
@@ -760,15 +1008,59 @@ describe('SessionWorkspace Page', () => {
             })
           });
         }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const progressTab = screen.getByText('Progress');
         fireEvent.click(progressTab);
       });
@@ -793,8 +1085,17 @@ describe('SessionWorkspace Page', () => {
 
   describe('Reporting System', () => {
     it('should submit report successfully', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
-        if (url.includes('/api/session/report') && url.includes('POST')) {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/session/report') && options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
@@ -803,16 +1104,60 @@ describe('SessionWorkspace Page', () => {
             })
           });
         }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
-        const reportTab = screen.getByText('Report');
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
+        const reportTab = screen.getByText('Report Issue');
         fireEvent.click(reportTab);
       });
       
@@ -839,7 +1184,16 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should show existing reports', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
         if (url.includes('/api/session/report/test-session-id')) {
           return Promise.resolve({
             ok: true,
@@ -851,16 +1205,54 @@ describe('SessionWorkspace Page', () => {
             })
           });
         }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
-        const reportTab = screen.getByText('Report');
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
+        const reportTab = screen.getByText('Report Issue');
         fireEvent.click(reportTab);
       });
       
@@ -872,17 +1264,82 @@ describe('SessionWorkspace Page', () => {
 
   describe('File Operations', () => {
     it('should download work files', async () => {
-      global.fetch = jest.fn().mockResolvedValueOnce({
-        ok: true,
-        blob: () => Promise.resolve(new Blob(['file content'], { type: 'application/pdf' })),
-        headers: new Map([['content-disposition', 'attachment; filename="design.pdf"']])
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/file/retrieve')) {
+          return Promise.resolve({
+            ok: true,
+            blob: () => Promise.resolve(new Blob(['file content'], { type: 'application/pdf' })),
+            headers: new Map([['content-disposition', 'attachment; filename="design.pdf"']])
+          });
+        }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const viewWorksTab = screen.getByText('View Works');
         fireEvent.click(viewWorksTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('view-works-tab')).toBeInTheDocument();
       });
       
       const downloadButton = screen.getByTestId('download-work-1-0');
@@ -894,13 +1351,78 @@ describe('SessionWorkspace Page', () => {
     });
 
     it('should handle file download errors', async () => {
-      global.fetch = jest.fn().mockRejectedValueOnce(new Error('Download failed'));
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/file/retrieve')) {
+          return Promise.reject(new Error('Download failed'));
+        }
+        // Default responses for all other endpoints
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        });
+      });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const viewWorksTab = screen.getByText('View Works');
         fireEvent.click(viewWorksTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('view-works-tab')).toBeInTheDocument();
       });
       
       const downloadButton = screen.getByTestId('download-work-1-0');
@@ -915,22 +1437,103 @@ describe('SessionWorkspace Page', () => {
 
   describe('Error Handling', () => {
     it('should handle API errors gracefully', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.reject(new Error('Network error'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        });
+      });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByTestId('alert')).toBeInTheDocument();
         expect(screen.getByText(/error/i)).toBeInTheDocument();
       });
     });
 
     it('should close alerts when close button is clicked', async () => {
-      render(<SessionWorkspace />);
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
+        if (url.includes('/api/work') && options?.method === 'POST') {
+          return Promise.resolve({
+            ok: false,
+            status: 400,
+            json: () => Promise.resolve({ success: false, message: 'Invalid work data' })
+          });
+        }
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ success: true })
+        });
+      });
+      
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
       
       // Trigger an error to show alert
-      await waitFor(() => {
+      await act(async () => {
         const submitWorkTab = screen.getByText('Submit Work');
         fireEvent.click(submitWorkTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('submit-work-tab')).toBeInTheDocument();
       });
       
       const submitButton = screen.getByTestId('submit-work');
@@ -951,8 +1554,54 @@ describe('SessionWorkspace Page', () => {
 
   describe('Notifications', () => {
     it('should send notifications on work submission', async () => {
-      (global.fetch as jest.Mock).mockImplementation((url: string) => {
-        if (url.includes('/api/work')) {
+      (global.fetch as jest.Mock).mockImplementation((url: string, options?: any) => {
+        if (url === '/api/session/test-session-id') {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({
+              success: true,
+              session: mockSession
+            })
+          });
+        }
+        if (url.includes('/api/work/session/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, works: mockWorks })
+          });
+        }
+        if (url.includes('/api/session-progress/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, progress: [mockProgress, mockOtherProgress] })
+          });
+        }
+        if (url.includes('/api/session/report/test-session-id')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reports: [] })
+          });
+        }
+        if (url.includes('/api/reviews')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, reviews: [], userReview: null, receivedReview: null })
+          });
+        }
+        if (url.includes('/api/users/profile')) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ success: true, user: { _id: 'other-user-id', firstName: 'Jane', lastName: 'Smith' } })
+          });
+        }
+        if (url.includes('/api/session/test-session-id/cancel')) {
+          return Promise.resolve({
+            ok: false,
+            status: 404,
+            json: () => Promise.resolve({ success: false, message: 'No cancel request found' })
+          });
+        }
+        if (url.includes('/api/work') && options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve({
@@ -973,11 +1622,21 @@ describe('SessionWorkspace Page', () => {
         });
       });
       
-      render(<SessionWorkspace />);
+      await act(async () => {
+        render(<SessionWorkspace />);
+      });
       
       await waitFor(() => {
+        expect(screen.getByText('Session with Jane Smith')).toBeInTheDocument();
+      });
+      
+      await act(async () => {
         const submitWorkTab = screen.getByText('Submit Work');
         fireEvent.click(submitWorkTab);
+      });
+      
+      await waitFor(() => {
+        expect(screen.getByTestId('submit-work-tab')).toBeInTheDocument();
       });
       
       const descriptionInput = screen.getByTestId('work-description');
