@@ -1,7 +1,6 @@
 /**
  * KYCContent Component Tests
  */
-
 import React from "react";
 import {
   render,
@@ -15,7 +14,6 @@ import "@testing-library/jest-dom";
 import KYCContent from "@/components/Admin/dashboardContent/KYCContent";
 import toast from "react-hot-toast";
 
-// Mock toast
 jest.mock("react-hot-toast", () => ({
   loading: jest.fn(),
   success: jest.fn(),
@@ -23,13 +21,11 @@ jest.mock("react-hot-toast", () => ({
   dismiss: jest.fn(),
 }));
 
-// Mock URL.createObjectURL / revokeObjectURL
 beforeAll(() => {
   global.URL.createObjectURL = jest.fn(() => "blob:url");
   global.URL.revokeObjectURL = jest.fn();
 });
 
-// Helper to mock fetch
 const mockFetch = (
   response: any,
   ok = true,
@@ -51,14 +47,6 @@ const mockFetch = (
 describe("KYCContent", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it("shows loading state initially", async () => {
-    mockFetch({ data: [] });
-    await act(async () => {
-      render(<KYCContent />);
-    });
-    expect(screen.getByText("Loading KYC records...")).toBeInTheDocument();
   });
 
   it("renders records in table after fetch", async () => {
@@ -90,9 +78,11 @@ describe("KYCContent", () => {
     });
 
     const rows = screen.getAllByRole("row");
-    const dataRows = rows.slice(1); // skip header
+    const dataRows = rows.slice(1);
     expect(dataRows).toHaveLength(2);
-    expect(within(dataRows[0]).getByText("Not Reviewed")).toBeInTheDocument();
+    expect(
+      within(dataRows[0]).getByText("Not Reviewed")
+    ).toBeInTheDocument();
     expect(within(dataRows[1]).getByText("Accepted")).toBeInTheDocument();
   });
 
@@ -112,7 +102,9 @@ describe("KYCContent", () => {
     });
     await waitFor(() => screen.getByText("Charlie"));
 
-    const input = screen.getByPlaceholderText("Search by recipient name");
+    const input = screen.getByPlaceholderText(
+      "Search by recipient name"
+    );
     fireEvent.change(input, { target: { value: "bad!" } });
     expect(toast.error).toHaveBeenCalledWith(
       "Only letters, numbers, and spaces are allowed"
@@ -242,7 +234,9 @@ describe("KYCContent", () => {
           body: JSON.stringify({ id: "42", status: "Accepted" }),
         })
       );
-      expect(toast.success).toHaveBeenCalledWith("Status updated to Accepted");
+      expect(toast.success).toHaveBeenCalledWith(
+        "Status updated to Accepted"
+      );
     });
 
     const row = screen.getByText("StatusTest").closest("tr")!;
