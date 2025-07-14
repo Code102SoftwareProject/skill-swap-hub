@@ -11,64 +11,20 @@ import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { processAvatarUrl } from '@/utils/avatarUtils';
 
-interface UserProfile {
-  _id: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  email?: string;
-  avatar?: string;
-  title?: string;
-}
-
-interface Session {
-  _id: string;
-  user1Id: UserProfile;
-  user2Id: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  isAccepted: boolean | null;
-  isAmmended: boolean;
-  status: "active" | "completed" | "canceled" | "pending" | "rejected";
-  createdAt: string;
-  progress1?: any;
-  progress2?: any;
-  completionRequestedBy?: any;
-  completionRequestedAt?: string;
-  completionApprovedBy?: any;
-  completionApprovedAt?: string;
-  completionRejectedBy?: any;
-  completionRejectedAt?: string;
-  completionRejectionReason?: string;
-  rejectedBy?: UserProfile;
-  rejectedAt?: string;
-}
-
-interface CounterOffer {
-  _id: string;
-  originalSessionId: string;
-  counterOfferedBy: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  counterOfferMessage: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  createdAt: string;
-}
+// Type imports
+import type { 
+  Session, 
+  CounterOffer, 
+  UserProfile, 
+  AlertState, 
+  ConfirmationState 
+} from '@/types';
 
 interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
   onSessionUpdate?: () => void; // Callback to notify parent about session changes
-  // Remove otherUserName since we'll fetch it
 }
 
 export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionUpdate }: SessionBoxProps) {
@@ -99,26 +55,13 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
   const [showActiveCounterOffers, setShowActiveCounterOffers] = useState<{[sessionId: string]: boolean}>({});
 
   // Alert and confirmation states
-  const [alert, setAlert] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({
+  const [alert, setAlert] = useState<AlertState>({
     isOpen: false,
     type: 'info',
     message: ''
   });
 
-  const [confirmation, setConfirmation] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type?: 'danger' | 'warning' | 'info' | 'success';
-    onConfirm: () => void;
-    confirmText?: string;
-    loading?: boolean;
-  }>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     isOpen: false,
     title: '',
     message: '',
@@ -1359,7 +1302,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
                           </div>
                           <div className="text-xs text-gray-500">
                             {status === 'rejected' && session.rejectedAt ? formatDate(session.rejectedAt) :
-                             formatDate(session.createdAt)}
+                             formatDate(session.createdAt || new Date().toISOString())}
                           </div>
                         </div>
 
