@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { debounce } from 'lodash-es';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { processAvatarUrl } from '@/utils/avatarUtils';
+//import { processAvatarUrl } from '@/utils/avatarUtils';
+import { processAvatarUrl } from '@/utils/imageUtils';
 import Image from 'next/image';
 // Types
 interface User {
@@ -236,13 +237,12 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
   const avatarSrc = processAvatarUrl(user.avatar) || "/default-avatar.png";
   return user.avatar ? (
     <Image
-  src={avatarSrc}
-  alt={`${user.firstName} ${user.lastName}'s avatar`}
-  width={100} // You can adjust this based on the actual size
-  height={100}
-  className={`rounded-full object-cover border ${sizeClasses[size]}`}
-  style={{ width: 'auto', height: 'auto' }} // Ensures it behaves like <img> if needed
-/>
+      src={avatarSrc}
+      alt={`${user.firstName} ${user.lastName}'s avatar`}
+      width={100} // This is fine; acts as a fallback size
+      height={100}
+      className={`rounded-full object-cover border ${sizeClasses[size]}`}
+    />
   ) : (
     <div
       className={`rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold border ${sizeClasses[size]}`}
@@ -251,6 +251,7 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
     </div>
   );
 };
+
 
 const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   onClick,
