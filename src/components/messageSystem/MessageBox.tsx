@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSocket } from '@/lib/context/SocketContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
+import MessageSearch from "@/components/messageSystem/MessageSearch";
 
 import { fetchChatMessages, fetchChatRoom, fetchUserProfile, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
 
@@ -16,7 +17,9 @@ interface MessageBoxProps {
   chatRoomId: string;
   newMessage?: IMessage;
   onReplySelect?: (message: IMessage) => void;
-  participantInfo?: { id: string, name: string }; 
+  participantInfo?: { id: string, name: string };
+  showSearch?: boolean;
+  onCloseSearch?: () => void;
 }
 
 
@@ -114,6 +117,8 @@ export default function MessageBox({
   newMessage,
   onReplySelect,
   participantInfo,
+  showSearch = false,
+  onCloseSearch,
 }: MessageBoxProps) {
   const { socket, onlineUsers } = useSocket();
   
@@ -129,6 +134,9 @@ export default function MessageBox({
 
   // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // Search related states
+  const [searchHighlightedMessageId, setSearchHighlightedMessageId] = useState<string | null>(null);
 
   // Helper function to check if two dates are from different days
   const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
@@ -286,6 +294,20 @@ export default function MessageBox({
     }
   };
 
+  // Search handlers
+  const handleSearchResult = useCallback((result: any) => {
+    if (result?.message?._id) {
+      setSearchHighlightedMessageId(result.message._id);
+      scrollToMessage(result.message._id);
+    } else {
+      setSearchHighlightedMessageId(null);
+    }
+  }, []);
+
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    scrollToMessage(messageId);
+  }, []);
+
   const getReplyContent = (
     replyFor: string | { _id?: string; senderId?: string; content?: string }
   ): ReplyContent => {
@@ -342,10 +364,25 @@ export default function MessageBox({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
-    >
+    <div className="flex flex-col w-full h-full bg-white overflow-hidden">
+      {/* Search Component */}
+      {showSearch && (
+        <MessageSearch
+          messages={messages}
+          userId={userId}
+          participantNames={participantNames}
+          onSearchResult={handleSearchResult}
+          onScrollToMessage={handleScrollToMessage}
+          isVisible={showSearch}
+          onClose={() => onCloseSearch?.()}
+        />
+      )}
+      
+      {/* Messages Container */}
+      <div
+        ref={containerRef}
+        className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
+      >
       {/* Always show skill match info message at the top of new chat rooms */}
       <SkillMatchInfoMessage participantName={participantInfo?.name} />
       
@@ -372,7 +409,8 @@ export default function MessageBox({
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
               className={`mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
-                ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
+                ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""} 
+                ${msg._id === searchHighlightedMessageId ? "bg-yellow-100 bg-opacity-70" : ""}`}
             >
               <div
                 className={`p-2 md:p-3 rounded-lg max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words word-wrap overflow-wrap-anywhere
@@ -431,6 +469,7 @@ export default function MessageBox({
           <TypingIndicator />
         </div>
       )}
+      </div>
     </div>
   );
 }
