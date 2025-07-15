@@ -1,126 +1,105 @@
-import connect from "@/lib/db";
+// src/app/api/report/route.ts
 import { NextResponse } from "next/server";
-import Report from "@/lib/models/reportSchema";
-import { NextRequest } from "next/server";
-import { Types } from "mongoose";
+import connect from "@/lib/db";
+import ReportInSession from "@/lib/models/reportInSessionSchema";
 
-export const GET = async (req: Request) => {
+// GET /api/report
+export async function GET(req: Request) {
   try {
     await connect();
-    const reports = await Report.find();
+    const reports = await ReportInSession.find().lean();
     return NextResponse.json(reports, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
-      { message: "Error in fetching Report", error: error.message },
+      { message: "Error fetching reports", error: error.message },
       { status: 500 }
     );
   }
-};
+}
 
-export const POST = async (req: NextRequest) => {
+// POST /api/report
+export async function POST(req: Request) {
   try {
     const body = await req.json();
     await connect();
-    const newReport = new Report(body);
+    const newReport = new ReportInSession(body);
     await newReport.save();
-
     return NextResponse.json(
-      { message: "Report is created", Admin: newReport },
-      { status: 200 }
+      { message: "Report created successfully", report: newReport },
+      { status: 201 }
     );
   } catch (error: any) {
     return NextResponse.json(
-      { message: "Error in creating Report", error: error.message },
+      { message: "Error creating report", error: error.message },
       { status: 500 }
     );
   }
-};
+}
 
-export const PATCH = async (req: NextRequest) => {
+// PATCH /api/report
+export async function PATCH(req: Request) {
   try {
-    const body = await req.json();
-    const { reportId, title, description, status, generatedDate } = body;
-
-    if (!reportId) {
+    const { id, ...updateData } = await req.json();
+    if (!id) {
       return NextResponse.json(
-        { message: "report is not found" },
-        { status: 400 }
-      );
-    }
-    if (!title || !description || !status || !generatedDate) {
-      return NextResponse.json(
-        { message: "Report title or description or status not found" },
-        { status: 400 }
-      );
-    }
-
-    if (!Types.ObjectId.isValid(reportId)) {
-      return NextResponse.json(
-        { message: "Invalid reportId" },
+        { message: "Report ID is required" },
         { status: 400 }
       );
     }
 
     await connect();
-    const updatedAdmin = await Report.findByIdAndUpdate(
-      reportId,
-      {
-        title: title,
-        description: description,
-        generatedDate: generatedDate,
-        status: status,
-      },
-      { new: true }
-    );
+    const updated = await ReportInSession.findByIdAndUpdate(id, updateData, {
+      new: true,
+    }).lean();
 
-    return NextResponse.json(
-      { message: "Report updated successfully", Admin: updatedAdmin },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    return NextResponse.json(
-      { message: "Error in updating Report", error: error.message },
-      { status: 500 }
-    );
-  }
-};
-
-export const DELETE = async (req: NextRequest) => {
-  try {
-    const { searchParams } = new URL(req.url);
-    const reportId = searchParams.get("reportId");
-    if (!reportId) {
+    if (!updated) {
       return NextResponse.json(
-        { message: "ReportId is not found" },
-        { status: 400 }
-      );
-    }
-    if (!Types.ObjectId.isValid(reportId)) {
-      return NextResponse.json(
-        { message: "Invalid ReportId" },
-        { status: 400 }
-      );
-    }
-
-    await connect();
-    const deletedReport = await Report.findByIdAndDelete(
-      new Types.ObjectId(reportId)
-    );
-
-    if (!deletedReport) {
-      return NextResponse.json(
-        { message: "Report not found in the database" },
+        { message: "Report not found" },
         { status: 404 }
       );
     }
+
     return NextResponse.json(
-      { message: "Report deleted successfully", Report: deletedReport },
+      { message: "Report updated successfully", report: updated },
       { status: 200 }
     );
   } catch (error: any) {
     return NextResponse.json(
-      { message: "Error in deleting Report", error: error.message },
+      { message: "Error updating report", error: error.message },
       { status: 500 }
     );
   }
-};
+}
+
+// DELETE /api/report?id=<reportId>
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json(
+        { message: "Report ID is required" },
+        { status: 400 }
+      );
+    }
+
+    await connect();
+    const deleted = await ReportInSession.findByIdAndDelete(id).lean();
+    if (!deleted) {
+      return NextResponse.json(
+        { message: "Report not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Report deleted successfully", report: deleted },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    return NextResponse.json(
+      { message: "Error deleting report", error: error.message },
+      { status: 500 }
+    );
+  }
+}

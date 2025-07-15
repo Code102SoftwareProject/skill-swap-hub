@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
-import { debounce } from "lodash-es";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import { processAvatarUrl } from "@/utils/avatarUtils";
-
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { debounce } from 'lodash-es';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+//import { processAvatarUrl } from '@/utils/avatarUtils';
+import { processAvatarUrl } from '@/utils/imageUtils';
+import Image from 'next/image';
 // Types
 interface User {
   _id: string;
@@ -235,9 +236,11 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
   };
   const avatarSrc = processAvatarUrl(user.avatar) || "/default-avatar.png";
   return user.avatar ? (
-    <img
+    <Image
       src={avatarSrc}
       alt={`${user.firstName} ${user.lastName}'s avatar`}
+      width={100} // This is fine; acts as a fallback size
+      height={100}
       className={`rounded-full object-cover border ${sizeClasses[size]}`}
     />
   ) : (
@@ -248,6 +251,7 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
     </div>
   );
 };
+
 
 const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   onClick,

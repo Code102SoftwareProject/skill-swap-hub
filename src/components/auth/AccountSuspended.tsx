@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { SuspendedAlert } from "@/components/ui/SuspendedAlert";
+
 import {
   Card,
   CardContent,
@@ -101,17 +101,7 @@ export default function AccountSuspended() {
           </p>
         </div>
 
-        {/* Main Alert */}
-        <div className="mb-8">
-          <SuspendedAlert
-            reason={suspensionData?.reason}
-            notes={suspensionData?.notes}
-            suspensionDate={suspensionData?.suspensionDate}
-            showContactButton={true}
-            variant="default"
-            className="shadow-lg"
-          />
-        </div>
+       
 
         {/* Additional Information */}
         <Card className="mb-8">
