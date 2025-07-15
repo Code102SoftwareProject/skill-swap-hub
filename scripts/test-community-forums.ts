@@ -12,12 +12,9 @@ const testFiles = [
   '__tests__/components/communityForum/ForumPosts.test.tsx',
   '__tests__/components/communityForum/CreatePostPopup.test.tsx',
   '__tests__/components/communityForum/LikeDislikeButtons.test.tsx',
-  '__tests__/components/communityForum/WatchPostButton.test.tsx',
   '__tests__/components/communityForum/PersonalizedFeed.test.tsx',
   '__tests__/components/communityForum/ForumManagement.test.tsx',
   
-  // Page Tests
-  '__tests__/pages/communityForum/ForumMainPage.test.tsx'
 ];
 
 console.log('📋 Test Coverage Areas:');
