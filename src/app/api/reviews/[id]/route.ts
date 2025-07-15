@@ -14,7 +14,7 @@ export async function GET(
     await connect();
 
     // Fix: Destructure params after awaiting
-    const { id: userId } = await params;
+    const { id: userId } =  params;
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
       return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
