@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "dev:no-turbo": "next dev",
     "dev:socket": "NODE_OPTIONS='--loader ts-node/esm  --trace-warnings --no-warnings' ts-node server.mts",
+    "postinstall": "cd documentation && npm install",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
