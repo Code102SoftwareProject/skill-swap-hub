@@ -3,6 +3,9 @@ import connect from "@/lib/db";
 import meetingSchema from "@/lib/models/meetingSchema";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
 
+// Import notification helper function
+const { sendMeetingCancelledNotification } = require('@/utils/meetingNotifications');
+
 export async function POST(req: Request) {
   await connect();
   
@@ -53,32 +56,12 @@ export async function POST(req: Request) {
         ? meeting.receiverId.toString() 
         : meeting.senderId.toString();
 
-      // Get canceller's name for notification
-      const cancellerResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/users/profile?id=${cancelledBy}`);
-      const cancellerData = await cancellerResponse.json();
-      const cancellerName = cancellerData.success 
-        ? `${cancellerData.user.firstName} ${cancellerData.user.lastName}`
-        : 'Someone';
-
-      // Format meeting time for notification
-      const meetingDate = new Date(meeting.meetingTime);
-      const formattedDate = meetingDate.toLocaleDateString();
-      const formattedTime = meetingDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-      const notificationDescription = `${cancellerName} cancelled your meeting scheduled for ${formattedDate} at ${formattedTime}. Reason: ${reason.trim()}`;
-
-      // Send notification
-      await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/api/notification`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: otherUserId,
-          typeno: 4, // Assuming 4 is for meeting cancellation notifications
-          description: notificationDescription,
-          targetDestination: `/messages`, // Or wherever meetings are managed
-          broadcast: false
-        }),
-      });
+      // Send cancellation notification using our new notification system
+      await sendMeetingCancelledNotification(
+        otherUserId,
+        cancelledBy,
+        reason.trim()
+      );
 
       console.log('Cancellation notification sent successfully');
     } catch (notificationError) {

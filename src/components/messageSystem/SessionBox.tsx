@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye, ChevronDown, ChevronRight, AlertCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
@@ -11,63 +11,20 @@ import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { processAvatarUrl } from '@/utils/avatarUtils';
 
-interface UserProfile {
-  _id: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  email?: string;
-  avatar?: string;
-  title?: string;
-}
-
-interface Session {
-  _id: string;
-  user1Id: UserProfile;
-  user2Id: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  isAccepted: boolean | null;
-  isAmmended: boolean;
-  status: "active" | "completed" | "canceled" | "pending" | "rejected";
-  createdAt: string;
-  progress1?: any;
-  progress2?: any;
-  completionRequestedBy?: any;
-  completionRequestedAt?: string;
-  completionApprovedBy?: any;
-  completionApprovedAt?: string;
-  completionRejectedBy?: any;
-  completionRejectedAt?: string;
-  completionRejectionReason?: string;
-  rejectedBy?: UserProfile;
-  rejectedAt?: string;
-}
-
-interface CounterOffer {
-  _id: string;
-  originalSessionId: string;
-  counterOfferedBy: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  counterOfferMessage: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  createdAt: string;
-}
+// Type imports
+import type { 
+  Session, 
+  CounterOffer, 
+  UserProfile, 
+  AlertState, 
+  ConfirmationState 
+} from '@/types';
 
 interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
   onSessionUpdate?: () => void; // Callback to notify parent about session changes
-  // Remove otherUserName since we'll fetch it
 }
 
 export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionUpdate }: SessionBoxProps) {
@@ -91,37 +48,25 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
   const [rating, setRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [showCancelledSessions, setShowCancelledSessions] = useState(false);
+  const [pendingSessionCount, setPendingSessionCount] = useState(0);
+  const [activeSessionCount, setActiveSessionCount] = useState(0);
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [showActiveCounterOffers, setShowActiveCounterOffers] = useState<{[sessionId: string]: boolean}>({});
 
   // Alert and confirmation states
-  const [alert, setAlert] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({
+  const [alert, setAlert] = useState<AlertState>({
     isOpen: false,
     type: 'info',
     message: ''
   });
 
-  const [confirmation, setConfirmation] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type?: 'danger' | 'warning' | 'info' | 'success';
-    onConfirm: () => void;
-    confirmText?: string;
-    loading?: boolean;
-  }>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     isOpen: false,
     title: '',
     message: '',
     onConfirm: () => {}
   });
-
-  useEffect(() => {
-    fetchSessions();
-  }, [userId]);
 
   // Fetch other user's information
   useEffect(() => {
@@ -231,7 +176,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async () => {
     try {
       const response = await fetch(`/api/session/between-users?user1Id=${userId}&user2Id=${otherUserId}`);
       const data = await response.json();
@@ -239,6 +184,20 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
       if (data.success) {
         console.log('Fetched sessions:', data.sessions);
         setSessions(data.sessions);
+        
+        // Calculate pending session count (sessions created by current user that are still pending)
+        const pendingCount = data.sessions.filter((session: Session) => 
+          session.user1Id._id === userId && 
+          session.status === 'pending' && 
+          session.isAccepted === null
+        ).length;
+        setPendingSessionCount(pendingCount);
+        
+        // Calculate total active session count (pending + accepted) between both users
+        const activeCount = data.sessions.filter((session: Session) => 
+          session.status === 'pending' || session.status === 'active'
+        ).length;
+        setActiveSessionCount(activeCount);
         
         // Fetch counter offers for each session
         await fetchCounterOffers(data.sessions);
@@ -253,7 +212,11 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, otherUserId, onSessionUpdate]);
+
+  useEffect(() => {
+    fetchSessions();
+  }, [userId, fetchSessions]);
 
   const fetchCounterOffers = async (sessionList: Session[]) => {
     try {
@@ -580,6 +543,35 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     });
   };
 
+  const toggleSessionExpansion = (sessionId: string) => {
+    setExpandedSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId);
+      } else {
+        newSet.add(sessionId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleActiveCounterOffers = (sessionId: string) => {
+    setShowActiveCounterOffers(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+  };
+
+  const getActiveCounterOffersCount = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.filter(co => co.status === 'accepted').length;
+  };
+
+  const getPendingCounterOffersCount = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.filter(co => co.status === 'pending').length;
+  };
+
   const getSessionStatus = (session: Session) => {
     // The API should provide correct status, but add fallback logic
     if (session.status === 'completed') return 'completed';
@@ -634,6 +626,473 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     return isCurrentUserCreator(session) && session.isAccepted === null;
   };
 
+  const renderSessionCard = (session: Session) => {
+    const status = getSessionStatus(session);
+    const isReceiver = isCurrentUserReceiver(session);
+    const isExpanded = expandedSessions.has(session._id);
+    const pendingCounterOffers = getPendingCounterOffersCount(session._id);
+    const activeCounterOffers = getActiveCounterOffersCount(session._id);
+    const hasCounterOffers = counterOffers[session._id] && counterOffers[session._id].length > 0;
+    
+    return (
+      <div key={session._id} className="bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow">
+        {/* Session Header - Always Visible */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(status)}`}>
+                {getStatusIcon(status)}
+                <span className="capitalize">{status === 'completed' ? 'Completed' : status}</span>
+              </span>
+              
+              {/* Status Indicators */}
+              {isReceiver && status === 'pending' && (
+                <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full border border-blue-200">
+                  Request for you
+                </span>
+              )}
+              {isCurrentUserCreator(session) && status === 'pending' && (
+                <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full border border-purple-200">
+                  Your request
+                </span>
+              )}
+              
+              {/* Counter Offer Indicators */}
+              {pendingCounterOffers > 0 && (
+                <span className="text-xs text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded-full border border-orange-200 flex items-center space-x-1">
+                  <AlertCircle className="h-3 w-3" />
+                  <span>{pendingCounterOffers} pending counter{pendingCounterOffers > 1 ? 's' : ''}</span>
+                </span>
+              )}
+              
+              {activeCounterOffers > 0 && status === 'accepted' && (
+                <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full border border-green-200">
+                  {activeCounterOffers} active counter{activeCounterOffers > 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+            
+            <button
+              onClick={() => toggleSessionExpansion(session._id)}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <div className="text-xs text-gray-500">
+                {formatDate(session.startDate)}
+              </div>
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          </div>
+          
+          {/* Compact Skills Preview */}
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span className="font-medium text-blue-900">
+                {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
+              </span>
+              <span className="text-gray-500">by</span>
+              <span className="text-gray-700">
+                {session.user1Id._id === userId ? 'You' : 
+                  (session.user1Id.firstName && session.user1Id.lastName ? 
+                    `${session.user1Id.firstName} ${session.user1Id.lastName}` : 
+                    session.user1Id.name || 'Unknown User')}
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span className="font-medium text-green-900">
+                {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
+              </span>
+              <span className="text-gray-500">by</span>
+              <span className="text-gray-700">
+                {session.user2Id._id === userId ? 'You' : 
+                  (session.user2Id.firstName && session.user2Id.lastName ? 
+                    `${session.user2Id.firstName} ${session.user2Id.lastName}` : 
+                    session.user2Id.name || 'Unknown User')}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Expanded Content */}
+        {isExpanded && (
+          <div className="p-4 space-y-4">
+            {/* Detailed Skills Information */}
+            <div className="space-y-4">
+              {/* What they offer */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-blue-600" />
+                  <h4 className="font-medium text-gray-900">
+                    {session.user1Id._id === userId ? 'You offer:' : 
+                      `${session.user1Id.firstName && session.user1Id.lastName ? 
+                        `${session.user1Id.firstName} ${session.user1Id.lastName}` : 
+                        session.user1Id.name || 'Unknown User'} offers:`}
+                  </h4>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-semibold text-blue-900 text-lg">
+                      {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {session.skill1Id?.proficiencyLevel && (
+                      <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
+                        {session.skill1Id.proficiencyLevel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-blue-700 mt-2">
+                    <span className="font-medium">Description:</span> {session.descriptionOfService1}
+                  </p>
+                </div>
+              </div>
+
+              {/* What they want */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="h-4 w-4 text-green-600" />
+                  <h4 className="font-medium text-gray-900">
+                    {session.user2Id._id === userId ? 'You provide:' : 
+                      `${session.user2Id.firstName && session.user2Id.lastName ? 
+                        `${session.user2Id.firstName} ${session.user2Id.lastName}` : 
+                        session.user2Id.name || 'Unknown User'} provides:`}
+                  </h4>
+                </div>
+                <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+                  <div className="flex items-center justify-between">
+                    <h5 className="font-semibold text-green-900 text-lg">
+                      {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {session.skill2Id?.proficiencyLevel && (
+                      <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
+                        {session.skill2Id.proficiencyLevel}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-green-700 mt-2">
+                    <span className="font-medium">Description:</span> {session.descriptionOfService2}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-100">
+              {/* Show only View button for completed sessions */}
+              {status === 'completed' ? (
+                <button
+                  onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                >
+                  <Eye className="h-4 w-4" />
+                  <span>View Completed Session</span>
+                </button>
+              ) : (
+                <>
+                  {/* Buttons for Session Receiver */}
+                  {canRespond(session) && (
+                    <>
+                      <button
+                        onClick={() => handleAcceptReject(session._id, 'accept')}
+                        disabled={processingSession === session._id}
+                        className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        <span>Accept</span>
+                      </button>
+                      <button
+                        onClick={() => handleCounterOffer(session._id)}
+                        disabled={processingSession === session._id}
+                        className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Counter Offer</span>
+                      </button>
+                      <button
+                        onClick={() => handleAcceptReject(session._id, 'reject')}
+                        disabled={processingSession === session._id}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <XCircle className="h-4 w-4" />
+                        <span>Reject</span>
+                      </button>
+                    </>
+                  )}
+
+                  {/* Buttons for Session Creator */}
+                  {canEditOrDelete(session) && (
+                    <>
+                      <button
+                        onClick={() => handleEditSession(session._id)}
+                        disabled={processingSession === session._id}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSession(session._id)}
+                        disabled={processingSession === session._id}
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
+
+                  {/* View Button for Active Sessions */}
+                  {session.isAccepted === true && (
+                    <button
+                      onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
+                      className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      <span>View Session</span>
+                    </button>
+                  )}
+
+                  {/* Session Completion Buttons */}
+                  {session.isAccepted === true && session.status !== 'completed' && (
+                    <>
+                      {session.completionRequestedBy ? (
+                        <>
+                          {(session.completionRequestedBy._id === userId || session.completionRequestedBy === userId) ? (
+                            <span className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                              Completion requested - waiting for approval
+                            </span>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => handleCompletionResponse(session._id, 'approve')}
+                                disabled={processingSession === session._id}
+                                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                <span>Approve Completion</span>
+                              </button>
+                              <button
+                                onClick={() => handleCompletionResponse(session._id, 'reject')}
+                                disabled={processingSession === session._id}
+                                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                              >
+                                <XCircle className="h-4 w-4" />
+                                <span>Reject</span>
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : session.completionRejectedBy ? (
+                        <button
+                          onClick={() => handleRequestCompletion(session._id)}
+                          disabled={processingSession === session._id}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Request Completion Again</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRequestCompletion(session._id)}
+                          disabled={processingSession === session._id}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Request Completion</span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Session Progress Info for Active/Completed Sessions */}
+            {session.isAccepted === true && (
+              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {session.status === 'completed' ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <p className="text-sm font-semibold text-green-800">
+                        Session Successfully Completed! 🎉
+                      </p>
+                    </div>
+                    <p className="text-xs text-green-700">
+                      Both participants have completed their skill exchange. You can view the session details, submitted work, and reviews.
+                    </p>
+                  </div>
+                ) : session.completionRequestedBy ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-blue-600">
+                      🔄 Completion request pending approval
+                    </p>
+                    {session.completionRequestedBy._id === userId || session.completionRequestedBy === userId ? (
+                      <p className="text-xs text-gray-600">
+                        You requested completion on {formatDate(session.completionRequestedAt || '')}. Waiting for {getUserDisplayName(otherUser)} to approve.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-600">
+                        {getUserDisplayName(otherUser)} requested completion on {formatDate(session.completionRequestedAt || '')}. Please review above.
+                      </p>
+                    )}
+                  </div>
+                ) : session.completionRejectedBy ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-red-600">
+                      ❌ Completion request was declined
+                    </p>
+                    <p className="text-xs text-gray-600">
+                      Declined on {formatDate(session.completionRejectedAt || '')}.
+                    </p>
+                    {session.completionRejectionReason && (
+                      <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                        <span className="font-medium text-red-800">Reason:</span> {session.completionRejectionReason}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-600">
+                    🎉 Session accepted! Progress tracking has been created for both participants.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Counter Offers Section */}
+            {hasCounterOffers && (
+              <div className="space-y-3">
+                {/* Pending Counter Offers */}
+                {counterOffers[session._id].filter(co => co.status === 'pending').length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-900 mb-3 flex items-center space-x-2">
+                      <AlertCircle className="h-4 w-4 text-orange-600" />
+                      <span>Pending Counter Offers ({counterOffers[session._id].filter(co => co.status === 'pending').length})</span>
+                    </h4>
+                    <div className="space-y-3">
+                      {counterOffers[session._id].filter(co => co.status === 'pending').map((counterOffer) => renderCounterOffer(counterOffer))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Counter Offers - Collapsible */}
+                {activeCounterOffers > 0 && (
+                  <div>
+                    <button
+                      onClick={() => toggleActiveCounterOffers(session._id)}
+                      className="flex items-center justify-between w-full p-3 bg-green-50 hover:bg-green-100 rounded-lg transition-colors border border-green-200"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <span className="text-sm font-medium text-green-700">
+                          Accepted Counter Offers ({activeCounterOffers})
+                        </span>
+                      </div>
+                      {showActiveCounterOffers[session._id] ? 
+                        <ChevronDown className="h-4 w-4 text-green-600" /> : 
+                        <ChevronRight className="h-4 w-4 text-green-600" />
+                      }
+                    </button>
+
+                    {showActiveCounterOffers[session._id] && (
+                      <div className="mt-3 space-y-3">
+                        {counterOffers[session._id].filter(co => co.status === 'accepted').map((counterOffer) => renderCounterOffer(counterOffer))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderCounterOffer = (counterOffer: CounterOffer) => {
+    return (
+      <div key={counterOffer._id} className={`border rounded-lg p-4 ${
+        counterOffer.status === 'pending' ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'
+      }`}>
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex items-center space-x-2">
+            <span className={`text-sm font-medium ${
+              counterOffer.status === 'pending' ? 'text-orange-900' : 'text-green-900'
+            }`}>
+              Counter offer by {getCounterOfferUserName(counterOffer.counterOfferedBy)}
+            </span>
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              counterOffer.status === 'pending' 
+                ? 'bg-orange-200 text-orange-800' 
+                : 'bg-green-200 text-green-800'
+            }`}>
+              {counterOffer.status}
+            </span>
+          </div>
+          <div className="text-xs text-gray-500">
+            {formatDate(counterOffer.createdAt)}
+          </div>
+        </div>
+        
+        <p className={`text-sm mb-3 italic ${
+          counterOffer.status === 'pending' ? 'text-orange-800' : 'text-green-800'
+        }`}>
+          "{counterOffer.counterOfferMessage}"
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          <div className="bg-white p-3 rounded border">
+            <div className="text-xs font-medium text-gray-600 mb-1">Offered Skill:</div>
+            <div className="text-sm font-semibold text-blue-900">
+              {counterOffer.skill1Id?.skillTitle || counterOffer.skill1Id?.skillName || 'Skill not available'}
+            </div>
+            <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService1}</div>
+          </div>
+          <div className="bg-white p-3 rounded border">
+            <div className="text-xs font-medium text-gray-600 mb-1">Requested Skill:</div>
+            <div className="text-sm font-semibold text-green-900">
+              {counterOffer.skill2Id?.skillTitle || counterOffer.skill2Id?.skillName || 'Skill not available'}
+            </div>
+            <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService2}</div>
+          </div>
+        </div>
+        
+        <div className="text-xs text-gray-600 mb-3">
+          <div>Proposed date: {formatDate(counterOffer.startDate)}</div>
+          {counterOffer.expectedEndDate && (
+            <div>Expected end: {formatDate(counterOffer.expectedEndDate)}</div>
+          )}
+        </div>
+        
+        {/* Counter Offer Actions */}
+        {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id !== userId && (
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => handleCounterOfferResponse(counterOffer._id, 'accept')}
+              disabled={processingSession === counterOffer._id}
+              className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors text-sm"
+            >
+              Accept Counter Offer
+            </button>
+            <button
+              onClick={() => handleCounterOfferResponse(counterOffer._id, 'reject')}
+              disabled={processingSession === counterOffer._id}
+              className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors text-sm"
+            >
+              Reject Counter Offer
+            </button>
+          </div>
+        )}
+        
+        {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id === userId && (
+          <div className="text-sm text-orange-700">
+            Waiting for response...
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (loading || userLoading) {
     return (
       <div className="p-6 text-center">
@@ -681,10 +1140,21 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={activeSessionCount >= 3}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            activeSessionCount >= 3 
+              ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+          title={activeSessionCount >= 3 ? 'Maximum 3 active sessions allowed between you and this user' : 'Create new session request'}
         >
           <Plus className="h-4 w-4" />
           <span>New Session</span>
+          {activeSessionCount > 0 && (
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {activeSessionCount}/3
+            </span>
+          )}
         </button>
       </div>
 
@@ -695,413 +1165,177 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
             <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Yet</h3>
             <p className="text-gray-600 mb-4">
-              Start your first skill swap session with {otherUserName}
+              Start your first skill swap session with {getUserDisplayName(otherUser)}
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={activeSessionCount >= 3}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                activeSessionCount >= 3 
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title={activeSessionCount >= 3 ? 'Maximum 3 active sessions allowed between you and this user' : 'Create your first session'}
             >
               Create Session
+              {activeSessionCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {activeSessionCount}/3
+                </span>
+              )}
             </button>
           </div>
         ) : (
-          sessions.map((session) => {
+          <>
+            {/* Group sessions by status for better organization */}
+            {(() => {
+              const activeSessions = sessions.filter(session => {
+                const status = getSessionStatus(session);
+                return status !== 'canceled' && status !== 'rejected';
+              });
+
+              const pendingSessions = activeSessions.filter(session => getSessionStatus(session) === 'pending');
+              const acceptedSessions = activeSessions.filter(session => getSessionStatus(session) === 'accepted');
+              const completedSessions = activeSessions.filter(session => getSessionStatus(session) === 'completed');
+
+              return (
+                <div className="space-y-6">
+                  {/* Pending Sessions */}
+                  {pendingSessions.length > 0 && (
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <Clock className="h-5 w-5 text-yellow-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Pending Requests ({pendingSessions.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        {pendingSessions.map((session) => renderSessionCard(session))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active Sessions */}
+                  {acceptedSessions.length > 0 && (
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Active Sessions ({acceptedSessions.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        {acceptedSessions.map((session) => renderSessionCard(session))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Completed Sessions */}
+                  {completedSessions.length > 0 && (
+                    <div>
+                      <div className="flex items-center space-x-2 mb-4">
+                        <CheckCircle className="h-5 w-5 text-blue-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          Completed Sessions ({completedSessions.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-3">
+                        {completedSessions.map((session) => renderSessionCard(session))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Cancelled/Rejected Sessions Section */}
+          {sessions.filter(session => {
             const status = getSessionStatus(session);
-            const isReceiver = isCurrentUserReceiver(session);
-            
-            return (
-              <div key={session._id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                {/* Session Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                      {getStatusIcon(status)}
-                      <span className="capitalize">{status === 'completed' ? 'Completed' : status}</span>
-                    </span>
-                    {status === 'completed' && (
-                      <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Session Finished</span>
-                      </span>
-                    )}
-                    {status === 'accepted' && (
-                      <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Active Session</span>
-                      </span>
-                    )}
-                    {status === 'rejected' && (
-                      <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <XCircle className="h-3 w-3" />
-                        <span>
-                          {session.rejectedBy ? 
-                            // Check if rejectedBy is a populated object or just an ID
-                            (typeof session.rejectedBy === 'object' && session.rejectedBy !== null && '_id' in session.rejectedBy) ?
-                              `Rejected by ${session.rejectedBy._id === userId ? 'you' : 
-                              (session.rejectedBy.firstName && session.rejectedBy.lastName 
-                                ? `${session.rejectedBy.firstName} ${session.rejectedBy.lastName}`
-                                : session.rejectedBy.name || 'other user')}` 
-                            : 'Rejected by other user'
-                          : 'Rejected'}
-                          {session.rejectedAt && ` on ${formatDate(session.rejectedAt)}`}
-                        </span>
-                      </span>
-                    )}
-                    {isReceiver && status === 'pending' && (
-                      <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-                        Request for you
-                      </span>
-                    )}
-                    {isCurrentUserCreator(session) && status === 'pending' && (
-                      <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full">
-                        Your request
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(session.startDate)}</span>
-                    </div>
+            return status === 'canceled' || status === 'rejected';
+          }).length > 0 && (
+            <div className="border-t border-gray-200 pt-4 mt-6">
+              <button
+                onClick={() => setShowCancelledSessions(!showCancelledSessions)}
+                className="flex items-center justify-between w-full p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="flex items-center space-x-2">
+                  <XCircle className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    Cancelled & Rejected Sessions ({sessions.filter(session => {
+                      const status = getSessionStatus(session);
+                      return status === 'canceled' || status === 'rejected';
+                    }).length})
+                  </span>
+                </div>
+                <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${
+                  showCancelledSessions ? 'rotate-180' : ''
+                }`} />
+              </button>
+
+              {showCancelledSessions && (
+                <div className="mt-3 space-y-3">
+                  {sessions.filter(session => {
+                    const status = getSessionStatus(session);
+                    return status === 'canceled' || status === 'rejected';
+                  }).map((session) => {
+                    const status = getSessionStatus(session);
                     
-                    {/* Inline Action Buttons */}
-                    <div className="flex items-center space-x-1">
-                      {/* Show only View button for completed sessions */}
-                      {status === 'completed' ? (
-                        <button
-                          onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
-                          className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors flex items-center space-x-1"
-                        >
-                          <Eye className="h-3 w-3" />
-                          <span>View Completed</span>
-                        </button>
-                      ) : (
-                        <>
-                          {/* Buttons for Session Receiver */}
-                          {canRespond(session) && (
-                            <>
-                              <button
-                                onClick={() => handleAcceptReject(session._id, 'accept')}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                onClick={() => handleCounterOffer(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Edit className="h-3 w-3" />
-                                <span>Counter</span>
-                              </button>
-                              <button
-                                onClick={() => handleAcceptReject(session._id, 'reject')}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-
-                          {/* Buttons for Session Creator */}
-                          {canEditOrDelete(session) && (
-                            <>
-                              <button
-                                onClick={() => handleEditSession(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Edit className="h-3 w-3" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSession(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                <span>Delete</span>
-                              </button>
-                            </>
-                          )}
-
-                          {/* View Button for Active Sessions */}
-                          {session.isAccepted === true && (
-                            <button
-                              onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
-                              className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors flex items-center space-x-1"
-                            >
-                              <Eye className="h-3 w-3" />
-                              <span>View</span>
-                            </button>
-                          )}
-
-                          {/* Session Completion Buttons */}
-                          {session.isAccepted === true && session.status !== 'completed' && (
-                            <>
-                              {session.completionRequestedBy ? (
-                                <>
-                                  {(session.completionRequestedBy._id === userId || session.completionRequestedBy === userId) ? (
-                                    /* User requested completion - waiting for approval */
-                                    <span className="text-xs text-yellow-600 font-medium bg-yellow-50 px-2 py-1 rounded-full">
-                                      Completion Requested
-                                    </span>
-                                  ) : (
-                                    /* Other user requested completion - needs approval */
-                                    <>
-                                      <button
-                                        onClick={() => handleCompletionResponse(session._id, 'approve')}
-                                        disabled={processingSession === session._id}
-                                        className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                      >
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span>Approve</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleCompletionResponse(session._id, 'reject')}
-                                        disabled={processingSession === session._id}
-                                        className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                      >
-                                        <XCircle className="h-3 w-3" />
-                                        <span>Decline</span>
-                                      </button>
-                                    </>
-                                  )}
-                                </>
-                              ) : session.completionRejectedBy ? (
-                                /* Completion was rejected */
-                                <button
-                                  onClick={() => handleRequestCompletion(session._id)}
-                                  disabled={processingSession === session._id}
-                                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                >
-                                  <CheckCircle className="h-3 w-3" />
-                                  <span>Request Completion</span>
-                                </button>
-                              ) : (
-                                /* No completion request yet */
-                                <button
-                                  onClick={() => handleRequestCompletion(session._id)}
-                                  disabled={processingSession === session._id}
-                                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                >
-                                  <CheckCircle className="h-3 w-3" />
-                                  <span>Mark Complete</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Session Content */}
-                <div className="space-y-4">
-                  {/* What they offer */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">
-                        {session.user1Id._id === userId ? 'You offer:' : 
-                          (session.user1Id.firstName && session.user1Id.lastName ? 
-                            `${session.user1Id.firstName} ${session.user1Id.lastName} offers:` : 
-                            `${session.user1Id.name || 'Unknown User'} offers:`)}
-                      </h4>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-                      <div className="flex items-center justify-between">
-                        <h5 className="font-semibold text-blue-900 text-lg">
-                          {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
-                        </h5>
-                        {session.skill1Id?.proficiencyLevel && (
-                          <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
-                            {session.skill1Id.proficiencyLevel}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-blue-700 mt-2">
-                        <span className="font-medium">Description:</span> {session.descriptionOfService1}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* What they want */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <BookOpen className="h-4 w-4 text-green-600" />
-                      <h4 className="font-medium text-gray-900">
-                        {session.user2Id._id === userId ? 'You provide:' : 
-                          (session.user2Id.firstName && session.user2Id.lastName ? 
-                            `${session.user2Id.firstName} ${session.user2Id.lastName} provides:` : 
-                            `${session.user2Id.name || 'Unknown User'} provides:`)}
-                      </h4>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
-                      <div className="flex items-center justify-between">
-                        <h5 className="font-semibold text-green-900 text-lg">
-                          {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
-                        </h5>
-                        {session.skill2Id?.proficiencyLevel && (
-                          <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
-                            {session.skill2Id.proficiencyLevel}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-green-700 mt-2">
-                        <span className="font-medium">Description:</span> {session.descriptionOfService2}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Session Progress Info for Active/Completed Sessions */}
-                {session.isAccepted === true && (
-                  <div className="mt-4 pt-4 border-t bg-gray-50 p-3 rounded-lg">
-                    {session.status === 'completed' ? (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <p className="text-sm font-semibold text-green-800">
-                            Session Successfully Completed! 🎉
-                          </p>
+                    return (
+                      <div key={`cancelled-${session._id}`} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        {/* Cancelled Session Header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${
+                              status === 'canceled' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
+                            }`}>
+                              <XCircle className="h-3 w-3" />
+                              <span className="capitalize">{status}</span>
+                            </span>
+                            {status === 'rejected' && session.rejectedBy && (
+                              <span className="text-xs text-gray-600">
+                                by {session.rejectedBy._id === userId ? 'you' : 
+                                (typeof session.rejectedBy === 'object' && session.rejectedBy.firstName && session.rejectedBy.lastName 
+                                  ? `${session.rejectedBy.firstName} ${session.rejectedBy.lastName}`
+                                  : 'other user')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {status === 'rejected' && session.rejectedAt ? formatDate(session.rejectedAt) :
+                             formatDate(session.createdAt || new Date().toISOString())}
+                          </div>
                         </div>
-                        <p className="text-xs text-green-700">
-                          Both participants have completed their skill exchange. You can view the session details, submitted work, and reviews.
-                        </p>
-                      </div>
-                    ) : session.completionRequestedBy ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-blue-600">
-                          🔄 Completion request pending approval
-                        </p>
-                        {session.completionRequestedBy._id === userId || session.completionRequestedBy === userId ? (
-                          <p className="text-xs text-gray-600">
-                            You requested completion on {formatDate(session.completionRequestedAt || '')}. Waiting for {otherUserName} to approve.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-gray-600">
-                            {otherUserName} requested completion on {formatDate(session.completionRequestedAt || '')}. Please review above.
-                          </p>
-                        )}
-                      </div>
-                    ) : session.completionRejectedBy ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-red-600">
-                          ❌ Completion request was declined
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Declined on {formatDate(session.completionRejectedAt || '')}.
-                        </p>
+
+                        {/* Session Skills Summary */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                          <div className="bg-white p-3 rounded border">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Offered:</div>
+                            <div className="text-sm font-semibold text-blue-900">
+                              {session.skill1Id?.skillTitle || session.skill1Id?.title || 'Skill not available'}
+                            </div>
+                          </div>
+                          <div className="bg-white p-3 rounded border">
+                            <div className="text-xs font-medium text-gray-600 mb-1">Requested:</div>
+                            <div className="text-sm font-semibold text-green-900">
+                              {session.skill2Id?.skillTitle || session.skill2Id?.title || 'Skill not available'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Cancellation/Rejection Reason if available */}
                         {session.completionRejectionReason && (
-                          <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
-                            <span className="font-medium text-red-800">Reason:</span> {session.completionRejectionReason}
+                          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-800">
+                            <span className="font-medium">Reason:</span> {session.completionRejectionReason}
                           </div>
                         )}
                       </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">
-                        🎉 Session accepted! Progress tracking has been created for both participants.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Counter Offers Section */}
-                {counterOffers[session._id] && counterOffers[session._id].length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      Counter Offers ({counterOffers[session._id].length})
-                    </h4>
-                    <div className="space-y-3">
-                      {counterOffers[session._id].map((counterOffer) => (
-                        <div key={counterOffer._id} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-orange-900">
-                                Counter offer by {counterOffer.counterOfferedBy._id === userId ? 'You' : (() => {
-                                  console.log('Counter offer user data:', counterOffer.counterOfferedBy);
-                                  return getCounterOfferUserName(counterOffer.counterOfferedBy);
-                                })()}
-                              </span>
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                counterOffer.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                counterOffer.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                {counterOffer.status}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatDate(counterOffer.createdAt)}
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm text-orange-800 mb-3 italic">
-                            "{counterOffer.counterOfferMessage}"
-                          </p>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                            <div className="bg-white p-3 rounded border">
-                              <div className="text-xs font-medium text-gray-600 mb-1">Offers:</div>
-                              <div className="text-sm font-semibold text-blue-900">
-                                {counterOffer.skill1Id?.skillTitle}
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {counterOffer.descriptionOfService1}
-                              </div>
-                            </div>
-                            <div className="bg-white p-3 rounded border">
-                              <div className="text-xs font-medium text-gray-600 mb-1">Wants:</div>
-                              <div className="text-sm font-semibold text-green-900">
-                                {counterOffer.skill2Id?.skillTitle}
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {counterOffer.descriptionOfService2}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="text-xs text-gray-600 mb-3">
-                            Proposed date: {formatDate(counterOffer.startDate)}
-                          </div>
-                          
-                          {/* Counter Offer Actions */}
-                          {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id !== userId && (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleCounterOfferResponse(counterOffer._id, 'accept')}
-                                disabled={processingSession === counterOffer._id}
-                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              >
-                                Accept Counter
-                              </button>
-                              <button
-                                onClick={() => handleCounterOfferResponse(counterOffer._id, 'reject')}
-                                disabled={processingSession === counterOffer._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                              >
-                                Reject Counter
-                              </button>
-                            </div>
-                          )}
-                          
-                          {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id === userId && (
-                            <div className="text-xs text-orange-700">
-                              Waiting for response...
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </>
         )}
       </div>
 
@@ -1116,6 +1350,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
         otherUserId={otherUserId}
         otherUserName={otherUserName}
         chatRoomId={chatRoomId}
+        activeSessionCount={activeSessionCount}
       />
 
       {/* Edit Session Modal */}

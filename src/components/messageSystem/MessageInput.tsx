@@ -80,6 +80,16 @@ export default function MessageInput({
   const uploadFile = async () => {
     if (!file) return;
 
+    // Check file size (25MB = 25 * 1024 * 1024 bytes)
+    const maxFileSize = 25 * 1024 * 1024; // 25MB in bytes
+    if (file.size > maxFileSize) {
+      setError("File size must be less than 25MB. Please choose a smaller file.");
+      setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return;
+    }
+
     setUploading(true);
 
     // ! Form Data for Api call
@@ -97,13 +107,41 @@ export default function MessageInput({
 
       if (response.ok) {
         setFileUrl(result?.url || null);
-        sendMessage(result?.url || "");
+        
+        // Send message with file URL
+        const newMsg = {
+          chatRoomId,
+          senderId,
+          receiverId: chatParticipants.find((id) => id !== senderId),
+          content: `File:${file?.name}:${result?.url || ""}`,
+          sentAt: Date.now(),
+          replyFor: replyingTo?._id || null,
+        };
+
+        // Send via socket immediately
+        socketSendMessage(newMsg);
+
+        // Reset UI immediately
+        setFile(null);
+        setUploading(false);
+
+        // Reset reply if onCancelReply exists
+        if (onCancelReply) {
+          onCancelReply();
+        }
+
+        // Save to database in background
+        try {
+          await sendMessageService(newMsg);
+        } catch (error) {
+          console.error("Error saving file message to database:", error);
+        }
       } else {
         console.error("Upload failed:", result?.message || "Unknown error");
+        setUploading(false);
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-    } finally {
       setUploading(false);
     }
   };
@@ -147,14 +185,10 @@ export default function MessageInput({
       replyFor: replyingTo?._id || null,
     };
 
+    // Send via socket immediately
     socketSendMessage(newMsg);
 
-    try {
-      await sendMessageService(newMsg);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-
+    // Reset UI immediately after socket send
     setMessage("");
     setFile(null);
     setLoading(false);
@@ -162,6 +196,15 @@ export default function MessageInput({
     // Reset reply if onCancelReply exists
     if (onCancelReply) {
       onCancelReply();
+    }
+
+    // Save to database in background (don't block UI)
+    try {
+      await sendMessageService(newMsg);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      // Optional: You could show a retry mechanism or error state here
+      // For now, we'll just log the error since the message was sent via socket
     }
   };
 
@@ -230,8 +273,8 @@ export default function MessageInput({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
+          //aacept="image/*" // Only images
           className="hidden"
-          accept="image/*"
           aria-label="File Input"
         />
         <button

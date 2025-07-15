@@ -87,6 +87,11 @@ const AVAILABLE_PERMISSIONS = [
     description: "Access to reporting and analytics",
   },
   {
+    key: "manage_forum_reports",
+    label: "Manage Forum Reports",
+    description: "Review and moderate forum post reports",
+  },
+  {
     key: "view_dashboard",
     label: "View Dashboard",
     description: "Access to dashboard overview",
@@ -1005,34 +1010,67 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                   Permissions
                 </label>
                 <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <div className="space-y-2">
-                    {AVAILABLE_PERMISSIONS.map((permission) => (
-                      <div key={permission.key} className="flex items-start">
-                        <input
-                          type="checkbox"
-                          id={`create-${permission.key}`}
-                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          checked={createForm.permissions.includes(
-                            permission.key
-                          )}
-                          onChange={() =>
-                            togglePermission(permission.key, true)
-                          }
-                        />
-                        <label
-                          htmlFor={`create-${permission.key}`}
-                          className="ml-2 block text-sm"
+                  {createForm.role === "super_admin" ? (
+                    // Super Admin: Show all permissions as read-only list with checkmarks
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 mb-3 italic">
+                        Super admins have access to all system permissions:
+                      </p>
+                      {AVAILABLE_PERMISSIONS.map((permission) => (
+                        <div
+                          key={permission.key}
+                          className="flex items-start bg-purple-50 p-2 rounded"
                         >
+                          <CheckCircle className="mt-1 h-4 w-4 text-purple-600 flex-shrink-0" />
+                          <div className="ml-2 block text-sm">
+                            <span className="font-medium text-gray-900">
+                              {permission.label}
+                            </span>
+                            <span className="text-gray-500 block text-xs">
+                              {permission.description}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Regular Admin: Show permissions as read-only list (excluding manage_admins)
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 mb-3 italic">
+                        Regular admins have all permissions except admin
+                        management:
+                      </p>
+                      {AVAILABLE_PERMISSIONS.filter(
+                        (p) => p.key !== "manage_admins"
+                      ).map((permission) => (
+                        <div
+                          key={permission.key}
+                          className="flex items-start bg-gray-50 p-2 rounded"
+                        >
+                          <CheckCircle className="mt-1 h-4 w-4 text-green-600 flex-shrink-0" />
+                          <div className="ml-2 block text-sm">
+                            <span className="font-medium text-gray-900">
+                              {permission.label}
+                            </span>
+                            <span className="text-gray-500 block text-xs">
+                              {permission.description}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex items-start bg-red-50 p-2 rounded">
+                        <XCircle className="mt-1 h-4 w-4 text-red-600 flex-shrink-0" />
+                        <div className="ml-2 block text-sm">
                           <span className="font-medium text-gray-900">
-                            {permission.label}
+                            Manage Admins
                           </span>
-                          <span className="text-gray-500 block text-xs">
-                            {permission.description}
+                          <span className="text-red-500 block text-xs">
+                            Not available for regular admins
                           </span>
-                        </label>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1209,32 +1247,67 @@ const AdminManagementContent: React.FC<AdminManagementContentProps> = ({
                   Permissions
                 </label>
                 <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  <div className="space-y-2">
-                    {AVAILABLE_PERMISSIONS.map((permission) => (
-                      <div key={permission.key} className="flex items-start">
-                        <input
-                          type="checkbox"
-                          id={`edit-${permission.key}`}
-                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                          checked={updateForm.permissions?.includes(
-                            permission.key
-                          )}
-                          onChange={() => togglePermission(permission.key)}
-                        />
-                        <label
-                          htmlFor={`edit-${permission.key}`}
-                          className="ml-2 block text-sm"
+                  {updateForm.role === "super_admin" ? (
+                    // Super Admin: Show all permissions as read-only list with checkmarks
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 mb-3 italic">
+                        Super admins have access to all system permissions:
+                      </p>
+                      {AVAILABLE_PERMISSIONS.map((permission) => (
+                        <div
+                          key={permission.key}
+                          className="flex items-start bg-purple-50 p-2 rounded"
                         >
+                          <CheckCircle className="mt-1 h-4 w-4 text-purple-600 flex-shrink-0" />
+                          <div className="ml-2 block text-sm">
+                            <span className="font-medium text-gray-900">
+                              {permission.label}
+                            </span>
+                            <span className="text-gray-500 block text-xs">
+                              {permission.description}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    // Regular Admin: Show permissions as read-only list (excluding manage_admins)
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-600 mb-3 italic">
+                        Regular admins have all permissions except admin
+                        management:
+                      </p>
+                      {AVAILABLE_PERMISSIONS.filter(
+                        (p) => p.key !== "manage_admins"
+                      ).map((permission) => (
+                        <div
+                          key={permission.key}
+                          className="flex items-start bg-gray-50 p-2 rounded"
+                        >
+                          <CheckCircle className="mt-1 h-4 w-4 text-green-600 flex-shrink-0" />
+                          <div className="ml-2 block text-sm">
+                            <span className="font-medium text-gray-900">
+                              {permission.label}
+                            </span>
+                            <span className="text-gray-500 block text-xs">
+                              {permission.description}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex items-start bg-red-50 p-2 rounded">
+                        <XCircle className="mt-1 h-4 w-4 text-red-600 flex-shrink-0" />
+                        <div className="ml-2 block text-sm">
                           <span className="font-medium text-gray-900">
-                            {permission.label}
+                            Manage Admins
                           </span>
-                          <span className="text-gray-500 block text-xs">
-                            {permission.description}
+                          <span className="text-red-500 block text-xs">
+                            Not available for regular admins
                           </span>
-                        </label>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

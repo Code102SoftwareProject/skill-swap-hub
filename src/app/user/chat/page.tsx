@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
 
@@ -13,7 +13,7 @@ import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
 import { ApiOptimizationProvider } from "@/lib/context/ApiOptimizationContext";
-import { fetchChatRoom } from "@/services/chatApiServices";
+import { fetchChatRoom, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
 
 /**
  * * ChatPage Component
@@ -38,6 +38,7 @@ export default function ChatPage() {
   // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
+  const [showSearch, setShowSearch] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [sessionUpdateTrigger, setSessionUpdateTrigger] = useState<number>(0);
 
@@ -61,22 +62,39 @@ export default function ChatPage() {
     if (show) setShowMeetings(false); // Hide meetings when showing sessions
   };
 
+  const toggleSearchDisplay = (show: boolean) => {
+    setShowSearch(show);
+    if (show) {
+      setShowMeetings(false); // Hide meetings when showing search
+      setShowSessions(false); // Hide sessions when showing search
+    }
+  };
+
   const handleSessionUpdate = () => {
     // Trigger re-render for ChatHeader to refresh session status
     setSessionUpdateTrigger(prev => prev + 1);
   };
 
-  const handleMeetingUpdate = () => {
+  const handleMeetingUpdate = useCallback(() => {
     // Trigger re-render for ChatHeader to refresh meeting status
     setSessionUpdateTrigger(prev => prev + 1);
-  };
+  }, []);
 
-  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+  const handleChatSelect = async (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
     setNewMessage(null); // Reset new message state when changing chats
     setSidebarOpen(false); // Close sidebar on mobile when chat is selected
     if (participantInfo) {
       setSelectedParticipantInfo(participantInfo);
+    }
+
+    // Mark messages as read when chat is selected
+    if (userId) {
+      try {
+        await markChatRoomMessagesAsRead(chatRoomId, userId);
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
     }
   };
 
@@ -85,6 +103,7 @@ export default function ChatPage() {
     setSelectedParticipantInfo(null);
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   };
 
   const handleToggleSidebar = () => {
@@ -108,6 +127,7 @@ export default function ChatPage() {
     getChatRoomParticipants();
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   }, [selectedChatRoomId, userId]);
 
   /**
@@ -204,10 +224,12 @@ export default function ChatPage() {
                 userId={userId}
                 onToggleMeetings={toggleMeetingsDisplay}
                 onToggleSessions={toggleSessionsDisplay}
+                onToggleSearch={toggleSearchDisplay}
                 onSessionUpdate={handleSessionUpdate}
                 initialParticipantInfo={selectedParticipantInfo}
                 showingSessions={showSessions}
                 showingMeetings={showMeetings}
+                showingSearch={showSearch}
                 sessionUpdateTrigger={sessionUpdateTrigger}
               />
 
@@ -234,12 +256,14 @@ export default function ChatPage() {
                     newMessage={newMessage}
                     onReplySelect={handleReplySelect}
                     participantInfo={selectedParticipantInfo}
+                    showSearch={showSearch}
+                    onCloseSearch={() => setShowSearch(false)}
                   />
                 )}
               </div>
 
-              {/* * Message input area - only shown when not in meetings/sessions view */}
-              {!showMeetings && !showSessions && (
+              {/* * Message input area - only shown when not in meetings/sessions/search view */}
+              {!showMeetings && !showSessions && !showSearch && (
                 <div className="border-t p-2 bg-white">
                   <MessageInput
                     chatRoomId={selectedChatRoomId}

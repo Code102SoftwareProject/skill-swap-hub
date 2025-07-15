@@ -8,64 +8,42 @@ import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessi
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
-interface Session {
-  _id: string;
-  user1Id: any;
-  user2Id: any;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  isAccepted: boolean;
-  status: string;
-  progress1?: any;
-  progress2?: any;
-  completionApprovedAt?: string;
-  completionRequestedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
+// Type imports
+import type { 
+  Session, 
+  Work, 
+  WorkFile, 
+  SessionProgress, 
+  Review, 
+  CancelRequest, 
+  AlertState, 
+  ConfirmationState, 
+  TabType, 
+  ReviewAction, 
+  CancelResponse, 
+  FileWithTitle 
+} from '@/types';
 
-interface Work {
-  _id: string;
-  session: string;
-  provideUser: any;
-  receiveUser: any;
-  workURL: string;
-  workDescription: string;
-  provideDate: string;
-  acceptanceStatus: 'pending' | 'accepted' | 'rejected';
-  rejectionReason?: string;
-  rating?: number;
-  remark?: string;
-}
-
-interface SessionProgress {
-  _id: string;
-  userId: any; // Can be string or populated user object
-  sessionId: string;
-  startDate: string;
-  dueDate: string;
-  completionPercentage: number;
-  status: 'not_started' | 'in_progress' | 'completed' | 'abandoned';
-  notes: string;
-}
+// Import tab components
+import OverviewTab from '@/components/sessionTabs/OverviewTab';
+import SubmitWorkTab from '@/components/sessionTabs/SubmitWorkTab';
+import ViewWorksTab from '@/components/sessionTabs/ViewWorksTab';
+import ProgressTab from '@/components/sessionTabs/ProgressTab';
+import ReportTab from '@/components/sessionTabs/ReportTab';
 
 export default function SessionWorkspace() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const sessionId = params.sessionId as string;
-  const currentUserId = user?._id;
+  const currentUserId = user?._id
   
   const [session, setSession] = useState<Session | null>(null);
   const [works, setWorks] = useState<Work[]>([]);
   const [myProgress, setMyProgress] = useState<SessionProgress | null>(null);
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report'>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
 
   // Completion status from SessionCompletion API
@@ -80,12 +58,12 @@ export default function SessionWorkspace() {
 
   // Submit work form state
   const [workDescription, setWorkDescription] = useState('');
-  const [workFile, setWorkFile] = useState<File | null>(null);
+  const [workFiles, setWorkFiles] = useState<FileWithTitle[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Work review state
   const [reviewingWork, setReviewingWork] = useState<string | null>(null);
-  const [reviewAction, setReviewAction] = useState<'accept' | 'reject' | null>(null);
+  const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null);
   const [reviewMessage, setReviewMessage] = useState('');
 
   // Progress update state
@@ -111,36 +89,41 @@ export default function SessionWorkspace() {
   const [rejectionReason, setRejectionReason] = useState('');
 
   // Review state
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [userReview, setUserReview] = useState<any>(null);
-  const [receivedReview, setReceivedReview] = useState<any>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [receivedReview, setReceivedReview] = useState<Review | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [loadingReviews, setLoadingReviews] = useState(false);
 
+  // Cancellation state
+  const [cancelRequest, setCancelRequest] = useState<CancelRequest | null>(null);
+  const [loadingCancelRequest, setLoadingCancelRequest] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showCancelResponseModal, setShowCancelResponseModal] = useState(false);
+  const [showCancelFinalizeModal, setShowCancelFinalizeModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelDescription, setCancelDescription] = useState('');
+  const [cancelFiles, setCancelFiles] = useState<File[]>([]);
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelResponse, setCancelResponse] = useState<CancelResponse>('agree');
+  const [cancelResponseDescription, setCancelResponseDescription] = useState('');
+  const [cancelResponseFiles, setCancelResponseFiles] = useState<File[]>([]);
+  const [workCompletionPercentage, setWorkCompletionPercentage] = useState(50);
+  const [submittingCancelResponse, setSubmittingCancelResponse] = useState(false);
+  const [cancelFinalNote, setCancelFinalNote] = useState('');
+  const [submittingCancelFinalize, setSubmittingCancelFinalize] = useState(false);
+
   // Alert and confirmation states
-  const [alert, setAlert] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({
+  const [alert, setAlert] = useState<AlertState>({
     isOpen: false,
     type: 'info',
     message: ''
   });
 
-  const [confirmation, setConfirmation] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type?: 'danger' | 'warning' | 'info' | 'success';
-    onConfirm: () => void;
-    confirmText?: string;
-    loading?: boolean;
-  }>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     isOpen: false,
     title: '',
     message: '',
@@ -183,7 +166,7 @@ export default function SessionWorkspace() {
     title: string, 
     message: string, 
     onConfirm: () => void, 
-    type: 'danger' | 'warning' | 'info' | 'success' = 'warning',
+    type?: 'danger' | 'warning' | 'info' | 'success',
     confirmText?: string
   ) => {
     setConfirmation({
@@ -402,19 +385,41 @@ export default function SessionWorkspace() {
       return;
     }
 
+    // Validate file count
+    if (workFiles.length > 5) {
+      showAlert('warning', 'Maximum 5 files allowed per submission');
+      return;
+    }
+
+    // Validate file sizes (100MB each)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    for (const { file } of workFiles) {
+      if (file.size > maxSize) {
+        showAlert('warning', `File "${file.name}" exceeds 100MB limit`);
+        return;
+      }
+    }
+
     setUploading(true);
     
     try {
-      let workURL = '';
+      const uploadedFiles: WorkFile[] = [];
       
-      if (workFile) {
-        const uploadedUrl = await handleFileUpload(workFile);
+      // Upload each file if any
+      for (const { file, title } of workFiles) {
+        const uploadedUrl = await handleFileUpload(file);
         if (!uploadedUrl) {
-          showAlert('error', 'Failed to upload file');
+          showAlert('error', `Failed to upload file: ${file.name}`);
           setUploading(false);
           return;
         }
-        workURL = uploadedUrl;
+        
+        uploadedFiles.push({
+          fileName: file.name,
+          fileURL: uploadedUrl,
+          fileTitle: title.trim() || file.name.split('.').slice(0, -1).join('.') || 'Uploaded File',
+          uploadedAt: new Date().toISOString()
+        });
       }
 
       if (!session || !currentUserId) {
@@ -434,7 +439,8 @@ export default function SessionWorkspace() {
           session: sessionId,
           provideUser: currentUserId,
           receiveUser: otherUserId,
-          workURL: workURL || 'text-only',
+          workURL: uploadedFiles.length > 0 ? uploadedFiles[0].fileURL : 'text-only', // Keep for backwards compatibility
+          workFiles: uploadedFiles,
           workDescription,
         }),
       });
@@ -453,7 +459,7 @@ export default function SessionWorkspace() {
 
         showAlert('success', 'Work submitted successfully!');
         setWorkDescription('');
-        setWorkFile(null);
+        setWorkFiles([]);
         fetchWorks(); // Refresh works list
         setActiveTab('view-works');
       } else {
@@ -832,6 +838,14 @@ export default function SessionWorkspace() {
     );
   };
 
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      showAlert('warning', 'Please provide a reason for rejection');
+      return;
+    }
+    handleCompletionResponse('reject', rejectionReason);
+  };
+
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -891,7 +905,6 @@ export default function SessionWorkspace() {
         setReportDescription('');
         setReportFiles([]);
         setShowReportForm(false); // Close the form after successful submission
-        await fetchReports(); // Refresh reports list
         // Don't change tab, keep user on report tab to see their submitted report
       } else {
         showAlert('error', data.message || 'Failed to submit report');
@@ -907,22 +920,15 @@ export default function SessionWorkspace() {
   const handleReportFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (reportFiles.length + files.length > 5) {
-      showAlert('warning', 'Maximum 5 files allowed');
+      showAlert('warning', 'Maximum 5 files allowed for report evidence');
       return;
     }
-    setReportFiles([...reportFiles, ...files]);
+
+    setReportFiles(prev => [...prev, ...files]);
   };
 
   const handleReportFileRemove = (index: number) => {
-    setReportFiles(reportFiles.filter((_, i) => i !== index));
-  };
-
-  const handleRejectionSubmit = () => {
-    if (!rejectionReason.trim()) {
-      showAlert('warning', 'Please provide a reason for declining the completion request');
-      return;
-    }
-    handleCompletionResponse('reject', rejectionReason.trim());
+    setReportFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleReviewSubmit = async (e: React.FormEvent) => {
@@ -1001,11 +1007,299 @@ export default function SessionWorkspace() {
     }
   };
 
+  // Cancellation functions
+  const fetchCancelRequest = async () => {
+    if (!sessionId) return;
+    
+    setLoadingCancelRequest(true);
+    try {
+      const response = await fetch(`/api/session/${sessionId}/cancel`);
+      
+      if (!response.ok) {
+        console.error('Fetch cancel request failed:', response.status, response.statusText);
+        return;
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON:', contentType);
+        const text = await response.text();
+        console.error('Response body:', text);
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setCancelRequest(data.cancelRequest);
+      }
+    } catch (error) {
+      console.error('Error fetching cancel request:', error);
+    } finally {
+      setLoadingCancelRequest(false);
+    }
+  };
+
+  const handleCancelSession = async () => {
+    if (!session || !currentUserId) {
+      showAlert('error', 'Session or user information not available');
+      return;
+    }
+
+    if (!cancelReason || !cancelDescription.trim()) {
+      showAlert('warning', 'Please provide a reason and description for cancellation');
+      return;
+    }
+
+    setSubmittingCancel(true);
+    try {
+      // Upload evidence files if any
+      const evidenceFiles: string[] = [];
+      for (const file of cancelFiles) {
+        const fileUrl = await handleFileUpload(file);
+        if (fileUrl) {
+          evidenceFiles.push(fileUrl);
+        }
+      }
+
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          initiatorId: currentUserId,
+          reason: cancelReason,
+          description: cancelDescription,
+          evidenceFiles,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Cancel session request failed:', response.status, response.statusText);
+        const text = await response.text();
+        console.error('Response body:', text);
+        showAlert('error', `Failed to submit cancellation request: ${response.status} ${response.statusText}`);
+        return;
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        console.error('Response is not JSON:', contentType);
+        const text = await response.text();
+        console.error('Response body:', text);
+        showAlert('error', 'Server returned an invalid response');
+        return;
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          await sendNotification(
+            otherUserId,
+            15, // SESSION_CANCEL_REQUESTED
+            `${user?.firstName || 'Someone'} has requested to cancel your session. Please review the request.`,
+            `/session/${sessionId}`
+          );
+        }
+
+        showAlert('success', 'Cancellation request submitted successfully. The other user will be notified to review your request.');
+        setCancelRequest(data.cancelRequest);
+        setShowCancelModal(false);
+        setCancelReason('');
+        setCancelDescription('');
+        setCancelFiles([]);
+        
+        // Refresh session data to update the UI status
+        await fetchSessionData();
+      } else {
+        showAlert('error', data.message || 'Failed to submit cancellation request');
+      }
+    } catch (error) {
+      console.error('Error submitting cancellation request:', error);
+      showAlert('error', 'Failed to submit cancellation request');
+    } finally {
+      setSubmittingCancel(false);
+    }
+  };
+
+  const handleCancelResponse = async () => {
+    if (!cancelRequest || !currentUserId) {
+      showAlert('error', 'Cancellation request or user information not available');
+      return;
+    }
+
+    if (cancelResponse === 'dispute' && !cancelResponseDescription.trim()) {
+      showAlert('warning', 'Please provide a description when disputing the cancellation');
+      return;
+    }
+
+    setSubmittingCancelResponse(true);
+    try {
+      // Upload response evidence files if any
+      const responseEvidenceFiles: string[] = [];
+      for (const file of cancelResponseFiles) {
+        const fileUrl = await handleFileUpload(file);
+        if (fileUrl) {
+          responseEvidenceFiles.push(fileUrl);
+        }
+      }
+
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responderId: currentUserId,
+          action: cancelResponse,
+          responseDescription: cancelResponseDescription,
+          responseEvidenceFiles,
+          workCompletionPercentage,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the initiator
+        const initiatorId = cancelRequest.initiatorId._id || cancelRequest.initiatorId;
+        if (cancelResponse === 'agree') {
+          await sendNotification(
+            initiatorId,
+            16, // SESSION_CANCEL_AGREED
+            `${user?.firstName || 'Someone'} has agreed to your session cancellation request. The session has been cancelled.`,
+            `/session/${sessionId}`
+          );
+          showAlert('success', 'You have agreed to the cancellation. The session has been cancelled.');
+        } else {
+          await sendNotification(
+            initiatorId,
+            17, // SESSION_CANCEL_DISPUTED
+            `${user?.firstName || 'Someone'} has disputed your session cancellation request. Please review their response.`,
+            `/session/${sessionId}`
+          );
+          showAlert('info', 'You have disputed the cancellation request. The initiator will review your response.');
+        }
+
+        setCancelRequest(data.cancelRequest);
+        setShowCancelResponseModal(false);
+        setCancelResponse('agree');
+        setCancelResponseDescription('');
+        setCancelResponseFiles([]);
+        setWorkCompletionPercentage(50);
+
+        // Refresh session if cancelled
+        if (data.sessionUpdated) {
+          await fetchSessionData();
+        }
+      } else {
+        showAlert('error', data.message || 'Failed to respond to cancellation request');
+      }
+    } catch (error) {
+      console.error('Error responding to cancellation request:', error);
+      showAlert('error', 'Failed to respond to cancellation request');
+    } finally {
+      setSubmittingCancelResponse(false);
+    }
+  };
+
+  const handleCancelFinalize = async () => {
+    if (!cancelRequest || !currentUserId) {
+      showAlert('error', 'Cancellation request or user information not available');
+      return;
+    }
+
+    if (!cancelFinalNote.trim()) {
+      showAlert('warning', 'Please provide a final note for the cancellation');
+      return;
+    }
+
+    setSubmittingCancelFinalize(true);
+    try {
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          responderId: currentUserId,
+          action: 'finalize',
+          finalNote: cancelFinalNote,
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Send notification to the other user
+        if (session) {
+          const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+          await sendNotification(
+            otherUserId,
+            16, // SESSION_CANCEL_AGREED
+            `${user?.firstName || 'Someone'} has finalized the session cancellation. The session has been cancelled.`,
+            `/session/${sessionId}`
+          );
+        }
+
+        showAlert('success', 'Session cancellation has been finalized. The session has been cancelled.');
+        setCancelRequest(data.cancelRequest);
+        setShowCancelFinalizeModal(false);
+        setCancelFinalNote('');
+
+        // Refresh session data
+        await fetchSessionData();
+      } else {
+        showAlert('error', data.message || 'Failed to finalize cancellation');
+      }
+    } catch (error) {
+      console.error('Error finalizing cancellation:', error);
+      showAlert('error', 'Failed to finalize cancellation');
+    } finally {
+      setSubmittingCancelFinalize(false);
+    }
+  };
+
+  const handleCancelFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setCancelFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleCancelResponseFileAdd = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setCancelResponseFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeCancelFile = (index: number) => {
+    setCancelFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeCancelResponseFile = (index: number) => {
+    setCancelResponseFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   useEffect(() => {
     if (sessionId) {
       fetchReviews();
+      fetchCancelRequest();
     }
   }, [sessionId]);
+
+  // Redirect to overview tab if user is on disabled tab when session is cancelled/completed
+  useEffect(() => {
+    if ((session?.status === 'canceled' || session?.status === 'completed') && 
+        (activeTab === 'submit-work' || activeTab === 'report')) {
+      setActiveTab('overview');
+    }
+  }, [session?.status, activeTab]);
 
   if (loading) {
     return (
@@ -1182,6 +1476,11 @@ export default function SessionWorkspace() {
                     ● Active
                   </span>
                 )}
+                {session?.status === 'canceled' && (
+                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                    ✕ Cancelled
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -1212,18 +1511,33 @@ export default function SessionWorkspace() {
               { id: 'report', label: 'Report Issue', icon: Flag },
             ].map((tab) => {
               const Icon = tab.icon;
+              const isDisabled = (session?.status === 'canceled' || session?.status === 'completed') && 
+                                (tab.id === 'submit-work' || tab.id === 'report');
+              
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  onClick={() => !isDisabled && setActiveTab(tab.id as any)}
+                  disabled={isDisabled}
+                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                    isDisabled
+                      ? 'border-transparent text-gray-400 cursor-not-allowed opacity-60'
+                      : activeTab === tab.id
+                        ? 'border-blue-500 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                   }`}
+                  title={isDisabled ? 
+                    `Cannot ${tab.label.toLowerCase()} - session is ${session?.status}` : 
+                    undefined
+                  }
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
+                  {isDisabled && (
+                    <span className="text-xs text-gray-400 ml-1">
+                      ({session?.status === 'completed' ? 'Completed' : 'Cancelled'})
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -1232,1478 +1546,101 @@ export default function SessionWorkspace() {
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Session Statistics Overview */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Statistics</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {/* Total Works */}
-                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <div className="text-2xl font-bold text-blue-600">{works.length}</div>
-                  <div className="text-sm text-blue-700">Total Works Submitted</div>
-                </div>
-                
-                {/* Accepted Works */}
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <div className="text-2xl font-bold text-green-600">
-                    {works.filter(w => w.acceptanceStatus === 'accepted').length}
-                  </div>
-                  <div className="text-sm text-green-700">Accepted Works</div>
-                </div>
-                
-                {/* Rejected Works */}
-                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                  <div className="text-2xl font-bold text-red-600">
-                    {works.filter(w => w.acceptanceStatus === 'rejected').length}
-                  </div>
-                  <div className="text-sm text-red-700">Rejected/Needs Improvement</div>
-                </div>
-                
-                {/* Pending Reviews */}
-                <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {works.filter(w => w.acceptanceStatus === 'pending').length}
-                  </div>
-                  <div className="text-sm text-yellow-700">Pending Review</div>
-                </div>
-              </div>
-
-              {/* Expected End Date Alert (for active sessions) */}
-              {session?.status === 'active' && (session?.expectedEndDate || myProgress?.dueDate || otherProgress?.dueDate) && (
-                <div className="mb-4">
-                  {(() => {
-                    let targetDate;
-                    
-                    // Prioritize session expected end date
-                    if (session?.expectedEndDate) {
-                      targetDate = new Date(session.expectedEndDate);
-                    } else {
-                      // Fallback to earliest progress due date
-                      const dueDates = [];
-                      if (myProgress?.dueDate) dueDates.push(new Date(myProgress.dueDate));
-                      if (otherProgress?.dueDate) dueDates.push(new Date(otherProgress.dueDate));
-                      
-                      if (dueDates.length === 0) return null;
-                      targetDate = new Date(Math.min(...dueDates.map(d => d.getTime())));
-                    }
-                    
-                    const today = new Date();
-                    const isOverdue = today > targetDate;
-                    const daysUntilDue = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    if (isOverdue) {
-                      const daysOverdue = Math.ceil((today.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24));
-                      return (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                          <div className="flex items-center space-x-2">
-                            <AlertCircle className="h-5 w-5 text-red-600" />
-                            <span className="text-sm font-medium text-red-800">
-                              Session Overdue: {daysOverdue} day{daysOverdue > 1 ? 's' : ''} past expected completion
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    } else if (daysUntilDue <= 7) {
-                      return (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                          <div className="flex items-center space-x-2">
-                            <Clock className="h-5 w-5 text-yellow-600" />
-                            <span className="text-sm font-medium text-yellow-800">
-                              {daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue > 1 ? 's' : ''}`}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-                </div>
-              )}
-
-              {/* Session Timeline */}
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="font-medium text-gray-900 mb-3">Session Timeline</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Start Date */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">Started</div>
-                      <div className="text-sm text-gray-600">{formatDate(session.startDate)}</div>
-                    </div>
-                  </div>
-                  
-                  {/* End Date - Completed or Expected */}
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      session?.status === 'completed' ? 'bg-green-500' : 'bg-yellow-500'
-                    }`}></div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {session?.status === 'completed' ? 'Completed' : 'Expected End'}
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {session?.status === 'completed' 
-                          ? (session.completionApprovedAt ? formatDate(session.completionApprovedAt) : (session.updatedAt ? formatDate(session.updatedAt) : 'Recently completed'))
-                          : getExpectedEndDate()
-                        }
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Duration */}
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">Duration</div>
-                      <div className="text-sm text-gray-600">
-                        {session?.status === 'completed' && (session.completionApprovedAt || session.updatedAt)
-                          ? `${Math.ceil((new Date(session.completionApprovedAt || session.updatedAt!).getTime() - new Date(session.startDate).getTime()) / (1000 * 60 * 60 * 24))} days`
-                          : `${Math.ceil((new Date().getTime() - new Date(session.startDate).getTime()) / (1000 * 60 * 60 * 24))} days so far`
-                        }
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Work Submission Breakdown */}
-              {works.length > 0 && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h3 className="font-medium text-gray-900 mb-3">Work Submission Breakdown</h3>
-                  <div className="space-y-3">
-                    {/* Your submissions */}
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-blue-900">Your Submissions</span>
-                        <span className="text-sm text-blue-700">
-                          {works.filter(w => w.provideUser._id === currentUserId).length} total
-                        </span>
-                      </div>
-                      <div className="flex space-x-4 text-xs">
-                        <span className="text-green-700">
-                          ✓ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'accepted').length} accepted
-                        </span>
-                        <span className="text-red-700">
-                          ✗ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'rejected').length} rejected
-                        </span>
-                        <span className="text-yellow-700">
-                          ⏳ {works.filter(w => w.provideUser._id === currentUserId && w.acceptanceStatus === 'pending').length} pending
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Other user's submissions */}
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-green-900">
-                          {getOtherUserName()}'s Submissions
-                        </span>
-                        <span className="text-sm text-green-700">
-                          {works.filter(w => w.provideUser._id !== currentUserId).length} total
-                        </span>
-                      </div>
-                      <div className="flex space-x-4 text-xs">
-                        <span className="text-green-700">
-                          ✓ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'accepted').length} accepted
-                        </span>
-                        <span className="text-red-700">
-                          ✗ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'rejected').length} rejected
-                        </span>
-                        <span className="text-yellow-700">
-                          ⏳ {works.filter(w => w.provideUser._id !== currentUserId && w.acceptanceStatus === 'pending').length} pending
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Session Details */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-lg font-semibold text-gray-900">Session Details</h2>
-                  {session?.status === 'completed' && (
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium flex items-center space-x-1">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>Completed</span>
-                    </span>
-                  )}
-                </div>
-                
-                {/* Mark as Complete Button */}
-                {session?.status === 'active' && (
-                  <div className="flex items-center space-x-3">
-                    {completionStatus.hasRequestedCompletion ? (
-                      /* User requested completion - waiting for approval */
-                      <span className="text-sm text-yellow-600 font-medium bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
-                        Completion Requested - Waiting for Approval
-                      </span>
-                    ) : completionStatus.needsToApprove ? (
-                      /* Other user requested completion - needs approval */
-                      <>
-                        <button
-                          onClick={() => handleCompletionResponse('approve')}
-                          disabled={respondingToCompletion}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          <span>Approve Completion</span>
-                        </button>
-                        <button
-                          onClick={() => handleCompletionResponse('reject')}
-                          disabled={respondingToCompletion}
-                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          <span>Decline</span>
-                        </button>
-                      </>
-                    ) : completionStatus.wasRejected ? (
-                      /* Completion was rejected - can request again */
-                      <button
-                        onClick={handleRequestCompletion}
-                        disabled={requestingCompletion}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        <span>Request Completion Again</span>
-                      </button>
-                    ) : completionStatus.canRequestCompletion ? (
-                      /* No completion request yet */
-                      <button
-                        onClick={handleRequestCompletion}
-                        disabled={requestingCompletion}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                      >
-                        <CheckCircle className="h-4 w-4" />
-                        <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
-                      </button>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* What you're offering */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <User className="h-5 w-5 text-blue-600" />
-                    <h3 className="font-medium text-gray-900">You're offering:</h3>
-                  </div>
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-blue-900">
-                      {mySkill?.skillTitle || mySkill?.title || 'Skill not available'}
-                    </h4>
-                    <div className="text-sm text-blue-700 mt-1">
-                      <p className="leading-relaxed">{cleanDescription(myDescription)}</p>
-                      {myDescription && myDescription.length > 200 && (
-                        <button 
-                          className="text-blue-600 hover:text-blue-800 text-xs mt-1 underline"
-                          onClick={() => {
-                            showAlert('info', myDescription, 'Full Description');
-                          }}
-                        >
-                          View full description
-                        </button>
-                      )}
-                    </div>
-                    {mySkill?.proficiencyLevel && (
-                      <span className="inline-block mt-2 px-2 py-1 bg-blue-200 text-blue-800 text-xs rounded-full">
-                        {mySkill.proficiencyLevel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* What you're receiving */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <BookOpen className="h-5 w-5 text-green-600" />
-                    <h3 className="font-medium text-gray-900">You're receiving:</h3>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                    <h4 className="font-semibold text-green-900">
-                      {otherSkill?.skillTitle || otherSkill?.title || 'Skill not available'}
-                    </h4>
-                    <div className="text-sm text-green-700 mt-1">
-                      <p className="leading-relaxed">{cleanDescription(otherDescription)}</p>
-                      {otherDescription && otherDescription.length > 200 && (
-                        <button 
-                          className="text-green-600 hover:text-green-800 text-xs mt-1 underline"
-                          onClick={() => {
-                            showAlert('info', otherDescription, 'Full Description');
-                          }}
-                        >
-                          View full description
-                        </button>
-                      )}
-                    </div>
-                    {otherSkill?.proficiencyLevel && (
-                      <span className="inline-block mt-2 px-2 py-1 bg-green-200 text-green-800 text-xs rounded-full">
-                        {otherSkill.proficiencyLevel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Progress Summary */}
-            {(myProgress || otherProgress) && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-semibold text-gray-900">Progress Summary</h2>
-                  <button
-                    onClick={() => setActiveTab('progress')}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    View Details →
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {myProgress && (
-                    <div className="space-y-3">
-                      <h3 className="font-medium text-gray-900">Your Progress</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Completion</span>
-                          <span className="text-sm font-semibold">{myProgress.completionPercentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${myProgress.completionPercentage}%` }}
-                          ></div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                            myProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            myProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            myProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {myProgress.status.replace('_', ' ')}
-                          </span>
-                          {myProgress.notes && (
-                            <span className="text-xs text-gray-500">Has notes</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {otherProgress && (
-                    <div className="space-y-3">
-                      <h3 className="font-medium text-gray-900">{getOtherUserName()}'s Progress</h3>
-                      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Completion</span>
-                          <span className="text-sm font-semibold">{otherProgress.completionPercentage}%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${otherProgress.completionPercentage}%` }}
-                          ></div>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                            otherProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            otherProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                            otherProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {otherProgress.status.replace('_', ' ')}
-                          </span>
-                          {otherProgress.notes && (
-                            <span className="text-xs text-gray-500">Has notes</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Stats */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div>
-                      <div className="text-2xl font-bold text-blue-600">
-                        {myProgress && otherProgress ? Math.round((myProgress.completionPercentage + otherProgress.completionPercentage) / 2) : (myProgress?.completionPercentage || otherProgress?.completionPercentage || 0)}%
-                      </div>
-                      <div className="text-xs text-gray-500">Overall Progress</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-green-600">{works.filter(w => w.acceptanceStatus === 'accepted').length}</div>
-                      <div className="text-xs text-gray-500">Accepted Works</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-yellow-600">{works.filter(w => w.acceptanceStatus === 'pending').length}</div>
-                      <div className="text-xs text-gray-500">Pending Reviews</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-gray-600">{works.length}</div>
-                      <div className="text-xs text-gray-500">Total Submissions</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Session Completion Section */}
-            {session?.status === 'active' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Completion</h2>
-                
-                {/* Completion Request Status */}
-                {completionStatus.hasRequestedCompletion ? (
-                  /* User requested completion - waiting for approval */
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
-                      <div>
-                        <h3 className="font-medium text-yellow-900">Completion Request Sent</h3>
-                        <p className="text-sm text-yellow-700 mt-1">
-                          You've requested to complete this session. 
-                          Waiting for {getOtherUserName()} to approve.
-                        </p>
-                        {completionStatus.pendingRequests.length > 0 && (
-                          <p className="text-xs text-yellow-600 mt-2">
-                            Request sent: {formatDate(completionStatus.pendingRequests[0].requestedAt)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ) : completionStatus.needsToApprove ? (
-                  /* Other user requested completion - needs approval */
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                      <div className="flex-1">
-                        <h3 className="font-medium text-blue-900">Completion Request Received</h3>
-                        <p className="text-sm text-blue-700 mt-1">
-                          {completionStatus.requesterName || getOtherUserName()} has requested to complete this session. 
-                          Please review and decide whether to approve.
-                        </p>
-                        {completionStatus.pendingRequests.length > 0 && (
-                          <p className="text-xs text-blue-600 mt-1">
-                            Request received: {formatDate(completionStatus.pendingRequests[0].requestedAt)}
-                          </p>
-                        )}
-                        <div className="mt-3 flex items-center space-x-3">
-                          <button
-                            onClick={() => handleCompletionResponse('approve')}
-                            disabled={respondingToCompletion}
-                            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                            <span>{respondingToCompletion ? 'Processing...' : 'Approve Completion'}</span>
-                          </button>
-                          <button
-                            onClick={() => handleCompletionResponse('reject')}
-                            disabled={respondingToCompletion}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                          >
-                            <XCircle className="h-4 w-4" />
-                            <span>Decline with Reason</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : completionStatus.wasRejected ? (
-                  /* Completion was rejected - show rejection message */
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                      <div>
-                        <h3 className="font-medium text-red-900">Completion Request Declined</h3>
-                        <p className="text-sm text-red-700 mt-1">
-                          Your recent completion request was declined. You can submit a new request when ready.
-                        </p>
-                        <p className="text-xs text-red-600 mt-2">
-                          You can continue working on the session or submit a new completion request when ready.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : completionStatus.canRequestCompletion ? (
-                  /* No completion request yet */
-                  <div className="space-y-4">
-                    {/* Completion readiness check */}
-                    {myProgress && otherProgress && (
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h3 className="font-medium text-gray-900 mb-3">Completion Readiness</h3>
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700">Your progress</span>
-                            <span className={`text-sm font-medium ${myProgress.completionPercentage >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {myProgress.completionPercentage}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700">{getOtherUserName()}'s progress</span>
-                            <span className={`text-sm font-medium ${otherProgress.completionPercentage >= 80 ? 'text-green-600' : 'text-yellow-600'}`}>
-                              {otherProgress.completionPercentage}%
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm text-gray-700">Accepted work submissions</span>
-                            <span className="text-sm font-medium text-gray-900">
-                              {works.filter(w => w.acceptanceStatus === 'accepted').length}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Request completion button */}
-                    <div className="flex items-center space-x-4">
-                      <button
-                        onClick={handleRequestCompletion}
-                        disabled={requestingCompletion}
-                        className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                      >
-                        <CheckCircle className="h-5 w-5" />
-                        <span>{requestingCompletion ? 'Requesting...' : 'Request Session Completion'}</span>
-                      </button>
-                      <div className="text-sm text-gray-500">
-                        <p>Ready to complete? Click to request approval from {getOtherUserName()}.</p>
-                        <p className="text-xs mt-1">Both participants must agree to mark the session as completed.</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  /* Default case - no specific completion status */
-                  <div className="text-sm text-gray-600">
-                    <p>Loading completion status...</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Completed Session Status */}
-            {session?.status === 'completed' && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                <div className="flex items-center space-x-3">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                  <div>
-                    <h3 className="font-semibold text-green-900">Session Completed! 🎉</h3>
-                    <p className="text-sm text-green-700 mt-1">
-                      This skill exchange session has been successfully completed. Both participants have agreed to mark it as finished.
-                    </p>
-                    <p className="text-xs text-green-600 mt-2">
-                      You can still view submitted work and session details, or provide ratings for your exchange partner.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Review Section - Only show for completed sessions */}
-            {session?.status === 'completed' && (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-lg font-semibold text-gray-900">Session Reviews</h2>
-                  <span className="text-sm text-gray-500">
-                    Share your experience with this skill exchange
-                  </span>
-                </div>
-                
-                {loadingReviews ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-gray-600">Loading reviews...</span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Your Review */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium text-gray-900 flex items-center space-x-2">
-                        <User className="h-4 w-4 text-blue-600" />
-                        <span>Your Review of {getOtherUserName()}</span>
-                      </h3>
-                      {userReview ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="flex space-x-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  className={`text-xl ${
-                                    star <= userReview.rating ? 'text-yellow-400' : 'text-gray-300'
-                                  }`}
-                                >
-                                  ★
-                                </span>
-                              ))}
-                            </div>
-                            <span className="text-sm text-gray-600 font-medium">
-                              {userReview.rating}/5
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700 italic">"{userReview.comment}"</p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            Submitted on {formatDate(userReview.createdAt)}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                          <div className="space-y-3">
-                            <div className="text-gray-400">
-                              <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                              </svg>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              You haven't reviewed {getOtherUserName()} yet
-                            </p>
-                            <button
-                              onClick={() => setShowReviewModal(true)}
-                              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                            >
-                              Write Review
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Review from Other User */}
-                    <div className="space-y-4">
-                      <h3 className="font-medium text-gray-900 flex items-center space-x-2">
-                        <User className="h-4 w-4 text-green-600" />
-                        <span>Review from {getOtherUserName()}</span>
-                      </h3>
-                      {receivedReview ? (
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                          <div className="flex items-center space-x-2 mb-3">
-                            <div className="flex space-x-1">
-                              {[1, 2, 3, 4, 5].map((star) => (
-                                <span
-                                  key={star}
-                                  className={`text-xl ${
-                                    star <= receivedReview.rating ? 'text-yellow-400' : 'text-gray-300'
-                                  }`}
-                                >
-                                  ★
-                                </span>
-                              ))}
-                            </div>
-                            <span className="text-sm text-gray-600 font-medium">
-                              {receivedReview.rating}/5
-                            </span>
-                          </div>
-                          <p className="text-sm text-gray-700 italic">"{receivedReview.comment}"</p>
-                          <p className="text-xs text-gray-500 mt-2">
-                            Submitted on {formatDate(receivedReview.createdAt)}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                          <div className="space-y-3">
-                            <div className="text-gray-400">
-                              <svg className="mx-auto h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                            </div>
-                            <p className="text-sm text-gray-600">
-                              {getOtherUserName()} hasn't reviewed this session yet
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              They will be able to submit their review once they visit the session page
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <OverviewTab
+            session={session}
+            works={works}
+            myProgress={myProgress}
+            otherProgress={otherProgress}
+            completionStatus={completionStatus}
+            currentUserId={currentUserId}
+            user={user}
+            otherUserDetails={otherUserDetails}
+            reviews={reviews}
+            userReview={userReview}
+            receivedReview={receivedReview}
+            loadingReviews={loadingReviews}
+            formatDate={formatDate}
+            getOtherUserName={getOtherUserName}
+            getUserName={getUserName}
+            cleanDescription={cleanDescription}
+            getExpectedEndDate={getExpectedEndDate}
+            showAlert={(type: string, message: string, title?: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message, title)}
+            setActiveTab={(tab: string) => setActiveTab(tab as 'overview' | 'submit-work' | 'view-works' | 'progress' | 'report')}
+            setShowReviewModal={setShowReviewModal}
+            handleRequestCompletion={handleRequestCompletion}
+            handleCompletionResponse={handleCompletionResponse}
+            requestingCompletion={requestingCompletion}
+            respondingToCompletion={respondingToCompletion}
+            cancelRequest={cancelRequest}
+            loadingCancelRequest={loadingCancelRequest}
+            setShowCancelModal={setShowCancelModal}
+            setShowCancelResponseModal={setShowCancelResponseModal}
+            setShowCancelFinalizeModal={setShowCancelFinalizeModal}
+            handleDownloadFile={handleDownloadFile}
+          />
         )}
 
         {activeTab === 'submit-work' && (
-          <div className="space-y-6">
-            {/* Session Completed Message or Submit Form */}
-            {session?.status === 'completed' ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-center py-8">
-                  <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
-                  <p className="text-gray-600 mb-4">
-                    This session has been completed. You can no longer submit new work.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    You can still view previously submitted work below.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Submit Your Work</h2>
-                
-                <form onSubmit={handleSubmitWork} className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Work Description *
-                    </label>
-                    <textarea
-                      value={workDescription}
-                      onChange={(e) => setWorkDescription(e.target.value)}
-                      placeholder="Describe the work you've completed, what you've learned, or what you've taught..."
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={6}
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Attach File (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      onChange={(e) => setWorkFile(e.target.files?.[0] || null)}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-end space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setWorkDescription('');
-                        setWorkFile(null);
-                      }}
-                      className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={uploading}
-                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {uploading ? 'Submitting...' : 'Submit Work'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-
-            {/* Previously Submitted Works */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                {session?.status === 'completed' ? 'Previously Submitted Works' : 'Your Submitted Works'} ({works.filter(w => w.provideUser._id === currentUserId).length})
-              </h2>
-              
-              {works.filter(w => w.provideUser._id === currentUserId).length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Work Submitted</h3>
-                  <p className="text-gray-600">
-                    {session?.status === 'completed' 
-                      ? 'You did not submit any work during this session.' 
-                      : 'You haven\'t submitted any work yet.'
-                    }
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {works.filter(w => w.provideUser._id === currentUserId).map((work) => (
-                    <div key={work._id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="font-medium text-gray-900">Your Work</div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            work.acceptanceStatus === 'accepted' ? 'bg-green-100 text-green-800' :
-                            work.acceptanceStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {work.acceptanceStatus}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(work.provideDate)}
-                        </div>
-                      </div>
-                      
-                      <p className="text-gray-700 mb-3">{work.workDescription}</p>
-                      
-                      {work.workURL && work.workURL !== 'text-only' && (
-                        <div className="mb-3">
-                          <button
-                            onClick={() => handleDownloadFile(work.workURL)}
-                            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span>Download Attachment</span>
-                          </button>
-                        </div>
-                      )}
-                      
-                      {work.remark && work.acceptanceStatus === 'accepted' && (
-                        <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
-                          <div className="text-sm font-medium text-green-800 mb-1">Acceptance Message:</div>
-                          <div className="text-sm text-green-700">{work.remark}</div>
-                        </div>
-                      )}
-                      
-                      {work.rejectionReason && (
-                        <div className="bg-red-50 border border-red-200 rounded p-3">
-                          <div className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</div>
-                          <div className="text-sm text-red-700">{work.rejectionReason}</div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <SubmitWorkTab
+            session={session}
+            works={works}
+            currentUserId={currentUserId}
+            workDescription={workDescription}
+            setWorkDescription={setWorkDescription}
+            workFiles={workFiles}
+            setWorkFiles={setWorkFiles}
+            uploading={uploading}
+            handleSubmitWork={handleSubmitWork}
+            handleDownloadFile={handleDownloadFile}
+            formatDate={formatDate}
+            showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
+          />
         )}
 
         {activeTab === 'view-works' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                Submitted Works ({works.length})
-              </h2>
-              
-              {works.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No Works Yet</h3>
-                  <p className="text-gray-600">No work has been submitted for this session yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {works.map((work) => (
-                    <div key={work._id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="font-medium text-gray-900">
-                            {getUserName(work.provideUser)}
-                          </div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            work.acceptanceStatus === 'accepted' ? 'bg-green-100 text-green-800' :
-                            work.acceptanceStatus === 'rejected' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {work.acceptanceStatus}
-                          </span>
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {formatDate(work.provideDate)}
-                        </div>
-                      </div>
-                      
-                      <p className="text-gray-700 mb-3">{work.workDescription}</p>
-                      
-                      {work.workURL && work.workURL !== 'text-only' && (
-                        <div className="mb-3">
-                          <button
-                            onClick={() => handleDownloadFile(work.workURL)}
-                            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-700"
-                          >
-                            <FileText className="h-4 w-4" />
-                            <span>Download Attachment</span>
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Action buttons for receiving user */}
-                      {work.receiveUser._id === currentUserId && work.acceptanceStatus === 'pending' && (
-                        <div className="mt-3 flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              setReviewingWork(work._id);
-                              setReviewAction('accept');
-                              setReviewMessage('');
-                            }}
-                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => {
-                              setReviewingWork(work._id);
-                              setReviewAction('reject');
-                              setReviewMessage('');
-                            }}
-                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
-                          >
-                            Request Improvement
-                          </button>
-                        </div>
-                      )}
-                      
-                      {work.remark && work.acceptanceStatus === 'accepted' && (
-                        <div className="bg-green-50 border border-green-200 rounded p-3 mt-3">
-                          <div className="text-sm font-medium text-green-800 mb-1">Acceptance Message:</div>
-                          <div className="text-sm text-green-700">{work.remark}</div>
-                        </div>
-                      )}
-                      
-                      {work.rejectionReason && (
-                        <div className="bg-red-50 border border-red-200 rounded p-3">
-                          <div className="text-sm font-medium text-red-800 mb-1">Rejection Reason:</div>
-                          <div className="text-sm text-red-700">{work.rejectionReason}</div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          <ViewWorksTab
+            works={works}
+            currentUserId={currentUserId}
+            formatDate={formatDate}
+            getUserName={getUserName}
+            handleDownloadFile={handleDownloadFile}
+            setReviewingWork={setReviewingWork}
+            setReviewAction={setReviewAction}
+            setReviewMessage={setReviewMessage}
+          />
         )}
 
         {activeTab === 'progress' && (
-          <div className="space-y-6">
-            {/* Current Progress Display */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">Progress Tracking</h2>
-                <button
-                  onClick={openProgressEditor}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Update My Progress
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* My Progress */}
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">Your Progress</h3>
-                  {myProgress ? (
-                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-blue-900">Completion</span>
-                        <span className="text-lg font-bold text-blue-900">{myProgress.completionPercentage}%</span>
-                      </div>
-                      <div className="w-full bg-blue-200 rounded-full h-3 mb-3">
-                        <div
-                          className="bg-blue-600 h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${myProgress.completionPercentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-blue-700">Status:</span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          myProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          myProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                          myProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {myProgress.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      {myProgress.notes && (
-                        <div className="mt-3">
-                          <span className="text-sm font-medium text-blue-900">Notes:</span>
-                          <p className="text-sm text-blue-700 mt-1">{myProgress.notes}</p>
-                        </div>
-                      )}
-                      {myProgress.dueDate && (
-                        <div className="mt-2">
-                          <span className="text-sm text-blue-700">Due: {formatDate(myProgress.dueDate)}</span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <p className="text-gray-600 text-center">No progress data available</p>
-                      <p className="text-sm text-gray-500 text-center mt-1">Click "Update My Progress" to get started</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Other User's Progress */}
-                <div className="space-y-4">
-                  <h3 className="font-medium text-gray-900">{getOtherUserName()}'s Progress</h3>
-                  {otherProgress ? (
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-green-900">Completion</span>
-                        <span className="text-lg font-bold text-green-900">{otherProgress.completionPercentage}%</span>
-                      </div>
-                      <div className="w-full bg-green-200 rounded-full h-3 mb-3">
-                        <div
-                          className="bg-green-600 h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${otherProgress.completionPercentage}%` }}
-                        ></div>
-                      </div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-green-700">Status:</span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          otherProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          otherProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                          otherProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {otherProgress.status.replace('_', ' ')}
-                        </span>
-                      </div>
-                      {otherProgress.notes && (
-                        <div className="mt-3">
-                          <span className="text-sm font-medium text-green-900">Notes:</span>
-                          <p className="text-sm text-green-700 mt-1">{otherProgress.notes}</p>
-                        </div>
-                      )}
-                      {otherProgress.dueDate && (
-                        <div className="mt-2">
-                          <span className="text-sm text-green-700">Due: {formatDate(otherProgress.dueDate)}</span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <p className="text-gray-600 text-center">{getOtherUserName()} hasn't updated their progress yet</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Progress History */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Progress Timeline</h3>
-              <div className="space-y-4">
-                {/* Combined progress timeline would go here */}
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                  <p>Progress timeline feature coming soon...</p>
-                  <p className="text-sm">Track all progress updates and milestones</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <ProgressTab
+            myProgress={myProgress}
+            otherProgress={otherProgress}
+            formatDate={formatDate}
+            getOtherUserName={getOtherUserName}
+            openProgressEditor={openProgressEditor}
+          />
         )}
 
         {activeTab === 'report' && (
-          <div className="space-y-6">
-            {/* Existing Reports Section */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  {session?.status === 'completed' ? 'Session Reports' : 'Previous Reports'}
-                </h2>
-                <button
-                  onClick={fetchReports}
-                  disabled={loadingReports}
-                  className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
-                >
-                  {loadingReports ? 'Loading...' : 'Refresh'}
-                </button>
-              </div>
-
-              {loadingReports ? (
-                <div className="text-center py-4">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-                </div>
-              ) : existingReports.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Flag className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                  <p>
-                    {session?.status === 'completed' 
-                      ? 'No reports were submitted during this session' 
-                      : 'No reports found for this session'
-                    }
-                  </p>
-                  {session?.status !== 'completed' && (
-                    <p className="text-sm">Submit your first report below if you're experiencing issues</p>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {existingReports.map((report) => {
-                    // Only show reports made by current user, or reports against current user
-                    const isMyReport = report.reportedBy._id === currentUserId;
-                    const wasReported = report.reportedUser._id === currentUserId;
-                    
-                    if (!isMyReport && !wasReported) {
-                      return null;
-                    }
-
-                    return (
-                      <div key={report._id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="text-sm">
-                              {isMyReport ? (
-                                <>
-                                  <span className="font-medium">You reported</span>
-                                  <span className="text-gray-600 ml-1">{getOtherUserName()}</span>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="font-medium text-red-600">You were reported</span>
-                                  <span className="text-gray-600 ml-1">by {getOtherUserName()}</span>
-                                </>
-                              )}
-                            </div>
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              report.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                              report.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
-                              report.status === 'dismissed' ? 'bg-gray-100 text-gray-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {report.status.replace('_', ' ')}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {formatDate(report.createdAt)}
-                          </div>
-                        </div>
-
-                        <div className="mb-3">
-                          <div className="text-sm font-medium text-gray-900 mb-1">
-                            Reason: {report.reason.replace('_', ' ')}
-                          </div>
-                          {isMyReport ? (
-                            <p className="text-sm text-gray-700">{report.description}</p>
-                          ) : (
-                            <p className="text-sm text-gray-600 italic">Report details are not shown for privacy</p>
-                          )}
-                        </div>
-
-                        {/* For reports against current user without admin response, show a notice */}
-                        {wasReported && !isMyReport && !report.adminResponse && (
-                          <div className="mb-3 bg-yellow-50 border border-yellow-200 rounded p-3">
-                            <div className="text-sm text-yellow-800">
-                              <div className="font-medium mb-1">Report Under Review</div>
-                              <p>A report has been submitted regarding your participation in this session. Our admin team is currently reviewing the matter and will respond accordingly.</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Only show evidence files for reports made by current user */}
-                        {isMyReport && report.evidenceFiles && report.evidenceFiles.length > 0 && (
-                          <div className="mb-3">
-                            <div className="text-sm font-medium text-gray-900 mb-2">Evidence Files:</div>
-                            <div className="space-y-1">
-                              {report.evidenceFiles.map((fileUrl: string, index: number) => (
-                                <button
-                                  key={index}
-                                  onClick={() => handleDownloadFile(fileUrl, `evidence-${index + 1}`)}
-                                  className="inline-flex items-center space-x-1 text-blue-600 hover:text-blue-700 text-sm"
-                                >
-                                  <FileText className="h-3 w-3" />
-                                  <span>Evidence File {index + 1}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Case summary - only show for own reports */}
-                        {isMyReport && (
-                          <div className="bg-gray-50 p-3 rounded text-sm">
-                            <div className="font-medium text-gray-900 mb-2">Case Summary:</div>
-                            <div className="grid grid-cols-2 gap-4 text-xs text-gray-600">
-                              <div>
-                                <span className="font-medium">Reported User Works:</span> {report.reportedUserWorksCount}
-                              </div>
-                              <div>
-                                <span className="font-medium">Your Works:</span> {report.reportingUserWorksCount}
-                              </div>
-                              <div>
-                                <span className="font-medium">Their Last Active:</span> 
-                                {report.reportedUserLastActive 
-                                  ? formatDate(report.reportedUserLastActive)
-                                  : 'Unknown'
-                                }
-                              </div>
-                              <div>
-                                <span className="font-medium">Report Date:</span> {formatDate(report.createdAt)}
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Admin Response - show for all reports with responses */}
-                        {report.adminResponse && (
-                          <div className="mt-3 bg-blue-50 border border-blue-200 rounded p-3">
-                            <div className="text-sm font-medium text-blue-900 mb-1">
-                              Admin Response:
-                              {report.adminId && (
-                                <span className="text-blue-700 ml-1">
-                                  by {report.adminId.firstName} {report.adminId.lastName}
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-blue-800">{report.adminResponse}</p>
-                            {report.resolvedAt && (
-                              <div className="text-xs text-blue-600 mt-1">
-                                Resolved on {formatDate(report.resolvedAt)}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Submit New Report Section */}
-            {session?.status === 'completed' ? (
-              <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-center py-8">
-                  <Flag className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Session Completed</h2>
-                  <p className="text-gray-600 mb-4">
-                    This session has been completed. You can no longer submit new reports.
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    If you have concerns about behavior during this session, please contact support directly.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white rounded-lg shadow p-6">
-                {/* Collapsible Report Header */}
-                <div className="mb-6">
-                  <button
-                    onClick={() => setShowReportForm(!showReportForm)}
-                    className="flex items-center justify-between w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-2 hover:bg-gray-50 transition-colors"
-                  >
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900 mb-1">Report an Issue</h2>
-                      <p className="text-sm text-gray-600">
-                        {showReportForm 
-                          ? 'Click to hide the report form' 
-                          : 'Click to report issues with this session'
-                        }
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Flag className="h-5 w-5 text-gray-400" />
-                      {showReportForm ? (
-                        <ChevronUp className="h-5 w-5 text-gray-400" />
-                      ) : (
-                        <ChevronDown className="h-5 w-5 text-gray-400" />
-                      )}
-                    </div>
-                  </button>
-                </div>
-
-                {/* Collapsible Report Form */}
-                {showReportForm && (
-                  <div className="border-t border-gray-200 pt-6">
-                    {/* Report Context Warning */}
-                    <div className="mb-6 space-y-4">
-                      {/* Session Activity Summary */}
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <h3 className="font-medium text-blue-900 mb-3">Session Activity Summary</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-800">Your Contributions</h4>
-                            <div className="text-sm text-blue-700 mt-1">
-                              <div>Work submitted: {works.filter(w => w.provideUser._id === currentUserId).length}</div>
-                              <div>Progress: {myProgress?.completionPercentage || 0}%</div>
-                            </div>
-                          </div>
-                          <div>
-                            <h4 className="text-sm font-medium text-blue-800">{getOtherUserName()}'s Contributions</h4>
-                            <div className="text-sm text-blue-700 mt-1">
-                              <div>Work submitted: {works.filter(w => w.provideUser._id !== currentUserId).length}</div>
-                              <div>Progress: {otherProgress?.completionPercentage || 0}%</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Progress Comparison Warning */}
-                      {otherProgress && myProgress && otherProgress.completionPercentage > myProgress.completionPercentage && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                          <div className="flex items-start space-x-3">
-                            <svg className="h-5 w-5 text-yellow-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                            <div>
-                              <h3 className="font-medium text-yellow-900">Progress Consideration</h3>
-                              <p className="text-sm text-yellow-700 mt-1">
-                                {getOtherUserName()} has higher progress ({otherProgress.completionPercentage}%) than you ({myProgress.completionPercentage}%). 
-                                Please consider your own contribution level before reporting. Ensure your concerns are valid and not related to your own progress.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Work Submission Warning */}
-                      {works.filter(w => w.provideUser._id !== currentUserId).length > works.filter(w => w.provideUser._id === currentUserId).length && (
-                        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                          <div className="flex items-start space-x-3">
-                            <svg className="h-5 w-5 text-orange-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                            <div>
-                              <h3 className="font-medium text-orange-900">Work Submission Notice</h3>
-                              <p className="text-sm text-orange-700 mt-1">
-                                {getOtherUserName()} has submitted more work ({works.filter(w => w.provideUser._id !== currentUserId).length}) than you ({works.filter(w => w.provideUser._id === currentUserId).length}). 
-                                Please ensure your report is about legitimate issues and not about work quality expectations.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Previous Report Warning */}
-                      {existingReports.length > 0 && session?.status !== 'completed' && (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                          <div className="flex items-start space-x-3">
-                            <svg className="h-5 w-5 text-red-600 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L3.334 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                            </svg>
-                            <div>
-                              <h3 className="font-medium text-red-900">Previous Reports Submitted</h3>
-                              <p className="text-sm text-red-700 mt-1">
-                                {existingReports.length} report{existingReports.length > 1 ? 's have' : ' has'} already been submitted for this session.
-                                Consider resolving issues directly with {getOtherUserName()} first before submitting additional reports.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600">
-                        If you're experiencing issues with {getOtherUserName()} in this session, please report it here. 
-                        Our team will review the situation and take appropriate action. Please address the context shown above in your description.
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleReportSubmit} className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Reason for Report *
-                        </label>
-                        <select
-                          value={reportReason}
-                          onChange={(e) => setReportReason(e.target.value)}
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        >
-                          <option value="">Select a reason...</option>
-                          <option value="not_submitting_work">Not submitting work</option>
-                          <option value="not_responsive">Not responsive to messages</option>
-                          <option value="poor_quality_work">Poor quality work</option>
-                          <option value="inappropriate_behavior">Inappropriate behavior</option>
-                          <option value="not_following_session_terms">Not following session terms</option>
-                          <option value="other">Other</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Detailed Description *
-                        </label>
-                        <textarea
-                          value={reportDescription}
-                          onChange={(e) => setReportDescription(e.target.value)}
-                          placeholder="Please provide a detailed description of the issue, including specific examples, dates, and any relevant context. Please address the session activity summary and any warnings shown above..."
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          rows={6}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Evidence Files (Optional)
-                        </label>
-                        <div className="space-y-3">
-                          <input
-                            type="file"
-                            onChange={handleReportFileAdd}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
-                            multiple
-                          />
-                          <p className="text-xs text-gray-500">
-                            Upload screenshots, documents, or other evidence. Maximum 5 files.
-                            Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG, ZIP
-                          </p>
-                          
-                          {reportFiles.length > 0 && (
-                            <div className="space-y-2">
-                              <p className="text-sm font-medium text-gray-700">Selected Files:</p>
-                              {reportFiles.map((file, index) => (
-                                <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                  <span className="text-sm text-gray-700">{file.name}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleReportFileRemove(index)}
-                                    className="text-red-600 hover:text-red-700 text-sm"
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <div className="flex items-start">
-                          <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 mr-2" />
-                          <div className="text-sm text-yellow-800">
-                            <p className="font-medium mb-1">Important Notes:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                              <li>All reports are reviewed by our team</li>
-                              <li>False reports may result in account restrictions</li>
-                              <li>We will investigate both sides of the situation</li>
-                              <li>You will be notified of the outcome</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-end space-x-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setReportReason('');
-                            setReportDescription('');
-                            setReportFiles([]);
-                          }}
-                          className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                          Clear
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={submittingReport}
-                          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                          {submittingReport ? 'Submitting Report...' : 'Submit Report'}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <ReportTab
+            session={session}
+            existingReports={existingReports}
+            loadingReports={loadingReports}
+            showReportForm={showReportForm}
+            setShowReportForm={setShowReportForm}
+            reportReason={reportReason}
+            setReportReason={setReportReason}
+            reportDescription={reportDescription}
+            setReportDescription={setReportDescription}
+            reportFiles={reportFiles}
+            setReportFiles={setReportFiles}
+            submittingReport={submittingReport}
+            handleReportSubmit={handleReportSubmit}
+            handleReportFileAdd={handleReportFileAdd}
+            handleReportFileRemove={handleReportFileRemove}
+            fetchReports={fetchReports}
+            formatDate={formatDate}
+            showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
+          />
         )}
       </div>
 
@@ -2975,6 +1912,294 @@ export default function SessionWorkspace() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {submittingReview ? 'Submitting...' : 'Submit Review'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Request Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Request Session Cancellation</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Cancellation *
+                </label>
+                <select
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">Select a reason</option>
+                  <option value="scheduling_conflict">Scheduling Conflict</option>
+                  <option value="changed_requirements">Changed Requirements</option>
+                  <option value="technical_issues">Technical Issues</option>
+                  <option value="personal_reasons">Personal Reasons</option>
+                  <option value="quality_concerns">Quality Concerns</option>
+                  <option value="communication_issues">Communication Issues</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Detailed Description *
+                </label>
+                <textarea
+                  value={cancelDescription}
+                  onChange={(e) => setCancelDescription(e.target.value)}
+                  placeholder="Please provide a detailed explanation for the cancellation request..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Evidence Files (Optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleCancelFileAdd}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  accept="image/*,.pdf,.doc,.docx"
+                />
+                {cancelFiles.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {cancelFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <button
+                          onClick={() => removeCancelFile(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelModal(false);
+                    setCancelReason('');
+                    setCancelDescription('');
+                    setCancelFiles([]);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelSession}
+                  disabled={submittingCancel || !cancelReason || !cancelDescription.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingCancel ? 'Submitting...' : 'Submit Cancellation Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Response Modal */}
+      {showCancelResponseModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Respond to Cancellation Request</h3>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Response *
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                                                                             <input
+                      type="radio"
+                      value="agree"
+                      checked={cancelResponse === 'agree'}
+                      onChange={(e) => setCancelResponse(e.target.value as 'agree' | 'dispute')}
+                      className="mr-2"
+                    />
+                    <span className="text-green-700">Agree to cancel the session</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="dispute"
+                      checked={cancelResponse === 'dispute'}
+                      onChange={(e) => setCancelResponse(e.target.value as 'agree' | 'dispute')}
+                      className="mr-2"
+                    />
+                    <span className="text-red-700">Dispute the cancellation</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Work Completion Percentage
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={workCompletionPercentage}
+                    onChange={(e) => setWorkCompletionPercentage(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="w-20">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={workCompletionPercentage}
+                      onChange={(e) => setWorkCompletionPercentage(Math.max(0, Math.min(100, parseInt(e.target.value) || 0)))}
+                      className="w-full p-2 border border-gray-300 rounded text-center"
+                    />
+                  </div>
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${workCompletionPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {cancelResponse === 'agree' ? 'Additional Comments (Optional)' : 'Explanation for Dispute *'}
+                </label>
+                <textarea
+                  value={cancelResponseDescription}
+                  onChange={(e) => setCancelResponseDescription(e.target.value)}
+                  placeholder={
+                    cancelResponse === 'agree' 
+                      ? 'Any additional comments about the cancellation...'
+                      : 'Please explain why you disagree with the cancellation request...'
+                  }
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required={cancelResponse === 'dispute'}
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Evidence Files (Optional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleCancelResponseFileAdd}
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  accept="image/*,.pdf,.doc,.docx"
+                />
+                {cancelResponseFiles.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {cancelResponseFiles.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <button
+                          onClick={() => removeCancelResponseFile(index)}
+                          className="text-red-600 hover:text-red-800 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelResponseModal(false);
+                    setCancelResponse('agree');
+                    setCancelResponseDescription('');
+                    setCancelResponseFiles([]);
+                    setWorkCompletionPercentage(50);
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelResponse}
+                  disabled={submittingCancelResponse || (cancelResponse === 'dispute' && !cancelResponseDescription.trim())}
+                  className={`px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    cancelResponse === 'agree' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'
+                  }`}
+                >
+                  {submittingCancelResponse ? 'Submitting...' : 
+                   cancelResponse === 'agree' ? 'Agree to Cancel' : 'Submit Dispute'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancellation Finalize Modal */}
+      {showCancelFinalizeModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Finalize Session Cancellation</h3>
+              
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  The other user has disputed your cancellation request. You can now provide a final decision and reason to proceed with the cancellation.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Final Decision and Reason *
+                </label>
+                <textarea
+                  value={cancelFinalNote}
+                  onChange={(e) => setCancelFinalNote(e.target.value)}
+                  placeholder="Please provide your final reason for proceeding with the cancellation despite the dispute..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCancelFinalizeModal(false);
+                    setCancelFinalNote('');
+                  }}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCancelFinalize}
+                  disabled={submittingCancelFinalize || !cancelFinalNote.trim()}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {submittingCancelFinalize ? 'Finalizing...' : 'Finalize Cancellation'}
                 </button>
               </div>
             </div>

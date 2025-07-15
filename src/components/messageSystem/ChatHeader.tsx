@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, BookOpen, Search } from 'lucide-react';
 import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
 import { hasActiveOrPendingSessions, hasUpcomingOrPendingMeetings } from "@/services/sessionApiServices";
 
@@ -13,10 +13,12 @@ interface ChatHeaderProps {
   userId: string;
   onToggleMeetings: (show: boolean) => void;
   onToggleSessions: (show: boolean) => void;
+  onToggleSearch?: (show: boolean) => void;
   onSessionUpdate?: () => void; // Add callback for session updates
   initialParticipantInfo?: { id: string, name: string };
   showingMeetings?: boolean;
   showingSessions?: boolean;
+  showingSearch?: boolean;
   sessionUpdateTrigger?: number; // Trigger to refresh session status
 }
 
@@ -25,10 +27,12 @@ export default function ChatHeader({
   userId, 
   onToggleMeetings,
   onToggleSessions,
+  onToggleSearch,
   onSessionUpdate,
   initialParticipantInfo,
   showingMeetings = false,
   showingSessions = false,
+  showingSearch = false,
   sessionUpdateTrigger = 0
 }: ChatHeaderProps) {
   const { socket } = useSocket();
@@ -52,7 +56,7 @@ export default function ChatHeader({
     if (initialParticipantInfo?.id && !otherUserId) {
       setOtherUserId(initialParticipantInfo.id);
     }
-  }, [initialParticipantInfo]);
+  }, [initialParticipantInfo, otherUserId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -122,7 +126,7 @@ export default function ChatHeader({
     }
   };
 
-  const checkActiveSessions = async () => {
+  const checkActiveSessions = useCallback(async () => {
     try {
       const hasActivePendingSessions = await hasActiveOrPendingSessions(userId);
       setHasActiveSessions(hasActivePendingSessions);
@@ -130,9 +134,9 @@ export default function ChatHeader({
       console.error('Error checking active sessions:', error);
       setHasActiveSessions(false);
     }
-  };
+  }, [userId]);
 
-  const checkActiveMeetings = async () => {
+  const checkActiveMeetings = useCallback(async () => {
     try {
       const hasActivePendingMeetings = await hasUpcomingOrPendingMeetings(userId);
       setHasActiveMeetings(hasActivePendingMeetings);
@@ -140,7 +144,7 @@ export default function ChatHeader({
       console.error('Error checking active meetings:', error);
       setHasActiveMeetings(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     if (otherUserId && socket) {
@@ -162,7 +166,7 @@ export default function ChatHeader({
 
       return () => clearInterval(interval);
     }
-  }, [userId]);
+  }, [userId, checkActiveSessions, checkActiveMeetings]);
 
   // React to session update trigger changes
   useEffect(() => {
@@ -170,7 +174,7 @@ export default function ChatHeader({
       checkActiveSessions();
       checkActiveMeetings();
     }
-  }, [sessionUpdateTrigger]);
+  }, [sessionUpdateTrigger, checkActiveSessions, checkActiveMeetings]);
 
   useEffect(() => {
     if (!socket || !otherUserId) return;
@@ -302,6 +306,15 @@ export default function ChatHeader({
           <span className="text-xs font-body hidden md:block">Dashboard</span>
         </button>
         
+        {/* Search Button */}
+        <button 
+          className={`flex flex-col items-center text-white ${showingSearch ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          onClick={() => onToggleSearch?.(!showingSearch)}
+        >
+          <Search className="h-5 w-5 mb-1" />
+          <span className="text-xs font-body hidden md:block">Search</span>
+        </button>
+
         {/* Session Button */}
         <button 
           className={`relative flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}

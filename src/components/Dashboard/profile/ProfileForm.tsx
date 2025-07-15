@@ -3,6 +3,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext'; // Update the path if different
+import Image from 'next/image';
+
 
 export default function ProfileForm() {
   const { user } = useAuth();
@@ -12,7 +14,7 @@ export default function ProfileForm() {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
+    phone: '', 
     title: '',
     avatarUrl: ''
   });
@@ -167,9 +169,15 @@ export default function ProfileForm() {
         <div className="flex flex-col items-center space-y-4">
           <div className="relative group">
             <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-100 relative">
-              <img 
-                src={formState.avatarUrl || '/default-avatar.png'} 
-                alt="Profile" 
+              <Image
+                src={
+                  formState.avatarUrl
+                    ? `/api/file/retrieve?fileUrl=${encodeURIComponent(formState.avatarUrl)}`
+                    : '/default-avatar.png'
+                }
+                alt="Profile"
+                width={200} // Replace with actual width
+                height={200} // Replace with actual height
                 className="w-full h-full object-cover"
               />
               {isEditing && (

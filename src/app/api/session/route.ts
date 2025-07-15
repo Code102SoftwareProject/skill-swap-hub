@@ -164,11 +164,60 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate ObjectIds
+    if (!Types.ObjectId.isValid(user1Id) || !Types.ObjectId.isValid(user2Id) ||
+        !Types.ObjectId.isValid(skill1Id) || !Types.ObjectId.isValid(skill2Id)) {
+      return NextResponse.json(
+        { success: false, message: 'Invalid ID format' },
+        { status: 400 }
+      );
+    }
+
+    // Prevent users from creating sessions with themselves
+    if (user1Id === user2Id) {
+      return NextResponse.json(
+        { success: false, message: 'Cannot create a session with yourself' },
+        { status: 400 }
+      );
+    }
+
+    // Check active session limit (maximum 3 active sessions between two users)
+    const user1ObjectId = new Types.ObjectId(user1Id);
+    const user2ObjectId = new Types.ObjectId(user2Id);
+    
+    // Count all active sessions (pending + accepted) between the two users
+    const activeSessionsCount = await Session.countDocuments({
+      $and: [
+        {
+          $or: [
+            { user1Id: user1ObjectId, user2Id: user2ObjectId },
+            { user1Id: user2ObjectId, user2Id: user1ObjectId }
+          ]
+        },
+        {
+          $or: [
+            { status: 'pending' },
+            { status: 'active' }
+          ]
+        }
+      ]
+    });
+
+    if (activeSessionsCount >= 3) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'You have reached the maximum limit of 3 active sessions (pending + active) between you and this user. Please wait for existing sessions to be completed before creating new requests.' 
+        },
+        { status: 400 }
+      );
+    }
+
     const sessionData: any = {
-      user1Id: new Types.ObjectId(user1Id),
+      user1Id: user1ObjectId,
       skill1Id: new Types.ObjectId(skill1Id),
       descriptionOfService1,
-      user2Id: new Types.ObjectId(user2Id),
+      user2Id: user2ObjectId,
       skill2Id: new Types.ObjectId(skill2Id),
       descriptionOfService2,
       startDate: new Date(startDate),
@@ -270,7 +319,7 @@ export async function PUT(req: NextRequest) {
     } else {
       // Handle rejection
       session.isAccepted = false;
-      session.status = "canceled";
+      session.status = "rejected";
     }
 
     // Save updated session

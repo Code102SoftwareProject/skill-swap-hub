@@ -7,6 +7,7 @@ import { ArrowLeft, Loader, MessageSquare, Send, ThumbsUp, ThumbsDown, Edit, X, 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/context/AuthContext';
 import WatchPostButton from './WatchPostButton';
+import ReportPostButton from './ReportPostButton';
 import Swal from 'sweetalert2';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
@@ -1049,8 +1050,14 @@ const PostDetail = () => {
               </div>
             </div>
             
-            {/* Save Post Button */}
-            <WatchPostButton postId={post._id} size="sm" />
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-3">
+              {/* Save Post Button */}
+              <WatchPostButton postId={post._id} size="sm" />
+              
+              {/* Report Post Button */}
+              <ReportPostButton postId={post._id} size="sm" />
+            </div>
           </div>
         </div>
       </motion.div>

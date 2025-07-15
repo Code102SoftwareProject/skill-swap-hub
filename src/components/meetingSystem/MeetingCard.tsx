@@ -1,6 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, Check, X as XMark, Video } from 'lucide-react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import Meeting from '@/types/meeting';
 import CancellationDetails from './CancellationDetails';
 
@@ -73,6 +74,13 @@ const MeetingCard = ({
   onCancel,
   onAcknowledgeCancellation
 }: MeetingCardProps) => {
+  const router = useRouter();
+
+  // Handle join meeting button click
+  const handleJoinMeeting = () => {
+    router.push(`/meeting/${meeting._id}`);
+  };
+
   return (
     <div className="border rounded-lg p-4 shadow-sm hover:shadow">
       {/* Header section title badge */}
@@ -103,11 +111,11 @@ const MeetingCard = ({
           <span>{formatTime(meeting.meetingTime)}</span>
         </div>
         
-        {/* Zoom meeting indicator*/}
+        {/* Meeting ready indicator*/}
         {isUpcoming && meeting.state === 'accepted' && meeting.meetingLink && (
           <div className="flex items-center text-blue-600 font-medium">
             <Video className="w-4 h-4 mr-2" />
-            <span className="truncate">Zoom meeting ready</span>
+            <span className="truncate">Meeting ready</span>
           </div>
         )}
       </div>
@@ -151,18 +159,16 @@ const MeetingCard = ({
           </>
         )}
         
-        {/* Join Zoom Meeting button */}
+        {/* Join Meeting button */}
         {(isUpcoming || isPast) && meeting.state === 'accepted' && meeting.meetingLink && (
-          <a 
-            href={meeting.meetingLink} 
-            target="_blank" 
-            rel="noopener noreferrer"
+          <button 
+            onClick={handleJoinMeeting}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 
                       text-sm flex items-center shadow-sm transition-colors"
           >
             <Video className="w-4 h-4 mr-2" />
-            Join Zoom Meeting
-          </a>
+            Join Meeting
+          </button>
         )}
         
         {/* Cancel button - only for upcoming meetings created by user or accepted */}
