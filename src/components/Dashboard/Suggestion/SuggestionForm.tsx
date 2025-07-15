@@ -41,7 +41,7 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
           placeholder='Write your description here'
           className="min-h-[120px] mt-1 p-2 w-full border rounded"
           minLength={10}
-          required
+          required 
         />
       </div>
       <div className='space-y-2'>
