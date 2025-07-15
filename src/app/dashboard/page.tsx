@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/lib/context/AuthContext';
 import UserSidebar from '@/components/User/UserSidebar';
-import UserNavBar from '@/components/User/UserNavBar';
+import NavBar from '@/components/homepage/Navbar';
 
 import UserDashboardContent from '@/components/User/DashboardContent/UserDashboardContent';
 import MySkillsContent from '@/components/User/DashboardContent/MySkillsContent';
@@ -14,8 +15,14 @@ import SkillVerifyContent from '@/components/User/SkillVerificationPortal';
 import SuggestionContent from '@/components/User/DashboardContent/SuggestionContent';
 import SettingContent from '@/components/User/DashboardContent/SettingContent';
 
+import ReviewsContent from '@/components/Dashboard/ReviewsContent';
+
+
 export default function UserDashboardPage() {
+  const { user, isLoading: authLoading } = useAuth();
   const [activeComponent, setActiveComponent] = useState('dashboard');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   // Load from localStorage when the component mounts
   useEffect(() => {
@@ -23,6 +30,20 @@ export default function UserDashboardPage() {
     if (savedComponent) {
       setActiveComponent(savedComponent);
     }
+    
+    // Check if we're in mobile view
+    const checkMobile = () => {
+      const isMobileView = window.innerWidth < 768;
+      setIsMobile(isMobileView);
+      setIsSidebarOpen(!isMobileView); // Close sidebar by default on mobile
+    };
+    
+    // Run on mount
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   // Save to localStorage when activeComponent changes
@@ -30,10 +51,28 @@ export default function UserDashboardPage() {
     localStorage.setItem('activeComponent', activeComponent);
   }, [activeComponent]);
 
+  const handleNavigate = (component: string) => {
+    setActiveComponent(component);
+    // Close sidebar automatically on mobile after navigation
+    if (isMobile) {
+      setIsSidebarOpen(false);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
   const renderContent = () => {
     switch (activeComponent) {
       case 'dashboard':
-        return <UserDashboardContent key={activeComponent} />;
+        return (
+    <UserDashboardContent
+      key={activeComponent}
+      onNavigateToMySkills={() => setActiveComponent('myskill')}
+      onNavigateToReviews={() => setActiveComponent('reviews')}
+    />
+  );
       case 'myskill':
         return <MySkillsContent key={activeComponent} />;
       case 'listings':
@@ -50,20 +89,71 @@ export default function UserDashboardPage() {
         return <SuggestionContent key={activeComponent} />;
       case 'setting':
         return <SettingContent key={activeComponent} />;
+       case 'reviews':  // Add this new case
+      return <ReviewsContent key={activeComponent} />;
       default:
-        return <UserDashboardContent key={activeComponent} />;
+        return (
+          <UserDashboardContent
+            key={activeComponent}
+            onNavigateToMySkills={() => setActiveComponent('myskill')}
+            onNavigateToReviews={() => setActiveComponent('reviews')}
+          />
+        );
     }
   };
 
+  // Loading state
+  if (authLoading) {
+    return (
+      <div className="h-screen flex flex-col">
+        <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={false} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <div className="h-screen flex flex-col">
+        <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={false} />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Authentication Required</h2>
+            <p className="text-gray-600">Please log in to access your dashboard</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col">
-      <UserNavBar />
-      <div className="flex flex-1 overflow-hidden">
-        <UserSidebar
-          onNavigate={setActiveComponent}
-          activeComponent={activeComponent}
-        />
-        <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
+      <NavBar onSidebarToggle={toggleSidebar} showSidebarToggle={isMobile} />
+      
+      <div className="flex flex-1 overflow-hidden relative">
+        {/* Dark overlay when sidebar is open on mobile */}
+        {isMobile && isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar */}
+        <div className={`${isMobile ? (isSidebarOpen ? 'block' : 'hidden') : 'block'} ${isMobile ? 'fixed z-40 left-0 top-0 h-full' : ''}`}>
+          <UserSidebar
+            onNavigate={handleNavigate}
+            activeComponent={activeComponent}
+            isMobile={isMobile}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+        </div>
+        
+        {/* Main content */}
+        <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
           {renderContent()}
         </main>
       </div>

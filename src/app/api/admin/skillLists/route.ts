@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import  connect  from '@/lib/db';
+import connect from '@/lib/db';
 import SkillList from '@/lib/models/skillList';
+import { v4 as uuidv4 } from 'uuid';
 
 // GET all skill lists
 export async function GET() {
@@ -22,13 +23,31 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    // Validate input
-    if (!body.categoryName || !Array.isArray(body.skills)) {
+    // Validate input 
+    if (!body.categoryName) {
       return NextResponse.json(
-        { error: 'Category name and skills array are required' },
+        { error: 'Category name is required' },
         { status: 400 }
       );
     }
+    
+    // Ensure skills is an array 
+    const skills = Array.isArray(body.skills) ? body.skills : [];
+    
+    // Add skillId for each skill if not already provided
+    const processedSkills = skills.map((skill: { skillId: any; }) => {
+      if (typeof skill === 'string') {
+        
+        return { skillId: uuidv4(), name: skill };
+      } else if (typeof skill === 'object') {
+        // Ensure skill object has skillId
+        return { 
+          ...skill, 
+          skillId: skill.skillId || uuidv4() 
+        };
+      }
+      return { skillId: uuidv4(), name: String(skill) };
+    });
     
     await connect();
     
@@ -39,7 +58,7 @@ export async function POST(request: NextRequest) {
     const newSkillList = await SkillList.create({
       categoryId: newCategoryId,
       categoryName: body.categoryName,
-      skills: body.skills
+      skills: processedSkills
     });
     
     return NextResponse.json(newSkillList, { status: 201 });

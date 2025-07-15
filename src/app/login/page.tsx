@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useToast } from '@/lib/context/ToastContext';
+import GoogleLoginButton from '@/components/auth/GoogleLoginButton';
+import { showSuspendedPopup } from '@/components/ui/SuspendedPopup';
+
+function LoginWithSearchParams() {
+  const { useSearchParams } = require('next/navigation');
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const redirect = searchParams?.get('redirect');
+    if (redirect) {
+       sessionStorage.setItem('redirectAfterLogin', redirect);
+    }
+  }, [searchParams]);
+  
+  return null;
+}
 
 const Login = () => {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, googleLogin, user, isLoading: authLoading } = useAuth();
   const { showToast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -18,15 +34,68 @@ const Login = () => {
     rememberMe: false
   });
 
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
+      } else {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router]);
+
+  const validateForm = () => {
+    const newErrors: {
+      email?: string;
+      password?: string;
+    } = {};
+    
+    // Email validation
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    // Password validation
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-    setFormData({ ...formData, [e.target.name]: value });
+    const { name, value, type, checked } = e.target;
+    const inputValue = type === 'checkbox' ? checked : value;
+    
+    setFormData({ ...formData, [name]: inputValue });
+    
+    // Clear error when user starts typing
+    if (errors[name as keyof typeof errors]) {
+      setErrors({ ...errors, [name]: undefined });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -36,12 +105,26 @@ const Login = () => {
         formData.rememberMe
       );
 
-      if (result.success) {
-        showToast('Login successful! Redirecting...', 'success');
-        router.push('/dashboard');
+      //  If user is suspended, show the popup and abort
+if (result.suspended) {
+  showSuspendedPopup(result.message, result.suspensionDetails);
+  return;
+}
+
+if (result.success) {
+  showToast('Login successful! Redirecting...', 'success');
+  // …redirect logic…
+  const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        sessionStorage.removeItem('redirectAfterLogin');
+        router.push(redirectUrl);
       } else {
-        showToast(result.message || 'Login failed', 'error');
+        router.push('/dashboard');
       }
+} else {
+  showToast(result.message || 'Login failed', 'error');
+}
+ 
     } catch (error) {
       showToast('An error occurred. Please try again.', 'error');
       console.error('Login error:', error);
@@ -50,8 +133,87 @@ const Login = () => {
     }
   };
 
+  // Google login handler
+  const handleGoogleLogin = async (credential: string) => {
+    // Prevent multiple simultaneous Google login requests
+    if (isGoogleLoading) {
+      console.log('Google login already in progress, ignoring...');
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    
+    try {
+      const result = await googleLogin(credential);
+      
+      console.log('Google login result:', result);
+
+      // 2 Suspension check
+    if (result.suspended) {
+      showSuspendedPopup(
+        result.message,
+        result.suspensionDetails,
+        () => console.log('User closed suspension popup')
+      );
+      return; // stop here
+    }
+
+      if (result.success) {
+        // Cancel any remaining Google prompts to prevent additional popups
+        if (window.google?.accounts?.id?.cancel) {
+          try {
+            window.google.accounts.id.cancel();
+          } catch (error) {
+            // Ignore errors if cancel is not available
+            console.log('Google prompt cancel not available');
+          }
+        }
+
+        // Google users go directly to dashboard (no profile completion required)
+        console.log('Google login successful, redirecting to dashboard');
+        showToast('Google login successful! Redirecting...', 'success');
+        
+        // Check if there's a redirect URL stored
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectUrl);
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        showToast(result.message || 'Google login failed', 'error');
+      }
+    } catch (error) {
+      showToast('An error occurred during Google login. Please try again.', 'error');
+      console.error('Google login error:', error);
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = (error: string) => {
+    showToast(error, 'error');
+  };
+
+  // Show loading state while checking auth status
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-light-blue-100">
+        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-light-blue-100 p-4">
+      <Suspense fallback={null}>
+        <LoginWithSearchParams />
+      </Suspense>
+      
       <div className="flex flex-col md:flex-row max-w-4xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
         
         <div className="w-full md:w-1/2 p-4 bg-white">
@@ -85,13 +247,17 @@ const Login = () => {
                   id="email"
                   name="email"
                   type="email"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="johndoe@example.com"
                   value={formData.email}
                   onChange={handleChange}
-                  required
+                  aria-invalid={errors.email ? 'true' : 'false'}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                 />
               </div>
+              {errors.email && (
+                <p className="mt-1 text-sm text-red-600" id="email-error">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -108,13 +274,17 @@ const Login = () => {
                   id="password"
                   name="password"
                   type="password"
-                  className="pl-10 block w-full p-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400"
+                  className={`pl-10 block w-full p-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
                   placeholder="********"
                   value={formData.password}
                   onChange={handleChange}
-                  required
+                  aria-invalid={errors.password ? 'true' : 'false'}
+                  aria-describedby={errors.password ? "password-error" : undefined}
                 />
               </div>
+              {errors.password && (
+                <p className="mt-1 text-sm text-red-600" id="password-error">{errors.password}</p>
+              )}
             </div>
 
             <div className="flex items-center justify-between">
@@ -152,6 +322,26 @@ const Login = () => {
                 ) : null}
                 Login
               </button>
+            </div>
+
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300" />
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Google Login Button */}
+            <div>
+              <GoogleLoginButton 
+                onSuccess={handleGoogleLogin}
+                onError={handleGoogleError}
+                disabled={isGoogleLoading}
+                isLoading={isGoogleLoading}
+              />
             </div>
           </form>
 

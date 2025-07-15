@@ -1,3 +1,6 @@
+/*
+  A form to submit user suggestions including title, description, and category.
+ */
 import { useState } from 'react';
 
 type SuggestionFormProps = {
@@ -37,6 +40,7 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
           onChange={(e) => setDescription(e.target.value)}
           placeholder='Write your description here'
           className="min-h-[120px] mt-1 p-2 w-full border rounded"
+          minLength={10}
           required
         />
       </div>

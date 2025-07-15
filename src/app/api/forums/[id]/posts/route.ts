@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     // Extract the forum ID from the URL path
     const url = request.url;
     const pathParts = url.split('/');
-    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
+    const forumId = pathParts[pathParts.length - 2]; 
     
     const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '10', 10);
@@ -27,12 +27,18 @@ export async function GET(request: NextRequest) {
 
     await connectToDatabase();
 
-    const posts = await Post.find({ forumId })
+    const posts = await Post.find({ 
+      forumId, 
+      $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
+    })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Post.countDocuments({ forumId });
+    const total = await Post.countDocuments({ 
+      forumId, 
+      $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
+    });
 
     return NextResponse.json({
       posts,
@@ -54,11 +60,15 @@ export async function GET(request: NextRequest) {
 
 // POST handler for creating new posts
 export async function POST(request: NextRequest) {
+  // Use a session to ensure both operations (post creation and forum update) succeed or fail together
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     // Extract the forum ID from the URL path
     const url = request.url;
     const pathParts = url.split('/');
-    const forumId = pathParts[pathParts.length - 2]; // Get the second-to-last segment
+    const forumId = pathParts[pathParts.length - 2]; 
     
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(forumId)) {
@@ -71,8 +81,10 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     
     // Check if forum exists
-    const forum = await Forum.findById(forumId);
+    const forum = await Forum.findById(forumId).session(session);
     if (!forum) {
+      await session.abortTransaction();
+      session.endSession();
       return NextResponse.json(
         { error: 'Forum not found' },
         { status: 404 }
@@ -83,6 +95,8 @@ export async function POST(request: NextRequest) {
     
     // Validate request body
     if (!data.title || !data.content) {
+      await session.abortTransaction();
+      session.endSession();
       return NextResponse.json(
         { error: 'Title and content are required' },
         { status: 400 }
@@ -94,9 +108,8 @@ export async function POST(request: NextRequest) {
       forumId,
       title: data.title,
       content: data.content,
-      imageUrl: data.imageUrl || null, // Include image URL if provided
+      imageUrl: data.imageUrl || null,
       author: {
-        // Generate a valid ObjectId instead of using the string
         _id: data.author?._id || new mongoose.Types.ObjectId(),
         name: data.author?.name || 'Anonymous User',
         avatar: data.author?.avatar || '/default-avatar.png',
@@ -108,13 +121,32 @@ export async function POST(request: NextRequest) {
       replies: 0
     });
     
-    await newPost.save();
+    // Save the post with the session
+    await newPost.save({ session });
+    
+    // Update forum post count and lastActive time
+    await Forum.findByIdAndUpdate(
+      forumId,
+      { 
+        $inc: { posts: 1 },
+        lastActive: new Date().toISOString()
+      },
+      { session }
+    );
+    
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
       
     return NextResponse.json({ 
       success: true,
       post: newPost 
     }, { status: 201 });
   } catch (error) {
+    // Abort the transaction on error
+    await session.abortTransaction();
+    session.endSession();
+    
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('Error creating post:', errorMessage, errorStack);

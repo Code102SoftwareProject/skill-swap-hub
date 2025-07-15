@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Bell, MessageSquare, ChevronDown, Search, LogOut, User } from 'lucide-react';
-import SearchPopup from '@/components/SearchPopup';
+import SearchPopup from '@/components/homepage/SearchPopup';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 
@@ -56,7 +56,7 @@ const Navbar: React.FC = () => {
   }
   const isLoggedIn = !!user;
   const displayName = user ? user.firstName : 'User';
-  const userImage = '/Avatar.png';
+  const userImage = user?.avatar || '/Avatar.png';
 
   return (
     <>

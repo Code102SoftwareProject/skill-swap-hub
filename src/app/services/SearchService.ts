@@ -1,170 +1,147 @@
 import { Forum, IForum } from '@/lib/models/Forum';
 import connect from '@/lib/db';
 
-export class SearchService {
-  private static instance: SearchService;
-  private isInitialized = false;
-
-  private constructor() {}
-
-  public static getInstance(): SearchService {
-    if (!SearchService.instance) {
-      SearchService.instance = new SearchService();
-    }
-    return SearchService.instance;
+// Initialize database connection
+export async function initializeDB() {
+  try {
+    await connect();
+    return true;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    throw error;
   }
+}
 
-  async initialize() {
-    if (this.isInitialized) return;
+// Main search function
+export async function searchForums(query: string): Promise<IForum[]> {
+  const normalizedQuery = query.trim();
   
-    try {
-      // Use the connect function from db.ts
-      await connect();
-      this.isInitialized = true;
-    } catch (error) {
-      console.error('MongoDB connection error:', error);
-      throw error;
+  try {
+    await initializeDB();
+    console.log('Searching with normalized query:', normalizedQuery);
+
+    // Return recent forums if query is empty
+    if (!normalizedQuery) {
+      const recentForums = await Forum.find({}).sort({ createdAt: -1 }).limit(10);
+      return recentForums.map(doc => doc.toObject());
     }
+
+    // Use Atlas Search
+    const results = await Forum.aggregate([
+      {
+        $search: {
+          index: 'forums_search',
+          text: {
+            query: normalizedQuery,
+            path: {
+              wildcard: '*'  // Search across all indexed fields
+            }
+          }
+        }
+      },
+      { $limit: 50 },
+      {
+        // Include all fields from the Forum model
+        $project: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          posts: 1,
+          replies: 1,
+          lastActive: 1,
+          image: 1,
+          __v: 1,
+        }
+      },
+      { $sort: { score: -1 } }
+    ]);
+
+    console.log(`Found ${results.length} results using Atlas Search`);
+    return processSearchResults(results, normalizedQuery.toLowerCase());
+  } catch (error) {
+    console.error('Atlas Search error:', error);
+    // Fallback to basic search if Atlas Search fails
+    return fallbackSearch(normalizedQuery);
   }
+}
 
-  async searchForums(query: string): Promise<IForum[]> {
-    try {
-      await this.initialize();
-      
-      console.log('Searching with query:', query);
+// Fallback search function
+export async function fallbackSearch(query: string): Promise<IForum[]> {
+  try {
+    if (!query) {
+      const recentForums = await Forum.find({}).sort({ createdAt: -1 }).limit(10);
+      return recentForums.map(doc => doc.toObject());
+    }
 
-      try {
-        const searchResults = await Forum.aggregate([
-          {
-            $search: {
-              index: "default",
-              compound: {
-                should: [
-                  {
-                    text: {
-                      query: query,
-                      path: "title",
-                      score: { boost: { value: 2 } },
-                      highlighting: { maxCharsToExamine: 500, maxNumPassages: 5 }
-                    }
-                  },
-                  {
-                    text: {
-                      query: query,
-                      path: "description",
-                      highlighting: { maxCharsToExamine: 1000, maxNumPassages: 5 }
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          {
-            $addFields: {
-              score: { $meta: "searchScore" },
-              highlights: { $meta: "searchHighlights" }
-            }
-          },
-          {
-            $sort: { score: -1 }
-          }
-        ]);
+    // Basic regex search
+    const regex = new RegExp(query, 'i');
+    const results = await Forum.find({
+      $or: [
+        { title: regex },
+        { description: regex }
+      ]
+    }).sort({ createdAt: -1 }).limit(50);
 
-        console.log('Atlas Search results with highlights:', searchResults);
+    console.log(`Found ${results.length} results using fallback search`);
+    return processSearchResults(results, query.toLowerCase());
+  } catch (error) {
+    console.error('Fallback search error:', error);
+    return [];
+  }
+}
 
-        // Process the results to add highlighting
-        const processedResults = searchResults.map(result => {
-          let titleHighlighted = result.title;
-          let descriptionHighlighted = result.description;
+// Process and highlight search results
+export function processSearchResults(results: any[], normalizedQuery: string): IForum[] {
+  const queryTerms = normalizedQuery.split(/\s+/).filter(term => term.length > 0);
 
-          // Process highlights if they exist
-          if (result.highlights) {
-            result.highlights.forEach((highlight: any) => {
-              const texts = highlight.texts;
-              texts.forEach((text: any) => {
-                if (text.type === 'hit') {
-                  const regex = new RegExp(text.value, 'gi');
-                  if (highlight.path === 'title') {
-                    titleHighlighted = titleHighlighted.replace(
-                      regex,
-                      `<mark class="bg-yellow-200">${text.value}</mark>`
-                    );
-                  } else if (highlight.path === 'description') {
-                    descriptionHighlighted = descriptionHighlighted.replace(
-                      regex,
-                      `<mark class="bg-yellow-200">${text.value}</mark>`
-                    );
-                  }
-                }
-              });
-            });
-          }
+  return results.map(doc => {
+    const result = doc.toObject ? doc.toObject() : doc;
+    let titleHighlighted = result.title || '';
+    let descriptionHighlighted = result.description || '';
 
-          return {
-            ...result,
-            title: titleHighlighted,
-            description: descriptionHighlighted,
-            score: Math.round((result.score || 0) * 100) / 100
-          };
-        });
+    // Only highlight if we have search terms
+    if (queryTerms.length > 0) {
+      const escapedTerms = queryTerms.map(term =>
+        term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      );
 
-        return processedResults;
-      } catch (searchError) {
-        console.error('Atlas Search error:', searchError);
-        
-        // Fallback to regex search with basic highlighting
-        console.log('Falling back to regex search');
-        const regex = new RegExp(`(${query})`, 'gi');
-        const fallbackResults = await Forum.find({
-          $or: [
-            { title: { $regex: regex } },
-            { description: { $regex: regex } }
-          ]
-        });
+      if (escapedTerms.length > 0) {
+        const combinedRegex = new RegExp(`(${escapedTerms.join('|')})`, 'gi');
 
-        // Add basic highlighting to fallback results
-        const processedFallbackResults = fallbackResults.map(doc => {
-          const result = doc.toObject();
-          result.title = result.title.replace(
-            regex,
-            '<mark class="bg-yellow-200">$1</mark>'
-          );
-          result.description = result.description.replace(
-            regex,
-            '<mark class="bg-yellow-200">$1</mark>'
-          );
-          return result;
-        });
+        titleHighlighted = titleHighlighted.replace(
+          combinedRegex,
+          '<mark class="bg-yellow-200">$1</mark>'
+        );
 
-        console.log('Fallback search results:', processedFallbackResults);
-        return processedFallbackResults;
+        descriptionHighlighted = descriptionHighlighted.replace(
+          combinedRegex,
+          '<mark class="bg-yellow-200">$1</mark>'
+        );
       }
-    } catch (error) {
-      console.error('Search error:', error);
-      throw error;
     }
-  }
 
-  async checkSearchIndex(): Promise<boolean> {
-    try {
-      await this.initialize();
-      
-      const results = await Forum.aggregate([
-        {
-          $search: {
-            index: "default",
-            text: {
-              query: "test",
-              path: ["title", "description"]
-            }
-          }
-        },
-        { $limit: 1 }
-      ]);
-      return true;
-    } catch (error) {
-      console.error('Search index check failed:', error);
-      return false;
-    }
+    return {
+      ...result,
+      title: titleHighlighted,
+      description: descriptionHighlighted
+    };
+  });
+}
+
+// Check search index status
+export async function checkSearchIndex(): Promise<boolean> {
+  try {
+    await initializeDB();
+    const docCount = await Forum.countDocuments();
+    if (docCount === 0) return false;
+
+    const indexes = await Forum.collection.indexInformation();
+    console.log('Index info:', indexes);
+    return true; // assume Atlas Search works if connection succeeds
+  } catch (error) {
+    console.error('Search system check failed:', error);
+    return false;
   }
 }

@@ -1,14 +1,27 @@
 import { NextResponse } from 'next/server';
 import connect from '../../../lib/db';
 import Suggestion from '@/lib/models/Suggestion';
+import User from '@/lib/models/userSchema';
+import mongoose from 'mongoose';
 
 // GET: Fetch all suggestions
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await connect();
-    const suggestions = await Suggestion.find({}).populate('userId');
 
-    // Flatten user data into each suggestion object
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const status = searchParams.get("status");
+
+    const filter: any = {};
+    if (userId) filter.userId = userId;
+    if (status) filter.status = status;
+
+    const suggestions = await Suggestion.find(filter).populate({
+      path: 'userId',
+      select: 'firstName lastName email avatar'
+    });
+
     const formatted = suggestions.map((s) => ({
       _id: s._id,
       category: s.category,
@@ -16,21 +29,20 @@ export async function GET() {
       title: s.title,
       description: s.description,
       status: s.status,
-      // Flattened from s.userId
-      userName: s.userId?.userName || 'Unknown',
+      userName: s.userId ? `${s.userId.firstName} ${s.userId.lastName}` : 'Unknown',
       avatar: s.userId?.avatar || '/default-avatar.png',
-      role: s.userId?.role || 'User',
+      role: 'User',
     }));
 
     return NextResponse.json(formatted);
   } catch (error) {
-    console.error('Error:', error);
     return NextResponse.json(
       { error: 'Failed to fetch suggestions', details: (error as Error).message },
       { status: 500 }
     );
   }
 }
+
 
 // POST: Create new suggestion
 export async function POST(request: Request) {
@@ -52,8 +64,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json(suggestion, { status: 201 });
   } catch (error) {
+    console.error('Create suggestion error:', error);
     return NextResponse.json(
-      { error: 'Failed to create suggestion' },
+      { 
+        error: 'Failed to create suggestion',
+        details: (error as Error).message
+      },
       { status: 500 }
     );
   }

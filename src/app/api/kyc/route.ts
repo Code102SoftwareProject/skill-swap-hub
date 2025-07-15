@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/lib/db"; // Database connection utility
+import Connect from "@/lib/db"; // Database connection utility
 import KYC from "@/lib/models/KYCSchema"; // KYC document schema model
 
 // KYC status constants
@@ -46,7 +46,7 @@ function validateRequiredFields<T>(data: T, requiredFields: Array<keyof T>) {
 export async function POST(req: NextRequest) {
   try {
     // Connect to database before operations
-    await dbConnect();
+    await Connect();
 
     // Parse request body into data object with type annotation
     const data = (await req.json()) as KYCRequest;

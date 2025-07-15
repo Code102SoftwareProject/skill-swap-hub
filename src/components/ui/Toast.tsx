@@ -22,7 +22,7 @@ const Toast = ({ message, type, duration = 5000, onClose }: ToastProps) => {
   }, [duration, onClose]);
 
   const getToastClasses = () => {
-    let baseClasses = 'fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 max-w-md';
+    let baseClasses = 'p-4 rounded-lg shadow-lg transition-all duration-300 max-w-md';
     
     if (!isVisible) {
       baseClasses += ' opacity-0 translate-y-[-10px]';
@@ -42,6 +42,7 @@ const Toast = ({ message, type, duration = 5000, onClose }: ToastProps) => {
     }
   };
 
+  // Only show icons for success and info toasts, NOT for error toasts
   const getIcon = () => {
     switch (type) {
       case 'success':
@@ -50,18 +51,15 @@ const Toast = ({ message, type, duration = 5000, onClose }: ToastProps) => {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
         );
-      case 'error':
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        );
       case 'info':
         return (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
+      case 'error':
+        // Return null for error toasts to prevent duplicate icons
+        return null;
       default:
         return null;
     }
@@ -78,6 +76,7 @@ const Toast = ({ message, type, duration = 5000, onClose }: ToastProps) => {
             setTimeout(onClose, 300);
           }}
           className="ml-4 text-white hover:text-gray-200 focus:outline-none"
+          aria-label="Close notification"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

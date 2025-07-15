@@ -58,7 +58,6 @@ export async function GET(req: NextRequest) {
  * 
  * @param req -JSON body containing participants array
  *             Ex body: { "participants": ["64a82d9b5e211c2a400e30d5", "64a82db15e211c2a400e30d8"] }
- *             Participants must be valid MongoDB ObjectIds or their string representations
  * @returns JSON response with chat room object
  *          
  */
@@ -66,14 +65,12 @@ export async function POST(req: NextRequest) {
   // System-only API calls must have API key
   const authError = validateSystemApiKey(req);
   if (authError) return authError;
-  
   await connect();
-
   try {
     const body = await req.json();
     let { participants } = body;
 
-    // Must have exactly 2 participants
+    // ! Must have exactly 2 participants
     if (!participants || participants.length !== 2) {
       return NextResponse.json(
         { success: false, message: 'A chat room must have exactly two participants' },

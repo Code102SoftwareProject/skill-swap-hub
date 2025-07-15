@@ -1,5 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
+import Reply from './replySchema';
 export interface IPost extends Document {
   _id: string;
   forumId: mongoose.Types.ObjectId | string;
@@ -16,6 +16,10 @@ export interface IPost extends Document {
   likedBy: string[];
   dislikedBy: string[];
   replies: number;
+  views: number;
+  isDeleted?: boolean;
+  deletedReason?: string;
+  deletedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,11 +78,33 @@ const PostSchema = new Schema(
       type: Number,
       default: 0,
     },
+    views: {
+      type: Number,
+      default: 0,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    deletedReason: {
+      type: String,
+      default: null,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
+// Middleware to delete replies when a post is deleted
+PostSchema.pre('findOneAndDelete', async function (next) {
+  const postId = this.getQuery()._id;
+  await Reply.deleteMany({ postId });
+  next();
+});
 
 // Check if model exists before creating a new one (for Next.js hot reloading)
 const Post = mongoose.models.Post || mongoose.model<IPost>('Post', PostSchema);

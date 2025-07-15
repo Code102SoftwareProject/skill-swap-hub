@@ -7,6 +7,7 @@ export interface IMessage extends Document {
   sentAt: Date;
   readStatus: boolean;
   replyFor?: mongoose.Types.ObjectId | null;
+  deliveryStatus?: 'sent' | 'delivered' | 'read';
 }
 
 const messageSchema: Schema<IMessage> = new Schema({
@@ -36,6 +37,11 @@ const messageSchema: Schema<IMessage> = new Schema({
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'Message', 
     default: null
+  },
+  deliveryStatus: {
+    type: String,
+    enum: ['sent', 'delivered', 'read'],
+    default: 'sent'
   },
 });
 

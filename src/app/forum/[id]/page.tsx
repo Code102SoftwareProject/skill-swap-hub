@@ -3,18 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { MessageSquare, Clock, User, Loader } from 'lucide-react';
+import { MessageSquare, Clock, User, Loader, Sparkles } from 'lucide-react';
 import { IForum } from '@/lib/models/Forum';
-import ForumPosts from '../../../components/ForumPosts';
-import Navbar from '@/components/Navbar';
+import ForumPosts from '../../../components/communityForum/ForumPosts';
+import Navbar from '@/components/homepage/Navbar';
 import Chatbot from "@/components/chatassistant/chatbot";
+import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 export default function ForumDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { trackInteraction, getPersonalizedFeed } = useUserPreferences();
   const [forum, setForum] = useState<IForum | null>(null);
   const [latestForums, setLatestForums] = useState<IForum[]>([]);
   const [latestPosts, setLatestPosts] = useState<any[]>([]);
+  const [personalizedPosts, setPersonalizedPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +33,9 @@ export default function ForumDetailsPage() {
         }
         const forumData = await forumResponse.json();
         setForum(forumData.forum);
+        
+        // Note: Forum views are tracked differently than post views
+        // We'll implement forum-specific tracking later if needed
         
         // Fetch latest forums
         const latestForumsResponse = await fetch('/api/forums?limit=5&sort=createdAt');
@@ -47,6 +53,12 @@ export default function ForumDetailsPage() {
         const latestPostsData = await latestPostsResponse.json();
         setLatestPosts(latestPostsData.posts);
         
+        // Fetch personalized recommendations
+        const personalizedResponse = await getPersonalizedFeed(1, 3);
+        if (personalizedResponse.success) {
+          setPersonalizedPosts(personalizedResponse.data.posts);
+        }
+        
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Unable to load data. Please try again later.');
@@ -58,7 +70,7 @@ export default function ForumDetailsPage() {
     if (id) {
       fetchData();
     }
-  }, [id]);
+  }, [id, trackInteraction, getPersonalizedFeed]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -114,10 +126,10 @@ export default function ForumDetailsPage() {
       <div className="sticky top-0 z-50">
         <Navbar />
       </div>
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="w-full py-6">
+        <div className="flex flex-col lg:flex-row">
           {/* Main Content */}
-          <div className="lg:w-3/4">
+          <div className="lg:flex-1 lg:max-w-5xl lg:mx-auto lg:mr-12 px-4">
             <div className="bg-white rounded-xl shadow-md overflow-hidden">
               {/* Forum Header */}
               <div className="relative h-72 w-full bg-gradient-to-r from-blue-600 to-blue-800">
@@ -127,11 +139,6 @@ export default function ForumDetailsPage() {
                   <div className="flex items-center text-white/80 mb-3 text-sm">
                     <Clock className="h-4 w-4 mr-1" />
                     <span>{forum.createdAt ? new Date(forum.lastActive).toLocaleDateString() : 'Recently'}</span>
-                    
-                    <span className="mx-2">•</span>
-                    
-                    <User className="h-4 w-4 mr-1" />
-                    <span>{'Anonymous'}</span>
                   </div>
                   
                   <h1 className="text-4xl font-bold text-white mb-3">{forum.title}</h1>
@@ -154,9 +161,34 @@ export default function ForumDetailsPage() {
           </div>
           
           {/* Sidebar - Now on the right and sticky */}
-          <div className="lg:w-1/4 sticky top-6">
+          <div className="lg:w-80 lg:min-w-80 sticky top-24 h-fit bg-blue-100 rounded-l-xl shadow-sm mr-20">
+            {/* Personalized Recommendations */}
+            {personalizedPosts.length > 0 && (
+              <div className="mb-6">
+                <div className="bg-blue-200 px-4 py-3 flex items-center">
+                  <Sparkles className="w-5 h-5 text-blue-600 mr-2" />
+                  <h2 className="text-lg font-semibold text-gray-800">Recommended for You</h2>
+                </div>
+                <div className="divide-y divide-blue-200">
+                  {personalizedPosts.map((post) => (
+                    <div key={post._id} className="px-4 py-3 hover:bg-blue-50 transition-colors">
+                      <Link href={`/forum/${post.forumId._id}/posts/${post._id}`} className="text-gray-700 hover:text-blue-600 block">
+                        <div className="font-medium line-clamp-2">{post.title}</div>
+                        <div className="text-xs text-gray-500 flex items-center mt-1">
+                          <User className="h-3 w-3 mr-1" />
+                          <span>{post.author?.name || 'Anonymous'}</span>
+                          <span className="mx-1">•</span>
+                          <span>{post.forumId.title}</span>
+                        </div>
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Latest Forums */}
-            <div className="bg-blue-100 rounded-xl shadow-sm overflow-hidden mb-6">
+            <div className="mb-6">
               <div className="bg-blue-200 px-4 py-3">
                 <h2 className="text-lg font-semibold text-gray-800">Latest Forums</h2>
               </div>
@@ -172,8 +204,7 @@ export default function ForumDetailsPage() {
                       <span className="text-xs text-gray-500">{new Date(forum.lastActive).toLocaleDateString()}</span>
                     </div>
                     <span className="bg-blue-200 text-blue-800 text-sm px-2 py-1 rounded-full">
-                      {/*latestForum.postCount || 0*/}
-                      {0}
+                      {latestForum.posts || 0}
                     </span>
                   </div>
                 ))}
@@ -181,7 +212,7 @@ export default function ForumDetailsPage() {
             </div>
             
             {/* Latest Posts */}
-            <div className="bg-blue-100 rounded-xl shadow-sm overflow-hidden">
+            <div className="bg-blue-100 overflow-hidden">
               <div className="bg-blue-200 px-4 py-3">
                 <h2 className="text-lg font-semibold text-gray-800">Latest Posts</h2>
               </div>

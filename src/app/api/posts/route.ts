@@ -7,7 +7,9 @@ export async function GET(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const posts = await Post.find().sort({ createdAt: -1 }); // newest first
+    const posts = await Post.find({ 
+      $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
+    }).sort({ createdAt: -1 }); 
 
     return NextResponse.json({ posts }, { status: 200 });
   } catch (error) {

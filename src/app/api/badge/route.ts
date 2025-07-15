@@ -5,27 +5,6 @@ import { NextRequest } from "next/server";
 import { Types } from "mongoose";
 
 /**
- * Interface for badge input validation
- */
-interface BadgeInput {
-  badgeName: string;
-  badgeImage: string;
-  criteria: string;
-  description: string;
-}
-
-/**
- * Interface for badge update validation with optional fields
- */
-interface BadgeUpdateInput {
-  badgeId: string;
-  badgeName?: string;
-  badgeImage?: string;
-  criteria?: string;
-  description?: string;
-}
-
-/**
  * Helper function to validate badge ID
  * @param badgeId - The badge ID to validate
  * @returns NextResponse with error or null if valid
@@ -74,7 +53,7 @@ export const GET = async (req: Request) => {
 export const POST = async (req: NextRequest) => {
   try {
     // Parse request body for badge data
-    const body: BadgeInput = await req.json();
+    const body = await req.json();
     // Connect to database
     await connect();
     // Create new badge document
@@ -84,7 +63,7 @@ export const POST = async (req: NextRequest) => {
 
     // Return success response with created badge
     return NextResponse.json(
-      { message: "Badge is created", Admin: newBadge },
+      { message: "Badge is created", badge: newBadge },
       { status: 200 }
     );
   } catch (error: any) {
@@ -102,7 +81,7 @@ export const POST = async (req: NextRequest) => {
 export const PATCH = async (req: NextRequest) => {
   try {
     // Parse request body for badge update data
-    const body: BadgeUpdateInput = await req.json();
+    const body = await req.json();
     const { badgeId, badgeName, badgeImage, criteria, description } = body;
 
     // Validate badgeId
@@ -110,7 +89,7 @@ export const PATCH = async (req: NextRequest) => {
     if (validationError) return validationError;
 
     // Check for fields to update
-    const updateData: Partial<BadgeInput> = {};
+    const updateData: any = {};
 
     if (badgeName) {
       updateData.badgeName = badgeName;
