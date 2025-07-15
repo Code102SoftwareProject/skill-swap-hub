@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chat System Test Results (Simplified)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Chat System Test Execution Results</h1>
+        <p><strong>Tester:</strong> Adeepa</p>
+        <p><strong>Version:</strong> Not specified</p>
+        <p><strong>Browser:</strong> chrome</p>
+        <p><strong>Device:</strong> desktop</p>
+        <p><strong>Test Date:</strong> 2025-07-15</p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Test Name</th>
+                <th>Priority</th>
+                <th>Preconditions</th>
+                <th>Test Steps</th>
+                <th>Expected Result</th>
+                <th>Actual Result</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>Valid User Access</td><td>HIGH</td><td>User has valid account and is logged in</td><td>1. Navigate to /user/chat<br>2. Verify chat interface loads</td><td>Chat page displays with sidebar and main content area</td><td>Showed Correctly</td><td class="pass">PASS</td></tr>
+            <tr><td>2</td><td>Unauthenticated User Access</td><td>HIGH</td><td>User is not logged in</td><td>1. Navigate to /user/chat<br>2. Observe system behavior</td><td>"Please log in to access chat" message displayed</td><td>Please log in to access chat</td><td class="pass">PASS</td></tr>
+            <tr><td>3</td><td>Chat Room Selection</td><td>HIGH</td><td>User has access to multiple chat rooms</td><td>1. Click on a chat room in sidebar<br>2. Verify chat room opens<br>3. Check header shows correct participant name</td><td>Selected chat room displays with correct participant info</td><td>Shows as Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>4</td><td>Send Text Message</td><td>HIGH</td><td>User in active chat room</td><td>1. Type message in input field<br>2. Click Send button or press Enter<br>3. Verify message appears in chat</td><td>Message sent successfully and displayed</td><td>Sent</td><td class="pass">PASS</td></tr>
+            <tr><td>5</td><td>Empty Message Validation</td><td>MEDIUM</td><td>User in active chat room</td><td>1. Try to send empty message (only spaces)<br>2. Click Send button</td><td>Error message: "Please enter a message or select a file."</td><td>Please enter a message or select a file.</td><td class="pass">PASS</td></tr>
+            <tr><td>6</td><td>Reply to Message</td><td>HIGH</td><td>Chat with existing messages</td><td>1. Click reply icon on a message<br>2. Type reply message<br>3. Send reply</td><td>Reply shows reference to original message</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>7</td><td>File Upload - Valid File</td><td>HIGH</td><td>User in active chat room</td><td>1. Click paperclip icon<br>2. Select valid file (&lt; 25MB)<br>3. Click Send</td><td>File uploaded and file message displayed</td><td>Sent and Noti Recieved</td><td class="pass">PASS</td></tr>
+            <tr><td>8</td><td>File Size Limit</td><td>HIGH</td><td>User in active chat room</td><td>1. Try to upload file &gt; 25MB<br>2. Attempt to send</td><td>Error: "File size must be less than 25MB"</td><td>File size must be less than 25MB. Please choose a smaller file.</td><td class="pass">PASS</td></tr>
+            <tr><td>9</td><td>Real-time Message Delivery</td><td>HIGH</td><td>Two users in same chat room</td><td>1. User A sends message<br>2. Check User B's screen immediately</td><td>Message appears on User B's screen without refresh</td><td>Yes</td><td class="pass">PASS</td></tr>
+            <tr><td>10</td><td>Text Content Search</td><td>HIGH</td><td>Chat with various messages</td><td>1. Click Search button<br>2. Select "Text Content" search type<br>3. Enter search term</td><td>Matching messages highlighted and listed</td><td>Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>11</td><td>Mobile Responsiveness</td><td>HIGH</td><td>Access chat on mobile device/browser</td><td>1. Open chat on mobile viewport<br>2. Test sidebar toggle<br>3. Send messages<br>4. Test all buttons and features</td><td>All features work properly on mobile</td><td>Yes</td><td class="pass">PASS</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>
