@@ -8,65 +8,28 @@ import { getSessionCompletionStatus, type CompletionStatus } from '@/utils/sessi
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
+// Type imports
+import type { 
+  Session, 
+  Work, 
+  WorkFile, 
+  SessionProgress, 
+  Review, 
+  CancelRequest, 
+  AlertState, 
+  ConfirmationState, 
+  TabType, 
+  ReviewAction, 
+  CancelResponse, 
+  FileWithTitle 
+} from '@/types';
+
 // Import tab components
 import OverviewTab from '@/components/sessionTabs/OverviewTab';
 import SubmitWorkTab from '@/components/sessionTabs/SubmitWorkTab';
 import ViewWorksTab from '@/components/sessionTabs/ViewWorksTab';
 import ProgressTab from '@/components/sessionTabs/ProgressTab';
 import ReportTab from '@/components/sessionTabs/ReportTab';
-
-interface Session {
-  _id: string;
-  user1Id: any;
-  user2Id: any;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  isAccepted: boolean;
-  status: string;
-  progress1?: any;
-  progress2?: any;
-  completionApprovedAt?: string;
-  completionRequestedAt?: string;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-interface WorkFile {
-  fileName: string;
-  fileURL: string;
-  fileTitle: string;
-  uploadedAt: string;
-}
-
-interface Work {
-  _id: string;
-  session: string;
-  provideUser: any;
-  receiveUser: any;
-  workURL: string; // Keep for backwards compatibility
-  workFiles: WorkFile[]; // New field for multiple files
-  workDescription: string;
-  provideDate: string;
-  acceptanceStatus: 'pending' | 'accepted' | 'rejected';
-  rejectionReason?: string;
-  rating?: number;
-  remark?: string;
-}
-
-interface SessionProgress {
-  _id: string;
-  userId: any; // Can be string or populated user object
-  sessionId: string;
-  startDate: string;
-  dueDate: string;
-  completionPercentage: number;
-  status: 'not_started' | 'in_progress' | 'completed' | 'abandoned';
-  notes: string;
-}
 
 export default function SessionWorkspace() {
   const params = useParams();
@@ -80,7 +43,7 @@ export default function SessionWorkspace() {
   const [myProgress, setMyProgress] = useState<SessionProgress | null>(null);
   const [otherProgress, setOtherProgress] = useState<SessionProgress | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'submit-work' | 'view-works' | 'progress' | 'report'>('overview');
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [otherUserDetails, setOtherUserDetails] = useState<any>(null);
 
   // Completion status from SessionCompletion API
@@ -95,12 +58,12 @@ export default function SessionWorkspace() {
 
   // Submit work form state
   const [workDescription, setWorkDescription] = useState('');
-  const [workFiles, setWorkFiles] = useState<{ file: File; title: string }[]>([]);
+  const [workFiles, setWorkFiles] = useState<FileWithTitle[]>([]);
   const [uploading, setUploading] = useState(false);
 
   // Work review state
   const [reviewingWork, setReviewingWork] = useState<string | null>(null);
-  const [reviewAction, setReviewAction] = useState<'accept' | 'reject' | null>(null);
+  const [reviewAction, setReviewAction] = useState<ReviewAction | null>(null);
   const [reviewMessage, setReviewMessage] = useState('');
 
   // Progress update state
@@ -126,9 +89,9 @@ export default function SessionWorkspace() {
   const [rejectionReason, setRejectionReason] = useState('');
 
   // Review state
-  const [reviews, setReviews] = useState<any[]>([]);
-  const [userReview, setUserReview] = useState<any>(null);
-  const [receivedReview, setReceivedReview] = useState<any>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [userReview, setUserReview] = useState<Review | null>(null);
+  const [receivedReview, setReceivedReview] = useState<Review | null>(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
@@ -136,7 +99,7 @@ export default function SessionWorkspace() {
   const [loadingReviews, setLoadingReviews] = useState(false);
 
   // Cancellation state
-  const [cancelRequest, setCancelRequest] = useState<any>(null);
+  const [cancelRequest, setCancelRequest] = useState<CancelRequest | null>(null);
   const [loadingCancelRequest, setLoadingCancelRequest] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showCancelResponseModal, setShowCancelResponseModal] = useState(false);
@@ -145,7 +108,7 @@ export default function SessionWorkspace() {
   const [cancelDescription, setCancelDescription] = useState('');
   const [cancelFiles, setCancelFiles] = useState<File[]>([]);
   const [submittingCancel, setSubmittingCancel] = useState(false);
-  const [cancelResponse, setCancelResponse] = useState<'agree' | 'dispute'>('agree');
+  const [cancelResponse, setCancelResponse] = useState<CancelResponse>('agree');
   const [cancelResponseDescription, setCancelResponseDescription] = useState('');
   const [cancelResponseFiles, setCancelResponseFiles] = useState<File[]>([]);
   const [workCompletionPercentage, setWorkCompletionPercentage] = useState(50);
@@ -154,26 +117,13 @@ export default function SessionWorkspace() {
   const [submittingCancelFinalize, setSubmittingCancelFinalize] = useState(false);
 
   // Alert and confirmation states
-  const [alert, setAlert] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({
+  const [alert, setAlert] = useState<AlertState>({
     isOpen: false,
     type: 'info',
     message: ''
   });
 
-  const [confirmation, setConfirmation] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type?: 'danger' | 'warning' | 'info' | 'success';
-    onConfirm: () => void;
-    confirmText?: string;
-    loading?: boolean;
-  }>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     isOpen: false,
     title: '',
     message: '',
