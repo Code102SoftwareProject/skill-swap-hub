@@ -338,21 +338,28 @@ export async function fetchMeetingNotes(meetingId: string, userId: string) {
  */
 export function filterMeetingsByType(meetings: Meeting[], userId: string) {
   const now = new Date();
+  const thirtyMinutesInMs = 30 * 60 * 1000; // 30 minutes in milliseconds
   
   return {
     pendingRequests: meetings.filter(m => 
       m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
     ),
     
-    upcomingMeetings: meetings.filter(m => 
-      (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
-      new Date(m.meetingTime) > now
-    ),
+    upcomingMeetings: meetings.filter(m => {
+      const meetingTime = new Date(m.meetingTime);
+      const meetingEndBuffer = new Date(meetingTime.getTime() + thirtyMinutesInMs); // Add 30 minutes buffer
+      
+      return (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
+             meetingEndBuffer > now; // Keep visible until 30 minutes after meeting time
+    }).sort((a, b) => new Date(a.meetingTime).getTime() - new Date(b.meetingTime).getTime()), // Sort by date (earliest first)
     
-    pastMeetings: meetings.filter(m => 
-      (m.state === 'completed' || m.state === 'accepted') && 
-      new Date(m.meetingTime) <= now
-    ),
+    pastMeetings: meetings.filter(m => {
+      const meetingTime = new Date(m.meetingTime);
+      const meetingEndBuffer = new Date(meetingTime.getTime() + thirtyMinutesInMs); // Add 30 minutes buffer
+      
+      return (m.state === 'completed' || m.state === 'accepted') && 
+             meetingEndBuffer <= now; // Move to past only after 30 minutes buffer
+    }),
     
     cancelledMeetings: meetings.filter(m => 
       m.state === 'cancelled' || m.state === 'rejected'

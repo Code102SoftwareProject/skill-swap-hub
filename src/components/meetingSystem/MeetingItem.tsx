@@ -1,6 +1,5 @@
 import React from 'react';
 import { Calendar, Clock, Download, Video, XCircle } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import Meeting from '@/types/meeting';
 import { getMeetingStatus, downloadMeetingNotesFile } from '@/services/meetingApiServices';
 import OptimizedAvatar from '@/components/ui/OptimizedAvatar';
@@ -34,8 +33,6 @@ export default function MeetingItem({
   onCancelMeeting,
   onAlert
 }: MeetingItemProps) {
-  const router = useRouter();
-  
   const otherUserId = meeting.senderId === userId ? meeting.receiverId : meeting.senderId;
   const otherUserProfile = userProfiles[otherUserId];
   const otherUserName = otherUserProfile?.firstName && otherUserProfile?.lastName 
@@ -65,7 +62,7 @@ export default function MeetingItem({
 
   // Handle join meeting button click
   const handleJoinMeeting = () => {
-    router.push(`/meeting/${meeting._id}`);
+    window.open(`/meeting/${meeting._id}`, '_blank');
   };
 
   // Download notes for a meeting
