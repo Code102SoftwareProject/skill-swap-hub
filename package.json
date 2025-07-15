@@ -28,7 +28,8 @@
     "assign:badges": "curl -X POST http://localhost:3000/api/badge-assignments",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "test:community-forums": "npm test -- --testPathPatterns=\"communityForum\" --verbose"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
