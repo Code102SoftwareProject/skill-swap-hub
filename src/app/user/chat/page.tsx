@@ -38,6 +38,7 @@ export default function ChatPage() {
   // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
+  const [showSearch, setShowSearch] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [sessionUpdateTrigger, setSessionUpdateTrigger] = useState<number>(0);
 
@@ -59,6 +60,14 @@ export default function ChatPage() {
   const toggleSessionsDisplay = (show: boolean) => {
     setShowSessions(show);
     if (show) setShowMeetings(false); // Hide meetings when showing sessions
+  };
+
+  const toggleSearchDisplay = (show: boolean) => {
+    setShowSearch(show);
+    if (show) {
+      setShowMeetings(false); // Hide meetings when showing search
+      setShowSessions(false); // Hide sessions when showing search
+    }
   };
 
   const handleSessionUpdate = () => {
@@ -94,6 +103,7 @@ export default function ChatPage() {
     setSelectedParticipantInfo(null);
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   };
 
   const handleToggleSidebar = () => {
@@ -117,6 +127,7 @@ export default function ChatPage() {
     getChatRoomParticipants();
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   }, [selectedChatRoomId, userId]);
 
   /**
@@ -213,10 +224,12 @@ export default function ChatPage() {
                 userId={userId}
                 onToggleMeetings={toggleMeetingsDisplay}
                 onToggleSessions={toggleSessionsDisplay}
+                onToggleSearch={toggleSearchDisplay}
                 onSessionUpdate={handleSessionUpdate}
                 initialParticipantInfo={selectedParticipantInfo}
                 showingSessions={showSessions}
                 showingMeetings={showMeetings}
+                showingSearch={showSearch}
                 sessionUpdateTrigger={sessionUpdateTrigger}
               />
 
@@ -243,12 +256,14 @@ export default function ChatPage() {
                     newMessage={newMessage}
                     onReplySelect={handleReplySelect}
                     participantInfo={selectedParticipantInfo}
+                    showSearch={showSearch}
+                    onCloseSearch={() => setShowSearch(false)}
                   />
                 )}
               </div>
 
-              {/* * Message input area - only shown when not in meetings/sessions view */}
-              {!showMeetings && !showSessions && (
+              {/* * Message input area - only shown when not in meetings/sessions/search view */}
+              {!showMeetings && !showSessions && !showSearch && (
                 <div className="border-t p-2 bg-white">
                   <MessageInput
                     chatRoomId={selectedChatRoomId}
