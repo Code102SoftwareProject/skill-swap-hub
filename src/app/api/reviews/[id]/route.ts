@@ -8,12 +8,12 @@ import User from "@/lib/models/userSchema";
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connect();
 
-    // Fix: Destructure params after awaiting
+    // Await the params Promise
     const { id: userId } = await params;
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
