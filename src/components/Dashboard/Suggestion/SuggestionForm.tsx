@@ -16,8 +16,8 @@ const SuggestionSchema = z.object({
     .trim()
     .min(3, { message: 'Title must be at least 3 characters after trimming' })
     .refine(
-      (val) => (val.match(/[a-zA-Z]/g)?.length ?? 0) >= 2,
-      { message: 'Title must contain at least 2 letters' }
+      (val) => (val.match(/[a-zA-Z]/g)?.length ?? 0) >= 3,
+      { message: 'Title must contain at least 3 letters' }
     ),
 
   description: z
@@ -25,8 +25,8 @@ const SuggestionSchema = z.object({
     .trim()
     .min(10, { message: 'Description must be at least 10 characters after trimming' })
     .refine(
-      (val) => (val.match(/[a-zA-Z]/g)?.length ?? 0) >= 5,
-      { message: 'Description must contain at least 5 letters' }
+      (val) => (val.match(/[a-zA-Z]/g)?.length ?? 0) >= 10,
+      { message: 'Description must contain at least 10 letters' }
     ),
 
   category: z.enum(['Issue', 'Suggestion', 'Feature Request', 'Other'], {
