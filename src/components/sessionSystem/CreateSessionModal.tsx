@@ -19,6 +19,7 @@ interface CreateSessionModalProps {
   otherUserId: string;
   otherUserName: string;
   chatRoomId: string;
+  activeSessionCount?: number;
 }
 
 export default function CreateSessionModal({
@@ -27,7 +28,8 @@ export default function CreateSessionModal({
   currentUserId,
   otherUserId,
   otherUserName,
-  chatRoomId
+  chatRoomId,
+  activeSessionCount = 0
 }: CreateSessionModalProps) {
   const [currentUserSkills, setCurrentUserSkills] = useState<UserSkill[]>([]);
   const [otherUserSkills, setOtherUserSkills] = useState<UserSkill[]>([]);
@@ -42,7 +44,6 @@ export default function CreateSessionModal({
   const [startDate, setStartDate] = useState<string>('');
   const [expectedEndDate, setExpectedEndDate] = useState<string>('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [pendingCount, setPendingCount] = useState<number>(0);
 
   // Alert state
   const [alert, setAlert] = useState<{
@@ -70,18 +71,6 @@ export default function CreateSessionModal({
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
 
-  const fetchPendingCount = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/session/pending-count?user1Id=${currentUserId}&user2Id=${otherUserId}`);
-      const data = await response.json();
-      if (data.success) {
-        setPendingCount(data.pendingCount);
-      }
-    } catch (error) {
-      console.error('Error fetching pending count:', error);
-    }
-  }, [currentUserId, otherUserId]);
-
   const fetchUserSkills = useCallback(async () => {
     setLoading(true);
     try {
@@ -107,11 +96,10 @@ export default function CreateSessionModal({
     }
   }, [currentUserId, otherUserId]);
 
-  // Fetch skills and pending count when modal opens
+  // Fetch skills when modal opens
   useEffect(() => {
     if (isOpen) {
       fetchUserSkills();
-      fetchPendingCount();
       // Set default start date to tomorrow
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
@@ -122,7 +110,7 @@ export default function CreateSessionModal({
       defaultEndDate.setDate(defaultEndDate.getDate() + 31);
       setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
     }
-  }, [isOpen, currentUserId, otherUserId, fetchUserSkills, fetchPendingCount]);
+  }, [isOpen, currentUserId, otherUserId, fetchUserSkills]);
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -244,20 +232,20 @@ export default function CreateSessionModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Pending session limit info */}
-            {pendingCount > 0 && (
-              <div className={`p-3 rounded-lg ${pendingCount >= 3 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                <p className={`text-sm ${pendingCount >= 3 ? 'text-red-700' : 'text-yellow-700'}`}>
+            {/* Active session limit info */}
+            {activeSessionCount > 0 && (
+              <div className={`p-3 rounded-lg ${activeSessionCount >= 3 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm ${activeSessionCount >= 3 ? 'text-red-700' : 'text-yellow-700'}`}>
                   <span className="font-medium">
-                    {pendingCount >= 3 
-                      ? '⚠️ Request Limit Reached' 
-                      : `📝 Pending Requests: ${pendingCount}/3`
+                    {activeSessionCount >= 3 
+                      ? '⚠️ Session Limit Reached' 
+                      : `📝 Active Sessions: ${activeSessionCount}/3`
                     }
                   </span>
                   <br />
-                  {pendingCount >= 3 
-                    ? 'You have reached the maximum of 3 pending requests. Please wait for a response before creating new requests.'
-                    : `You can send ${3 - pendingCount} more request${3 - pendingCount === 1 ? '' : 's'} to ${otherUserName}.`
+                  {activeSessionCount >= 3 
+                    ? 'You have reached the maximum of 3 active sessions (pending + active) between you and this user. Please wait for existing sessions to be completed before creating new requests.'
+                    : `You can create ${3 - activeSessionCount} more session${3 - activeSessionCount === 1 ? '' : 's'} with ${otherUserName}.`
                   }
                 </p>
               </div>
@@ -393,16 +381,16 @@ export default function CreateSessionModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting || pendingCount >= 3}
+                disabled={submitting || activeSessionCount >= 3}
                 className={`flex-1 py-2 px-4 rounded-md transition-colors ${
-                  submitting || pendingCount >= 3
+                  submitting || activeSessionCount >= 3
                     ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}
-                title={pendingCount >= 3 ? 'You have reached the maximum of 3 pending requests' : ''}
+                title={activeSessionCount >= 3 ? 'You have reached the maximum of 3 active sessions between you and this user' : ''}
               >
                 {submitting ? 'Sending...' : 
-                 pendingCount >= 3 ? 'Request Limit Reached' : 
+                 activeSessionCount >= 3 ? 'Session Limit Reached' : 
                  'Send Session Request'}
               </button>
             </div>
