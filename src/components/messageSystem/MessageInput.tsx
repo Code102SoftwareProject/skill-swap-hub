@@ -80,6 +80,16 @@ export default function MessageInput({
   const uploadFile = async () => {
     if (!file) return;
 
+    // Check file size (25MB = 25 * 1024 * 1024 bytes)
+    const maxFileSize = 25 * 1024 * 1024; // 25MB in bytes
+    if (file.size > maxFileSize) {
+      setError("File size must be less than 25MB. Please choose a smaller file.");
+      setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return;
+    }
+
     setUploading(true);
 
     // ! Form Data for Api call
@@ -263,8 +273,8 @@ export default function MessageInput({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
+          //aacept="image/*" // Only images
           className="hidden"
-          accept="image/*"
           aria-label="File Input"
         />
         <button

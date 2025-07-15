@@ -16,7 +16,7 @@ import { ReactElement } from "react";
     description: string;
     category: string;
     status: string;
-  };
+  }; 
   
   // Category icon styles
   const categoryStyles: Record<string, string> = {
