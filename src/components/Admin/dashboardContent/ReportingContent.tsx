@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
 import { Filters } from "./reporting/Filters";
 import { ReportsTable } from "./reporting/ReportsTable";
 import type { EmailFlow } from "./reporting/types";
-
+import { ReportDetailsModal } from "./reporting/ReportDetailsModal";
 
 import {
   Mail,
@@ -245,23 +244,23 @@ export default function AdminReports() {
   };
 
   const fetchReports = async () => {
-  try {
-    setLoading(true);
-    const res = await fetch("/api/admin/reports");
-    if (!res.ok) {
-      const errorText = await res.text();
-      console.error("🔴 API /admin/reports error body:", errorText);
-      throw new Error(`HTTP error! status: ${res.status}`);
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/reports");
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("🔴 API /admin/reports error body:", errorText);
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      const data = await res.json();
+      setReports(data);
+    } catch (err) {
+      console.error("Error fetching reports:", err);
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
-    const data = await res.json();
-    setReports(data);
-  } catch (err) {
-    console.error("Error fetching reports:", err);
-    setError(err instanceof Error ? err.message : String(err));
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const handleSendNotification = async (reportId: string) => {
     if (
@@ -404,84 +403,6 @@ export default function AdminReports() {
     }
   };
 
-  const openEmailClient = (
-    email: string | undefined,
-    userType: "reporter" | "reported",
-    report: AdminReport
-  ) => {
-    if (!email) {
-      alert("No email address available for this user.");
-      return;
-    }
-
-    const reporterName = formatName(
-      report.reportedBy?.firstName,
-      report.reportedBy?.lastName
-    );
-    const reportedName = formatName(
-      report.reportedUser?.firstName,
-      report.reportedUser?.lastName
-    );
-    const sessionTitle = getSessionTitle(report.sessionId);
-    const reason = formatReason(report.reason);
-
-    let subject = "";
-    let body = "";
-
-    if (userType === "reporter") {
-      subject = `Investigation Required - Report #${report._id.slice(-8)}`;
-      body = `Dear ${reporterName},
-
-Thank you for reporting an incident on our platform. We are following up on your report regarding ${reportedName}.
-
-Report Details:
-- Session: ${sessionTitle}
-- Reason: ${reason}
-- Report ID: ${report._id}
-- Date: ${formatDate(report.createdAt)}
-
-We would appreciate if you could provide any additional information that might help us investigate this matter thoroughly. Please reply to this email with:
-
-1. Any additional details about the incident
-2. Screenshots or evidence if available
-3. Any other relevant information
-
-We take all reports seriously and will investigate this matter within 3 business days.
-
-Best regards,
-SkillSwapHub Admin Team`;
-    } else {
-      subject = `Investigation Notice - Report #${report._id.slice(-8)}`;
-      body = `Dear ${reportedName},
-
-We are writing to inform you that a report has been filed regarding your interaction on our platform.
-
-Report Details:
-- Session: ${sessionTitle}
-- Reported by: ${reporterName}
-- Reason: ${reason}
-- Report ID: ${report._id}
-- Date: ${formatDate(report.createdAt)}
-
-As part of our investigation process, we would like to hear your side of the story. Please reply to this email with:
-
-1. Your account of what happened during the session
-2. Any relevant context or explanations
-3. Any evidence or screenshots that support your version of events
-
-You have 3 business days to respond to this email. We are committed to conducting a fair and thorough investigation.
-
-Best regards,
-SkillSwapHub Admin Team`;
-    }
-
-    // Create mailto link
-    const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-
-    // Open the default email client
-    window.location.href = mailtoLink;
-  };
-
   const markAsResolved = async (reportId: string) => {
     if (
       !confirm(
@@ -545,30 +466,28 @@ SkillSwapHub Admin Team`;
     resolution: "warn_reported" | "warn_reporter" | "dismiss"
   ) => {
     if (resolution === "warn_reported" || resolution === "warn_reporter") {
-  // map your underscore‐style resolution to the hyphen‐style EmailFlow
-  const flow: EmailFlow =
-    resolution === "warn_reported" ? "warn-reported" : "warn-reporter";
+      // map your underscore‐style resolution to the hyphen‐style EmailFlow
+      const flow: EmailFlow =
+        resolution === "warn_reported" ? "warn-reported" : "warn-reporter";
 
- // 1) Look up the full AdminReport object by its ID
-const rpt = reports.find((r) => r._id === reportId);
-if (!rpt) {
-  console.warn("Could not find report with id", reportId);
-  return;
-}
+      // 1) Look up the full AdminReport object by its ID
+      const rpt = reports.find((r) => r._id === reportId);
+      if (!rpt) {
+        console.warn("Could not find report with id", reportId);
+        return;
+      }
 
-// 2) Call the email‐flow helper with the real report object
-openWarningEmailClient(rpt, flow);
+      // 2) Call the email‐flow helper with the real report object
+      openWarningEmailClient(rpt, flow);
 
-// 3) Let the admin know which warning was opened
-alert(
-  flow === "warn-reported"
-    ? "Warning email opened for reported user…"
-    : "Warning email opened for reporting user…"
-);
-return;
-
-}
-
+      // 3) Let the admin know which warning was opened
+      alert(
+        flow === "warn-reported"
+          ? "Warning email opened for reported user…"
+          : "Warning email opened for reporting user…"
+      );
+      return;
+    }
 
     // Only dismiss action calls the backend API
     const resolutionMessages = {
@@ -613,7 +532,10 @@ return;
       setReports((prevReports) =>
         prevReports.map((report) =>
           report._id === reportId
-            ? { ...report, status: "resolved" as const }
+            ? {
+                ...report,
+                status: resolution === "dismiss" ? "dismissed" : "resolved",
+              }
             : report
         )
       );
@@ -632,42 +554,39 @@ return;
   };
 
   /** Kick off any of the four email flows:
- *  - initial-reporter
- *  - initial-reported
- *  - warn-reporter
- *  - warn-reported
- */
-const openWarningEmailClient = (
-  report: AdminReport,
-  flow: EmailFlow
-) => {
-  const reporterEmail = report.reportedBy?.email;
-  const reportedEmail = report.reportedUser?.email;
-  const reporterName = formatName(
-    report.reportedBy?.firstName,
-    report.reportedBy?.lastName
-  );
-  const reportedName = formatName(
-    report.reportedUser?.firstName,
-    report.reportedUser?.lastName
-  );
-  const sessionTitle = getSessionTitle(report.sessionId);
-  const reason = formatReason(report.reason);
+   *  - initial-reporter
+   *  - initial-reported
+   *  - warn-reporter
+   *  - warn-reported
+   */
+  const openWarningEmailClient = (report: AdminReport, flow: EmailFlow) => {
+    const reporterEmail = report.reportedBy?.email;
+    const reportedEmail = report.reportedUser?.email;
+    const reporterName = formatName(
+      report.reportedBy?.firstName,
+      report.reportedBy?.lastName
+    );
+    const reportedName = formatName(
+      report.reportedUser?.firstName,
+      report.reportedUser?.lastName
+    );
+    const sessionTitle = getSessionTitle(report.sessionId);
+    const reason = formatReason(report.reason);
 
-  let email: string | undefined;
-  let subject = "";
-  let body = "";
+    let email: string | undefined;
+    let subject = "";
+    let body = "";
 
-  switch (flow) {
-    case "initial-reporter":
-      email = reporterEmail;
-      subject = `Investigation Required – Report #${report._id.slice(-8)}`;
-      body = `Dear ${reporterName},\n\nThank you for your report about ${reportedName}. We’ve started investigating the reported user. Please reply with any additional details or evidence you might have.\n\nBest,\nAdmin Team`;
-      break;
-    case "initial-reported":
-      email = reportedEmail;
-      subject = `Investigation Notice – Report #${report._id.slice(-8)}`;
-      body = `Dear ${reportedName},
+    switch (flow) {
+      case "initial-reporter":
+        email = reporterEmail;
+        subject = `Investigation Required – Report #${report._id.slice(-8)}`;
+        body = `Dear ${reporterName},\n\nThank you for your report about ${reportedName}. We’ve started investigating the reported user. Please reply with any additional details or evidence you might have.\n\nBest,\nAdmin Team`;
+        break;
+      case "initial-reported":
+        email = reportedEmail;
+        subject = `Investigation Notice – Report #${report._id.slice(-8)}`;
+        body = `Dear ${reportedName},
 
 We are writing to inform you that a report has been filed regarding your interaction on our platform.
 
@@ -688,30 +607,30 @@ You have 3 business days to respond to this email. We are committed to conductin
 
 Best regards,
 SkillSwapHub Admin Team`;
-      break;
-    case "warn-reporter":
-      email = reporterEmail;
-      subject = `Warning: False Complaint – Report #${report._id.slice(-8)}`;
-      body = `Dear ${reporterName},\n\nOur investigation found insufficient evidence to support your report. Please refrain from filing false reports.\n\nBest,\nAdmin Team`;
-      break;
-    case "warn-reported":
-      email = reportedEmail;
-      subject = `Warning: Violation – Report #${report._id.slice(-8)}`;
-      body = `Dear ${reportedName},\n\nWe confirmed your behavior violated our guidelines. This is an official warning.\n\nBest,\nAdmin Team`;
-      break;
-  }
+        break;
+      case "warn-reporter":
+        email = reporterEmail;
+        subject = `Warning: False Complaint – Report #${report._id.slice(-8)}`;
+        body = `Dear ${reporterName},\n\nOur investigation found insufficient evidence to support your report. Please refrain from filing false reports.\n\nBest,\nAdmin Team`;
+        break;
+      case "warn-reported":
+        email = reportedEmail;
+        subject = `Warning: Violation – Report #${report._id.slice(-8)}`;
+        body = `Dear ${reportedName},\n\nWe confirmed your behavior violated our guidelines. This is an official warning.\n\nBest,\nAdmin Team`;
+        break;
+    }
 
-  if (!email) {
-    alert("No email address available for this user.");
-    return;
-  }
+    if (!email) {
+      alert("No email address available for this user.");
+      return;
+    }
 
-  window.location.href = [
-    `mailto:${encodeURIComponent(email)}`,
-    `?subject=${encodeURIComponent(subject)}`,
-    `&body=${encodeURIComponent(body)}`,
-  ].join("");
-};
+    window.location.href = [
+      `mailto:${encodeURIComponent(email)}`,
+      `?subject=${encodeURIComponent(subject)}`,
+      `&body=${encodeURIComponent(body)}`,
+    ].join("");
+  };
 
   useEffect(() => {
     fetchReports();
@@ -861,13 +780,17 @@ SkillSwapHub Admin Team`;
 
   const statusCounts = getStatusCounts();
 
-   //  new: options for our Filters dropdown
- const statusOptions = [
-    { value: "all",          label: "All",          count: statusCounts.all },
-    { value: "pending",      label: "Pending",      count: statusCounts.pending },
-    { value: "under_review", label: "Under Review", count: statusCounts.under_review },
-    { value: "resolved",     label: "Resolved",     count: statusCounts.resolved },
-    { value: "dismissed",    label: "Dismissed",    count: statusCounts.dismissed },
+  //  new: options for our Filters dropdown
+  const statusOptions = [
+    { value: "all", label: "All", count: statusCounts.all },
+    { value: "pending", label: "Pending", count: statusCounts.pending },
+    {
+      value: "under_review",
+      label: "Under Review",
+      count: statusCounts.under_review,
+    },
+    { value: "resolved", label: "Resolved", count: statusCounts.resolved },
+    { value: "dismissed", label: "Dismissed", count: statusCounts.dismissed },
   ];
 
   // Toggle sort direction
@@ -970,319 +893,61 @@ SkillSwapHub Admin Team`;
           </div>
         </CardHeader>
         <CardContent>
-          
-  {/* unified search + status + sort UI */}
-  <Filters
-    searchQuery={searchQuery}
-    onSearchChange={setSearchQuery}
-    statusFilter={statusFilter}
-    onStatusChange={setStatusFilter}
-    sortDirection={sortDirection}
-    onToggleSort={toggleSortDirection}
-    statusOptions={statusOptions}
-  />
+          {/* unified search + status + sort UI */}
+          <Filters
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            sortDirection={sortDirection}
+            onToggleSort={toggleSortDirection}
+            statusOptions={statusOptions}
+          />
 
-         
-{filteredReports.length === 0 ? (
-  <div className="text-center py-12">
-    {/* …your existing “no results” UI… */}
-  </div>
-) : (
-  <ReportsTable
-  
-    reports={filteredReports}
-    sortDirection={sortDirection}
-    onToggleSort={toggleSortDirection}
-    downloading={downloading}
-    onDownloadEvidence={downloadEvidence}
-    sendingEmails={sendingEmails}
-    onSendNotification={handleSendNotification}
-    onSendNotificationToReporter={handleSendNotificationToReporter}
-    onSendNotificationToReported={handleSendNotificationToReported}
-    onOpenWarningEmail={openWarningEmailClient}
-    resolvingReport={resolvingReport}
-    onResolve={resolveReport}
-    onMarkResolved={markAsResolved}
-    onViewDetails={setSelectedReport}
-    formatName={formatName}
-    formatReason={formatReason}
-    formatDate={formatDate}
-    getStatusColor={getStatusColor}
-  
-  />
-)}
+          {filteredReports.length === 0 ? (
+            <div className="text-center py-12">
+              {/* …your existing “no results” UI… */}
+            </div>
+          ) : (
+            <ReportsTable
+              reports={filteredReports}
+              sortDirection={sortDirection}
+              onToggleSort={toggleSortDirection}
+              downloading={downloading}
+              onDownloadEvidence={downloadEvidence}
+              sendingEmails={sendingEmails}
+              onSendNotification={handleSendNotification}
+              onSendNotificationToReporter={handleSendNotificationToReporter}
+              onSendNotificationToReported={handleSendNotificationToReported}
+              onOpenWarningEmail={openWarningEmailClient}
+              resolvingReport={resolvingReport}
+              onResolve={resolveReport}
+              onMarkResolved={markAsResolved}
+              onViewDetails={setSelectedReport}
+              formatName={formatName}
+              formatReason={formatReason}
+              formatDate={formatDate}
+              getStatusColor={getStatusColor}
+            />
+          )}
         </CardContent>
       </Card>
 
-      {/* Report Details Modal */}
       {selectedReport && (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto border border-gray-200">
-            <div className="flex flex-col space-y-1.5 p-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-semibold leading-none tracking-tight text-gray-900">
-                  Report Details
-                </h2>
-                <Button
-                  onClick={() => setSelectedReport(null)}
-                  variant="outline"
-                  size="sm"
-                  className="hover:bg-gray-100"
-                >
-                  ✕ Close
-                </Button>
-              </div>
-            </div>
-
-            <div className="p-6 pt-0 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-gray-50 p-4 rounded-lg border">
-                  <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                    👤 Reporting User
-                  </h4>
-                  <div className="space-y-1">
-                    <p className="text-gray-900 font-medium text-base">
-                      {formatName(
-                        selectedReport.reportedBy?.firstName,
-                        selectedReport.reportedBy?.lastName
-                      )}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      📧{" "}
-                      {selectedReport.reportedBy?.email || "No email available"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
-                  <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                    🚨 Reported User
-                  </h4>
-                  <div className="space-y-1">
-                    <p className="text-gray-900 font-medium text-base">
-                      {formatName(
-                        selectedReport.reportedUser?.firstName,
-                        selectedReport.reportedUser?.lastName
-                      )}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      📧{" "}
-                      {selectedReport.reportedUser?.email ||
-                        "No email available"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                  🔄 Session Details
-                </h4>
-                <div className="space-y-2">
-                  <p className="text-gray-900 font-medium">
-                    {getSessionTitle(selectedReport.sessionId)}
-                  </p>
-                  <div className="text-sm text-gray-600 space-y-1">
-                    <p>
-                      <strong>Session ID:</strong>{" "}
-                      {selectedReport.sessionId?._id || "Not Available"}
-                    </p>
-                    {selectedReport.sessionId?.descriptionOfService1 && (
-                      <p>
-                        <strong>Service 1:</strong>{" "}
-                        {selectedReport.sessionId.descriptionOfService1}
-                      </p>
-                    )}
-                    {selectedReport.sessionId?.descriptionOfService2 && (
-                      <p>
-                        <strong>Service 2:</strong>{" "}
-                        {selectedReport.sessionId.descriptionOfService2}
-                      </p>
-                    )}
-                    {!selectedReport.sessionId && (
-                      <p className="text-red-600 italic">
-                        ⚠️ Session data not available or not populated
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
-                <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                  ⚠️ Report Reason
-                </h4>
-                <p className="text-gray-900 font-medium">
-                  {formatReason(selectedReport.reason)}
-                </p>
-              </div>
-
-              <div className="bg-gray-50 p-4 rounded-lg border">
-                <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                  📝 Detailed Description
-                </h4>
-                <div className="bg-white p-4 rounded border border-gray-200 min-h-[100px]">
-                  <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">
-                    {selectedReport.description}
-                  </p>
-                </div>
-              </div>
-
-              {/* Evidence Files Section */}
-              {selectedReport.evidenceFiles &&
-                selectedReport.evidenceFiles.length > 0 && (
-                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                    <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                      📎 Evidence Files
-                    </h4>
-                    <div className="space-y-2">
-                      {selectedReport.evidenceFiles.map((fileUrl, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-white p-3 rounded border border-gray-200"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                              <Download className="h-4 w-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                Evidence File {index + 1}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {fileUrl.split("/").pop() || "Unknown file"}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            onClick={() =>
-                              downloadEvidence(fileUrl, selectedReport._id)
-                            }
-                            disabled={
-                              downloading[`${fileUrl}-${selectedReport._id}`]
-                            }
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center space-x-1"
-                          >
-                            {downloading[`${fileUrl}-${selectedReport._id}`] ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Download className="h-4 w-4" />
-                            )}
-                            <span>Download</span>
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-200">
-                <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    Current Status
-                  </h4>
-                  <Badge
-                    variant="outline"
-                    className={`${getStatusColor(selectedReport.status)} font-medium text-sm px-3 py-1`}
-                  >
-                    {formatStatus(selectedReport.status)}
-                  </Badge>
-                </div>
-                <div className="text-right">
-                  <h4 className="font-semibold text-gray-900 mb-2">
-                    📅 Report Submitted
-                  </h4>
-                  <p className="text-gray-700 font-medium">
-                    {formatDate(selectedReport.createdAt)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Resolution Actions */}
-              {selectedReport.status === "under_review" && (
-                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-                  <h4 className="font-semibold text-gray-900 mb-3 text-lg">
-                    🎯 Resolve Report
-                  </h4>
-                  <p className="text-gray-600 text-sm mb-4">
-                    Choose the appropriate resolution based on your
-                    investigation:
-                  </p>
-                  <div className="space-y-2">
-                    <Button
-                      onClick={() => {
-                        setSelectedReport(null);
-                        openWarningEmailClient(selectedReport, "warn-reported");
-                      }}
-                      disabled={!selectedReport.reportedUser?.email}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    >
-                      <AlertOctagon className="h-4 w-4 mr-2" />
-                      🛑 Open Email to Warn Reported User (Complaint is Valid)
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setSelectedReport(null);
-                        openWarningEmailClient(selectedReport, "warn-reporter");
-                      }}
-                      disabled={!selectedReport.reportedBy?.email}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50 border-yellow-200"
-                    >
-                      <ShieldX className="h-4 w-4 mr-2" />
-                      ⚠️ Open Email to Warn Reporting User (False Complaint)
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        setSelectedReport(null);
-                        resolveReport(selectedReport._id, "dismiss");
-                      }}
-                      disabled={resolvingReport === selectedReport._id}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                    >
-                      <X className="h-4 w-4 mr-2" />
-                      Dismiss Report (No Action Needed)
-                    </Button>
-                    <div className="border-t border-gray-200 my-3"></div>
-                    <Button
-                      onClick={() => {
-                        setSelectedReport(null);
-                        markAsResolved(selectedReport._id);
-                      }}
-                      disabled={resolvingReport === selectedReport._id}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />✅ Mark as
-                      Resolved (After Sending Warning Email)
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {selectedReport.status === "resolved" && (
-                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
-                  <h4 className="font-semibold text-gray-900 mb-2 text-lg flex items-center">
-                    <CheckCircle className="h-5 w-5 mr-2 text-green-600" />
-                    Report Resolved
-                  </h4>
-                  <p className="text-green-800 text-sm">
-                    This report has been successfully resolved and appropriate
-                    action has been taken.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ReportDetailsModal
+          report={selectedReport}
+          onClose={() => setSelectedReport(null)}
+          onResolve={resolveReport}
+          onMarkResolved={markAsResolved}
+          openWarningEmail={openWarningEmailClient}
+          downloadEvidence={downloadEvidence}
+          downloading={downloading}
+          formatName={formatName}
+          formatDate={formatDate}
+          formatReason={formatReason}
+          getSessionTitle={getSessionTitle}
+          getStatusColor={getStatusColor}
+        />
       )}
     </div>
   );
