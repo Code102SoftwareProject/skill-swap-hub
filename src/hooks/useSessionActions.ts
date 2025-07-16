@@ -33,7 +33,7 @@ export function useSessionActions({
   const [pendingSessionCount, setPendingSessionCount] = useState(0);
   const [activeSessionCount, setActiveSessionCount] = useState(0);
 
-  // Fetch sessions between two users
+  // Fetch sessions between two users with counter offers in a single request
   const fetchSessions = useCallback(async () => {
     if (!userId || !otherUserId || fetchingRef.current) {
       return;
@@ -42,7 +42,8 @@ export function useSessionActions({
     fetchingRef.current = true;
     
     try {
-      const response = await fetch(`/api/session/between-users?user1Id=${userId}&user2Id=${otherUserId}`);
+      // Use the optimized endpoint that includes counter offers
+      const response = await fetch(`/api/session/between-users-with-offers?user1Id=${userId}&user2Id=${otherUserId}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -51,8 +52,11 @@ export function useSessionActions({
       const data = await response.json();
       
       if (data.success) {
-        console.log('Fetched sessions:', data.sessions);
+        console.log('Fetched sessions with offers:', data.sessions);
         setSessions(data.sessions);
+        
+        // Set counter offers from the unified response
+        setCounterOffers(data.counterOffers || {});
         
         // Calculate pending session count (sessions created by current user that are still pending)
         const pendingCount = data.sessions.filter((session: Session) => 
@@ -68,9 +72,6 @@ export function useSessionActions({
         ).length;
         setActiveSessionCount(activeCount);
         
-        // Fetch counter offers for each session
-        await fetchCounterOffers(data.sessions);
-        
         // Notify parent component about session updates
         if (onSessionUpdate) {
           onSessionUpdate();
@@ -78,50 +79,18 @@ export function useSessionActions({
       } else {
         console.error('Failed to fetch sessions:', data.message);
         setSessions([]);
+        setCounterOffers({});
       }
     } catch (error) {
       console.error('Error fetching sessions:', error);
       setSessions([]);
+      setCounterOffers({});
       showAlert('error', 'Failed to load sessions. Please try again.');
     } finally {
       setLoading(false);
       fetchingRef.current = false;
     }
   }, [userId, otherUserId, onSessionUpdate, showAlert]);
-
-  // Fetch counter offers for sessions
-  const fetchCounterOffers = async (sessionList: Session[]) => {
-    try {
-      const counterOfferPromises = sessionList.map(async (session) => {
-        try {
-          const response = await fetch(`/api/session/counter-offer?sessionId=${session._id}`);
-          
-          if (!response.ok) {
-            console.warn(`Failed to fetch counter offers for session ${session._id}`);
-            return { sessionId: session._id, counterOffers: [] };
-          }
-          
-          const data = await response.json();
-          return { sessionId: session._id, counterOffers: data.success ? data.counterOffers : [] };
-        } catch (error) {
-          console.warn(`Error fetching counter offers for session ${session._id}:`, error);
-          return { sessionId: session._id, counterOffers: [] };
-        }
-      });
-
-      const results = await Promise.all(counterOfferPromises);
-      const counterOfferMap: { [sessionId: string]: CounterOffer[] } = {};
-      
-      results.forEach(({ sessionId, counterOffers: sessionCounterOffers }) => {
-        counterOfferMap[sessionId] = sessionCounterOffers;
-      });
-      
-      setCounterOffers(counterOfferMap);
-    } catch (error) {
-      console.error('Error fetching counter offers:', error);
-      setCounterOffers({});
-    }
-  };
 
   // Handle session accept/reject
   const handleAcceptReject = async (sessionId: string, action: 'accept' | 'reject') => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Plus, BookOpen } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
@@ -25,13 +25,14 @@ interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
+  otherUser?: UserProfile; // Optional: pass user data from parent to avoid fetch
   onSessionUpdate?: () => void; // Callback to notify parent about session changes
 }
 
-export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionUpdate }: SessionBoxProps) {
+export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser: passedOtherUser, onSessionUpdate }: SessionBoxProps) {
   const router = useRouter();
-  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(passedOtherUser || null);
+  const [userLoading, setUserLoading] = useState(!passedOtherUser);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
@@ -114,9 +115,18 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     showConfirmation
   });
 
-  // Fetch other user's information
+  // Fetch other user's information only if not passed from parent
   useEffect(() => {
     const fetchOtherUser = async () => {
+      // Skip fetch if user data is already provided
+      if (passedOtherUser) {
+        setOtherUser(passedOtherUser);
+        setUserLoading(false);
+        return;
+      }
+
+      if (!otherUserId) return;
+
       try {
         setUserLoading(true);
         const response = await fetch(`/api/users/${otherUserId}`);
@@ -134,23 +144,40 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
       }
     };
 
-    if (otherUserId) {
-      fetchOtherUser();
-    }
-  }, [otherUserId]);
+    fetchOtherUser();
+  }, [otherUserId, passedOtherUser]);
 
-  // Helper function to get user's display name
-  const getUserDisplayName = (user: UserProfile | null): string => {
+  // Fetch sessions with optimized timing
+  useEffect(() => {
+    // Only fetch sessions if we have both user IDs and other user is loaded
+    if (userId && otherUserId && !userLoading) {
+      // Use requestIdleCallback for better performance, fallback to timeout
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+          fetchSessions();
+        });
+      } else {
+        // Small delay to prevent rapid-fire requests
+        const timeoutId = setTimeout(() => {
+          fetchSessions();
+        }, 50); // Reduced from 100ms
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [userId, otherUserId, fetchSessions, userLoading]);
+
+  // Memoized helper functions for better performance
+  const getUserDisplayName = useCallback((user: UserProfile | null): string => {
     if (!user) return 'Unknown User';
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
     if (user.name) return user.name;
     return user.email || 'Unknown User';
-  };
+  }, []);
 
-  // Helper function to get display name from counter offer user
-  const getCounterOfferUserName = (counterOfferedBy: any): string => {
+  const getCounterOfferUserName = useCallback((counterOfferedBy: any): string => {
     if (!counterOfferedBy) return 'Unknown User';
     
     // Handle if it's just an ID string
@@ -184,68 +211,75 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     }
     
     return 'Unknown User';
-  };
+  }, []);
 
-  const closeAlert = () => {
+  const closeAlert = useCallback(() => {
     setAlert(prev => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
-  const closeConfirmation = () => {
+  const closeConfirmation = useCallback(() => {
     setConfirmation(prev => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
-  // Fetch other user's information
-  useEffect(() => {
-    const fetchOtherUser = async () => {
-      try {
-        setUserLoading(true);
-        const response = await fetch(`/api/users/${otherUserId}`);
-        const data = await response.json();
-        
-        if (data.success) {
-          setOtherUser(data.user);
-        } else {
-          console.error('Failed to fetch user:', data.message);
-        }
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      } finally {
-        setUserLoading(false);
-      }
-    };
-
-    if (otherUserId) {
-      fetchOtherUser();
-    }
-  }, [otherUserId]);
-
-  useEffect(() => {
-    // Only fetch sessions if we have both user IDs and other user is loaded
-    if (userId && otherUserId && !userLoading) {
-      // Add a small delay to prevent rapid-fire requests
-      const timeoutId = setTimeout(() => {
-        fetchSessions();
-      }, 100);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [userId, otherUserId, fetchSessions, userLoading]);
-
-  const handleCounterOffer = (sessionId: string) => {
+  // Memoized handler functions
+  const handleCounterOffer = useCallback((sessionId: string) => {
     const session = sessions.find(s => s._id === sessionId);
     if (session) {
       setSessionToCounterOffer(session);
       setShowCounterOfferModal(true);
     }
-  };
+  }, [sessions]);
 
-  const handleEditSession = (sessionId: string) => {
+  const handleEditSession = useCallback((sessionId: string) => {
     const session = sessions.find(s => s._id === sessionId);
     if (session) {
       setSessionToEdit(session);
       setShowEditModal(true);
     }
-  };
+  }, [sessions]);
+
+  const formatDate = useCallback((dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  }, []);
+
+  const toggleSessionExpansion = useCallback((sessionId: string) => {
+    setExpandedSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId);
+      } else {
+        newSet.add(sessionId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleActiveCounterOffers = useCallback((sessionId: string) => {
+    setShowActiveCounterOffers(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+  }, []);
+
+  const getSessionStatus = useCallback((session: Session) => {
+    // The API should provide correct status, but add fallback logic
+    if (session.status === 'completed') return 'completed';
+    if (session.status === 'canceled') return 'canceled';
+    if (session.status === 'rejected') return 'rejected';
+    if (session.status === 'active') return 'accepted';  // Show "accepted" for active sessions
+    if (session.status === 'pending') return 'pending';
+    
+    // Legacy fallback based on isAccepted field
+    if (session.isAccepted === null) return 'pending';
+    if (session.isAccepted === true) return 'accepted';
+    if (session.isAccepted === false) return 'rejected';
+    
+    return 'pending';
+  }, []);
 
   const handleCompletionResponseWithModal = async (sessionId: string, action: 'approve' | 'reject', providedRejectionReason?: string) => {
     // For rejection, show modal to collect reason if not provided
@@ -287,64 +321,27 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     setSubmittingRating(false);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // Memoized loading component
+  const LoadingComponent = useMemo(() => (
+    <div className="p-6 text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-2 text-gray-600">Loading...</p>
+    </div>
+  ), []);
 
-  const toggleSessionExpansion = (sessionId: string) => {
-    setExpandedSessions(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(sessionId)) {
-        newSet.delete(sessionId);
-      } else {
-        newSet.add(sessionId);
-      }
-      return newSet;
-    });
-  };
-
-  const toggleActiveCounterOffers = (sessionId: string) => {
-    setShowActiveCounterOffers(prev => ({
-      ...prev,
-      [sessionId]: !prev[sessionId]
-    }));
-  };
-
-  const getSessionStatus = (session: Session) => {
-    // The API should provide correct status, but add fallback logic
-    if (session.status === 'completed') return 'completed';
-    if (session.status === 'canceled') return 'canceled';
-    if (session.status === 'rejected') return 'rejected';
-    if (session.status === 'active') return 'accepted';  // Show "accepted" for active sessions
-    if (session.status === 'pending') return 'pending';
-    
-    // Legacy fallback based on isAccepted field
-    if (session.isAccepted === null) return 'pending';
-    if (session.isAccepted === true) return 'accepted';
-    if (session.isAccepted === false) return 'rejected';
-    
-    return 'pending';
-  };
+  // Memoized error component
+  const ErrorComponent = useMemo(() => (
+    <div className="p-6 text-center">
+      <p className="text-red-600">Failed to load user information</p>
+    </div>
+  ), []);
 
   if (loading || userLoading) {
-    return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Loading...</p>
-      </div>
-    );
+    return LoadingComponent;
   }
 
   if (!otherUser) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-red-600">Failed to load user information</p>
-      </div>
-    );
+    return ErrorComponent;
   }
 
   const otherUserName = getUserDisplayName(otherUser);
