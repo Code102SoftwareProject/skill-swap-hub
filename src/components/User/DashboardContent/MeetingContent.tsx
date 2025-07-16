@@ -427,7 +427,7 @@ ${data.content}
 
   // Handle join meeting button click
   const handleJoinMeeting = (meetingId: string) => {
-    router.push(`/meeting/${meetingId}`);
+    window.open(`/meeting/${meetingId}`, '_blank');
   };
 
   // Get user display name

@@ -3,6 +3,7 @@ import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import SessionCancel from '@/lib/models/sessionCancelSchema';
 import User from '@/lib/models/userSchema';
+import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { Types } from 'mongoose';
 
 // POST - Request session cancellation
@@ -81,9 +82,9 @@ export async function POST(
 
     await cancelRequest.save();
 
-    // Update session status to canceled immediately when cancellation is requested
-    session.status = 'canceled';
-    await session.save();
+    // Don't update session status immediately - only when agreed/finalized
+    // session.status = 'canceled';
+    // await session.save();
 
     // Populate the request with user details
     const populatedRequest = await SessionCancel.findById(cancelRequest._id)
@@ -94,7 +95,7 @@ export async function POST(
       success: true,
       message: 'Cancellation request submitted successfully',
       cancelRequest: populatedRequest,
-      sessionUpdated: true
+      sessionUpdated: false // Changed to false since we're not updating session status immediately
     }, { status: 201 });
 
   } catch (error: any) {
@@ -192,6 +193,8 @@ export async function PATCH(
       );
     }
 
+    console.log('Found session:', sessionId, 'with current status:', session.status);
+
     // Verify user is the other participant (not the initiator)
     const otherUserId = session.user1Id.toString() === cancelRequest.initiatorId.toString() 
       ? session.user2Id.toString() 
@@ -218,8 +221,20 @@ export async function PATCH(
       cancelRequest.resolvedDate = new Date();
 
       // Update session status to canceled
+      console.log('Finalizing cancellation - setting session status to canceled for session:', sessionId);
       session.status = 'canceled';
-      await session.save();
+      try {
+        const savedSession = await session.save();
+        console.log('Session finalized successfully:', savedSession.status);
+        
+        // Invalidate cache for both users
+        const user1Id = session.user1Id.toString();
+        const user2Id = session.user2Id.toString();
+        invalidateUsersCaches(user1Id, user2Id);
+      } catch (sessionSaveError) {
+        console.error('Error saving session during finalization:', sessionSaveError);
+        throw sessionSaveError;
+      }
 
     } else if (action === 'agree') {
       // Other user agrees to cancellation
@@ -232,8 +247,20 @@ export async function PATCH(
       cancelRequest.resolvedDate = new Date();
 
       // Update session status to canceled
+      console.log('Setting session status to canceled for session:', sessionId);
       session.status = 'canceled';
-      await session.save();
+      try {
+        const savedSession = await session.save();
+        console.log('Session updated successfully:', savedSession.status);
+        
+        // Invalidate cache for both users
+        const user1Id = session.user1Id.toString();
+        const user2Id = session.user2Id.toString();
+        invalidateUsersCaches(user1Id, user2Id);
+      } catch (sessionSaveError) {
+        console.error('Error saving session:', sessionSaveError);
+        throw sessionSaveError;
+      }
 
     } else if (action === 'dispute') {
       // Other user disputes the cancellation
@@ -246,6 +273,7 @@ export async function PATCH(
     }
 
     await cancelRequest.save();
+    console.log('CancelRequest saved with resolution:', cancelRequest.resolution, 'and responseStatus:', cancelRequest.responseStatus);
 
     // Populate the updated request
     const populatedRequest = await SessionCancel.findById(cancelRequest._id)

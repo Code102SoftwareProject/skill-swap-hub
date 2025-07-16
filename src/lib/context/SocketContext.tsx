@@ -17,6 +17,7 @@ interface SocketContextType {
   startTyping: (chatRoomId: string) => void;
   stopTyping: (chatRoomId: string) => void;
   markMessageAsRead: (messageId: string, chatRoomId: string, senderId: string) => void;
+  refreshOnlineUsers: () => void; // Add function to manually refresh online users
 }
 
 interface NotificationData {
@@ -83,19 +84,23 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       });
 
       newSocket.on('online_users', (users: string[]) => {
+        console.log('Received online users:', users);
         setOnlineUsers(users);
       });
 
       newSocket.on('user_online', ({ userId: onlineUserId }) => {
-        setOnlineUsers(prev =>
-          prev.includes(onlineUserId) ? prev : [...prev, onlineUserId]
-        );
+        console.log('User came online:', onlineUserId);
+        setOnlineUsers(prev => {
+          if (prev.includes(onlineUserId)) return prev;
+          return [...prev, onlineUserId];
+        });
         
         // Emit event to update delivery status of pending messages for this user
         newSocket.emit('user_came_online', { userId: onlineUserId });
       });
 
       newSocket.on('user_offline', ({ userId: offlineUserId }) => {
+        console.log('User went offline:', offlineUserId);
         setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
       });
 
@@ -202,6 +207,13 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Manually refresh online users list
+  const refreshOnlineUsers = () => {
+    if (socket && isConnected) {
+      socket.emit('get_online_users');
+    }
+  };
+
   // Mark message as read and notify sender
   const markMessageAsRead = (messageId: string, chatRoomId: string, senderId: string) => {
     if (socket && userId) {
@@ -225,7 +237,8 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     sendNotification,
     startTyping,
     stopTyping,
-    markMessageAsRead
+    markMessageAsRead,
+    refreshOnlineUsers
   };
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
