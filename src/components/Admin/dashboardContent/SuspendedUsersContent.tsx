@@ -1,6 +1,17 @@
-// Suspended Users page in admin dashboard
-// This page displays a list of suspended users with search and unsuspend functionality
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+"use client";
+
+// ─── TOP-LEVEL CONSTANTS ─────────────────────────────────────────────────────
+// Number of users to show per page
+const USERS_PER_PAGE = 10;
+// Delay for debounced search (milliseconds)
+const DEBOUNCE_DELAY = 300;
+
+import React, {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { debounce } from "lodash-es";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
