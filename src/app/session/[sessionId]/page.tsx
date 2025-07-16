@@ -537,58 +537,54 @@ export default function SessionWorkspace() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => router.back()}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <div className="flex items-center space-x-3">
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Session with {getOtherUserName()}
-                </h1>
-                {session?.status === 'completed' && (
-                  <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                    ✓ Completed
-                  </span>
-                )}
-                {session?.status === 'active' && (
-                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                    ● Active
-                  </span>
-                )}
-                {session?.status === 'canceled' && (
-                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                    ✕ Cancelled
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-gray-500" />
-              <span className="text-sm text-gray-500">Started:</span>
-              <span className="text-sm font-medium">{formatDate(session.startDate)}</span>
-              {session?.status === 'completed' && (
-                <>
-                  <span className="text-sm text-gray-400 mx-2">•</span>
-                  <span className="text-sm text-gray-500">Status:</span>
-                  <span className="text-sm font-medium text-green-600">Completed</span>
-                </>
-              )}
-            </div>
+      {/* Header - Reduced from 4 nested divs to 1 semantic header */}
+      <header className="bg-white shadow-sm border-b">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => router.back()}
+              className="text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <h1 className="text-xl font-semibold text-gray-900">
+              Session with {getOtherUserName()}
+            </h1>
+            {session?.status === 'completed' && (
+              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
+                ✓ Completed
+              </span>
+            )}
+            {session?.status === 'active' && (
+              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                ● Active
+              </span>
+            )}
+            {session?.status === 'canceled' && (
+              <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                ✕ Cancelled
+              </span>
+            )}
           </div>
-        </div>
-      </div>
+          
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-gray-500" />
+            <span className="text-sm text-gray-500">Started:</span>
+            <span className="text-sm font-medium">{formatDate(session.startDate)}</span>
+            {session?.status === 'completed' && (
+              <>
+                <span className="text-sm text-gray-400 mx-2">•</span>
+                <span className="text-sm text-gray-500">Status:</span>
+                <span className="text-sm font-medium text-green-600">Completed</span>
+              </>
+            )}
+          </div>
+        </nav>
+      </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tab Navigation */}
-        <div className="mb-8">
-          <nav className="flex space-x-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Tab Navigation - Removed unnecessary wrapper div */}
+        <nav className="flex space-x-8 mb-8">
             {[
               { id: 'overview', label: 'Overview', icon: FileText },
               { id: 'submit-work', label: 'Submit Work', icon: Upload },
@@ -628,13 +624,12 @@ export default function SessionWorkspace() {
               );
             })}
           </nav>
-        </div>
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <OverviewTab
             session={session}
-            currentUserId={currentUserId}
+            currentUserId={currentUserId!}
             works={works}
             myProgress={myProgress}
             otherProgress={otherProgress}
@@ -649,8 +644,8 @@ export default function SessionWorkspace() {
         {activeTab === 'submit-work' && (
           <SubmitWorkTab
             session={session}
-            currentUserId={currentUserId}
-            formatDate={formatDate}
+            currentUserId={currentUserId!}
+            formatDate={formatDate!}
             showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
           />
         )}
@@ -658,8 +653,8 @@ export default function SessionWorkspace() {
         {activeTab === 'view-works' && (
           <ViewWorksTab
             session={session}
-            currentUserId={currentUserId}
-            sessionId={sessionId}
+            currentUserId={currentUserId!}
+            sessionId={sessionId!}
             showAlert={(type: string, message: string, title?: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message, title)}
             onWorkUpdate={fetchWorks}
             otherUserDetails={otherUserDetails}
@@ -668,8 +663,8 @@ export default function SessionWorkspace() {
 
         {activeTab === 'progress' && (
           <ProgressTab
-            sessionId={sessionId}
-            currentUserId={currentUserId}
+            sessionId={sessionId!}
+            currentUserId={currentUserId!}
             session={session}
             user={user}
             showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
@@ -679,13 +674,13 @@ export default function SessionWorkspace() {
         {activeTab === 'report' && (
           <ReportTab
             session={session}
-            currentUserId={currentUserId}
+            currentUserId={currentUserId!}
             showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
-            formatDate={formatDate}
+            formatDate={formatDate!}
             user={user}
           />
         )}
-      </div>
+      </main>
 
       {/* Work Review Modal - now handled in ViewWorksTab */}
       {/* Progress Update Modal - now integrated into ProgressTab component */}

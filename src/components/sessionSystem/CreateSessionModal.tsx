@@ -345,6 +345,7 @@ export default function CreateSessionModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
@@ -362,6 +363,7 @@ export default function CreateSessionModal({
                 type="date"
                 value={expectedEndDate}
                 onChange={(e) => setExpectedEndDate(e.target.value)}
+                min={startDate || new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {errors.expectedEndDate && <p className="text-red-500 text-sm mt-1">{errors.expectedEndDate}</p>}
