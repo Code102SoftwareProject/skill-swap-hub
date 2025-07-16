@@ -8,6 +8,12 @@ const KYCSchema = new mongoose.Schema({
   // National Identity Card number
   nic: { type: String, required: true },
 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
   // User ID or email of the person submitting KYC
   recipient: { type: String, required: true },
 
