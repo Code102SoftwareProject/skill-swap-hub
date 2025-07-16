@@ -172,7 +172,7 @@ export async function PATCH(
     // Invalidate cache for both users
     const user1Id = finalSession.user1Id._id.toString();
     const user2Id = finalSession.user2Id._id.toString();
-    invalidateUsersCaches([user1Id, user2Id]);
+    invalidateUsersCaches(user1Id, user2Id);
     console.log('Cache invalidated for users after session accept/reject:', {
       user1Id,
       user2Id,
