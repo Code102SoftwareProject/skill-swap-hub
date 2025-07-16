@@ -110,11 +110,15 @@ export default function SessionCard({
   };
 
   const canRespond = (session: Session) => {
-    return isCurrentUserReceiver(session) && session.isAccepted === null;
+    return isCurrentUserReceiver(session) && 
+           session.isAccepted === null && 
+           session.status === 'pending'; // Only pending sessions can be responded to
   };
 
   const canEditOrDelete = (session: Session) => {
-    return isCurrentUserCreator(session) && session.isAccepted === null;
+    return isCurrentUserCreator(session) && 
+           session.isAccepted === null && 
+           session.status === 'pending'; // Only pending sessions can be edited or deleted
   };
 
   const getPendingCounterOffersCount = (sessionId: string) => {

@@ -243,23 +243,14 @@ export default function OverviewTab({
                   </button>
                 </>
               ) : completionStatus.canRequestCompletion ? (
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={handleRequestCompletion}
-                    disabled={requestingCompletion}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
-                  </button>
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 text-sm"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    <span>Cancel Session</span>
-                  </button>
-                </div>
+                <button
+                  onClick={handleRequestCompletion}
+                  disabled={requestingCompletion}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
+                </button>
               ) : null}
             </div>
           )}
@@ -331,7 +322,7 @@ export default function OverviewTab({
       </div>
 
       {/* Session Cancellation Section */}
-      {(session?.status === 'active' || session?.status === 'canceled') && (
+      {(session?.status === 'active' || session?.status === 'canceled' || cancelRequest) && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Session Cancellation</h2>
@@ -542,7 +533,7 @@ export default function OverviewTab({
                 </div>
               )}
             </div>
-          ) : session?.status === 'active' && (
+          ) : session?.status === 'active' && !cancelRequest && (
             <div className="text-center py-6">
               <div className="text-gray-400 mb-3">
                 <XCircle className="mx-auto h-8 w-8" />

@@ -1113,8 +1113,8 @@ export default function SessionWorkspace() {
         setCancelDescription('');
         setCancelFiles([]);
         
-        // Refresh session data to update the UI status
-        await fetchSessionData();
+        // Refresh cancellation request data to update the UI
+        await fetchCancelRequest();
       } else {
         showAlert('error', data.message || 'Failed to submit cancellation request');
       }
@@ -1194,7 +1194,16 @@ export default function SessionWorkspace() {
 
         // Refresh session if cancelled
         if (data.sessionUpdated) {
+          console.log('Session was updated, fetching latest session data...');
           await fetchSessionData();
+          console.log('Session data refreshed');
+          
+          // Also invalidate cache to ensure SessionBox gets updated data
+          if (session) {
+            const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+            // Note: We don't import invalidateUsersCaches here to avoid circular dependencies
+            // The backend already handles cache invalidation
+          }
         }
       } else {
         showAlert('error', data.message || 'Failed to respond to cancellation request');
@@ -1429,8 +1438,6 @@ export default function SessionWorkspace() {
       return 'Not set yet';
     }
     
-    // Use the earliest due date as the expected session end
-    const earliestDueDate = new Date(Math.min(...dueDates.map(d => d.getTime())));
     
     // Check if it's overdue
     const today = new Date();

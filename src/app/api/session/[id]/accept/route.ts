@@ -3,6 +3,7 @@ import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
 import { Types } from 'mongoose';
+import { invalidateUsersCaches } from '@/services/sessionApiServices';
 
 // PATCH - Accept or reject a session and create progress if accepted
 export async function PATCH(
@@ -45,6 +46,14 @@ export async function PATCH(
       );
     }
 
+    console.log('Session accept/reject attempt:', {
+      sessionId: id,
+      currentStatus: session.status,
+      isAccepted: session.isAccepted,
+      action,
+      userId
+    });
+
     // Verify that the user is part of this session
     const userObjectId = new Types.ObjectId(userId);
     const isUser1 = session.user1Id.equals(userObjectId);
@@ -61,6 +70,22 @@ export async function PATCH(
     if (session.isAccepted !== null) {
       return NextResponse.json(
         { success: false, message: `Session is already ${session.isAccepted ? 'accepted' : 'rejected'}` },
+        { status: 400 }
+      );
+    }
+
+    // Check if session is canceled - cannot accept/reject canceled sessions
+    if (session.status === 'canceled') {
+      return NextResponse.json(
+        { success: false, message: 'Cannot accept or reject a canceled session' },
+        { status: 400 }
+      );
+    }
+
+    // Check if session is completed - cannot accept/reject completed sessions
+    if (session.status === 'completed') {
+      return NextResponse.json(
+        { success: false, message: 'Cannot accept or reject a completed session' },
         { status: 400 }
       );
     }
@@ -143,6 +168,17 @@ export async function PATCH(
       .populate('progress1')
       .populate('progress2')
       .populate('rejectedBy', 'firstName lastName email avatar');
+
+    // Invalidate cache for both users
+    const user1Id = finalSession.user1Id._id.toString();
+    const user2Id = finalSession.user2Id._id.toString();
+    invalidateUsersCaches([user1Id, user2Id]);
+    console.log('Cache invalidated for users after session accept/reject:', {
+      user1Id,
+      user2Id,
+      action,
+      sessionId: id
+    });
 
     return NextResponse.json({
       success: true,

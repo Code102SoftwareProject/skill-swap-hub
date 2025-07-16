@@ -67,12 +67,12 @@ export async function GET(req: Request) {
       })
       .sort({ createdAt: -1 });
 
-    // Fix data consistency - preserve completed status
+    // Fix data consistency - preserve completed and canceled status
     for (let session of sessions) {
       let needsUpdate = false;
       
-      // Don't change completed sessions
-      if (session.status === 'completed') {
+      // Don't change completed or canceled sessions
+      if (session.status === 'completed' || session.status === 'canceled') {
         continue;
       }
       
@@ -80,24 +80,8 @@ export async function GET(req: Request) {
         session.status = 'active';
         needsUpdate = true;
       } else if (session.isAccepted === false) {
-        if (session.status === 'canceled') {
-          // Update old canceled sessions to rejected if isAccepted is false
-          session.status = 'rejected';
-          
-          // Set rejectedBy if not already set
-          if (!session.rejectedBy) {
-            // Assuming the recipient (user2Id) rejected it
-            session.rejectedBy = session.user2Id._id;
-          }
-          
-          // Set rejectedAt if not already set
-          if (!session.rejectedAt) {
-            session.rejectedAt = session.updatedAt || new Date();
-          }
-          
-          needsUpdate = true;
-        } else if (session.status !== 'rejected') {
-          // Status should be rejected
+        if (session.status !== 'rejected') {
+          // Status should be rejected (not canceled)
           session.status = 'rejected';
           needsUpdate = true;
         }
@@ -108,6 +92,7 @@ export async function GET(req: Request) {
       
       if (needsUpdate) {
         await session.save();
+        console.log(`Updated session ${session._id} status to ${session.status} (isAccepted: ${session.isAccepted})`);
       }
     }
 
