@@ -1,70 +1,89 @@
-import { CheckCircle, Clock, AlertCircle, User, BookOpen, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, User, BookOpen, XCircle, X } from 'lucide-react';
+import { useOverview } from '../../hooks/useOverview';
+import CancelSessionForm from '../sessionTabs/CancelSessionForm';
+import CancelResponseForm from '../sessionTabs/CancelResponseForm';
 
 interface OverviewTabProps {
   session: any;
+  currentUserId: string;
   works: any[];
   myProgress: any;
   otherProgress: any;
-  completionStatus: any;
-  currentUserId: string;
   user: any;
   otherUserDetails: any;
-  reviews: any[];
-  userReview: any;
-  receivedReview: any;
-  loadingReviews: boolean;
-  formatDate: (dateString: string) => string;
-  getOtherUserName: () => string;
-  getUserName: (user: any) => string;
-  cleanDescription: (description: string) => string;
-  getExpectedEndDate: () => string;
   showAlert: (type: string, message: string, title?: string) => void;
   setActiveTab: (tab: string) => void;
-  setShowReviewModal: (show: boolean) => void;
-  handleRequestCompletion: () => void;
-  handleCompletionResponse: (action: 'approve' | 'reject') => void;
-  requestingCompletion: boolean;
-  respondingToCompletion: boolean;
-  cancelRequest: any;
-  loadingCancelRequest: boolean;
-  setShowCancelModal: (show: boolean) => void;
-  setShowCancelResponseModal: (show: boolean) => void;
-  setShowCancelFinalizeModal: (show: boolean) => void;
-  handleDownloadFile: (fileURL: string, fileName?: string) => Promise<void>;
+  onSessionUpdate?: () => void; // Callback to refresh session data
 }
 
 export default function OverviewTab({
   session,
+  currentUserId,
   works,
   myProgress,
   otherProgress,
-  completionStatus,
-  currentUserId,
   user,
   otherUserDetails,
-  reviews,
-  userReview,
-  receivedReview,
-  loadingReviews,
-  formatDate,
-  getOtherUserName,
-  getUserName,
-  cleanDescription,
-  getExpectedEndDate,
   showAlert,
   setActiveTab,
-  setShowReviewModal,
-  handleRequestCompletion,
-  handleCompletionResponse,
-  requestingCompletion,
-  respondingToCompletion,
-  cancelRequest,
-  loadingCancelRequest,
-  setShowCancelModal,
-  setShowCancelResponseModal,
-  setShowCancelFinalizeModal,
-  handleDownloadFile,
+  onSessionUpdate,
 }: OverviewTabProps) {
+  const {
+    // Data
+    reviews,
+    userReview,
+    receivedReview,
+    loadingReviews,
+    cancelRequest,
+    loadingCancelRequest,
+    completionStatus,
+    
+    // Loading states
+    requestingCompletion,
+    respondingToCompletion,
+    
+    // Modal states
+    showReviewModal,
+    setShowReviewModal,
+    showCancelModal,
+    setShowCancelModal,
+    showCancelResponseModal,
+    setShowCancelResponseModal,
+    showCancelFinalizeModal,
+    setShowCancelFinalizeModal,
+    
+    // Utility functions
+    formatDate,
+    getOtherUserName,
+    getUserName,
+    cleanDescription,
+    getExpectedEndDate,
+    
+    // Actions
+    handleRequestCompletion,
+    handleCompletionResponse,
+    handleCancelSession,
+    handleCancelResponse,
+    handleDownloadFile,
+    setActiveTab: setActiveTabHook,
+    setShowReviewModal: setShowReviewModalHook,
+    setShowCancelModal: setShowCancelModalHook,
+    setShowCancelResponseModal: setShowCancelResponseModalHook,
+    setShowCancelFinalizeModal: setShowCancelFinalizeModalHook,
+  } = useOverview({
+    session,
+    currentUserId,
+    onAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => 
+      showAlert(type, message, title),
+    onTabChange: setActiveTab,
+    onSessionUpdate,
+    works,
+    myProgress,
+    otherProgress,
+    user,
+    otherUserDetails,
+  });
+
   const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
   const mySkill = session.user1Id._id === currentUserId ? session.skill1Id : session.skill2Id;
   const otherSkill = session.user1Id._id === currentUserId ? session.skill2Id : session.skill1Id;
@@ -243,23 +262,14 @@ export default function OverviewTab({
                   </button>
                 </>
               ) : completionStatus.canRequestCompletion ? (
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={handleRequestCompletion}
-                    disabled={requestingCompletion}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
-                  </button>
-                  <button
-                    onClick={() => setShowCancelModal(true)}
-                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center space-x-2 text-sm"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    <span>Cancel Session</span>
-                  </button>
-                </div>
+                <button
+                  onClick={handleRequestCompletion}
+                  disabled={requestingCompletion}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
+                </button>
               ) : null}
             </div>
           )}
@@ -331,7 +341,7 @@ export default function OverviewTab({
       </div>
 
       {/* Session Cancellation Section */}
-      {(session?.status === 'active' || session?.status === 'canceled') && (
+      {(session?.status === 'active' || session?.status === 'canceled' || cancelRequest) && (
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Session Cancellation</h2>
@@ -542,7 +552,7 @@ export default function OverviewTab({
                 </div>
               )}
             </div>
-          ) : session?.status === 'active' && (
+          ) : session?.status === 'active' && !cancelRequest && (
             <div className="text-center py-6">
               <div className="text-gray-400 mb-3">
                 <XCircle className="mx-auto h-8 w-8" />
@@ -564,7 +574,7 @@ export default function OverviewTab({
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Progress Summary</h2>
             <button
-              onClick={() => setActiveTab('progress')}
+              onClick={() => setActiveTabHook('progress')}
               className="text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               View Details →
@@ -720,7 +730,7 @@ export default function OverviewTab({
                         You haven't reviewed {getOtherUserName()} yet
                       </p>
                       <button
-                        onClick={() => setShowReviewModal(true)}
+                        onClick={() => setShowReviewModalHook(true)}
                         className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                       >
                         Write Review
@@ -782,6 +792,64 @@ export default function OverviewTab({
           )}
         </div>
       )}
+
+      {/* Session Cancellation Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center">
+                <XCircle className="w-6 h-6 text-red-500 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Cancel Session
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowCancelModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <CancelSessionForm 
+              onSubmit={handleCancelSession}
+              onCancel={() => setShowCancelModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Session Cancellation Response Modal */}
+      {showCancelResponseModal && cancelRequest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center">
+                <AlertCircle className="w-6 h-6 text-blue-500 mr-2" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Respond to Cancellation
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowCancelResponseModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <CancelResponseForm 
+              onSubmit={handleCancelResponse}
+              onCancel={() => setShowCancelResponseModal(false)}
+              initiatorName={getUserName(cancelRequest.initiatorId)}
+              reason={cancelRequest.reason}
+              description={cancelRequest.description}
+            />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
