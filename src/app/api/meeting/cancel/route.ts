@@ -2,9 +2,7 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import meetingSchema from "@/lib/models/meetingSchema";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
-
-// Import notification helper function
-const { sendMeetingCancelledNotification } = require('@/utils/meetingNotifications');
+import { cancelMeetingWithReason } from "@/services/meetingApiServices";
 
 export async function POST(req: Request) {
   await connect();
@@ -37,42 +35,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create cancellation record
-    const cancellation = new cancelMeetingSchema({
-      meetingId,
-      cancelledBy,
-      reason: reason.trim()
-    });
+    // Use service function to handle cancellation with notification
+    const result = await cancelMeetingWithReason(meetingId, cancelledBy, reason.trim());
 
-    await cancellation.save();
-
-    // Update meeting state
-    meeting.state = 'cancelled';
-    await meeting.save();
-
-    // Send notification to the other user
-    try {
-      const otherUserId = meeting.senderId.toString() === cancelledBy 
-        ? meeting.receiverId.toString() 
-        : meeting.senderId.toString();
-
-      // Send cancellation notification using our new notification system
-      await sendMeetingCancelledNotification(
-        otherUserId,
-        cancelledBy,
-        reason.trim()
-      );
-
-      console.log('Cancellation notification sent successfully');
-    } catch (notificationError) {
-      console.error('Error sending cancellation notification:', notificationError);
-      // Continue even if notification fails
-    }
-
-    return NextResponse.json({
-      meeting,
-      cancellation
-    }, { status: 200 });
+    return NextResponse.json(result, { status: 200 });
 
   } catch (error: any) {
     console.error('Error cancelling meeting:', error);

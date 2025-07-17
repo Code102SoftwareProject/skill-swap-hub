@@ -8,6 +8,9 @@ const config = {
   ],
   theme: {
     extend: {
+      screens: {
+        'xs': '475px', // Extra small devices
+      },
       colors: {
         primary: "var(--primary)",
         secondary: "var(--secondary)",
