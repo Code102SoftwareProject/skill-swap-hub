@@ -12,5 +12,15 @@ export * from './chat';
 export * from './meeting';
 export * from './skillListing';
 export * from './skillMatch';
-export * from './userSkill';
 export * from './adminReports';
+
+// Re-export userSkill types with explicit handling of ApiResponse conflict
+export type {
+  UserSkill,
+  NewSkillData,
+  UpdateSkillData,
+  CategoryData
+} from './userSkill';
+
+// Export ApiResponse from userSkill with an alias to avoid conflict
+export type { ApiResponse as UserSkillApiResponse } from './userSkill';
