@@ -85,6 +85,12 @@ const navItems = [
     icon: Flag,
     permission: "manage_reporting",
   },
+  {
+    id: "forum-reports",
+    label: "Forum Reports",
+    icon: Flag,
+    permission: "manage_forum_reports",
+  },
 ];
 
 // Component

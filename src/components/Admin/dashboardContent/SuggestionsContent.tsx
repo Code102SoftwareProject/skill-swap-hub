@@ -5,7 +5,8 @@ import { Eye, BarChart2, Filter, Loader2, ChevronDown, Search, Check, X, Chevron
 import { toast } from 'react-toastify';
 import { useDebounce } from 'use-debounce';
 import Image from 'next/image';
-import { processAvatarUrl } from '@/utils/avatarUtils';
+//import { processAvatarUrl } from '@/utils/avatarUtils';
+import { processAvatarUrl } from '@/utils/imageUtils';
 import SuggestionSummaryModal from "@/components/Admin/SuggestionSummaryModal";
 
 

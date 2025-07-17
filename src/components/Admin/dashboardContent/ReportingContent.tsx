@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import toast from "react-hot-toast";
+
 import {
   Mail,
   Loader2,
@@ -9,7 +11,7 @@ import {
   RefreshCw,
   Eye,
   CheckCircle,
-  AlertTriangle,
+  Download,
   X,
   ShieldX,
   AlertOctagon,
@@ -95,9 +97,109 @@ export default function AdminReports() {
     null
   );
   const [resolvingReport, setResolvingReport] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<Record<string, boolean>>({});
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  /**
+   * Download an evidence file from the server
+   * @param fileUrl URL of the file to download
+   * @param reportId Report ID to use in the downloaded filename
+   */
+  const downloadEvidence = async (fileUrl: string, reportId: string) => {
+    const downloadKey = `${fileUrl}-${reportId}`;
+
+    // Prevent duplicate downloads
+    if (downloading[downloadKey]) return;
+
+    try {
+      // Set loading state for this specific download
+      setDownloading((prev) => ({
+        ...prev,
+        [downloadKey]: true,
+      }));
+
+      const toastId = toast.loading("Downloading evidence file...");
+      console.log("Downloading evidence file from URL:", fileUrl);
+
+      const response = await fetch(
+        `/api/file/retrieve?fileUrl=${encodeURIComponent(fileUrl)}`
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Download error:", errorData);
+        throw new Error(errorData.message || "Failed to download file");
+      }
+
+      // Determine file type and create appropriate filename
+      const contentType = response.headers.get("content-type") || "";
+      const fileExtension = getFileExtensionFromMimeType(contentType);
+      const originalFileName = fileUrl.split("/").pop() || "evidence";
+      const downloadFileName = `Evidence-${reportId.slice(-8)}-${originalFileName}.${fileExtension}`;
+
+      const blob = await response.blob();
+
+      if (blob.size === 0) {
+        throw new Error("Downloaded file is empty");
+      }
+
+      // Create and trigger a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", downloadFileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast.dismiss(toastId);
+      toast.success("Evidence file downloaded successfully");
+    } catch (err) {
+      console.error("Error downloading evidence file:", err);
+      toast.dismiss();
+      toast.error(
+        err instanceof Error ? err.message : "Failed to download evidence file"
+      );
+    } finally {
+      // Reset loading state for this download
+      setDownloading((prev) => ({
+        ...prev,
+        [downloadKey]: false,
+      }));
+    }
+  };
+
+  /**
+   * Convert MIME type to file extension
+   * @param mimeType Content type from HTTP header
+   * @returns Appropriate file extension
+   */
+  const getFileExtensionFromMimeType = (mimeType: string): string => {
+    const mimeToExtMap: Record<string, string> = {
+      "image/jpeg": "jpg",
+      "image/jpg": "jpg",
+      "image/png": "png",
+      "image/gif": "gif",
+      "image/webp": "webp",
+      "application/pdf": "pdf",
+      "text/plain": "txt",
+      "application/msword": "doc",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        "docx",
+      "application/vnd.ms-excel": "xls",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "xlsx",
+      "application/zip": "zip",
+      "application/x-zip-compressed": "zip",
+    };
+
+    // Extract the main MIME type (before any semicolon)
+    const mainMimeType = mimeType.split(";")[0].trim();
+    return mimeToExtMap[mainMimeType] || "bin";
+  };
 
   const createTestReport = async () => {
     try {
@@ -1065,6 +1167,42 @@ SkillSwapHub Admin Team`;
                           >
                             <Mail className="h-4 w-4" />
                           </Button>
+
+                          {/* download evidence */}
+                          {report.evidenceFiles.length > 0 && (
+                            <div className="relative">
+                              <Button
+                                onClick={() =>
+                                  downloadEvidence(
+                                    report.evidenceFiles[0],
+                                    report._id
+                                  )
+                                }
+                                disabled={
+                                  downloading[
+                                    `${report.evidenceFiles[0]}-${report._id}`
+                                  ]
+                                }
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 ml-2"
+                                title={`Download evidence (${report.evidenceFiles.length} file${report.evidenceFiles.length > 1 ? "s" : ""})`}
+                              >
+                                {downloading[
+                                  `${report.evidenceFiles[0]}-${report._id}`
+                                ] ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Download className="h-4 w-4" />
+                                )}
+                              </Button>
+                              {report.evidenceFiles.length > 1 && (
+                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">
+                                  {report.evidenceFiles.length}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3 border-b">
@@ -1340,6 +1478,56 @@ SkillSwapHub Admin Team`;
                   </p>
                 </div>
               </div>
+
+              {/* Evidence Files Section */}
+              {selectedReport.evidenceFiles &&
+                selectedReport.evidenceFiles.length > 0 && (
+                  <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                    <h4 className="font-semibold text-gray-900 mb-3 text-lg">
+                      📎 Evidence Files
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedReport.evidenceFiles.map((fileUrl, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-white p-3 rounded border border-gray-200"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <Download className="h-4 w-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                Evidence File {index + 1}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {fileUrl.split("/").pop() || "Unknown file"}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={() =>
+                              downloadEvidence(fileUrl, selectedReport._id)
+                            }
+                            disabled={
+                              downloading[`${fileUrl}-${selectedReport._id}`]
+                            }
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center space-x-1"
+                          >
+                            {downloading[`${fileUrl}-${selectedReport._id}`] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Download className="h-4 w-4" />
+                            )}
+                            <span>Download</span>
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-gray-200">
                 <div>

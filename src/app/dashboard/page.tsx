@@ -15,6 +15,9 @@ import SkillVerifyContent from '@/components/User/SkillVerificationPortal';
 import SuggestionContent from '@/components/User/DashboardContent/SuggestionContent';
 import SettingContent from '@/components/User/DashboardContent/SettingContent';
 
+import ReviewsContent from '@/components/Dashboard/ReviewsContent';
+
+
 export default function UserDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
   const [activeComponent, setActiveComponent] = useState('dashboard');
@@ -67,6 +70,7 @@ export default function UserDashboardPage() {
     <UserDashboardContent
       key={activeComponent}
       onNavigateToMySkills={() => setActiveComponent('myskill')}
+      onNavigateToReviews={() => setActiveComponent('reviews')}
     />
   );
       case 'myskill':
@@ -85,11 +89,14 @@ export default function UserDashboardPage() {
         return <SuggestionContent key={activeComponent} />;
       case 'setting':
         return <SettingContent key={activeComponent} />;
+       case 'reviews':  // Add this new case
+      return <ReviewsContent key={activeComponent} />;
       default:
         return (
           <UserDashboardContent
             key={activeComponent}
             onNavigateToMySkills={() => setActiveComponent('myskill')}
+            onNavigateToReviews={() => setActiveComponent('reviews')}
           />
         );
     }

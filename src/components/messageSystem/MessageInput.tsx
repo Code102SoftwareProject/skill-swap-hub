@@ -6,6 +6,7 @@ import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
+import { encryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -80,6 +81,16 @@ export default function MessageInput({
   const uploadFile = async () => {
     if (!file) return;
 
+    // Check file size (25MB = 25 * 1024 * 1024 bytes)
+    const maxFileSize = 25 * 1024 * 1024; // 25MB in bytes
+    if (file.size > maxFileSize) {
+      setError("File size must be less than 25MB. Please choose a smaller file.");
+      setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return;
+    }
+
     setUploading(true);
 
     // ! Form Data for Api call
@@ -97,13 +108,46 @@ export default function MessageInput({
 
       if (response.ok) {
         setFileUrl(result?.url || null);
-        sendMessage(result?.url || "");
+        
+        // Determine content and whether to encrypt
+        const messageContent = `File:${file?.name}:${result?.url || ""}`;
+        const isFileLink = messageContent.startsWith('File:');
+        const encryptedContent = isFileLink ? messageContent : encryptMessage(messageContent);
+
+        // Send message with file URL
+        const newMsg = {
+          chatRoomId,
+          senderId,
+          receiverId: chatParticipants.find((id) => id !== senderId),
+          content: encryptedContent, // Now sending encrypted content via socket
+          sentAt: Date.now(),
+          replyFor: replyingTo?._id || null,
+        };
+
+        // Send via socket immediately (now encrypted)
+        socketSendMessage(newMsg);
+
+        // Reset UI immediately
+        setFile(null);
+        setUploading(false);
+
+        // Reset reply if onCancelReply exists
+        if (onCancelReply) {
+          onCancelReply();
+        }
+
+        // Save to database in background
+        try {
+          await sendMessageService(newMsg);
+        } catch (error) {
+          console.error("Error saving file message to database:", error);
+        }
       } else {
         console.error("Upload failed:", result?.message || "Unknown error");
+        setUploading(false);
       }
     } catch (error) {
       console.error("Error uploading file:", error);
-    } finally {
       setUploading(false);
     }
   };
@@ -138,23 +182,24 @@ export default function MessageInput({
 
     setLoading(true);
 
+    // Determine content and whether to encrypt
+    const messageContent = fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim();
+    const isFileLink = messageContent.startsWith('File:');
+    const encryptedContent = isFileLink ? messageContent : encryptMessage(messageContent);
+
     const newMsg = {
       chatRoomId,
       senderId,
       receiverId: chatParticipants.find((id) => id !== senderId),
-      content: fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim(),
+      content: encryptedContent, // Now sending encrypted content via socket
       sentAt: Date.now(),
       replyFor: replyingTo?._id || null,
     };
 
+    // Send via socket immediately (now encrypted)
     socketSendMessage(newMsg);
 
-    try {
-      await sendMessageService(newMsg);
-    } catch (error) {
-      console.error("Error sending message:", error);
-    }
-
+    // Reset UI immediately after socket send
     setMessage("");
     setFile(null);
     setLoading(false);
@@ -162,6 +207,15 @@ export default function MessageInput({
     // Reset reply if onCancelReply exists
     if (onCancelReply) {
       onCancelReply();
+    }
+
+    // Save to database in background (don't block UI)
+    try {
+      await sendMessageService(newMsg);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      // Optional: You could show a retry mechanism or error state here
+      // For now, we'll just log the error since the message was sent via socket
     }
   };
 
@@ -230,8 +284,8 @@ export default function MessageInput({
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
+          //aacept="image/*" // Only images
           className="hidden"
-          accept="image/*"
           aria-label="File Input"
         />
         <button

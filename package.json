@@ -6,6 +6,7 @@
     "dev": "next dev --turbopack",
     "dev:no-turbo": "next dev",
     "dev:socket": "NODE_OPTIONS='--loader ts-node/esm  --trace-warnings --no-warnings' ts-node server.mts",
+    "postinstall": "cd documentation && npm install",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -23,7 +24,13 @@
     "test:admin-reports": "node -r dotenv/config scripts/testAdminReports.js",
     "test:email-service": "node -r dotenv/config scripts/testEmailService.js",
     "test:user-suspension": "node -r dotenv/config scripts/testUserSuspensionSimple.mjs",
-    "assign:badges": "curl -X POST http://localhost:3000/api/badge-assignments"
+    "test:forum-reports": "node -r dotenv/config scripts/testForumReports.js",
+    "setup:forum-reports": "node -r dotenv/config scripts/setupForumReports.js",
+    "assign:badges": "curl -X POST http://localhost:3000/api/badge-assignments",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:community-forums": "npm test -- --testPathPatterns=\"communityForum\" --verbose"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
@@ -92,13 +99,18 @@
     "sweetalert2": "^11.21.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
-    "use-debounce": "^10.0.4"
+    "use-debounce": "^10.0.4",
+    "zod": "^4.0.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/crypto-js": "^4.2.2",
     "@types/formidable": "^3.4.5",
+    "@types/jest": "^30.0.0",
     "@types/lodash": "^4.17.16",
     "@types/lodash-es": "^4.17.12",
     "@types/mongoose": "^5.11.96",
@@ -110,9 +122,13 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.1.2",
+    "jest": "^30.0.4",
+    "jest-environment-jsdom": "^30.0.4",
+    "jest-fetch-mock": "^3.0.3",
     "postcss": "^8",
     "prettier": "^3.4.2",
     "tailwindcss": "^3.4.1",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
   },

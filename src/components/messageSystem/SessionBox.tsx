@@ -1,131 +1,136 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { Plus, Clock, CheckCircle, XCircle, Edit, Calendar, User, BookOpen, Trash2, Eye } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Plus, BookOpen, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
 import CounterOfferModal from '@/components/sessionSystem/CounterOfferModal';
+import SessionListContainer from '@/components/sessionSystem/SessionListContainer';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
-import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import { useSessionActions } from '@/hooks/useSessionActions';
 
-interface UserProfile {
-  _id: string;
-  firstName?: string;
-  lastName?: string;
-  name?: string;
-  email?: string;
-  avatar?: string;
-  title?: string;
-}
-
-interface Session {
-  _id: string;
-  user1Id: UserProfile;
-  user2Id: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  expectedEndDate?: string;
-  isAccepted: boolean | null;
-  isAmmended: boolean;
-  status: "active" | "completed" | "canceled" | "pending" | "rejected";
-  createdAt: string;
-  progress1?: any;
-  progress2?: any;
-  completionRequestedBy?: any;
-  completionRequestedAt?: string;
-  completionApprovedBy?: any;
-  completionApprovedAt?: string;
-  completionRejectedBy?: any;
-  completionRejectedAt?: string;
-  completionRejectionReason?: string;
-  rejectedBy?: UserProfile;
-  rejectedAt?: string;
-}
-
-interface CounterOffer {
-  _id: string;
-  originalSessionId: string;
-  counterOfferedBy: UserProfile;
-  skill1Id: any;
-  skill2Id: any;
-  descriptionOfService1: string;
-  descriptionOfService2: string;
-  startDate: string;
-  counterOfferMessage: string;
-  status: 'pending' | 'accepted' | 'rejected';
-  createdAt: string;
-}
+// Type imports
+import type { 
+  Session, 
+  CounterOffer, 
+  UserProfile, 
+  AlertState, 
+  ConfirmationState 
+} from '@/types';
 
 interface SessionBoxProps {
   chatRoomId: string;
   userId: string;
   otherUserId: string;
+  otherUser?: UserProfile; // Optional: pass user data from parent to avoid fetch
   onSessionUpdate?: () => void; // Callback to notify parent about session changes
-  // Remove otherUserName since we'll fetch it
 }
 
-export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionUpdate }: SessionBoxProps) {
+export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser: passedOtherUser, onSessionUpdate }: SessionBoxProps) {
   const router = useRouter();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [counterOffers, setCounterOffers] = useState<{ [sessionId: string]: CounterOffer[] }>({});
-  const [loading, setLoading] = useState(true);
-  const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const [otherUser, setOtherUser] = useState<UserProfile | null>(passedOtherUser || null);
+  const [userLoading, setUserLoading] = useState(!passedOtherUser);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
   const [sessionToEdit, setSessionToEdit] = useState<Session | null>(null);
   const [sessionToCounterOffer, setSessionToCounterOffer] = useState<Session | null>(null);
-  const [processingSession, setProcessingSession] = useState<string | null>(null);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
   const [sessionForRejection, setSessionForRejection] = useState<string | null>(null);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [sessionToRate, setSessionToRate] = useState<Session | null>(null);
   const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [showCancelledSessions, setShowCancelledSessions] = useState(false);
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
+  const [showActiveCounterOffers, setShowActiveCounterOffers] = useState<{[sessionId: string]: boolean}>({});
+  
+  // Track existing reviews for sessions
+  const [sessionReviews, setSessionReviews] = useState<{[sessionId: string]: any}>({});
 
   // Alert and confirmation states
-  const [alert, setAlert] = useState<{
-    isOpen: boolean;
-    type: 'success' | 'error' | 'warning' | 'info';
-    title?: string;
-    message: string;
-  }>({
+  const [alert, setAlert] = useState<AlertState>({
     isOpen: false,
     type: 'info',
     message: ''
   });
 
-  const [confirmation, setConfirmation] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    type?: 'danger' | 'warning' | 'info' | 'success';
-    onConfirm: () => void;
-    confirmText?: string;
-    loading?: boolean;
-  }>({
+  const [confirmation, setConfirmation] = useState<ConfirmationState>({
     isOpen: false,
     title: '',
     message: '',
     onConfirm: () => {}
   });
 
-  useEffect(() => {
-    fetchSessions();
-  }, [userId]);
+  // Helper functions for alerts and confirmations
+  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
+    setAlert({
+      isOpen: true,
+      type,
+      message,
+      title
+    });
+  };
 
-  // Fetch other user's information
+  const showConfirmation = (
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    type: 'danger' | 'warning' | 'info' | 'success' = 'warning',
+    confirmText?: string
+  ) => {
+    setConfirmation({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      type,
+      confirmText,
+      loading: false
+    });
+  };
+
+  // Use the custom hook for session actions
+  const {
+    sessions,
+    counterOffers,
+    loading,
+    processingSession,
+    pendingSessionCount,
+    activeSessionCount,
+    fetchSessions,
+    handleAcceptReject,
+    handleDeleteSession,
+    handleCounterOfferResponse,
+    handleRequestCompletion,
+    handleCompletionResponse,
+    handleRatingSubmit
+  } = useSessionActions({
+    userId,
+    otherUserId,
+    onSessionUpdate,
+    showAlert,
+    showConfirmation
+  });
+
+  // Fetch other user's information only if not passed from parent
   useEffect(() => {
     const fetchOtherUser = async () => {
+      // Skip fetch if user data is already provided
+      if (passedOtherUser) {
+        setOtherUser(passedOtherUser);
+        setUserLoading(false);
+        return;
+      }
+
+      if (!otherUserId) return;
+
       try {
         setUserLoading(true);
         const response = await fetch(`/api/users/${otherUserId}`);
@@ -143,23 +148,40 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
       }
     };
 
-    if (otherUserId) {
-      fetchOtherUser();
-    }
-  }, [otherUserId]);
+    fetchOtherUser();
+  }, [otherUserId, passedOtherUser]);
 
-  // Helper function to get user's display name
-  const getUserDisplayName = (user: UserProfile | null): string => {
+  // Fetch sessions with optimized timing
+  useEffect(() => {
+    // Only fetch sessions if we have both user IDs and other user is loaded
+    if (userId && otherUserId && !userLoading) {
+      // Use requestIdleCallback for better performance, fallback to timeout
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        window.requestIdleCallback(() => {
+          fetchSessions();
+        });
+      } else {
+        // Small delay to prevent rapid-fire requests
+        const timeoutId = setTimeout(() => {
+          fetchSessions();
+        }, 50); // Reduced from 100ms
+        
+        return () => clearTimeout(timeoutId);
+      }
+    }
+  }, [userId, otherUserId, fetchSessions, userLoading]);
+
+  // Memoized helper functions for better performance
+  const getUserDisplayName = useCallback((user: UserProfile | null): string => {
     if (!user) return 'Unknown User';
     if (user.firstName && user.lastName) {
       return `${user.firstName} ${user.lastName}`;
     }
     if (user.name) return user.name;
     return user.email || 'Unknown User';
-  };
+  }, []);
 
-  // Helper function to get display name from counter offer user
-  const getCounterOfferUserName = (counterOfferedBy: any): string => {
+  const getCounterOfferUserName = useCallback((counterOfferedBy: any): string => {
     if (!counterOfferedBy) return 'Unknown User';
     
     // Handle if it's just an ID string
@@ -193,394 +215,84 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     }
     
     return 'Unknown User';
-  };
+  }, []);
 
-  // Helper functions for alerts and confirmations
-  const showAlert = (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => {
-    setAlert({
-      isOpen: true,
-      type,
-      message,
-      title
-    });
-  };
-
-  const showConfirmation = (
-    title: string, 
-    message: string, 
-    onConfirm: () => void, 
-    type: 'danger' | 'warning' | 'info' | 'success' = 'warning',
-    confirmText?: string
-  ) => {
-    setConfirmation({
-      isOpen: true,
-      title,
-      message,
-      onConfirm,
-      type,
-      confirmText,
-      loading: false
-    });
-  };
-
-  const closeAlert = () => {
+  const closeAlert = useCallback(() => {
     setAlert(prev => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
-  const closeConfirmation = () => {
+  const closeConfirmation = useCallback(() => {
     setConfirmation(prev => ({ ...prev, isOpen: false }));
-  };
+  }, []);
 
-  const fetchSessions = async () => {
+  // Check if user has already reviewed a session
+  const checkExistingReview = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/session/between-users?user1Id=${userId}&user2Id=${otherUserId}`);
+      const response = await fetch(`/api/reviews?sessionId=${sessionId}`);
       const data = await response.json();
       
-      if (data.success) {
-        console.log('Fetched sessions:', data.sessions);
-        setSessions(data.sessions);
-        
-        // Fetch counter offers for each session
-        await fetchCounterOffers(data.sessions);
-        
-        // Notify parent component about session updates
-        if (onSessionUpdate) {
-          onSessionUpdate();
+      if (data.success && data.reviews) {
+        const userReview = data.reviews.find((review: any) => review.reviewerId._id === userId);
+        if (userReview) {
+          setSessionReviews(prev => ({
+            ...prev,
+            [sessionId]: userReview
+          }));
+          return userReview;
         }
       }
+      return null;
     } catch (error) {
-      console.error('Error fetching sessions:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error checking existing review:', error);
+      return null;
     }
-  };
+  }, [userId]);
 
-  const fetchCounterOffers = async (sessionList: Session[]) => {
-    try {
-      const counterOfferPromises = sessionList.map(async (session) => {
-        const response = await fetch(`/api/session/counter-offer?sessionId=${session._id}`);
-        const data = await response.json();
-        return { sessionId: session._id, counterOffers: data.success ? data.counterOffers : [] };
-      });
-
-      const results = await Promise.all(counterOfferPromises);
-      const counterOfferMap: { [sessionId: string]: CounterOffer[] } = {};
-      
-      results.forEach(({ sessionId, counterOffers: sessionCounterOffers }) => {
-        counterOfferMap[sessionId] = sessionCounterOffers;
-      });
-      
-      setCounterOffers(counterOfferMap);
-    } catch (error) {
-      console.error('Error fetching counter offers:', error);
-    }
-  };
-
-  const handleAcceptReject = async (sessionId: string, action: 'accept' | 'reject') => {
-    setProcessingSession(sessionId);
-    try {
-      const response = await fetch(`/api/session/${sessionId}/accept`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          userId
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        // Refresh sessions to show updated status
-        fetchSessions();
-        showAlert('success', `Session ${action}ed successfully!`);
-        
-        // Invalidate cache for both users
-        invalidateUsersCaches(userId, otherUserId);
-      } else {
-        showAlert('error', data.message || `Failed to ${action} session`);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing session:`, error);
-      showAlert('error', `Failed to ${action} session`);
-    } finally {
-      setProcessingSession(null);
-    }
-  };
-
-  const handleCounterOffer = (sessionId: string) => {
+  // Memoized handler functions
+  const handleCounterOffer = useCallback((sessionId: string) => {
     const session = sessions.find(s => s._id === sessionId);
     if (session) {
       setSessionToCounterOffer(session);
       setShowCounterOfferModal(true);
     }
-  };
+  }, [sessions]);
 
-  const handleDeleteSession = async (sessionId: string) => {
-    showConfirmation(
-      'Delete Session',
-      'Are you sure you want to delete this session request? This action cannot be undone.',
-      async () => {
-        setProcessingSession(sessionId);
-        try {
-          const response = await fetch(`/api/session/${sessionId}`, {
-            method: 'DELETE',
-          });
-
-          const data = await response.json();
-          
-          if (data.success) {
-            fetchSessions(); // Refresh sessions
-            showAlert('success', 'Session deleted successfully!');
-          } else {
-            showAlert('error', data.message || 'Failed to delete session');
-          }
-        } catch (error) {
-          console.error('Error deleting session:', error);
-          showAlert('error', 'Failed to delete session');
-        } finally {
-          setProcessingSession(null);
-        }
-      },
-      'danger',
-      'Delete'
-    );
-  };
-
-  const handleEditSession = (sessionId: string) => {
+  const handleEditSession = useCallback((sessionId: string) => {
     const session = sessions.find(s => s._id === sessionId);
     if (session) {
       setSessionToEdit(session);
       setShowEditModal(true);
     }
-  };
+  }, [sessions]);
 
-  const handleCounterOfferResponse = async (counterOfferId: string, action: 'accept' | 'reject') => {
-    setProcessingSession(counterOfferId);
-    try {
-      const response = await fetch(`/api/session/counter-offer/${counterOfferId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          userId
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        fetchSessions(); // Refresh sessions and counter offers
-        showAlert('success', `Counter offer ${action}ed successfully!`);
-      } else {
-        showAlert('error', data.message || `Failed to ${action} counter offer`);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing counter offer:`, error);
-      showAlert('error', `Failed to ${action} counter offer`);
-    } finally {
-      setProcessingSession(null);
-    }
-  };
-
-  const handleRequestCompletion = async (sessionId: string) => {
-    showConfirmation(
-      'Request Session Completion',
-      'Are you sure you want to request session completion? This will notify the other participant for approval.',
-      async () => {
-        setProcessingSession(sessionId);
-        
-        try {
-          const response = await fetch('/api/session/completion', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              sessionId,
-              userId,
-            }),
-          });
-
-          const data = await response.json();
-          
-          if (data.success) {
-            showAlert('success', 'Completion request sent successfully! Waiting for approval from the other participant.');
-            fetchSessions(); // Refresh sessions to show completion request
-          } else {
-            showAlert('error', data.message || 'Failed to request completion');
-          }
-        } catch (error) {
-          console.error('Error requesting completion:', error);
-          showAlert('error', 'Failed to request completion');
-        } finally {
-          setProcessingSession(null);
-        }
-      },
-      'info',
-      'Send Request'
-    );
-  };
-
-  const handleCompletionResponse = async (sessionId: string, action: 'approve' | 'reject', providedRejectionReason?: string) => {
-    // For rejection, show modal to collect reason if not provided
-    if (action === 'reject' && !providedRejectionReason) {
-      setSessionForRejection(sessionId);
-      setShowRejectionModal(true);
-      return;
-    }
-
-    const confirmMessage = action === 'approve' 
-      ? 'Are you sure you want to approve session completion? This will mark the session as completed.'
-      : 'Are you sure you want to reject the completion request?';
-
-    showConfirmation(
-      action === 'approve' ? 'Approve Completion' : 'Reject Completion',
-      confirmMessage,
-      async () => {
-        setProcessingSession(sessionId);
-        
-        try {
-          const requestBody: any = {
-            sessionId,
-            userId,
-            action,
-          };
-
-          // Add rejection reason if rejecting
-          if (action === 'reject' && providedRejectionReason) {
-            requestBody.rejectionReason = providedRejectionReason;
-          }
-
-          const response = await fetch('/api/session/completion', {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-          });
-
-          const data = await response.json();
-          
-          if (data.success) {
-            if (action === 'approve') {
-              showAlert('success', 'Session completed successfully!');
-              
-              // Force immediate refresh to get updated session status
-              await fetchSessions();
-              
-              // Show rating modal for the user who approved
-              const completedSession = sessions.find(s => s._id === sessionId);
-              if (completedSession) {
-                setSessionToRate(completedSession);
-                setShowRatingModal(true);
-              }
-            } else {
-              showAlert('info', 'Completion request rejected');
-            }
-            
-            // Additional refresh after a delay to ensure database consistency
-            setTimeout(() => {
-              fetchSessions();
-            }, 1000);
-            
-            // Close modal if it was open
-            if (action === 'reject') {
-              setShowRejectionModal(false);
-              setRejectionReason('');
-              setSessionForRejection(null);
-            }
-          } else {
-            showAlert('error', data.message || `Failed to ${action} completion`);
-          }
-        } catch (error) {
-          console.error(`Error ${action}ing completion:`, error);
-          showAlert('error', `Failed to ${action} completion`);
-        } finally {
-          setProcessingSession(null);
-        }
-      },
-      action === 'approve' ? 'success' : 'warning',
-      action === 'approve' ? 'Approve' : 'Reject'
-    );
-  };
-
-  const handleRejectionSubmit = () => {
-    if (!rejectionReason.trim()) {
-      showAlert('warning', 'Please provide a reason for declining the completion request');
-      return;
-    }
-    if (sessionForRejection) {
-      handleCompletionResponse(sessionForRejection, 'reject', rejectionReason.trim());
-    }
-  };
-
-  const handleRatingSubmit = async () => {
-    if (!sessionToRate || rating === 0) {
-      showAlert('warning', 'Please provide a rating');
-      return;
-    }
-
-    if (!ratingComment.trim()) {
-      showAlert('warning', 'Please provide a comment');
-      return;
-    }
-
-    setSubmittingRating(true);
-
-    try {
-      // Determine the other user and skill details
-      const otherUser = sessionToRate.user1Id._id === userId ? sessionToRate.user2Id : sessionToRate.user1Id;
-      const mySkill = sessionToRate.user1Id._id === userId ? sessionToRate.skill1Id : sessionToRate.skill2Id;
-
-      const response = await fetch('/api/reviews', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId: sessionToRate._id,
-          reviewerId: userId,
-          revieweeId: otherUser._id,
-          rating,
-          comment: ratingComment.trim(),
-          skillId: mySkill._id,
-          reviewType: 'skill_learning', // Since we're rating the other person's teaching
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        showAlert('success', 'Rating submitted successfully!');
-        setShowRatingModal(false);
-        setSessionToRate(null);
-        setRating(0);
-        setRatingComment('');
-      } else {
-        showAlert('error', data.message || 'Failed to submit rating');
-      }
-    } catch (error) {
-      console.error('Error submitting rating:', error);
-      showAlert('error', 'Failed to submit rating');
-    } finally {
-      setSubmittingRating(false);
-    }
-  };
-
-  const formatDate = (dateString: string) => {
+  const formatDate = useCallback((dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
     });
-  };
+  }, []);
 
-  const getSessionStatus = (session: Session) => {
+  const toggleSessionExpansion = useCallback((sessionId: string) => {
+    setExpandedSessions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId);
+      } else {
+        newSet.add(sessionId);
+      }
+      return newSet;
+    });
+  }, []);
+
+  const toggleActiveCounterOffers = useCallback((sessionId: string) => {
+    setShowActiveCounterOffers(prev => ({
+      ...prev,
+      [sessionId]: !prev[sessionId]
+    }));
+  }, []);
+
+  const getSessionStatus = useCallback((session: Session) => {
     // The API should provide correct status, but add fallback logic
     if (session.status === 'completed') return 'completed';
     if (session.status === 'canceled') return 'canceled';
@@ -594,61 +306,133 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
     if (session.isAccepted === false) return 'rejected';
     
     return 'pending';
-  };
+  }, []);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'text-yellow-600 bg-yellow-50';
-      case 'accepted': return 'text-green-600 bg-green-50';
-      case 'rejected': return 'text-red-600 bg-red-50';
-      case 'completed': return 'text-blue-600 bg-blue-50 border border-blue-200';
-      case 'canceled': return 'text-gray-600 bg-gray-50';
-      default: return 'text-gray-600 bg-gray-50';
+  const handleCompletionResponseWithModal = async (sessionId: string, action: 'approve' | 'reject', providedRejectionReason?: string) => {
+    // For rejection, show modal to collect reason if not provided
+    if (action === 'reject' && !providedRejectionReason) {
+      setSessionForRejection(sessionId);
+      setShowRejectionModal(true);
+      return;
+    }
+
+    if (action === 'approve') {
+      // Check if user has already reviewed this session before showing rating modal
+      const existingReview = await checkExistingReview(sessionId);
+      
+      handleCompletionResponse(sessionId, action, providedRejectionReason, (session) => {
+        // Only show rating modal if user hasn't reviewed yet
+        if (!existingReview) {
+          setSessionToRate(session);
+          setShowRatingModal(true);
+        } else {
+          showAlert('info', 'Session completed successfully! You have already submitted a review for this session.');
+        }
+      });
+    } else {
+      handleCompletionResponse(sessionId, action, providedRejectionReason);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return <Clock className="h-4 w-4" />;
-      case 'accepted': return <CheckCircle className="h-4 w-4" />;
-      case 'rejected': return <XCircle className="h-4 w-4" />;
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'canceled': return <XCircle className="h-4 w-4" />;
-      default: return <Clock className="h-4 w-4" />;
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      showAlert('warning', 'Please provide a reason for declining the completion request');
+      return;
+    }
+    if (sessionForRejection) {
+      handleCompletionResponseWithModal(sessionForRejection, 'reject', rejectionReason.trim());
+      setShowRejectionModal(false);
+      setRejectionReason('');
+      setSessionForRejection(null);
     }
   };
 
-  const isCurrentUserReceiver = (session: Session) => {
-    return session.user2Id._id === userId;
+  // Star rating handlers
+  const handleStarClick = (starRating: number) => {
+    setRating(starRating);
   };
 
-  const isCurrentUserCreator = (session: Session) => {
-    return session.user1Id._id === userId;
+  const handleStarHover = (starRating: number) => {
+    setHoveredRating(starRating);
   };
 
-  const canRespond = (session: Session) => {
-    return isCurrentUserReceiver(session) && session.isAccepted === null;
+  const handleStarLeave = () => {
+    setHoveredRating(0);
   };
 
-  const canEditOrDelete = (session: Session) => {
-    return isCurrentUserCreator(session) && session.isAccepted === null;
+  const getRatingText = (rating: number) => {
+    switch (rating) {
+      case 1: return 'Poor';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Very Good';
+      case 5: return 'Excellent';
+      default: return 'Select a rating';
+    }
   };
+
+  const handleRatingSubmitLocal = async () => {
+    if (!sessionToRate) return;
+
+    // Validate rating and comment
+    if (rating === 0) {
+      showAlert('warning', 'Please select a rating');
+      return;
+    }
+
+    if (!ratingComment.trim()) {
+      showAlert('warning', 'Please provide a comment');
+      return;
+    }
+
+    setSubmittingRating(true);
+    const success = await handleRatingSubmit(sessionToRate, rating, ratingComment, async () => {
+      // Update the session reviews to show the new review immediately
+      if (sessionToRate?._id) {
+        const response = await fetch(`/api/reviews?sessionId=${sessionToRate._id}`);
+        const data = await response.json();
+        
+        if (data.success && data.reviews) {
+          const userReview = data.reviews.find((review: any) => review.reviewerId._id === userId);
+          if (userReview) {
+            setSessionReviews(prev => ({
+              ...prev,
+              [sessionToRate._id]: userReview
+            }));
+          }
+        }
+      }
+      
+      setShowRatingModal(false);
+      setSessionToRate(null);
+      setRating(0);
+      setHoveredRating(0);
+      setRatingComment('');
+    });
+    setSubmittingRating(false);
+  };
+
+  // Memoized loading component
+  const LoadingComponent = useMemo(() => (
+    <div className="p-6 text-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+      <p className="mt-2 text-gray-600">Loading...</p>
+    </div>
+  ), []);
+
+  // Memoized error component
+  const ErrorComponent = useMemo(() => (
+    <div className="p-6 text-center">
+      <p className="text-red-600">Failed to load user information</p>
+    </div>
+  ), []);
 
   if (loading || userLoading) {
-    return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-        <p className="mt-2 text-gray-600">Loading...</p>
-      </div>
-    );
+    return LoadingComponent;
   }
 
   if (!otherUser) {
-    return (
-      <div className="p-6 text-center">
-        <p className="text-red-600">Failed to load user information</p>
-      </div>
-    );
+    return ErrorComponent;
   }
 
   const otherUserName = getUserDisplayName(otherUser);
@@ -681,10 +465,21 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={activeSessionCount >= 3}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            activeSessionCount >= 3 
+              ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+          title={activeSessionCount >= 3 ? 'Maximum 3 active sessions allowed between you and this user' : 'Create new session request'}
         >
           <Plus className="h-4 w-4" />
           <span>New Session</span>
+          {activeSessionCount > 0 && (
+            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {activeSessionCount}/3
+            </span>
+          )}
         </button>
       </div>
 
@@ -695,413 +490,51 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
             <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Yet</h3>
             <p className="text-gray-600 mb-4">
-              Start your first skill swap session with {otherUserName}
+              Start your first skill swap session with {getUserDisplayName(otherUser)}
             </p>
             <button
               onClick={() => setShowCreateModal(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={activeSessionCount >= 3}
+              className={`px-6 py-2 rounded-lg transition-colors ${
+                activeSessionCount >= 3 
+                  ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              title={activeSessionCount >= 3 ? 'Maximum 3 active sessions allowed between you and this user' : 'Create your first session'}
             >
               Create Session
+              {activeSessionCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                  {activeSessionCount}/3
+                </span>
+              )}
             </button>
           </div>
         ) : (
-          sessions.map((session) => {
-            const status = getSessionStatus(session);
-            const isReceiver = isCurrentUserReceiver(session);
-            
-            return (
-              <div key={session._id} className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-                {/* Session Header */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <span className={`inline-flex items-center space-x-1 px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-                      {getStatusIcon(status)}
-                      <span className="capitalize">{status === 'completed' ? 'Completed' : status}</span>
-                    </span>
-                    {status === 'completed' && (
-                      <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Session Finished</span>
-                      </span>
-                    )}
-                    {status === 'accepted' && (
-                      <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <CheckCircle className="h-3 w-3" />
-                        <span>Active Session</span>
-                      </span>
-                    )}
-                    {status === 'rejected' && (
-                      <span className="text-xs text-red-600 font-medium bg-red-50 px-2 py-1 rounded-full flex items-center space-x-1">
-                        <XCircle className="h-3 w-3" />
-                        <span>
-                          {session.rejectedBy ? 
-                            // Check if rejectedBy is a populated object or just an ID
-                            (typeof session.rejectedBy === 'object' && session.rejectedBy !== null && '_id' in session.rejectedBy) ?
-                              `Rejected by ${session.rejectedBy._id === userId ? 'you' : 
-                              (session.rejectedBy.firstName && session.rejectedBy.lastName 
-                                ? `${session.rejectedBy.firstName} ${session.rejectedBy.lastName}`
-                                : session.rejectedBy.name || 'other user')}` 
-                            : 'Rejected by other user'
-                          : 'Rejected'}
-                          {session.rejectedAt && ` on ${formatDate(session.rejectedAt)}`}
-                        </span>
-                      </span>
-                    )}
-                    {isReceiver && status === 'pending' && (
-                      <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
-                        Request for you
-                      </span>
-                    )}
-                    {isCurrentUserCreator(session) && status === 'pending' && (
-                      <span className="text-xs text-purple-600 font-medium bg-purple-50 px-2 py-1 rounded-full">
-                        Your request
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-1 text-sm text-gray-500">
-                      <Calendar className="h-4 w-4" />
-                      <span>{formatDate(session.startDate)}</span>
-                    </div>
-                    
-                    {/* Inline Action Buttons */}
-                    <div className="flex items-center space-x-1">
-                      {/* Show only View button for completed sessions */}
-                      {status === 'completed' ? (
-                        <button
-                          onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
-                          className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition-colors flex items-center space-x-1"
-                        >
-                          <Eye className="h-3 w-3" />
-                          <span>View Completed</span>
-                        </button>
-                      ) : (
-                        <>
-                          {/* Buttons for Session Receiver */}
-                          {canRespond(session) && (
-                            <>
-                              <button
-                                onClick={() => handleAcceptReject(session._id, 'accept')}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                onClick={() => handleCounterOffer(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Edit className="h-3 w-3" />
-                                <span>Counter</span>
-                              </button>
-                              <button
-                                onClick={() => handleAcceptReject(session._id, 'reject')}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                              >
-                                Reject
-                              </button>
-                            </>
-                          )}
-
-                          {/* Buttons for Session Creator */}
-                          {canEditOrDelete(session) && (
-                            <>
-                              <button
-                                onClick={() => handleEditSession(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Edit className="h-3 w-3" />
-                                <span>Edit</span>
-                              </button>
-                              <button
-                                onClick={() => handleDeleteSession(session._id)}
-                                disabled={processingSession === session._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                                <span>Delete</span>
-                              </button>
-                            </>
-                          )}
-
-                          {/* View Button for Active Sessions */}
-                          {session.isAccepted === true && (
-                            <button
-                              onClick={() => router.push(`/session/${session._id}?userId=${userId}`)}
-                              className="text-xs bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition-colors flex items-center space-x-1"
-                            >
-                              <Eye className="h-3 w-3" />
-                              <span>View</span>
-                            </button>
-                          )}
-
-                          {/* Session Completion Buttons */}
-                          {session.isAccepted === true && session.status !== 'completed' && (
-                            <>
-                              {session.completionRequestedBy ? (
-                                <>
-                                  {(session.completionRequestedBy._id === userId || session.completionRequestedBy === userId) ? (
-                                    /* User requested completion - waiting for approval */
-                                    <span className="text-xs text-yellow-600 font-medium bg-yellow-50 px-2 py-1 rounded-full">
-                                      Completion Requested
-                                    </span>
-                                  ) : (
-                                    /* Other user requested completion - needs approval */
-                                    <>
-                                      <button
-                                        onClick={() => handleCompletionResponse(session._id, 'approve')}
-                                        disabled={processingSession === session._id}
-                                        className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                      >
-                                        <CheckCircle className="h-3 w-3" />
-                                        <span>Approve</span>
-                                      </button>
-                                      <button
-                                        onClick={() => handleCompletionResponse(session._id, 'reject')}
-                                        disabled={processingSession === session._id}
-                                        className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                      >
-                                        <XCircle className="h-3 w-3" />
-                                        <span>Decline</span>
-                                      </button>
-                                    </>
-                                  )}
-                                </>
-                              ) : session.completionRejectedBy ? (
-                                /* Completion was rejected */
-                                <button
-                                  onClick={() => handleRequestCompletion(session._id)}
-                                  disabled={processingSession === session._id}
-                                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                >
-                                  <CheckCircle className="h-3 w-3" />
-                                  <span>Request Completion</span>
-                                </button>
-                              ) : (
-                                /* No completion request yet */
-                                <button
-                                  onClick={() => handleRequestCompletion(session._id)}
-                                  disabled={processingSession === session._id}
-                                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-1"
-                                >
-                                  <CheckCircle className="h-3 w-3" />
-                                  <span>Mark Complete</span>
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Session Content */}
-                <div className="space-y-4">
-                  {/* What they offer */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4 text-blue-600" />
-                      <h4 className="font-medium text-gray-900">
-                        {session.user1Id._id === userId ? 'You offer:' : 
-                          (session.user1Id.firstName && session.user1Id.lastName ? 
-                            `${session.user1Id.firstName} ${session.user1Id.lastName} offers:` : 
-                            `${session.user1Id.name || 'Unknown User'} offers:`)}
-                      </h4>
-                    </div>
-                    <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-                      <div className="flex items-center justify-between">
-                        <h5 className="font-semibold text-blue-900 text-lg">
-                          {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
-                        </h5>
-                        {session.skill1Id?.proficiencyLevel && (
-                          <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
-                            {session.skill1Id.proficiencyLevel}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-blue-700 mt-2">
-                        <span className="font-medium">Description:</span> {session.descriptionOfService1}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* What they want */}
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <BookOpen className="h-4 w-4 text-green-600" />
-                      <h4 className="font-medium text-gray-900">
-                        {session.user2Id._id === userId ? 'You provide:' : 
-                          (session.user2Id.firstName && session.user2Id.lastName ? 
-                            `${session.user2Id.firstName} ${session.user2Id.lastName} provides:` : 
-                            `${session.user2Id.name || 'Unknown User'} provides:`)}
-                      </h4>
-                    </div>
-                    <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
-                      <div className="flex items-center justify-between">
-                        <h5 className="font-semibold text-green-900 text-lg">
-                          {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
-                        </h5>
-                        {session.skill2Id?.proficiencyLevel && (
-                          <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
-                            {session.skill2Id.proficiencyLevel}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-green-700 mt-2">
-                        <span className="font-medium">Description:</span> {session.descriptionOfService2}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Session Progress Info for Active/Completed Sessions */}
-                {session.isAccepted === true && (
-                  <div className="mt-4 pt-4 border-t bg-gray-50 p-3 rounded-lg">
-                    {session.status === 'completed' ? (
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <CheckCircle className="h-5 w-5 text-green-600" />
-                          <p className="text-sm font-semibold text-green-800">
-                            Session Successfully Completed! 🎉
-                          </p>
-                        </div>
-                        <p className="text-xs text-green-700">
-                          Both participants have completed their skill exchange. You can view the session details, submitted work, and reviews.
-                        </p>
-                      </div>
-                    ) : session.completionRequestedBy ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-blue-600">
-                          🔄 Completion request pending approval
-                        </p>
-                        {session.completionRequestedBy._id === userId || session.completionRequestedBy === userId ? (
-                          <p className="text-xs text-gray-600">
-                            You requested completion on {formatDate(session.completionRequestedAt || '')}. Waiting for {otherUserName} to approve.
-                          </p>
-                        ) : (
-                          <p className="text-xs text-gray-600">
-                            {otherUserName} requested completion on {formatDate(session.completionRequestedAt || '')}. Please review above.
-                          </p>
-                        )}
-                      </div>
-                    ) : session.completionRejectedBy ? (
-                      <div className="space-y-2">
-                        <p className="text-sm text-red-600">
-                          ❌ Completion request was declined
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Declined on {formatDate(session.completionRejectedAt || '')}.
-                        </p>
-                        {session.completionRejectionReason && (
-                          <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
-                            <span className="font-medium text-red-800">Reason:</span> {session.completionRejectionReason}
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-gray-600">
-                        🎉 Session accepted! Progress tracking has been created for both participants.
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Counter Offers Section */}
-                {counterOffers[session._id] && counterOffers[session._id].length > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h4 className="text-sm font-medium text-gray-900 mb-3">
-                      Counter Offers ({counterOffers[session._id].length})
-                    </h4>
-                    <div className="space-y-3">
-                      {counterOffers[session._id].map((counterOffer) => (
-                        <div key={counterOffer._id} className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium text-orange-900">
-                                Counter offer by {counterOffer.counterOfferedBy._id === userId ? 'You' : (() => {
-                                  console.log('Counter offer user data:', counterOffer.counterOfferedBy);
-                                  return getCounterOfferUserName(counterOffer.counterOfferedBy);
-                                })()}
-                              </span>
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                counterOffer.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                counterOffer.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                                'bg-red-100 text-red-800'
-                              }`}>
-                                {counterOffer.status}
-                              </span>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {formatDate(counterOffer.createdAt)}
-                            </div>
-                          </div>
-                          
-                          <p className="text-sm text-orange-800 mb-3 italic">
-                            "{counterOffer.counterOfferMessage}"
-                          </p>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                            <div className="bg-white p-3 rounded border">
-                              <div className="text-xs font-medium text-gray-600 mb-1">Offers:</div>
-                              <div className="text-sm font-semibold text-blue-900">
-                                {counterOffer.skill1Id?.skillTitle}
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {counterOffer.descriptionOfService1}
-                              </div>
-                            </div>
-                            <div className="bg-white p-3 rounded border">
-                              <div className="text-xs font-medium text-gray-600 mb-1">Wants:</div>
-                              <div className="text-sm font-semibold text-green-900">
-                                {counterOffer.skill2Id?.skillTitle}
-                              </div>
-                              <div className="text-xs text-gray-600">
-                                {counterOffer.descriptionOfService2}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="text-xs text-gray-600 mb-3">
-                            Proposed date: {formatDate(counterOffer.startDate)}
-                          </div>
-                          
-                          {/* Counter Offer Actions */}
-                          {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id !== userId && (
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleCounterOfferResponse(counterOffer._id, 'accept')}
-                                disabled={processingSession === counterOffer._id}
-                                className="text-xs bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 disabled:opacity-50 transition-colors"
-                              >
-                                Accept Counter
-                              </button>
-                              <button
-                                onClick={() => handleCounterOfferResponse(counterOffer._id, 'reject')}
-                                disabled={processingSession === counterOffer._id}
-                                className="text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 disabled:opacity-50 transition-colors"
-                              >
-                                Reject Counter
-                              </button>
-                            </div>
-                          )}
-                          
-                          {counterOffer.status === 'pending' && counterOffer.counterOfferedBy._id === userId && (
-                            <div className="text-xs text-orange-700">
-                              Waiting for response...
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
+          <SessionListContainer
+            sessions={sessions}
+            userId={userId}
+            otherUser={otherUser}
+            counterOffers={counterOffers}
+            expandedSessions={expandedSessions}
+            showActiveCounterOffers={showActiveCounterOffers}
+            processingSession={processingSession}
+            showCancelledSessions={showCancelledSessions}
+            onToggleExpansion={toggleSessionExpansion}
+            onToggleActiveCounterOffers={toggleActiveCounterOffers}
+            onToggleCancelledSessions={() => setShowCancelledSessions(!showCancelledSessions)}
+            onAcceptReject={handleAcceptReject}
+            onCounterOffer={handleCounterOffer}
+            onEditSession={handleEditSession}
+            onDeleteSession={handleDeleteSession}
+            onRequestCompletion={handleRequestCompletion}
+            onCompletionResponse={handleCompletionResponseWithModal}
+            onCounterOfferResponse={handleCounterOfferResponse}
+            formatDate={formatDate}
+            getUserDisplayName={getUserDisplayName}
+            getCounterOfferUserName={getCounterOfferUserName}
+            getSessionStatus={getSessionStatus}
+          />
         )}
       </div>
 
@@ -1116,6 +549,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
         otherUserId={otherUserId}
         otherUserName={otherUserName}
         chatRoomId={chatRoomId}
+        activeSessionCount={activeSessionCount}
       />
 
       {/* Edit Session Modal */}
@@ -1204,21 +638,35 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
               
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating (1 to 5) *
+                  Rating *
                 </label>
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(Number(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value={0}>Select a rating</option>
-                  <option value={1}>1 - Poor</option>
-                  <option value={2}>2 - Fair</option>
-                  <option value={3}>3 - Good</option>
-                  <option value={4}>4 - Very Good</option>
-                  <option value={5}>5 - Excellent</option>
-                </select>
+                
+                {/* Star Rating */}
+                <div className="flex items-center space-x-1 mb-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleStarClick(star)}
+                      onMouseEnter={() => handleStarHover(star)}
+                      onMouseLeave={handleStarLeave}
+                      className="focus:outline-none transition-colors"
+                    >
+                      <Star 
+                        className={`h-8 w-8 ${
+                          star <= (hoveredRating || rating)
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
+                        } hover:text-yellow-400 transition-colors`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Rating Text */}
+                <p className="text-sm text-gray-600 mb-2">
+                  {rating > 0 ? getRatingText(rating) : 'Click on stars to rate'}
+                </p>
               </div>
 
               <div className="mb-4">
@@ -1241,6 +689,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
                     setShowRatingModal(false);
                     setSessionToRate(null);
                     setRating(0);
+                    setHoveredRating(0);
                     setRatingComment('');
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -1248,8 +697,8 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, onSessionU
                   Cancel
                 </button>
                 <button
-                  onClick={handleRatingSubmit}
-                  disabled={submittingRating}
+                  onClick={handleRatingSubmitLocal}
+                  disabled={submittingRating || rating === 0 || !ratingComment.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {submittingRating ? 'Submitting...' : 'Submit Rating'}

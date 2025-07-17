@@ -553,6 +553,15 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Search highlighting styles */
+mark {
+  background-color: #fef08a;
+  color: #000;
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
 /* Reduce motion for accessibility */
 @media (prefers-reduced-motion: reduce) {
   *,

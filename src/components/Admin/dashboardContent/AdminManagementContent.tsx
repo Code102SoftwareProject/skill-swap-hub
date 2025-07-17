@@ -87,6 +87,11 @@ const AVAILABLE_PERMISSIONS = [
     description: "Access to reporting and analytics",
   },
   {
+    key: "manage_forum_reports",
+    label: "Manage Forum Reports",
+    description: "Review and moderate forum post reports",
+  },
+  {
     key: "view_dashboard",
     label: "View Dashboard",
     description: "Access to dashboard overview",
