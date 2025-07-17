@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
 import Alert from '@/components/ui/Alert';
 
@@ -19,6 +19,7 @@ interface CreateSessionModalProps {
   otherUserId: string;
   otherUserName: string;
   chatRoomId: string;
+  activeSessionCount?: number;
 }
 
 export default function CreateSessionModal({
@@ -27,7 +28,8 @@ export default function CreateSessionModal({
   currentUserId,
   otherUserId,
   otherUserName,
-  chatRoomId
+  chatRoomId,
+  activeSessionCount = 0
 }: CreateSessionModalProps) {
   const [currentUserSkills, setCurrentUserSkills] = useState<UserSkill[]>([]);
   const [otherUserSkills, setOtherUserSkills] = useState<UserSkill[]>([]);
@@ -69,23 +71,7 @@ export default function CreateSessionModal({
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Fetch skills when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchUserSkills();
-      // Set default start date to tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setStartDate(tomorrow.toISOString().split('T')[0]);
-      
-      // Set default expected end date to 30 days from tomorrow
-      const defaultEndDate = new Date();
-      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
-      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
-    }
-  }, [isOpen, currentUserId, otherUserId]);
-
-  const fetchUserSkills = async () => {
+  const fetchUserSkills = useCallback(async () => {
     setLoading(true);
     try {
       // Fetch current user skills
@@ -108,7 +94,23 @@ export default function CreateSessionModal({
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentUserId, otherUserId]);
+
+  // Fetch skills when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      fetchUserSkills();
+      // Set default start date to tomorrow
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setStartDate(tomorrow.toISOString().split('T')[0]);
+      
+      // Set default expected end date to 30 days from tomorrow
+      const defaultEndDate = new Date();
+      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
+      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+    }
+  }, [isOpen, currentUserId, otherUserId, fetchUserSkills]);
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -230,6 +232,25 @@ export default function CreateSessionModal({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Active session limit info */}
+            {activeSessionCount > 0 && (
+              <div className={`p-3 rounded-lg ${activeSessionCount >= 3 ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <p className={`text-sm ${activeSessionCount >= 3 ? 'text-red-700' : 'text-yellow-700'}`}>
+                  <span className="font-medium">
+                    {activeSessionCount >= 3 
+                      ? '⚠️ Session Limit Reached' 
+                      : `📝 Active Sessions: ${activeSessionCount}/3`
+                    }
+                  </span>
+                  <br />
+                  {activeSessionCount >= 3 
+                    ? 'You have reached the maximum of 3 active sessions (pending + active) between you and this user. Please wait for existing sessions to be completed before creating new requests.'
+                    : `You can create ${3 - activeSessionCount} more session${3 - activeSessionCount === 1 ? '' : 's'} with ${otherUserName}.`
+                  }
+                </p>
+              </div>
+            )}
+
             {/* What you offer section */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
@@ -324,6 +345,7 @@ export default function CreateSessionModal({
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {errors.startDate && <p className="text-red-500 text-sm mt-1">{errors.startDate}</p>}
@@ -341,6 +363,7 @@ export default function CreateSessionModal({
                 type="date"
                 value={expectedEndDate}
                 onChange={(e) => setExpectedEndDate(e.target.value)}
+                min={startDate || new Date().toISOString().split('T')[0]}
                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {errors.expectedEndDate && <p className="text-red-500 text-sm mt-1">{errors.expectedEndDate}</p>}
@@ -360,10 +383,17 @@ export default function CreateSessionModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting}
-                className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                disabled={submitting || activeSessionCount >= 3}
+                className={`flex-1 py-2 px-4 rounded-md transition-colors ${
+                  submitting || activeSessionCount >= 3
+                    ? 'bg-gray-400 text-gray-700 cursor-not-allowed' 
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
+                title={activeSessionCount >= 3 ? 'You have reached the maximum of 3 active sessions between you and this user' : ''}
               >
-                {submitting ? 'Sending...' : 'Send Session Request'}
+                {submitting ? 'Sending...' : 
+                 activeSessionCount >= 3 ? 'Session Limit Reached' : 
+                 'Send Session Request'}
               </button>
             </div>
           </form>

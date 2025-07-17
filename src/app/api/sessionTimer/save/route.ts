@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     await SessionModel.create({ userId, startTime, endTime, duration });
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Session save API error:", error);
     return NextResponse.json({ error: "Failed to save session data" }, { status: 500 });
   }
 } 

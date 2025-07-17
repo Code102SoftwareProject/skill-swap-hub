@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
 
@@ -13,7 +13,8 @@ import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
 import { ApiOptimizationProvider } from "@/lib/context/ApiOptimizationContext";
-import { fetchChatRoom } from "@/services/chatApiServices";
+import { fetchChatRoom, markChatRoomMessagesAsRead, fetchUserChatRooms } from "@/services/chatApiServices";
+import { preloadChatMessages, updateCachedMessages, setProgressCallback } from "@/services/messagePreloader";
 
 /**
  * * ChatPage Component
@@ -38,8 +39,11 @@ export default function ChatPage() {
   // * UI state for different view modes
   const [showMeetings, setShowMeetings] = useState<boolean>(false);
   const [showSessions, setShowSessions] = useState<boolean>(false);
+  const [showSearch, setShowSearch] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [sessionUpdateTrigger, setSessionUpdateTrigger] = useState<number>(0);
+  const [messagesPreloaded, setMessagesPreloaded] = useState<boolean>(false);
+  const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
 
   /**
    * * Event Handlers
@@ -61,22 +65,39 @@ export default function ChatPage() {
     if (show) setShowMeetings(false); // Hide meetings when showing sessions
   };
 
+  const toggleSearchDisplay = (show: boolean) => {
+    setShowSearch(show);
+    if (show) {
+      setShowMeetings(false); // Hide meetings when showing search
+      setShowSessions(false); // Hide sessions when showing search
+    }
+  };
+
   const handleSessionUpdate = () => {
     // Trigger re-render for ChatHeader to refresh session status
     setSessionUpdateTrigger(prev => prev + 1);
   };
 
-  const handleMeetingUpdate = () => {
+  const handleMeetingUpdate = useCallback(() => {
     // Trigger re-render for ChatHeader to refresh meeting status
     setSessionUpdateTrigger(prev => prev + 1);
-  };
+  }, []);
 
-  const handleChatSelect = (chatRoomId: string, participantInfo?: any) => {
+  const handleChatSelect = async (chatRoomId: string, participantInfo?: any) => {
     setSelectedChatRoomId(chatRoomId);
     setNewMessage(null); // Reset new message state when changing chats
     setSidebarOpen(false); // Close sidebar on mobile when chat is selected
     if (participantInfo) {
       setSelectedParticipantInfo(participantInfo);
+    }
+
+    // Mark messages as read when chat is selected
+    if (userId) {
+      try {
+        await markChatRoomMessagesAsRead(chatRoomId, userId);
+      } catch (error) {
+        console.error("Error marking messages as read:", error);
+      }
     }
   };
 
@@ -85,11 +106,53 @@ export default function ChatPage() {
     setSelectedParticipantInfo(null);
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   };
 
   const handleToggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
+
+  /**
+   * Preload messages for all chat rooms in the background
+   */
+  useEffect(() => {
+    const preloadAllMessages = async () => {
+      if (!userId || messagesPreloaded) return;
+
+      try {
+        console.log('Starting background message preloading...');
+        
+        // Set up progress callback
+        setProgressCallback((loaded, total) => {
+          setPreloadProgress({ loaded, total });
+        });
+        
+        const chatRooms = await fetchUserChatRooms(userId);
+        
+        if (chatRooms && chatRooms.length > 0) {
+          setPreloadProgress({ loaded: 0, total: chatRooms.length });
+          
+          // Preload messages in the background
+          await preloadChatMessages(chatRooms);
+          setMessagesPreloaded(true);
+          console.log(`Successfully preloaded messages for ${chatRooms.length} chat rooms`);
+          
+          // Hide progress after a short delay
+          setTimeout(() => {
+            setPreloadProgress({ loaded: 0, total: 0 });
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error preloading messages:', error);
+      }
+    };
+
+    // Start preloading after a short delay to not interfere with initial page load
+    const timeoutId = setTimeout(preloadAllMessages, 1000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [userId, messagesPreloaded]);
 
   /**
    * * Fetch chat participants whenever selected chat room changes
@@ -108,6 +171,7 @@ export default function ChatPage() {
     getChatRoomParticipants();
     setShowMeetings(false);
     setShowSessions(false);
+    setShowSearch(false);
   }, [selectedChatRoomId, userId]);
 
   /**
@@ -132,6 +196,9 @@ export default function ChatPage() {
           id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         });
       }
+      
+      // Update cached messages for this room
+      updateCachedMessages(message.chatRoomId, message as any);
     };
 
     // ! set up the message listener locally
@@ -191,7 +258,8 @@ export default function ChatPage() {
           <Sidebar 
             userId={userId} 
             selectedChatRoomId={selectedChatRoomId} 
-            onChatSelect={handleChatSelect} 
+            onChatSelect={handleChatSelect}
+            preloadProgress={preloadProgress}
           />
         </div>
 
@@ -204,10 +272,12 @@ export default function ChatPage() {
                 userId={userId}
                 onToggleMeetings={toggleMeetingsDisplay}
                 onToggleSessions={toggleSessionsDisplay}
+                onToggleSearch={toggleSearchDisplay}
                 onSessionUpdate={handleSessionUpdate}
                 initialParticipantInfo={selectedParticipantInfo}
                 showingSessions={showSessions}
                 showingMeetings={showMeetings}
+                showingSearch={showSearch}
                 sessionUpdateTrigger={sessionUpdateTrigger}
               />
 
@@ -234,12 +304,14 @@ export default function ChatPage() {
                     newMessage={newMessage}
                     onReplySelect={handleReplySelect}
                     participantInfo={selectedParticipantInfo}
+                    showSearch={showSearch}
+                    onCloseSearch={() => setShowSearch(false)}
                   />
                 )}
               </div>
 
-              {/* * Message input area - only shown when not in meetings/sessions view */}
-              {!showMeetings && !showSessions && (
+              {/* * Message input area - only shown when not in meetings/sessions/search view */}
+              {!showMeetings && !showSessions && !showSearch && (
                 <div className="border-t p-2 bg-white">
                   <MessageInput
                     chatRoomId={selectedChatRoomId}

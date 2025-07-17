@@ -1,14 +1,17 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useSocket } from '@/lib/context/SocketContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 
 import FileMessage from "@/components/messageSystem/box/FileMessage";
 import TextMessage from "@/components/messageSystem/box/TextMessage";
+import MessageSearch from "@/components/messageSystem/MessageSearch";
 
 import { fetchChatMessages, fetchChatRoom, fetchUserProfile, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
+import { getCachedMessages, isMessagesCached, clearCachedMessages } from "@/services/messagePreloader";
+import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 
 interface MessageBoxProps {
@@ -16,7 +19,9 @@ interface MessageBoxProps {
   chatRoomId: string;
   newMessage?: IMessage;
   onReplySelect?: (message: IMessage) => void;
-  participantInfo?: { id: string, name: string }; 
+  participantInfo?: { id: string, name: string };
+  showSearch?: boolean;
+  onCloseSearch?: () => void;
 }
 
 
@@ -114,11 +119,14 @@ export default function MessageBox({
   newMessage,
   onReplySelect,
   participantInfo,
+  showSearch = false,
+  onCloseSearch,
 }: MessageBoxProps) {
   const { socket, onlineUsers } = useSocket();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Store refs for each message to enable scrolling to original message
@@ -129,6 +137,9 @@ export default function MessageBox({
 
   // state for highlighted message
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+
+  // Search related states
+  const [searchHighlightedMessageId, setSearchHighlightedMessageId] = useState<string | null>(null);
 
   // Helper function to check if two dates are from different days
   const isNewDay = (date1: Date | string | undefined, date2: Date | string | undefined): boolean => {
@@ -176,29 +187,54 @@ export default function MessageBox({
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
   
-  // ! Fetch chat history on mount
+  // ! Optimized message fetching - check cache first, then API
   useEffect(() => {
-    async function fetchMessages() {
-      // Clear existing messages FIRST to prevent showing old messages
+    async function loadMessages() {
+      // Clear existing messages FIRST
       setMessages([]);
+      
+      // Check if messages are already cached
+      const cachedMessages = getCachedMessages(chatRoomId);
+      
+      if (cachedMessages) {
+        // Use cached messages for instant loading
+        console.log(`Loading ${cachedMessages.length} cached messages for room ${chatRoomId}`);
+        setMessages(cachedMessages);
+        return;
+      }
 
+      // If not cached, show loading and fetch from API
+      setIsLoading(true);
+      
       try {
+        console.log(`Fetching messages from API for room ${chatRoomId}`);
         const messagesData = await fetchChatMessages(chatRoomId);
         if (messagesData && messagesData.length > 0) {
           setMessages(messagesData);
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
-    fetchMessages();
+    
+    loadMessages();
   }, [chatRoomId, userId]);
 
   // ! Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     
-    setMessages((prev) => [...prev, newMessage]);
+    // Decrypt the message content before adding to state
+    const decryptedMessage = {
+      ...newMessage,
+      content: newMessage.content.startsWith('File:') 
+        ? newMessage.content 
+        : decryptMessage(newMessage.content)
+    };
+    
+    setMessages((prev) => [...prev, decryptedMessage]);
   }, [newMessage, chatRoomId, userId, socket]);
 
   // Add/update typing event listeners
@@ -286,6 +322,20 @@ export default function MessageBox({
     }
   };
 
+  // Search handlers
+  const handleSearchResult = useCallback((result: any) => {
+    if (result?.message?._id) {
+      setSearchHighlightedMessageId(result.message._id);
+      scrollToMessage(result.message._id);
+    } else {
+      setSearchHighlightedMessageId(null);
+    }
+  }, []);
+
+  const handleScrollToMessage = useCallback((messageId: string) => {
+    scrollToMessage(messageId);
+  }, []);
+
   const getReplyContent = (
     replyFor: string | { _id?: string; senderId?: string; content?: string }
   ): ReplyContent => {
@@ -342,12 +392,36 @@ export default function MessageBox({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
-    >
-      {/* Always show skill match info message at the top of new chat rooms */}
-      <SkillMatchInfoMessage participantName={participantInfo?.name} />
+    <div className="flex flex-col w-full h-full bg-white overflow-hidden">
+      {/* Loading State - only show when not using cached messages */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading messages...</span>
+        </div>
+      )}
+
+      {/* Search Component */}
+      {!isLoading && showSearch && (
+        <MessageSearch
+          messages={messages}
+          userId={userId}
+          participantNames={participantNames}
+          onSearchResult={handleSearchResult}
+          onScrollToMessage={handleScrollToMessage}
+          isVisible={showSearch}
+          onClose={() => onCloseSearch?.()}
+        />
+      )}
+      
+      {/* Messages Container */}
+      {!isLoading && (
+        <div
+          ref={containerRef}
+          className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
+        >
+        {/* Always show skill match info message at the top of new chat rooms */}
+        <SkillMatchInfoMessage participantName={participantInfo?.name} />
       
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
@@ -372,7 +446,8 @@ export default function MessageBox({
                 if (msg._id) messageRefs.current[msg._id] = el;
               }}
               className={`mb-2 md:mb-3 flex flex-col ${isMine ? "items-end" : "items-start"} 
-                ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""}`}
+                ${msg._id === highlightedMessageId ? "bg-gray-100 bg-opacity-50" : ""} 
+                ${msg._id === searchHighlightedMessageId ? "bg-yellow-100 bg-opacity-70" : ""}`}
             >
               <div
                 className={`p-2 md:p-3 rounded-lg max-w-[85%] md:max-w-[75%] min-w-[50px] min-h-[30px] flex flex-col break-words word-wrap overflow-wrap-anywhere
@@ -425,10 +500,12 @@ export default function MessageBox({
         );
       })}
 
-      {/* ! IMPORTANT: Typing indicator section */}
-      {isTyping && (
-        <div className="mb-2 md:mb-3 text-left">
-          <TypingIndicator />
+        {/* ! IMPORTANT: Typing indicator section */}
+        {isTyping && (
+          <div className="mb-2 md:mb-3 text-left">
+            <TypingIndicator />
+          </div>
+        )}
         </div>
       )}
     </div>

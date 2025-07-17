@@ -1,11 +1,21 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { X, Plus, AlertCircle, Clock, ChevronDown, ChevronRight, Calendar, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
-import PendingMeetingList from '@/components/meetingSystem/PendingMeetingList';
-import UpcomingMeetingList from '@/components/meetingSystem/UpcomingMeetingList';
+import MeetingList from '@/components/meetingSystem/MeetingList';
 import Meeting from '@/types/meeting';
-import { fetchMeetings, createMeeting, updateMeeting } from "@/services/meetingApiServices";
+import { 
+  fetchMeetings, 
+  createMeeting, 
+  updateMeeting, 
+  cancelMeetingWithReason,
+  fetchMeetingCancellation,
+  acknowledgeMeetingCancellation,
+  checkMeetingNotesExist,
+  filterMeetingsByType,
+  checkMeetingLimit
+} from "@/services/meetingApiServices";
+import { fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { debouncedApiService } from '@/services/debouncedApiService';
 import Alert from '@/components/ui/Alert';
@@ -14,6 +24,7 @@ import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 interface UserProfile {
   firstName: string;
   lastName: string;
+  avatar?: string;
 }
 
 interface UserProfiles {
@@ -44,9 +55,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [meetingToCancel, setMeetingToCancel] = useState<string | null>(null);
   const [otherUserId, setOtherUserId] = useState<string | null>(null);
-  const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
   const [showPastMeetings, setShowPastMeetings] = useState(false);
   const [showCancelledMeetings, setShowCancelledMeetings] = useState(false);
+  const [meetingNotesStatus, setMeetingNotesStatus] = useState<{[meetingId: string]: boolean}>({});
+  const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -111,42 +123,26 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
-  // Filter meetings to show only active/pending at the top
-  const pendingRequests = meetings.filter(m => 
-    m.state === 'pending' && m.receiverId === userId && !m.acceptStatus
-  );
-  
-  const upcomingMeetings = meetings.filter(m => 
-    (m.state === 'accepted' || (m.state === 'pending' && m.senderId === userId)) && 
-    new Date(m.meetingTime) > new Date()
-  );
-
-  // Past meetings (completed or past due)
-  const pastMeetings = meetings.filter(m => 
-    (m.state === 'completed' || m.state === 'accepted') && 
-    new Date(m.meetingTime) <= new Date()
-  );
-
-  // Cancelled meetings
-  const cancelledMeetings = meetings.filter(m => 
-    m.state === 'cancelled' || m.state === 'rejected'
-  );
-
-  // Check if there are any active meetings or requests
-  const hasActiveMeetingsOrRequests = pendingRequests.length > 0 || upcomingMeetings.length > 0;
+  // Use API service to filter meetings
+  const filteredMeetings = filterMeetingsByType(meetings, userId);
+  const hasActiveMeetingsOrRequests = filteredMeetings.pendingRequests.length > 0 || filteredMeetings.upcomingMeetings.length > 0;
 
   // Track if meetings have been loaded to prevent duplicate onMeetingUpdate calls
   const hasFetchedMeetings = useRef(false);
+  const onMeetingUpdateRef = useRef(onMeetingUpdate);
+  
+  // Update the ref when the callback changes
+  useEffect(() => {
+    onMeetingUpdateRef.current = onMeetingUpdate;
+  }, [onMeetingUpdate]);
 
   // Fetch chat room to get other user ID
   useEffect(() => {
-    const fetchChatRoom = async () => {
+    const loadChatRoom = async () => {
       try {
-        const response = await fetch(`/api/chatrooms?chatRoomId=${chatRoomId}`);
-        const data = await response.json();
+        const chatRoom = await fetchChatRoom(chatRoomId);
         
-        if (data.success && data.chatRooms && data.chatRooms.length > 0) {
-          const chatRoom = data.chatRooms[0];
+        if (chatRoom && chatRoom.participants) {
           const otherParticipant = chatRoom.participants.find(
             (id: string) => id !== userId
           );
@@ -160,7 +156,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     };
     
     if (chatRoomId && userId) {
-      fetchChatRoom();
+      loadChatRoom();
     }
   }, [chatRoomId, userId]);
 
@@ -168,7 +164,6 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   useEffect(() => {
     if (!otherUserId) return;
     
-    // Call fetchMeetings directly to avoid callback dependency
     const loadMeetings = async () => {
       try {
         setLoading(true);
@@ -176,9 +171,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         setMeetings(data);
 
         // Notify parent component about meeting updates (only once per mount)
-        if (onMeetingUpdate && !hasFetchedMeetings.current) {
+        if (onMeetingUpdateRef.current && !hasFetchedMeetings.current) {
           hasFetchedMeetings.current = true;
-          onMeetingUpdate();
+          onMeetingUpdateRef.current();
         }
       } catch (error) {
         console.error('Error fetching meetings:', error);
@@ -189,27 +184,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     
     hasFetchedMeetings.current = false; // Reset for new otherUserId
     loadMeetings();
-  }, [otherUserId, userId]); // Remove onMeetingUpdate dependency
+  }, [otherUserId, userId]);
 
-  // Fetch meetings data
-  const fetchMeetingsData = useCallback(async (otherUserID: string) => {
-    try {
-      setLoading(true);
-      const data = await fetchMeetings(userId, otherUserID);
-      setMeetings(data);
-
-      // Notify parent component about meeting updates
-      if (onMeetingUpdate) {
-        onMeetingUpdate();
-      }
-    } catch (error) {
-      console.error('Error fetching meetings:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, onMeetingUpdate]); // Remove fetchRecentCancellations dependency
-
-  // Fetch user profiles for all meeting participants with stable dependencies
+  // Fetch user profiles for all meeting participants
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
     if (currentMeetings.length === 0) return;
     
@@ -227,9 +204,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         const profileData = await debouncedApiService.makeRequest(
           cacheKey,
           async () => {
-            const res = await fetch(`/api/users/profile?id=${id}`);
-            const data = await res.json();
-            return data.success ? data.user : null;
+            return await fetchUserProfile(id);
           },
           60000 // 1 minute cache for profiles
         );
@@ -237,7 +212,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         if (profileData) {
           setUserProfiles(prev => {
             // Check if we already have this profile to prevent unnecessary updates
-            if (prev[id] && prev[id].firstName === profileData.firstName && prev[id].lastName === profileData.lastName) {
+            if (prev[id] && 
+                prev[id].firstName === profileData.firstName && 
+                prev[id].lastName === profileData.lastName &&
+                prev[id].avatar === profileData.avatar) {
               return prev; // No change needed
             }
             
@@ -245,7 +223,8 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
               ...prev,
               [id]: {
                 firstName: profileData.firstName,
-                lastName: profileData.lastName
+                lastName: profileData.lastName,
+                avatar: profileData.avatar
               }
             };
           });
@@ -260,99 +239,66 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   useEffect(() => {
     if (meetings.length === 0) return;
     
-    // Debounce the call to prevent excessive API requests
     const timeoutId = setTimeout(() => {
       fetchUserProfiles(meetings);
     }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [meetings.length, fetchUserProfiles]); // Stable dependencies only
+  }, [meetings, fetchUserProfiles]);
 
-  // Fetch recent cancellations with stable dependencies
-  const fetchRecentCancellations = useCallback(async (currentMeetings: Meeting[]) => {
-    const cancelledMeetings = currentMeetings.filter(m => m.state === 'cancelled');
-    if (cancelledMeetings.length === 0) {
-      setCancellationAlerts([]);
+  // Check if notes exist for meetings
+  const checkMeetingNotes = useCallback(async (currentMeetings: Meeting[]) => {
+    const pastAndCompletedMeetings = currentMeetings.filter(m => 
+      (m.state === 'completed' || m.state === 'accepted') && 
+      new Date(m.meetingTime) <= new Date()
+    );
+
+    if (pastAndCompletedMeetings.length === 0) {
+      setMeetingNotesStatus({});
+      setCheckingNotes({});
       return;
     }
 
-    const oneDayAgo = new Date();
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    const notesStatus: {[meetingId: string]: boolean} = {};
+    const checking: {[meetingId: string]: boolean} = {};
 
-    const recentCancellations: CancellationAlert[] = [];
+    // Set all meetings as checking initially
+    pastAndCompletedMeetings.forEach(meeting => {
+      checking[meeting._id] = true;
+    });
+    setCheckingNotes(checking);
 
-    // Process each cancelled meeting
-    for (const meeting of cancelledMeetings) {
-      const cacheKey = `cancellation-${meeting._id}`;
-      
+    // Check notes for each meeting with caching
+    for (const meeting of pastAndCompletedMeetings) {
       try {
-        const cancellationData = await debouncedApiService.makeRequest(
-          cacheKey,
-          async () => {
-            const response = await fetch(`/api/meeting/cancellation?meetingId=${meeting._id}&userId=${userId}`);
-            if (!response.ok) return null;
-            return await response.json();
-          },
-          300000
-        );
-
-        if (cancellationData) {
-          const cancelledAt = new Date(cancellationData.cancelledAt);
-          
-          if (cancelledAt > oneDayAgo) {
-            let cancellerName = 'Someone';
-            if (cancellationData.cancelledBy) {
-              const profileCacheKey = `profile-${cancellationData.cancelledBy}`;
-              try {
-                const profileData = await debouncedApiService.makeRequest(
-                  profileCacheKey,
-                  async () => {
-                    const res = await fetch(`/api/users/profile?id=${cancellationData.cancelledBy}`);
-                    const data = await res.json();
-                    return data.success ? data.user : null;
-                  },
-                  60000
-                );
-                if (profileData) {
-                  cancellerName = profileData.firstName || 'Someone';
-                }
-              } catch (err) {
-                console.error('Error fetching canceller profile:', err);
-              }
-            }
-            
-            recentCancellations.push({
-              _id: cancellationData._id,
-              meetingId: meeting._id,
-              reason: cancellationData.reason,
-              cancelledAt: cancellationData.cancelledAt,
-              cancellerName,
-              meetingTime: meeting.meetingTime.toString()
-            });
-          }
-        }
+        const hasNotes = await checkMeetingNotesExist(meeting._id, userId);
+        notesStatus[meeting._id] = hasNotes;
       } catch (error) {
-        console.error(`Error fetching cancellation for ${meeting._id}:`, error);
+        console.error(`Error checking notes for meeting ${meeting._id}:`, error);
+        notesStatus[meeting._id] = false;
+      } finally {
+        checking[meeting._id] = false;
       }
     }
 
-    setCancellationAlerts(recentCancellations);
+    setMeetingNotesStatus(notesStatus);
+    setCheckingNotes(checking);
   }, [userId]);
 
-  // Call fetch recent cancellations when meetings change (with debouncing)
+  // Check for notes when meetings change
   useEffect(() => {
     if (meetings.length === 0) {
-      setCancellationAlerts([]);
+      setMeetingNotesStatus({});
+      setCheckingNotes({});
       return;
     }
 
-    // Debounce the call to prevent excessive API requests
     const timeoutId = setTimeout(() => {
-      fetchRecentCancellations(meetings);
-    }, 500);
+      checkMeetingNotes(meetings);
+    }, 300);
     
     return () => clearTimeout(timeoutId);
-  }, [meetings.length, fetchRecentCancellations]); // Stable dependencies only
+  }, [meetings, checkMeetingNotes]);
 
   // Meeting action handler
   const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
@@ -378,19 +324,14 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
             showAlert('success', `Meeting ${actionText}ed successfully!`);
           }
           
-          // Refresh meetings after accepting
-          if (action === 'accept' && otherUserId) {
-            fetchMeetingsData(otherUserId);
-          }
-          
           // Invalidate cache for both users
           if (otherUserId) {
             invalidateUsersCaches(userId, otherUserId);
           }
           
           // Notify parent component about meeting updates
-          if (onMeetingUpdate) {
-            onMeetingUpdate();
+          if (onMeetingUpdateRef.current) {
+            onMeetingUpdateRef.current();
           }
         } catch (error) {
           console.error(`Error ${action}ing meeting:`, error);
@@ -400,6 +341,22 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       confirmationType,
       actionText.charAt(0).toUpperCase() + actionText.slice(1)
     );
+  };
+
+  // Handle Schedule Meeting button click with validation
+  const handleScheduleMeetingClick = () => {
+    const activeMeetingCount = checkMeetingLimit(meetings);
+    
+    if (activeMeetingCount >= 2) {
+      showAlert(
+        'warning', 
+        'You can only have a maximum of 2 active meetings (pending or scheduled) with this user at a time. Please wait for existing meetings to be completed or cancelled before scheduling new ones.',
+        'Meeting Limit Reached'
+      );
+      return;
+    }
+    
+    setShowCreateModal(true);
   };
 
   // Create Meeting Function
@@ -419,58 +376,41 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         setShowCreateModal(false);
         showAlert('success', 'Meeting request sent successfully!');
         
-        // Invalidate cache for both users
-        if (otherUserId) {
-          invalidateUsersCaches(userId, otherUserId);
-        }
-        
         // Notify parent component about meeting updates
-        if (onMeetingUpdate) {
-          onMeetingUpdate();
+        if (onMeetingUpdateRef.current) {
+          onMeetingUpdateRef.current();
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating meeting:', error);
-      showAlert('error', 'Failed to create meeting request');
+      const errorMessage = error.message || 'Failed to create meeting request';
+      showAlert('error', errorMessage);
+      
+      if (errorMessage.includes('maximum of 2 active meetings')) {
+        setShowCreateModal(false);
+      }
     }
   };
 
   // Handle meeting cancellation with reason
   const handleCancelMeeting = async (meetingId: string, reason: string) => {
     try {
-      const response = await fetch('/api/meeting/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          meetingId,
-          cancelledBy: userId,
-          reason
-        }),
-      });
+      const meeting = await cancelMeetingWithReason(meetingId, userId, reason);
 
-      if (!response.ok) {
-        throw new Error(`Error cancelling meeting: ${response.status}`);
-      }
+      if (meeting) {
+        setMeetings(prevMeetings =>
+          prevMeetings.map(m => m._id === meetingId ? meeting : m)
+        );
 
-      const { meeting } = await response.json();
-
-      // Update meetings state
-      setMeetings(prevMeetings =>
-        prevMeetings.map(m => m._id === meetingId ? meeting : m)
-      );
-
-      setShowCancelModal(false);
-      setMeetingToCancel(null);
-      showAlert('success', 'Meeting cancelled successfully');
-      
-      // Invalidate cache for both users
-      if (otherUserId) {
-        invalidateUsersCaches(userId, otherUserId);
-      }
-      
-      // Notify parent component about meeting updates
-      if (onMeetingUpdate) {
-        onMeetingUpdate();
+        setShowCancelModal(false);
+        setMeetingToCancel(null);
+        showAlert('success', 'Meeting cancelled successfully');
+        
+        if (onMeetingUpdateRef.current) {
+          onMeetingUpdateRef.current();
+        }
+      } else {
+        showAlert('error', 'Failed to cancel meeting');
       }
     } catch (error) {
       console.error('Error cancelling meeting:', error);
@@ -482,103 +422,6 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const showCancelMeetingModal = (meetingId: string) => {
     setMeetingToCancel(meetingId);
     setShowCancelModal(true);
-  };
-
-  // Handle dismissing cancellation alert (save to database)
-  const handleDismissCancellation = async (meetingId: string) => {
-    try {
-      // Find the cancellation alert to get the ID
-      const alert = cancellationAlerts.find(alert => alert.meetingId === meetingId);
-      
-      if (!alert) {
-        showAlert('error', 'Cancellation alert not found');
-        return;
-      }
-
-      // Acknowledge the cancellation in the database
-      const response = await fetch('/api/meeting/cancellation', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          cancellationId: alert._id,
-          acknowledgedBy: userId
-        }),
-      });
-
-      if (response.ok) {
-        // Remove from cancellation alerts
-        setCancellationAlerts(prev => prev.filter(alert => alert.meetingId !== meetingId));
-        
-        // Also invalidate the cache for this cancellation
-        const cacheKey = `cancellation-${meetingId}`;
-        debouncedApiService.invalidate(cacheKey);
-      } else {
-        showAlert('error', 'Failed to acknowledge cancellation');
-      }
-    } catch (error) {
-      console.error('Error acknowledging cancellation:', error);
-      showAlert('error', 'Failed to acknowledge cancellation');
-    }
-  };
-
-  // Simple meeting item component for past/cancelled meetings
-  const MeetingItem = ({ meeting, type }: { meeting: Meeting; type: 'past' | 'cancelled' }) => {
-    const otherUser = meeting.senderId === userId 
-      ? userProfiles[meeting.receiverId] 
-      : userProfiles[meeting.senderId];
-    
-    const formatDate = (date: string | Date) => {
-      return new Date(date).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    };
-
-    // Get cancellation info for cancelled meetings from alerts
-    const cancellationInfo = type === 'cancelled' 
-      ? cancellationAlerts.find(alert => alert.meetingId === meeting._id)
-      : null;
-
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center space-x-3 mb-2">
-              <Calendar className="w-4 h-4 text-gray-400" />
-              <h4 className="text-sm font-medium text-gray-900">
-                Meeting with {otherUser?.firstName || 'User'}
-              </h4>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                type === 'cancelled' 
-                  ? 'bg-red-100 text-red-700' 
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                {type === 'cancelled' ? 'Cancelled' : 'Completed'}
-              </span>
-            </div>
-            
-            <p className="text-sm text-gray-600 mb-2">
-              {meeting.description}
-            </p>
-            
-            {type === 'cancelled' && cancellationInfo && (
-              <p className="text-xs text-red-600 mb-2 flex items-center">
-                <XCircle className="w-3 h-3 mr-1" />
-                Cancelled by {cancellationInfo.cancellerName}: {cancellationInfo.reason}
-              </p>
-            )}
-            
-            <p className="text-xs text-gray-500 flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
-              {formatDate(meeting.meetingTime)}
-            </p>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   if (loading && meetings.length === 0) {
@@ -593,136 +436,42 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   return (
     <div className="p-4 h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Meetings</h2>
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+        <div className="flex items-center space-x-3">
+          <Calendar className="w-5 h-5 text-blue-600" />
+          <h2 className="text-lg font-semibold text-gray-900">Meetings</h2>
+        </div>
         <button 
-          onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          onClick={handleScheduleMeetingClick}
+          className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
           title="Schedule New Meeting"
         >
           <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">New Meeting</span>
+          <span>New</span>
         </button>
       </div>
 
-      {/* Recent Cancellation Alerts - Hidden as requested */}
-      {/* Cancellation alerts are now hidden from the top of the interface */}
-
       {/* Meetings List */}
       <div className="flex-1 overflow-y-auto space-y-4">
-        {meetings.length === 0 ? (
-          <div className="text-center py-12">
-            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg font-medium mb-2">No meetings scheduled</p>
-            <p className="text-gray-400 text-sm mb-6">Start collaborating by scheduling your first meeting</p>
-            <button 
-              className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Schedule Meeting
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Pending Meeting Requests */}
-            {pendingRequests.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-                  Pending Requests ({pendingRequests.length})
-                </h3>
-                <PendingMeetingList
-                  meetings={pendingRequests}
-                  userId={userId}
-                  userProfiles={userProfiles}
-                  onAccept={(id) => handleMeetingAction(id, 'accept')}
-                  onReject={(id) => handleMeetingAction(id, 'reject')}
-                />
-              </div>
-            )}
-            
-            {/* Upcoming Meetings */}
-            {upcomingMeetings.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
-                  Upcoming Meetings ({upcomingMeetings.length})
-                </h3>
-                <UpcomingMeetingList
-                  meetings={upcomingMeetings}
-                  userId={userId}
-                  userProfiles={userProfiles}
-                  onCancel={showCancelMeetingModal}
-                />
-              </div>
-            )}
-
-            {/* No Active Meetings Message */}
-            {!hasActiveMeetingsOrRequests && (
-              <div className="text-center py-8">
-                <CheckCircle className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-500 text-sm">
-                  No active meetings or pending requests
-                </p>
-              </div>
-            )}
-
-            {/* Past Meetings - Collapsible */}
-            {pastMeetings.length > 0 && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setShowPastMeetings(!showPastMeetings)}
-                  className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
-                >
-                  <span>Past Meetings ({pastMeetings.length})</span>
-                  {showPastMeetings ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                </button>
-                {showPastMeetings && (
-                  <div className="p-4 bg-white space-y-3">
-                    {pastMeetings.map((meeting) => (
-                      <MeetingItem 
-                        key={meeting._id} 
-                        meeting={meeting} 
-                        type="past" 
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Cancelled Meetings - Collapsible */}
-            {cancelledMeetings.length > 0 && (
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setShowCancelledMeetings(!showCancelledMeetings)}
-                  className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
-                >
-                  <span>Cancelled Meetings ({cancelledMeetings.length})</span>
-                  {showCancelledMeetings ? (
-                    <ChevronDown className="w-4 h-4" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4" />
-                  )}
-                </button>
-                {showCancelledMeetings && (
-                  <div className="p-4 bg-white space-y-3">
-                    {cancelledMeetings.map((meeting) => (
-                      <MeetingItem 
-                        key={meeting._id} 
-                        meeting={meeting} 
-                        type="cancelled" 
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+        <MeetingList
+          pendingRequests={filteredMeetings.pendingRequests}
+          upcomingMeetings={filteredMeetings.upcomingMeetings}
+          pastMeetings={filteredMeetings.pastMeetings}
+          cancelledMeetings={filteredMeetings.cancelledMeetings}
+          hasActiveMeetingsOrRequests={hasActiveMeetingsOrRequests}
+          showPastMeetings={showPastMeetings}
+          showCancelledMeetings={showCancelledMeetings}
+          userId={userId}
+          userProfiles={userProfiles}
+          meetingNotesStatus={meetingNotesStatus}
+          checkingNotes={checkingNotes}
+          onScheduleMeeting={handleScheduleMeetingClick}
+          onMeetingAction={handleMeetingAction}
+          onCancelMeeting={showCancelMeetingModal}
+          onAlert={showAlert}
+          onTogglePastMeetings={() => setShowPastMeetings(!showPastMeetings)}
+          onToggleCancelledMeetings={() => setShowCancelledMeetings(!showCancelledMeetings)}
+        />
       </div>
 
       {/* Modals */}

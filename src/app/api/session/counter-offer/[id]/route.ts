@@ -80,6 +80,7 @@ export async function PATCH(
         skill2Id: counterOffer.skill2Id,
         descriptionOfService2: counterOffer.descriptionOfService2,
         startDate: counterOffer.startDate,
+        expectedEndDate: counterOffer.expectedEndDate,
         isAccepted: true,
         isAmmended: true,
         status: 'active'
@@ -93,8 +94,11 @@ export async function PATCH(
         startDate: counterOffer.startDate
       });
 
-      const dueDate = new Date(counterOffer.startDate);
-      dueDate.setDate(dueDate.getDate() + 30);
+      const dueDate = counterOffer.expectedEndDate ? new Date(counterOffer.expectedEndDate) : (() => {
+        const defaultDue = new Date(counterOffer.startDate);
+        defaultDue.setDate(defaultDue.getDate() + 30);
+        return defaultDue;
+      })();
 
       const progress1 = await SessionProgress.create({
         userId: originalSession.user1Id,

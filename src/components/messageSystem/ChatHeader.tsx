@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
+import { ArrowLeft, Calendar, BookOpen, Search } from 'lucide-react';
 import { fetchChatRoom, fetchUserProfile, fetchLastOnline } from "@/services/chatApiServices";
 import { hasActiveOrPendingSessions, hasUpcomingOrPendingMeetings } from "@/services/sessionApiServices";
 
@@ -13,10 +13,12 @@ interface ChatHeaderProps {
   userId: string;
   onToggleMeetings: (show: boolean) => void;
   onToggleSessions: (show: boolean) => void;
+  onToggleSearch?: (show: boolean) => void;
   onSessionUpdate?: () => void; // Add callback for session updates
   initialParticipantInfo?: { id: string, name: string };
   showingMeetings?: boolean;
   showingSessions?: boolean;
+  showingSearch?: boolean;
   sessionUpdateTrigger?: number; // Trigger to refresh session status
 }
 
@@ -25,15 +27,16 @@ export default function ChatHeader({
   userId, 
   onToggleMeetings,
   onToggleSessions,
+  onToggleSearch,
   onSessionUpdate,
   initialParticipantInfo,
   showingMeetings = false,
   showingSessions = false,
+  showingSearch = false,
   sessionUpdateTrigger = 0
 }: ChatHeaderProps) {
-  const { socket } = useSocket();
+  const { socket, onlineUsers, refreshOnlineUsers } = useSocket(); // Get onlineUsers from socket context
   
-  const [isOnline, setIsOnline] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
   const [hasActiveSessions, setHasActiveSessions] = useState(false);
@@ -45,6 +48,9 @@ export default function ChatHeader({
   const [otherUserId, setOtherUserId] = useState<string | null>(
     initialParticipantInfo?.id || null
   );
+
+  // Calculate online status directly from socket context for instant updates
+  const isOnline = otherUserId ? onlineUsers.includes(otherUserId) : false;
   
   const router = useRouter();
 
@@ -52,7 +58,7 @@ export default function ChatHeader({
     if (initialParticipantInfo?.id && !otherUserId) {
       setOtherUserId(initialParticipantInfo.id);
     }
-  }, [initialParticipantInfo]);
+  }, [initialParticipantInfo, otherUserId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -122,7 +128,10 @@ export default function ChatHeader({
     }
   };
 
-  const checkActiveSessions = async () => {
+  // Memoized function to avoid recreating it on every render
+  const fetchUserLastOnlineMemoized = useCallback(fetchUserLastOnline, []);
+
+  const checkActiveSessions = useCallback(async () => {
     try {
       const hasActivePendingSessions = await hasActiveOrPendingSessions(userId);
       setHasActiveSessions(hasActivePendingSessions);
@@ -130,9 +139,9 @@ export default function ChatHeader({
       console.error('Error checking active sessions:', error);
       setHasActiveSessions(false);
     }
-  };
+  }, [userId]);
 
-  const checkActiveMeetings = async () => {
+  const checkActiveMeetings = useCallback(async () => {
     try {
       const hasActivePendingMeetings = await hasUpcomingOrPendingMeetings(userId);
       setHasActiveMeetings(hasActivePendingMeetings);
@@ -140,13 +149,25 @@ export default function ChatHeader({
       console.error('Error checking active meetings:', error);
       setHasActiveMeetings(false);
     }
-  };
+  }, [userId]);
 
+  // Fetch last online time when user goes offline (using onlineUsers from context)
+  useEffect(() => {
+    if (otherUserId && !isOnline && !lastOnline) {
+      // Only fetch if user is offline and we don't have last online data
+      fetchUserLastOnlineMemoized(otherUserId);
+    } else if (otherUserId && isOnline) {
+      // Clear last online when user comes online
+      setLastOnline(null);
+    }
+  }, [otherUserId, isOnline, lastOnline, fetchUserLastOnlineMemoized]);
+
+  // Request online users list when otherUserId is available
   useEffect(() => {
     if (otherUserId && socket) {
-      socket.emit("get_online_users");
+      refreshOnlineUsers(); // Use the function from socket context
     }
-  }, [otherUserId, socket]);
+  }, [otherUserId, socket, refreshOnlineUsers]);
 
   // Check for active/pending sessions when component mounts or userId changes
   useEffect(() => {
@@ -162,7 +183,7 @@ export default function ChatHeader({
 
       return () => clearInterval(interval);
     }
-  }, [userId]);
+  }, [userId, checkActiveSessions, checkActiveMeetings]);
 
   // React to session update trigger changes
   useEffect(() => {
@@ -170,53 +191,40 @@ export default function ChatHeader({
       checkActiveSessions();
       checkActiveMeetings();
     }
-  }, [sessionUpdateTrigger]);
+  }, [sessionUpdateTrigger, checkActiveSessions, checkActiveMeetings]);
 
+  // Listen for real-time socket events for instant updates
   useEffect(() => {
     if (!socket || !otherUserId) return;
 
-    socket.emit("get_online_users");
+    // Request initial online users when we have both socket and otherUserId
+    refreshOnlineUsers();
 
-    const handleOnlineUsers = (users: string[]) => {
-      const isOtherUserOnline = users.includes(otherUserId);
-      setIsOnline(isOtherUserOnline);
-      
-      // If user is not online, fetch their last online time
-      if (!isOtherUserOnline) {
-        fetchUserLastOnline(otherUserId);
-      } else {
-        // Clear last online when user comes online
+    const handleUserOnline = (data: { userId: string }) => {
+      if (data.userId === otherUserId) {
+        // User came online - clear last online timestamp
         setLastOnline(null);
       }
     };
 
-    const handleUserOnline = (data: { userId: string }) => {
+    const handleUserOffline = (data: { userId: string }) => {
       if (data.userId === otherUserId) {
-        setIsOnline(true);
-        setLastOnline(null); // Clear last online when user comes online
-      }
-    };
-
-    const handleUserOffline = async (data: { userId: string }) => {
-      if (data.userId === otherUserId) {
-        setIsOnline(false);
-        // Immediately fetch the updated last online status when user goes offline
+        // User went offline - fetch updated last online time with slight delay
         setTimeout(() => {
-          fetchUserLastOnline(otherUserId);
-        }, 1000); // Small delay to ensure the server has updated the last online time
+          fetchUserLastOnlineMemoized(otherUserId);
+        }, 500); // Reduced delay for faster updates
       }
     };
 
-    socket.on("online_users", handleOnlineUsers);
+    // Listen to socket events for instant updates
     socket.on("user_online", handleUserOnline);
     socket.on("user_offline", handleUserOffline);
 
     return () => {
-      socket.off("online_users", handleOnlineUsers);
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
     };
-  }, [socket, userId, otherUserId]);
+  }, [socket, otherUserId, refreshOnlineUsers, fetchUserLastOnlineMemoized]);
 
   useEffect(() => {
     if (!socket || !otherUserId) return;
@@ -302,6 +310,15 @@ export default function ChatHeader({
           <span className="text-xs font-body hidden md:block">Dashboard</span>
         </button>
         
+        {/* Search Button */}
+        <button 
+          className={`flex flex-col items-center text-white ${showingSearch ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}
+          onClick={() => onToggleSearch?.(!showingSearch)}
+        >
+          <Search className="h-5 w-5 mb-1" />
+          <span className="text-xs font-body hidden md:block">Search</span>
+        </button>
+
         {/* Session Button */}
         <button 
           className={`relative flex flex-col items-center text-white ${showingSessions ? 'text-blue-200' : 'hover:text-blue-200'} transition-colors`}

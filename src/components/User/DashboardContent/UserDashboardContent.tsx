@@ -9,8 +9,17 @@ import UserSkills from "@/components/Dashboard/UserSkills";
 import EarnedBadges from "@/components/Dashboard/EarnedBadges";
 import SkillMatchOverview from "@/components/Dashboard/SkillMatchOverview";
 import { useSessionTimer } from '@/lib/hooks/useSessionTimer';
+import { ReviewSummary } from '@/components/Dashboard/ReviewSummary';
 
-export default function UserDashboardContent({ onNavigateToMySkills }: { onNavigateToMySkills: () => void })  {
+interface UserDashboardContentProps {
+  onNavigateToMySkills: () => void;
+  onNavigateToReviews: () => void;
+}
+
+export default function UserDashboardContent({ 
+  onNavigateToMySkills, 
+  onNavigateToReviews 
+}: UserDashboardContentProps) {
   const { user } = useAuth();
   const fullName = user ? `${user.firstName} ${user.lastName}` : 'User';
   useSessionTimer(user?._id ?? null);
@@ -44,6 +53,16 @@ export default function UserDashboardContent({ onNavigateToMySkills }: { onNavig
             <h3 className="text-lg font-semibold mb-4">Skills Offered</h3>
             <SkillsOffered />
           </div>
+
+           {/* Reviews Section - Added to main column */}
+          {user && (
+            <div className="bg-white p-6 rounded-lg shadow-lg">
+              <ReviewSummary 
+                userId={user._id} 
+                onViewAll={onNavigateToReviews}
+              />
+            </div>
+          )}
 
           {/* Badges */}
           {user && (
