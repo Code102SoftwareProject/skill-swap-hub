@@ -14,6 +14,7 @@ import SessionsContent from '@/components/User/DashboardContent/SessionsContent'
 import SkillVerifyContent from '@/components/User/SkillVerificationPortal';
 import SuggestionContent from '@/components/User/DashboardContent/SuggestionContent';
 import SettingContent from '@/components/User/DashboardContent/SettingContent';
+import { FeedbackForm } from '@/components/Dashboard/feedback/FeedbackForm';
 
 import ReviewsContent from '@/components/Dashboard/ReviewsContent';
 
@@ -86,9 +87,11 @@ export default function UserDashboardPage() {
       case 'skillVerify':
         return <SkillVerifyContent key={activeComponent} />;
       case 'suggestions':
-        return <SuggestionContent key={activeComponent} />;
+        return <SuggestionContent key={activeComponent} onNavigateToFeedback={() => setActiveComponent('feedback')} />;
       case 'setting':
         return <SettingContent key={activeComponent} />;
+      case 'feedback':
+        return <FeedbackForm userId={user?._id || ''} key={activeComponent} />;
        case 'reviews':  // Add this new case
       return <ReviewsContent key={activeComponent} />;
       default:
