@@ -25,7 +25,7 @@ const statusOptions = [
   { value: "rejected", label: "Rejected" },
 ];
 
-export default function SuggestionContent() {
+export default function SuggestionContent({ onNavigateToFeedback }: { onNavigateToFeedback?: () => void }) {
   const { user } = useAuth();
   const userId = user?._id;
   const [activeTab, setActiveTab] = useState<"form" | "history">("form");
@@ -34,6 +34,7 @@ export default function SuggestionContent() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [showPrompt, setShowPrompt] = useState(true);
 
   // Extract unique sorted categories from suggestions
   const categories = Array.from(new Set(suggestions.map((s) => s.category))).sort();
@@ -119,6 +120,30 @@ export default function SuggestionContent() {
   return (
     <div className="flex-1 text-gray-800">
       <main className="p-6 max-w-7xl mx-auto">
+        {/* Feedback prompt */}
+        {showPrompt && (
+          <div className="mb-6 text-center relative bg-blue-50 border border-blue-200 rounded p-3">
+            <span className="text-gray-700">
+              Please give us your valuable feedback to improve this platform.
+            </span>
+            <button
+              className="text-blue-600 underline hover:text-blue-800 font-medium ml-1"
+              onClick={onNavigateToFeedback}
+              type="button"
+            >
+              Give Feedback
+            </button>
+            <button
+              className="absolute top-2 right-3 text-gray-400 hover:text-gray-700 text-lg"
+              onClick={() => setShowPrompt(false)}
+              aria-label="Close"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Navigation Tabs */}
         <div className="flex border-b border-gray-200 mb-6">
           <button
@@ -262,6 +287,8 @@ export default function SuggestionContent() {
             </div>
           </div>
         )}
+
+        
       </main>
     </div>
   );
