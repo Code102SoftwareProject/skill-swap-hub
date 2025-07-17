@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   criteriaOptions,
   validateBadgeInput,
-  handleImageFileChange,
   uploadBadgeImage,
   API_ENDPOINTS,
   validateImageFile,

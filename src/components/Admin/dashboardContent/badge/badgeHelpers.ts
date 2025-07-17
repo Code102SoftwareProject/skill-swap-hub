@@ -27,7 +27,6 @@ export interface Badge {
 export const criteriaOptions = [
   "Achievement Milestone Badges",
   "Specific Badges",
-  "Engagement and Activity Badges",
   "Exclusive Recognition Badges",
 ];
 
