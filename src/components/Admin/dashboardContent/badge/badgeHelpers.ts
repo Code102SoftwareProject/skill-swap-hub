@@ -125,6 +125,13 @@ export const validateBadgeInput = (
       errorMessage: "Badge name must be less than 50 characters",
     };
   }
+
+  if (name.trim().length < 3) {
+    return {
+      isValid: false,
+      errorMessage: "Badge name must be at least 3 characters long.",
+    };
+  }
   if (!description || description.trim().length === 0) {
     return { isValid: false, errorMessage: "Description is required" };
   }
