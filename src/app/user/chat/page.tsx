@@ -13,7 +13,8 @@ import SessionBox from "@/components/messageSystem/SessionBox";
 import { useAuth } from "@/lib/context/AuthContext";
 import { useSocket } from "@/lib/context/SocketContext"; // Import the socket hook
 import { ApiOptimizationProvider } from "@/lib/context/ApiOptimizationContext";
-import { fetchChatRoom, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
+import { fetchChatRoom, markChatRoomMessagesAsRead, fetchUserChatRooms } from "@/services/chatApiServices";
+import { preloadChatMessages, updateCachedMessages, setProgressCallback } from "@/services/messagePreloader";
 
 /**
  * * ChatPage Component
@@ -41,6 +42,8 @@ export default function ChatPage() {
   const [showSearch, setShowSearch] = useState<boolean>(false);
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [sessionUpdateTrigger, setSessionUpdateTrigger] = useState<number>(0);
+  const [messagesPreloaded, setMessagesPreloaded] = useState<boolean>(false);
+  const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
 
   /**
    * * Event Handlers
@@ -111,6 +114,47 @@ export default function ChatPage() {
   };
 
   /**
+   * Preload messages for all chat rooms in the background
+   */
+  useEffect(() => {
+    const preloadAllMessages = async () => {
+      if (!userId || messagesPreloaded) return;
+
+      try {
+        console.log('Starting background message preloading...');
+        
+        // Set up progress callback
+        setProgressCallback((loaded, total) => {
+          setPreloadProgress({ loaded, total });
+        });
+        
+        const chatRooms = await fetchUserChatRooms(userId);
+        
+        if (chatRooms && chatRooms.length > 0) {
+          setPreloadProgress({ loaded: 0, total: chatRooms.length });
+          
+          // Preload messages in the background
+          await preloadChatMessages(chatRooms);
+          setMessagesPreloaded(true);
+          console.log(`Successfully preloaded messages for ${chatRooms.length} chat rooms`);
+          
+          // Hide progress after a short delay
+          setTimeout(() => {
+            setPreloadProgress({ loaded: 0, total: 0 });
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error preloading messages:', error);
+      }
+    };
+
+    // Start preloading after a short delay to not interfere with initial page load
+    const timeoutId = setTimeout(preloadAllMessages, 1000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [userId, messagesPreloaded]);
+
+  /**
    * * Fetch chat participants whenever selected chat room changes
    * resets UI view modes
    */
@@ -152,6 +196,9 @@ export default function ChatPage() {
           id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
         });
       }
+      
+      // Update cached messages for this room
+      updateCachedMessages(message.chatRoomId, message as any);
     };
 
     // ! set up the message listener locally
@@ -211,7 +258,8 @@ export default function ChatPage() {
           <Sidebar 
             userId={userId} 
             selectedChatRoomId={selectedChatRoomId} 
-            onChatSelect={handleChatSelect} 
+            onChatSelect={handleChatSelect}
+            preloadProgress={preloadProgress}
           />
         </div>
 

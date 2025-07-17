@@ -31,7 +31,7 @@ export default function MessageSearch({
   onClose
 }: MessageSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState<'all' | 'content' | 'files' | 'date'>('all');
+  const [searchType, setSearchType] = useState<'all' | 'content' | 'files'>('all');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [currentResultIndex, setCurrentResultIndex] = useState(0);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -103,8 +103,8 @@ export default function MessageSearch({
         }
       }
 
-      // Date search
-      if ((searchType === 'all' || searchType === 'date') && messageDate) {
+      // Date search - now works with any search type since date picker is always available
+      if (messageDate) {
         let dateMatches = false;
         
         if (selectedDate) {
@@ -183,8 +183,7 @@ export default function MessageSearch({
   const searchTypeOptions = [
     { value: 'all', label: 'All Messages', icon: Search },
     { value: 'content', label: 'Text Content', icon: Search },
-    { value: 'files', label: 'Files', icon: FileText },
-    { value: 'date', label: 'Date/Time', icon: Calendar }
+    { value: 'files', label: 'Files', icon: FileText }
   ];
 
   if (!isVisible) return null;
@@ -253,9 +252,8 @@ export default function MessageSearch({
             />
           </div>
 
-          {/* Date Picker Button (only show for date search) */}
-          {(searchType === 'date' || searchType === 'all') && (
-            <div className="relative" ref={datePickerRef}>
+          {/* Date Picker Button - now available for all search types */}
+          <div className="relative" ref={datePickerRef}>
               <button
                 onClick={() => setShowDatePicker(!showDatePicker)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
@@ -314,7 +312,6 @@ export default function MessageSearch({
                 </div>
               )}
             </div>
-          )}
         </div>
 
         {/* Navigation and Close */}

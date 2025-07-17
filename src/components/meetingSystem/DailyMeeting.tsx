@@ -23,7 +23,6 @@ import {
   PhoneOff, 
   Monitor, 
   MonitorOff, 
-  Settings, 
   Users,
   Maximize,
   Minimize,
@@ -93,7 +92,6 @@ function DailyMeetingInner({
   const { screens, isSharingScreen, startScreenShare, stopScreenShare } = useScreenShare();
 
   // UI State
-  const [showSettings, setShowSettings] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -255,14 +253,6 @@ function DailyMeetingInner({
             onClick={toggleFullscreen}
           >
             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <Settings className="w-4 h-4" />
           </Button>
         </div>
       </div>
