@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 
 interface CreateMeetingModalProps {
   onClose: () => void;
-  onCreate: (meetingData: any) => void;
+  onCreate: (meetingData: any) => Promise<void>;
   receiverName: string;
 }
 
@@ -16,6 +16,7 @@ export default function CreateMeetingModal({
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
 
   //! Validate Form
@@ -45,15 +46,22 @@ export default function CreateMeetingModal({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (isSubmitting) return; // Prevent multiple submissions
+    
     if (validateForm()) {
-      onCreate({
-        description,
-        date,
-        time
-      });
+      setIsSubmitting(true);
+      try {
+        await onCreate({
+          description,
+          date,
+          time
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -67,7 +75,8 @@ export default function CreateMeetingModal({
           <h2 className="text-xl font-bold text-primary font-body">Schedule New Meeting</h2>
           <button 
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-800"
+            disabled={isSubmitting}
+            className="text-gray-500 hover:text-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
@@ -92,6 +101,7 @@ export default function CreateMeetingModal({
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
               placeholder="What's this meeting about?"
+              disabled={isSubmitting}
             ></textarea>
             {errors.description && (
               <p className="text-red-500 text-xs mt-1">{errors.description}</p>
@@ -110,6 +120,7 @@ export default function CreateMeetingModal({
               value={date}
               onChange={(e) => setDate(e.target.value)}
               min={today}
+              disabled={isSubmitting}
             />
             {errors.date && (
               <p className="text-red-500 text-xs mt-1">{errors.date}</p>
@@ -127,6 +138,7 @@ export default function CreateMeetingModal({
               }`}
               value={time}
               onChange={(e) => setTime(e.target.value)}
+              disabled={isSubmitting}
             />
             {errors.time && (
               <p className="text-red-500 text-xs mt-1">{errors.time}</p>
@@ -137,15 +149,20 @@ export default function CreateMeetingModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              disabled={isSubmitting}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
             >
-              Schedule Meeting
+              {isSubmitting && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              )}
+              <span>{isSubmitting ? 'Scheduling...' : 'Schedule Meeting'}</span>
             </button>
           </div>
         </form>

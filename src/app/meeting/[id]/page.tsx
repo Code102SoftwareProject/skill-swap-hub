@@ -106,10 +106,10 @@ export default function MeetingPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--grayfill)] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg text-gray-600">Loading meeting...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
+          <p className="text-lg text-[var(--textcolor)] opacity-60">Loading meeting...</p>
         </div>
       </div>
     );
@@ -117,15 +117,15 @@ export default function MeetingPage() {
 
   if (error || !meeting || !isAuthorized) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
+      <div className="min-h-screen bg-[var(--grayfill)] flex items-center justify-center">
+        <div className="bg-[var(--bgcolor)] p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Meeting Not Available</h2>
-            <p className="text-gray-600 mb-6">
+            <h2 className="text-xl font-bold text-[var(--textcolor)] mb-2">Meeting Not Available</h2>
+            <p className="text-[var(--textcolor)] opacity-60 mb-6">
               {error || 'You are not authorized to access this meeting.'}
             </p>
-            <Button onClick={() => router.push('/dashboard')} className="w-full">
+            <Button onClick={() => router.push('/dashboard')} className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Return to Dashboard
             </Button>
@@ -143,29 +143,36 @@ export default function MeetingPage() {
     const isTooEarly = timeUntilMeeting > 30 * 60 * 1000; // More than 30 minutes before
 
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
+      <div className="min-h-screen bg-[var(--grayfill)] flex items-center justify-center">
+        <div className="bg-[var(--bgcolor)] p-8 rounded-lg shadow-lg max-w-md w-full mx-4">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Meeting Not Available</h2>
+            <h2 className="text-xl font-bold text-[var(--textcolor)] mb-2">Meeting Not Available</h2>
             
             {meeting.state !== 'accepted' && (
-              <p className="text-gray-600 mb-6">
+              <p className="text-[var(--textcolor)] opacity-60 mb-6">
                 This meeting has not been accepted yet.
               </p>
             )}
             
             {meeting.state === 'accepted' && !meeting.meetingLink && (
-              <p className="text-gray-600 mb-6">
+              <p className="text-[var(--textcolor)] opacity-60 mb-6">
                 Meeting link is not available yet.
               </p>
             )}
             
             {meeting.state === 'accepted' && meeting.meetingLink && isTooEarly && (
-              <div className="text-gray-600 mb-6">
+              <div className="text-[var(--textcolor)] opacity-60 mb-6">
                 <p>Meeting starts in:</p>
-                <p className="text-lg font-semibold text-blue-600">
-                  {Math.floor(timeUntilMeeting / (1000 * 60))} minutes
+                <p className="text-lg font-semibold text-[var(--primary)]">
+                  {(() => {
+                    const minutesUntil = Math.floor(timeUntilMeeting / (1000 * 60));
+                    if (minutesUntil >= 60) {
+                      const hours = Math.floor(minutesUntil / 60);
+                      return `${hours} hour${hours !== 1 ? 's' : ''}`;
+                    }
+                    return `${minutesUntil} minutes`;
+                  })()}
                 </p>
                 <p className="text-sm mt-2">
                   You can join 30 minutes before the scheduled time.
@@ -174,26 +181,26 @@ export default function MeetingPage() {
             )}
             
             {meeting.state === 'accepted' && meeting.meetingLink && isPastMeeting && (
-              <p className="text-gray-600 mb-6">
+              <p className="text-[var(--textcolor)] opacity-60 mb-6">
                 This meeting has ended.
               </p>
             )}
             
             <div className="space-y-3">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-900 mb-2">Meeting Details</h3>
-                <p className="text-sm text-gray-600">
+              <div className="bg-[var(--secondary)] p-4 rounded-lg">
+                <h3 className="font-semibold text-[var(--textcolor)] mb-2">Meeting Details</h3>
+                <p className="text-sm text-[var(--textcolor)] opacity-75">
                   <span className="font-medium">With:</span> {otherUser?.firstName} {otherUser?.lastName}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[var(--textcolor)] opacity-75">
                   <span className="font-medium">Scheduled:</span> {meetingTime.toLocaleString()}
                 </p>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-[var(--textcolor)] opacity-75">
                   <span className="font-medium">Description:</span> {meeting.description}
                 </p>
               </div>
               
-              <Button onClick={() => router.push('/dashboard')} className="w-full">
+              <Button onClick={() => router.push('/dashboard')} className="w-full bg-[var(--primary)] hover:bg-[var(--primary)]/90">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Return to Dashboard
               </Button>
