@@ -7,21 +7,7 @@ import { ReportsTable } from "./reporting/ReportsTable";
 import type { EmailFlow } from "./reporting/types";
 import { ReportDetailsModal } from "./reporting/ReportDetailsModal";
 
-import {
-  Mail,
-  Loader2,
-  AlertCircle,
-  RefreshCw,
-  Eye,
-  CheckCircle,
-  Download,
-  X,
-  ShieldX,
-  AlertOctagon,
-  Search,
-  SortAsc,
-  SortDesc,
-} from "lucide-react";
+import { Mail, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 // Local interfaces to ensure TypeScript compatibility
 interface AdminReportUser {
   _id: string;
