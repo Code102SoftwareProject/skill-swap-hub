@@ -288,6 +288,13 @@ class OverviewService {
 
   getUserName(user: any): string {
     if (!user) return 'Unknown User';
+    
+    // Prefer firstName, or firstName + lastName if both exist
+    if (user.firstName) {
+      return user.lastName ? `${user.firstName} ${user.lastName}` : user.firstName;
+    }
+    
+    // Fallback to name, username, or email
     return user.name || user.username || user.email || 'Unknown User';
   }
 

@@ -1,7 +1,11 @@
-import { CheckCircle, Clock, AlertCircle, User, BookOpen, XCircle, X } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, User, BookOpen, XCircle, X, Star } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { useOverview } from '../../hooks/useOverview';
 import CancelSessionForm from '../sessionTabs/CancelSessionForm';
 import CancelResponseForm from '../sessionTabs/CancelResponseForm';
+import CompletionRequestModal from '../sessionSystem/CompletionRequestModal';
+import UserReviewModal from '../sessionSystem/UserReviewModal';
+import { getSessionCompletionStatus, CompletionStatus } from '../../utils/sessionCompletion';
 
 interface OverviewTabProps {
   session: any;
@@ -36,7 +40,7 @@ export default function OverviewTab({
     loadingReviews,
     cancelRequest,
     loadingCancelRequest,
-    completionStatus,
+    // completionStatus, // Removed - using new implementation
     
     // Loading states
     requestingCompletion,
@@ -70,6 +74,9 @@ export default function OverviewTab({
     setShowCancelModal: setShowCancelModalHook,
     setShowCancelResponseModal: setShowCancelResponseModalHook,
     setShowCancelFinalizeModal: setShowCancelFinalizeModalHook,
+    
+    // Refresh functions
+    fetchReviews,
   } = useOverview({
     session,
     currentUserId,
@@ -84,14 +91,227 @@ export default function OverviewTab({
     otherUserDetails,
   });
 
+  // Local state for new modals
+  const [showCompletionRequestModal, setShowCompletionRequestModal] = useState(false);
+  const [showUserReviewModal, setShowUserReviewModal] = useState(false);
+  const [completionRequestLoading, setCompletionRequestLoading] = useState(false);
+
+  // Enhanced completion status using new API
+  const [completionStatus, setCompletionStatus] = useState<CompletionStatus>({
+    canRequestCompletion: false,
+    hasRequestedCompletion: false,
+    needsToApprove: false,
+    wasRejected: false,
+    isCompleted: false,
+    pendingRequests: []
+  });
+  const [loadingCompletionStatus, setLoadingCompletionStatus] = useState(true);
+
+  // Fetch completion status
+  useEffect(() => {
+    const fetchCompletionStatus = async () => {
+      if (!session?._id || !currentUserId) return;
+      
+      setLoadingCompletionStatus(true);
+      try {
+        const status = await getSessionCompletionStatus(session._id, currentUserId);
+        setCompletionStatus(status);
+      } catch (error) {
+        console.error('Error fetching completion status:', error);
+      } finally {
+        setLoadingCompletionStatus(false);
+      }
+    };
+
+    fetchCompletionStatus();
+  }, [session?._id, currentUserId]);
+
+  // Refresh completion status after actions
+  const refreshCompletionStatus = async () => {
+    if (!session?._id || !currentUserId) return;
+    
+    try {
+      const status = await getSessionCompletionStatus(session._id, currentUserId);
+      setCompletionStatus(status);
+    } catch (error) {
+      console.error('Error refreshing completion status:', error);
+    }
+  };
+
   const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
   const mySkill = session.user1Id._id === currentUserId ? session.skill1Id : session.skill2Id;
   const otherSkill = session.user1Id._id === currentUserId ? session.skill2Id : session.skill1Id;
   const myDescription = session.user1Id._id === currentUserId ? session.descriptionOfService1 : session.descriptionOfService2;
   const otherDescription = session.user1Id._id === currentUserId ? session.descriptionOfService2 : session.descriptionOfService1;
 
+  // Enhanced completion request handler
+  const handleEnhancedCompletionRequest = () => {
+    setShowCompletionRequestModal(true);
+  };
+
+  // Handle completion request confirmation from modal
+  const handleConfirmCompletionRequest = async () => {
+    setCompletionRequestLoading(true);
+    try {
+      await handleRequestCompletion();
+      setShowCompletionRequestModal(false);
+      await refreshCompletionStatus(); // Refresh status after request
+      showAlert('success', 'Completion request sent successfully! The other participant will be notified.');
+    } catch (error) {
+      showAlert('error', 'Failed to send completion request. Please try again.');
+    } finally {
+      setCompletionRequestLoading(false);
+    }
+  };
+
+  // Handle completion response with review modal
+  const handleEnhancedCompletionResponse = async (action: 'approve' | 'reject') => {
+    if (action === 'approve') {
+      try {
+        await handleCompletionResponse(action);
+        await refreshCompletionStatus(); // Refresh status after response
+        // Show review modal after successful approval
+        setShowUserReviewModal(true);
+        showAlert('success', 'Session completed successfully! Please leave a review for your partner.');
+      } catch (error) {
+        showAlert('error', 'Failed to approve completion. Please try again.');
+      }
+    } else {
+      // Handle rejection normally (might want to add rejection reason modal later)
+      await handleCompletionResponse(action);
+      await refreshCompletionStatus(); // Refresh status after rejection
+    }
+  };
+
+  const handleReviewSubmitted = async () => {
+    showAlert('success', 'Thank you for your review! It helps build trust in our community.');
+    
+    // Refresh review data to show the submitted review immediately
+    await fetchReviews();
+    
+    if (onSessionUpdate) {
+      onSessionUpdate();
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Completion Request Status - Shows at top when there's an active completion request */}
+      {completionStatus.hasRequestedCompletion && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-6 rounded-lg mb-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-500 p-2 rounded-full">
+                <Clock className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-blue-900">
+                  Session Completion Requested
+                </h3>
+                <p className="text-blue-700 text-sm">
+                  Waiting for {otherUser?.firstName || 'the other participant'} to approve the completion
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2 text-blue-600">
+              <CheckCircle className="h-5 w-5" />
+              <span className="text-sm font-medium">Pending Approval</span>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {completionStatus.needsToApprove && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-l-4 border-green-500 p-6 rounded-lg mb-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-500 p-2 rounded-full">
+                <AlertCircle className="h-5 w-5 text-white animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-900">
+                  Completion Request Received
+                </h3>
+                <p className="text-green-700 text-sm">
+                  {otherUser?.firstName || 'The other participant'} has requested to complete this session
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => handleEnhancedCompletionResponse('approve')}
+                disabled={respondingToCompletion}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2 text-sm"
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Approve & Review</span>
+              </button>
+              <button
+                onClick={() => handleEnhancedCompletionResponse('reject')}
+                disabled={respondingToCompletion}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors text-sm"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Session Completed Successfully */}
+      {session?.status === 'completed' && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-l-4 border-purple-500 p-6 rounded-lg mb-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-purple-500 p-2 rounded-full">
+                <CheckCircle className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-purple-900">
+                  Session Completed Successfully! 🎉
+                </h3>
+                <p className="text-purple-700 text-sm">
+                  Great job! Both participants have completed this skill exchange session.
+                </p>
+              </div>
+            </div>
+            
+            {/* Show review button only if user hasn't reviewed yet */}
+            {!userReview ? (
+              <button
+                onClick={() => setShowUserReviewModal(true)}
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center space-x-2 text-sm"
+              >
+                <User className="h-4 w-4" />
+                <span>Review {otherUser?.firstName}</span>
+              </button>
+            ) : (
+              /* Show existing review if already submitted */
+              <div className="bg-white rounded-lg p-4 border border-purple-200 shadow-sm">
+                <div className="flex items-center space-x-2 mb-2">
+                  <span className="text-sm font-medium text-purple-700">Your Review:</span>
+                  <div className="flex items-center">
+                    {[1, 2, 3, 4, 5].map((starNumber) => (
+                      <Star
+                        key={starNumber}
+                        className={`h-4 w-4 ${
+                          starNumber <= userReview.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                    <span className="ml-1 text-sm text-gray-600">{userReview.rating}/5</span>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-700 italic mb-1">"{userReview.comment}"</p>
+                <p className="text-xs text-gray-500">
+                  Submitted on {formatDate(userReview.createdAt)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Session Statistics Overview */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Session Statistics</h2>
@@ -246,15 +466,15 @@ export default function OverviewTab({
               ) : completionStatus.needsToApprove ? (
                 <>
                   <button
-                    onClick={() => handleCompletionResponse('approve')}
+                    onClick={() => handleEnhancedCompletionResponse('approve')}
                     disabled={respondingToCompletion}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
                   >
                     <CheckCircle className="h-4 w-4" />
-                    <span>Approve Completion</span>
+                    <span>Approve & Review</span>
                   </button>
                   <button
-                    onClick={() => handleCompletionResponse('reject')}
+                    onClick={() => handleEnhancedCompletionResponse('reject')}
                     disabled={respondingToCompletion}
                     className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
                   >
@@ -263,12 +483,12 @@ export default function OverviewTab({
                 </>
               ) : completionStatus.canRequestCompletion ? (
                 <button
-                  onClick={handleRequestCompletion}
-                  disabled={requestingCompletion}
+                  onClick={handleEnhancedCompletionRequest}
+                  disabled={requestingCompletion || completionRequestLoading}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  <span>{requestingCompletion ? 'Requesting...' : 'Mark as Complete'}</span>
+                  <span>{(requestingCompletion || completionRequestLoading) ? 'Requesting...' : 'Request Completion'}</span>
                 </button>
               ) : null}
             </div>
@@ -848,6 +1068,30 @@ export default function OverviewTab({
             />
           </div>
         </div>
+      )}
+
+      {/* Completion Request Modal */}
+      {showCompletionRequestModal && (
+        <CompletionRequestModal
+          isOpen={showCompletionRequestModal}
+          onClose={() => setShowCompletionRequestModal(false)}
+          onConfirm={handleConfirmCompletionRequest}
+          session={session}
+          currentUserId={currentUserId}
+          loading={completionRequestLoading}
+        />
+      )}
+
+      {/* User Review Modal */}
+      {showUserReviewModal && (
+        <UserReviewModal
+          isOpen={showUserReviewModal}
+          onClose={() => setShowUserReviewModal(false)}
+          onReviewSubmitted={handleReviewSubmitted}
+          session={session}
+          currentUserId={currentUserId}
+          otherUser={otherUser}
+        />
       )}
 
     </div>
