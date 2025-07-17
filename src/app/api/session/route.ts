@@ -58,24 +58,27 @@ export async function GET(req: Request) {
       });
     }
 
-    // Fix data consistency: ensure status matches isAccepted
+    // Fix data consistency: ensure status matches isAccepted (but respect cancellation and completion)
     for (let session of sessions) {
       let needsUpdate = false;
       
-      if (session.isAccepted === true && session.status !== 'active') {
-        session.status = 'active';
-        needsUpdate = true;
-      } else if (session.isAccepted === false && session.status !== 'canceled') {
-        session.status = 'canceled'; 
-        needsUpdate = true;
-      } else if (session.isAccepted === null && session.status !== 'pending') {
-        session.status = 'pending';
-        needsUpdate = true;
+      // Only update status if session is not already canceled or completed
+      if (session.status !== 'canceled' && session.status !== 'completed') {
+        if (session.isAccepted === true && session.status !== 'active') {
+          session.status = 'active';
+          needsUpdate = true;
+        } else if (session.isAccepted === false && session.status !== 'rejected') {
+          session.status = 'rejected'; // Use 'rejected' instead of 'canceled' for normal rejections
+          needsUpdate = true;
+        } else if (session.isAccepted === null && session.status !== 'pending') {
+          session.status = 'pending';
+          needsUpdate = true;
+        }
       }
       
       if (needsUpdate) {
         await session.save();
-        console.log(`Updated session ${session._id} status to ${session.status}`);
+        console.log(`Updated session ${session._id} status to ${session.status} (isAccepted: ${session.isAccepted})`);
       }
     }
 
@@ -181,22 +184,33 @@ export async function POST(req: Request) {
       );
     }
 
-    // *  Check pending session limit (maximum 3 pending requests from user1 to user2)
+    // Check active session limit (maximum 3 active sessions between two users)
     const user1ObjectId = new Types.ObjectId(user1Id);
     const user2ObjectId = new Types.ObjectId(user2Id);
     
-    const pendingSessionsCount = await Session.countDocuments({
-      user1Id: user1ObjectId,
-      user2Id: user2ObjectId,
-      status: 'pending',
-      isAccepted: null
+    // Count all active sessions (pending + accepted) between the two users
+    const activeSessionsCount = await Session.countDocuments({
+      $and: [
+        {
+          $or: [
+            { user1Id: user1ObjectId, user2Id: user2ObjectId },
+            { user1Id: user2ObjectId, user2Id: user1ObjectId }
+          ]
+        },
+        {
+          $or: [
+            { status: 'pending' },
+            { status: 'active' }
+          ]
+        }
+      ]
     });
 
-    if (pendingSessionsCount >= 3) {
+    if (activeSessionsCount >= 3) {
       return NextResponse.json(
         { 
           success: false, 
-          message: 'You have reached the maximum limit of 3 pending session requests to this user. Please wait for a response before creating new requests.' 
+          message: 'You have reached the maximum limit of 3 active sessions (pending + active) between you and this user. Please wait for existing sessions to be completed before creating new requests.' 
         },
         { status: 400 }
       );

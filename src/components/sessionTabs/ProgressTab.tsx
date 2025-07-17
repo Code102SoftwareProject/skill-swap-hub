@@ -1,18 +1,53 @@
+import { progressService } from '../../services/progressService';
+import { useProgress } from '../../hooks/useProgress';
+
 interface ProgressTabProps {
-  myProgress: any;
-  otherProgress: any;
-  formatDate: (dateString: string) => string;
-  getOtherUserName: () => string;
-  openProgressEditor: () => void;
+  sessionId: string;
+  currentUserId: string;
+  session?: any;
+  user?: any;
+  showAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
 }
 
 export default function ProgressTab({
-  myProgress,
-  otherProgress,
-  formatDate,
-  getOtherUserName,
-  openProgressEditor,
+  sessionId,
+  currentUserId,
+  session,
+  user,
+  showAlert,
 }: ProgressTabProps) {
+  const {
+    myProgress,
+    otherProgress,
+    loading,
+    isEditing,
+    form,
+    updating,
+    openEditor,
+    closeEditor,
+    updateForm,
+    submitProgress,
+    formatDate,
+    getOtherUserName,
+  } = useProgress({ sessionId, currentUserId, session, user });
+
+  const handleSubmit = async () => {
+    const result = await submitProgress();
+    if (result.success) {
+      showAlert('success', result.message || 'Progress updated successfully!');
+    } else {
+      showAlert('error', result.message || 'Failed to update progress');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Current Progress Display */}
@@ -20,7 +55,7 @@ export default function ProgressTab({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Progress Tracking</h2>
           <button
-            onClick={openProgressEditor}
+            onClick={openEditor}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Update My Progress
@@ -44,13 +79,8 @@ export default function ProgressTab({
                   ></div>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                    myProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    myProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                    myProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {myProgress.status.replace('_', ' ')}
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${progressService.getStatusColorClasses(myProgress.status)}`}>
+                    {progressService.getStatusDisplayText(myProgress.status)}
                   </span>
                   <span className="text-xs text-gray-500">
                     Updated: {formatDate(myProgress.updatedAt || myProgress.startDate)}
@@ -71,7 +101,7 @@ export default function ProgressTab({
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-center">
                 <p className="text-gray-600">No progress recorded yet</p>
                 <button
-                  onClick={openProgressEditor}
+                  onClick={openEditor}
                   className="mt-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
                   Add your first progress update
@@ -96,13 +126,8 @@ export default function ProgressTab({
                   ></div>
                 </div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                    otherProgress.status === 'completed' ? 'bg-green-100 text-green-800' :
-                    otherProgress.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                    otherProgress.status === 'abandoned' ? 'bg-red-100 text-red-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {otherProgress.status.replace('_', ' ')}
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${progressService.getStatusColorClasses(otherProgress.status)}`}>
+                    {progressService.getStatusDisplayText(otherProgress.status)}
                   </span>
                   <span className="text-xs text-gray-500">
                     Updated: {formatDate(otherProgress.updatedAt || otherProgress.startDate)}
@@ -127,6 +152,101 @@ export default function ProgressTab({
           </div>
         </div>
       </div>
+
+      {/* Progress Update Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Update Your Progress</h3>
+              
+              {/* Progress Percentage */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Completion Percentage *
+                </label>
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={form.percentage}
+                    onChange={(e) => updateForm({ percentage: parseInt(e.target.value) })}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <div className="w-16">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={form.percentage}
+                      onChange={(e) => updateForm({ percentage: Math.max(0, Math.min(100, parseInt(e.target.value) || 0)) })}
+                      className="w-full p-2 border border-gray-300 rounded text-center"
+                    />
+                  </div>
+                  <span className="text-sm text-gray-500">%</span>
+                </div>
+                {/* Progress Bar Preview */}
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${form.percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Status *
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(e) => updateForm({ status: e.target.value as any })}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                >
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                  <option value="abandoned">Abandoned</option>
+                </select>
+              </div>
+
+              {/* Notes */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Progress Notes (Optional)
+                </label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => updateForm({ notes: e.target.value })}
+                  placeholder="Share what you've accomplished, challenges faced, or next steps..."
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3">
+                <button
+                  onClick={closeEditor}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  disabled={updating}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={updating}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {updating ? 'Updating...' : 'Update Progress'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
