@@ -1,34 +1,39 @@
 import { CheckCircle, FileText, XCircle } from 'lucide-react';
+import { useWorkSubmission } from '@/hooks/useWorkSubmission';
 
 interface SubmitWorkTabProps {
   session: any;
-  works: any[];
   currentUserId: string;
-  workDescription: string;
-  setWorkDescription: (value: string) => void;
-  workFiles: { file: File; title: string }[];
-  setWorkFiles: (files: { file: File; title: string }[]) => void;
-  uploading: boolean;
-  handleSubmitWork: (e: React.FormEvent) => void;
-  handleDownloadFile: (fileURL: string, fileName?: string) => void;
   formatDate: (dateString: string) => string;
   showAlert: (type: string, message: string) => void;
 }
 
 export default function SubmitWorkTab({
   session,
-  works,
   currentUserId,
-  workDescription,
-  setWorkDescription,
-  workFiles,
-  setWorkFiles,
-  uploading,
-  handleSubmitWork,
-  handleDownloadFile,
   formatDate,
   showAlert,
 }: SubmitWorkTabProps) {
+  const {
+    workDescription,
+    setWorkDescription,
+    workFiles,
+    uploading,
+    userWorks,
+    handleSubmitWork,
+    handleDownloadFile,
+    clearForm,
+    addFiles,
+    removeFile,
+    updateFileTitle,
+  } = useWorkSubmission(
+    session?._id,
+    currentUserId,
+    session, // Pass the session object
+    (message) => showAlert('success', message),
+    (message) => showAlert('error', message),
+    (message) => showAlert('warning', message)
+  );
   return (
     <div className="space-y-6">
       {/* Session Completed or Cancelled Message or Submit Form */}
@@ -89,17 +94,7 @@ export default function SubmitWorkTab({
                 type="file"
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
-                  if (workFiles.length + files.length > 5) {
-                    showAlert('warning', 'Maximum 5 files allowed');
-                    return;
-                  }
-                  
-                  const newFiles = files.map(file => ({
-                    file,
-                    title: file.name.split('.').slice(0, -1).join('.') || 'Uploaded File'
-                  }));
-                  
-                  setWorkFiles([...workFiles, ...newFiles]);
+                  addFiles(files);
                   // Clear the input
                   e.target.value = '';
                 }}
@@ -134,9 +129,7 @@ export default function SubmitWorkTab({
                               type="text"
                               value={workFileItem.title}
                               onChange={(e) => {
-                                const updatedFiles = [...workFiles];
-                                updatedFiles[index].title = e.target.value;
-                                setWorkFiles(updatedFiles);
+                                updateFileTitle(index, e.target.value);
                               }}
                               placeholder="Enter a descriptive title..."
                               className="w-full text-sm p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -146,7 +139,7 @@ export default function SubmitWorkTab({
                         <button
                           type="button"
                           onClick={() => {
-                            setWorkFiles(workFiles.filter((_, i) => i !== index));
+                            removeFile(index);
                           }}
                           className="ml-3 text-red-600 hover:text-red-700 flex-shrink-0"
                         >
@@ -162,10 +155,7 @@ export default function SubmitWorkTab({
             <div className="flex items-center justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => {
-                  setWorkDescription('');
-                  setWorkFiles([]);
-                }}
+                onClick={clearForm}
                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
               >
                 Clear
@@ -185,10 +175,10 @@ export default function SubmitWorkTab({
       {/* Previously Submitted Works */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          {(session?.status === 'completed' || session?.status === 'canceled') ? 'Previously Submitted Works' : 'Your Submitted Works'} ({works.filter(w => w.provideUser._id === currentUserId).length})
+          {(session?.status === 'completed' || session?.status === 'canceled') ? 'Previously Submitted Works' : 'Your Submitted Works'} ({userWorks.length})
         </h2>
         
-        {works.filter(w => w.provideUser._id === currentUserId).length === 0 ? (
+        {userWorks.length === 0 ? (
           <div className="text-center py-8">
             <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Work Submitted</h3>
@@ -201,7 +191,7 @@ export default function SubmitWorkTab({
           </div>
         ) : (
           <div className="space-y-4">
-            {works.filter(w => w.provideUser._id === currentUserId).map((work) => (
+            {userWorks.map((work) => (
               <div key={work._id} className="border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center space-x-3">

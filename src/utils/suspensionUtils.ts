@@ -1,4 +1,3 @@
-import { SuspendedAlert } from "@/components/ui/SuspendedAlert";
 import { redirectToSuspendedPage } from "@/components/auth/AccountSuspended";
 
 /**

@@ -41,8 +41,9 @@ export async function GET(req: Request) {
       ]
     };
 
+    // Use lean() for better performance and reduce populate operations
     let sessions = await Session.find(query)
-      .lean(false) // Ensure we get the latest data from database
+      .lean(true) // Use lean for better performance
       .populate({
         path: 'user1Id',
         select: 'firstName lastName email avatar'
@@ -59,57 +60,53 @@ export async function GET(req: Request) {
         path: 'skill2Id',
         select: 'skillTitle proficiencyLevel categoryName'
       })
-      .populate('progress1')
-      .populate('progress2')
       .populate({
         path: 'rejectedBy',
         select: 'firstName lastName email avatar'
       })
       .sort({ createdAt: -1 });
 
-    // Fix data consistency - preserve completed status
-    for (let session of sessions) {
-      let needsUpdate = false;
-      
-      // Don't change completed sessions
-      if (session.status === 'completed') {
-        continue;
-      }
-      
-      if (session.isAccepted === true && session.status !== 'active') {
-        session.status = 'active';
-        needsUpdate = true;
-      } else if (session.isAccepted === false) {
-        if (session.status === 'canceled') {
-          // Update old canceled sessions to rejected if isAccepted is false
-          session.status = 'rejected';
+    // Optional: Fix data consistency in background (don't block response)
+    // This runs asynchronously after the response is sent
+    setImmediate(async () => {
+      try {
+        const sessionsToUpdate = await Session.find(query).lean(false);
+        const bulkOperations = [];
+        
+        for (let session of sessionsToUpdate) {
+          let newStatus = session.status;
           
-          // Set rejectedBy if not already set
-          if (!session.rejectedBy) {
-            // Assuming the recipient (user2Id) rejected it
-            session.rejectedBy = session.user2Id._id;
+          // Don't change completed or canceled sessions
+          if (session.status === 'completed' || session.status === 'canceled') {
+            continue;
           }
           
-          // Set rejectedAt if not already set
-          if (!session.rejectedAt) {
-            session.rejectedAt = session.updatedAt || new Date();
+          if (session.isAccepted === true && session.status !== 'active') {
+            newStatus = 'active';
+          } else if (session.isAccepted === false && session.status !== 'rejected') {
+            newStatus = 'rejected';
+          } else if (session.isAccepted === null && session.status !== 'pending') {
+            newStatus = 'pending';
           }
           
-          needsUpdate = true;
-        } else if (session.status !== 'rejected') {
-          // Status should be rejected
-          session.status = 'rejected';
-          needsUpdate = true;
+          if (newStatus !== session.status) {
+            bulkOperations.push({
+              updateOne: {
+                filter: { _id: session._id },
+                update: { $set: { status: newStatus } }
+              }
+            });
+          }
         }
-      } else if (session.isAccepted === null && session.status !== 'pending') {
-        session.status = 'pending';
-        needsUpdate = true;
+        
+        if (bulkOperations.length > 0) {
+          await Session.bulkWrite(bulkOperations);
+          console.log(`Updated ${bulkOperations.length} session statuses in background`);
+        }
+      } catch (error) {
+        console.error('Background session status update error:', error);
       }
-      
-      if (needsUpdate) {
-        await session.save();
-      }
-    }
+    });
 
     return NextResponse.json({
       success: true,
