@@ -234,6 +234,18 @@ export default function SessionListContainer({
                       </div>
                     </div>
 
+                    {/* Session Dates */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3 text-xs text-gray-600">
+                      <div>
+                        <span className="font-medium">Start Date:</span> {formatDate(session.startDate)}
+                      </div>
+                      {session.expectedEndDate && (
+                        <div>
+                          <span className="font-medium">Expected End:</span> {formatDate(session.expectedEndDate)}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Session Skills Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                       <div className="bg-white p-3 rounded border">

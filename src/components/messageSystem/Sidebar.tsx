@@ -8,24 +8,67 @@ import {
   fetchUserProfile,
   fetchUnreadMessageCountsByRoom,
 } from "@/services/chatApiServices";
+import { preloadChatMessages } from "@/services/messagePreloader";
 import {useSocket} from "@/lib/context/SocketContext";
 import OptimizedAvatar from "@/components/ui/OptimizedAvatar";
 import { getFirstLetter } from "@/utils/avatarUtils";
 import { useBatchAvatarPreload } from "@/hooks/useOptimizedAvatar";
+import PreloadStatus from "@/components/messageSystem/PreloadStatus";
+import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface SidebarProps {
   userId: string;
-  selectedChatRoomId?: string | null; // Add this prop
+  selectedChatRoomId?: string | null;
   onChatSelect: (
     chatRoomId: string,
     participantInfo?: { id: string; name: string }
   ) => void;
+  preloadProgress?: { loaded: number; total: number };
 }
 
 interface UserProfile {
   firstName: string;
   lastName: string;
   avatar?: string;
+}
+
+/**
+ * Helper function to decrypt and format last message for display
+ * @param {string} content - The message content (potentially encrypted)
+ * @returns {string} - Formatted message for sidebar display
+ */
+function formatLastMessageForSidebar(content: string): string {
+  if (!content) return "No messages yet";
+  
+  try {
+    // Check if it's a file message
+    if (content.startsWith('File:')) {
+      const parts = content.split(':');
+      const fileName = parts[1] || 'File';
+      return `📎 ${fileName}`;
+    }
+    
+    // Try to decrypt the message
+    const decryptedContent = decryptMessage(content);
+    
+    // Truncate for sidebar display
+    return decryptedContent.length > 30 
+      ? decryptedContent.substring(0, 30) + "..." 
+      : decryptedContent;
+  } catch (error) {
+    // If decryption fails, it might already be decrypted or corrupted
+    console.warn("Failed to decrypt message in sidebar:", error);
+    
+    // Check if it looks like encrypted text (base64-like)
+    if (content.length > 50 && /^[A-Za-z0-9+/=]+$/.test(content)) {
+      return "Message..."; // Show generic text for encrypted content
+    }
+    
+    // If it's short and doesn't look encrypted, show it directly
+    return content.length > 30 
+      ? content.substring(0, 30) + "..." 
+      : content;
+  }
 }
 
 function SidebarBox({ 
@@ -80,7 +123,7 @@ function SidebarBox({
  * @param {function} onChatSelect 
  * @returns {TSX.Element} 
  */
-export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
+export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, preloadProgress }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<{
@@ -258,7 +301,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
             return {
               ...room,
               lastMessage: {
-                content: messageData.content,
+                content: messageData.content, // Keep encrypted content, will be decrypted in display
                 senderId: messageData.senderId,
                 sentAt: new Date().getTime()
               }
@@ -317,7 +360,16 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
    */
   return (
     <div className="w-full md:w-64 bg-bgcolor text-white h-screen p-2 md:p-4 border-solid border-r border-gray-600 flex-shrink-0">
-      <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4 text-textcolor font-body">Messages</h2>
+      <div className="flex items-center justify-between mb-2 md:mb-4">
+        <h2 className="text-lg md:text-xl font-bold text-textcolor font-body">Messages</h2>
+        {/* Discrete loading indicator */}
+        {preloadProgress && preloadProgress.total > 0 && preloadProgress.loaded < preloadProgress.total && (
+          <div className="flex items-center space-x-1">
+            <div className="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
+            <span className="text-xs text-gray-400">{preloadProgress.loaded}/{preloadProgress.total}</span>
+          </div>
+        )}
+      </div>
       
       {/* Search bar */}
       <div className="mb-2 md:mb-4 relative bg-primary">
@@ -368,8 +420,10 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
               ? `${profile.firstName} ${profile.lastName}`
               : otherParticipantId.substring(0, 8);
 
-            // ! Last Message 
-            const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
+            // ! Last Message - decrypt and format for display
+            const lastMessage = chat.lastMessage?.content 
+              ? formatLastMessageForSidebar(chat.lastMessage.content)
+              : "No messages yet";
 
             return (
               /*

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, Calendar, User, BookOpen } from 'lucide-react';
 import Alert from '@/components/ui/Alert';
 
@@ -21,6 +21,7 @@ interface Session {
   descriptionOfService1: string;
   descriptionOfService2: string;
   startDate: string;
+  expectedEndDate?: string;
 }
 
 interface EditSessionModalProps {
@@ -45,6 +46,7 @@ export default function EditSessionModal({
   const [userDescription, setUserDescription] = useState('');
   const [otherDescription, setOtherDescription] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [expectedEndDate, setExpectedEndDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
 
@@ -73,6 +75,36 @@ export default function EditSessionModal({
   const closeAlert = () => {
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
+
+  const fetchSkills = useCallback(async () => {
+    if (!session) return;
+    
+    setSkillsLoading(true);
+    try {
+      // Fetch current user's skills
+      const userSkillsResponse = await fetch(`/api/skillsbyuser?userId=${currentUserId}`);
+      const userSkillsData = await userSkillsResponse.json();
+      
+      // Fetch other user's skills
+      const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+      const otherSkillsResponse = await fetch(`/api/skillsbyuser?userId=${otherUserId}`);
+      const otherSkillsData = await otherSkillsResponse.json();
+
+      if (userSkillsData.success) {
+        console.log('User skills data:', userSkillsData.skills); // Debug log
+        setUserSkills(userSkillsData.skills);
+      }
+      
+      if (otherSkillsData.success) {
+        console.log('Other user skills data:', otherSkillsData.skills); // Debug log
+        setOtherUserSkills(otherSkillsData.skills);
+      }
+    } catch (error) {
+      console.error('Error fetching skills:', error);
+    } finally {
+      setSkillsLoading(false);
+    }
+  }, [session, currentUserId]);
 
   useEffect(() => {
     if (isOpen && session) {
@@ -126,45 +158,34 @@ export default function EditSessionModal({
       }
       
       setStartDate(session.startDate.split('T')[0]);
+      
+      // Set expectedEndDate from session or default to 1 month after start date
+      if (session.expectedEndDate) {
+        setExpectedEndDate(session.expectedEndDate.split('T')[0]);
+      } else {
+        const startDateObj = new Date(session.startDate);
+        const defaultEndDate = new Date(startDateObj);
+        defaultEndDate.setMonth(defaultEndDate.getMonth() + 1); // Add 1 month
+        setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+      }
+      
       fetchSkills();
     }
-  }, [isOpen, session, currentUserId]);
-
-  const fetchSkills = async () => {
-    if (!session) return;
-    
-    setSkillsLoading(true);
-    try {
-      // Fetch current user's skills
-      const userSkillsResponse = await fetch(`/api/skillsbyuser?userId=${currentUserId}`);
-      const userSkillsData = await userSkillsResponse.json();
-      
-      // Fetch other user's skills
-      const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
-      const otherSkillsResponse = await fetch(`/api/skillsbyuser?userId=${otherUserId}`);
-      const otherSkillsData = await otherSkillsResponse.json();
-
-      if (userSkillsData.success) {
-        console.log('User skills data:', userSkillsData.skills); // Debug log
-        setUserSkills(userSkillsData.skills);
-      }
-      
-      if (otherSkillsData.success) {
-        console.log('Other user skills data:', otherSkillsData.skills); // Debug log
-        setOtherUserSkills(otherSkillsData.skills);
-      }
-    } catch (error) {
-      console.error('Error fetching skills:', error);
-    } finally {
-      setSkillsLoading(false);
-    }
-  };
+  }, [isOpen, session, currentUserId, fetchSkills]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedUserSkill || !selectedOtherSkill || !userDescription || !otherDescription || !startDate) {
-      showAlert('warning', 'Please fill in all fields');
+    if (!selectedUserSkill || !selectedOtherSkill || !userDescription || !otherDescription || !startDate || !expectedEndDate) {
+      showAlert('warning', 'Please fill in all fields including expected end date');
+      return;
+    }
+
+    // Validate dates
+    const start = new Date(startDate);
+    const end = new Date(expectedEndDate);
+    if (end <= start) {
+      showAlert('warning', 'Expected end date must be after start date');
       return;
     }
 
@@ -199,6 +220,7 @@ export default function EditSessionModal({
         descriptionOfService1: isUser1 ? userDescription : otherDescription,
         descriptionOfService2: isUser1 ? otherDescription : userDescription,
         startDate: new Date(startDate).toISOString(),
+        expectedEndDate: new Date(expectedEndDate).toISOString(),
       };
 
       console.log('Sending update data:', updateData); // Debug log
@@ -235,6 +257,7 @@ export default function EditSessionModal({
     setUserDescription('');
     setOtherDescription('');
     setStartDate('');
+    setExpectedEndDate('');
   };
 
   const handleClose = () => {
@@ -351,25 +374,44 @@ export default function EditSessionModal({
                 </div>
               </div>
 
-              {/* Start Date */}
+              {/* Session Dates */}
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-5 w-5 text-purple-600" />
                   <h3 className="text-lg font-medium text-gray-900">Session Details</h3>
                 </div>
                 
-                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Preferred start date:
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    required
-                  />
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Preferred start date:
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Expected end date: <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={expectedEndDate}
+                      onChange={(e) => setExpectedEndDate(e.target.value)}
+                      min={startDate || new Date().toISOString().split('T')[0]}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      required
+                    />
+                    <p className="text-sm text-gray-600 mt-1">
+                      This helps both participants plan and track session progress
+                    </p>
+                  </div>
                 </div>
               </div>
             </>

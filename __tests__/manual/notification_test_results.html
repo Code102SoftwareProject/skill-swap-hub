@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notification System Test Results (Simplified)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Notification System Test Execution Results</h1>
+        <p><strong>Tester:</strong> Adeepa K2</p>
+        <p><strong>Version:</strong> Not specified</p>
+        <p><strong>Browser:</strong> chrome</p>
+        <p><strong>Device:</strong> mobile</p>
+        <p><strong>Test Date:</strong> 2025-07-17</p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Test Name</th>
+                <th>Priority</th>
+                <th>Preconditions</th>
+                <th>Test Steps</th>
+                <th>Expected Result</th>
+                <th>Actual Result</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>View Notification Page</td><td>HIGH</td><td>User is logged in</td><td>1. Click on notifications in the menu<br>2. Look at the page that opens<br>3. Check if your name appears<br>4. See if notifications are displayed</td><td>Page opens showing 'Hi [Your Name], here are your notifications' and any notifications you have</td><td>Working as Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>2</td><td>No Notifications</td><td>MEDIUM</td><td>User has no notifications</td><td>1. Open notification page<br>2. Look at what is displayed</td><td>Shows friendly message like 'You have no notifications yet' with a bell icon</td><td>Shows Correctly</td><td class="pass">PASS</td></tr>
+            <tr><td>3</td><td>View Notification List</td><td>HIGH</td><td>User has some notifications</td><td>1. Open notification page<br>2. Look at the notifications<br>3. Check if unread ones look different from read ones</td><td>Unread notifications clearly stand out, read notifications look different, easy to tell them apart</td><td>Easy to Distinguish</td><td class="pass">PASS</td></tr>
+            <tr><td>4</td><td>Notification Details</td><td>HIGH</td><td>User has notifications</td><td>1. Look at individual notifications<br>2. Check the message text<br>3. Look at the time when received<br>4. See the notification type</td><td>Each notification shows clear message, readable time, and type badge with appropriate color</td><td>All Details Visible</td><td class="pass">PASS</td></tr>
+            <tr><td>5</td><td>Mark as Read</td><td>HIGH</td><td>User has unread notifications</td><td>1. Find an unread notification<br>2. Click 'Mark Read' button<br>3. See what happens</td><td>Notification moves to read section, looks different, 'Mark Read' button disappears</td><td>Moved to Read Section</td><td class="pass">PASS</td></tr>
+            <tr><td>6</td><td>Mark All as Read</td><td>HIGH</td><td>User has multiple unread notifications</td><td>1. Click 'Mark all as read' button<br>2. Watch what happens to all notifications</td><td>All notifications move to read section, unread count disappears, button disappears</td><td>All Marked as Read</td><td class="pass">PASS</td></tr>
+            <tr><td>7</td><td>View Notification Link</td><td>MEDIUM</td><td>Notification has a 'View' button</td><td>1. Find notification with 'View' button<br>2. Click the 'View' button<br>3. See where it takes you</td><td>Takes you to the related page or content, navigation works smoothly</td><td>Navigated Correctly</td><td class="pass">PASS</td></tr>
+            <tr><td>8</td><td>Receiving New Notifications</td><td>HIGH</td><td>User is on notification page</td><td>1. Stay on notification page<br>2. Have someone trigger a notification for you<br>3. Watch for new notification to appear</td><td>New notification appears at top of unread list, unread count increases</td><td>New Notification Appeared</td><td class="pass">PASS</td></tr>
+            <tr><td>9</td><td>Default Order</td><td>MEDIUM</td><td>User has multiple notifications</td><td>1. Open notification page<br>2. Look at notification order<br>3. Check if newest are at top</td><td>Newest notifications appear at top, sort dropdown shows 'Newest First'</td><td>Newest at Top</td><td class="pass">PASS</td></tr>
+            <tr><td>10</td><td>Change Sort Order</td><td>MEDIUM</td><td>User has multiple notifications</td><td>1. Click sort dropdown<br>2. Select 'Oldest First'<br>3. Watch notifications reorder</td><td>Notifications reorder with oldest first, change is clear and immediate</td><td>Reordered Successfully</td><td class="pass">PASS</td></tr>
+            <tr><td>11</td><td>Mobile Phone Use</td><td>HIGH</td><td>Mobile phone</td><td>1. Open notification page on mobile<br>2. Try tapping buttons<br>3. Check if text is readable<br>4. Test scrolling</td><td>Everything fits on screen, buttons easy to tap, text readable, scrolling smooth</td><td>Mobile Responsive</td><td class="pass">PASS</td></tr>
+            <tr><td>12</td><td>Tablet Use</td><td>MEDIUM</td><td>Tablet device</td><td>1. Open notification page on tablet<br>2. Test touch interactions<br>3. Check layout</td><td>Layout looks good, touch interactions work well, good use of space</td><td>Tablet Compatible</td><td class="pass">PASS</td></tr>
+            <tr><td>13</td><td>Dark Mode</td><td>MEDIUM</td><td>Dark mode available</td><td>1. Enable dark mode<br>2. Look at notification page<br>3. Check if everything is visible</td><td>All text and elements clearly visible in dark mode, good contrast, looks professional</td><td>Dark Mode Working</td><td class="pass">PASS</td></tr>
+            <tr><td>14</td><td>Page Speed</td><td>MEDIUM</td><td>User with notifications</td><td>1. Go to notification page<br>2. See how long it takes to load<br>3. Test scrolling and clicking</td><td>Page loads quickly, scrolling is smooth, buttons respond immediately</td><td>Fast Loading</td><td class="pass">PASS</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>

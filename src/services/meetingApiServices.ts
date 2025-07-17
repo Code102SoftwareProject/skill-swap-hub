@@ -2,6 +2,64 @@ import Meeting from "@/types/meeting";
 import { debouncedApiService } from './debouncedApiService';
 import { invalidateMeetingCache, invalidateUsersCaches } from './sessionApiServices';
 
+// Notification helper functions
+/**
+ * Send meeting notification to a user
+ * @param userId - The user ID to send notification to
+ * @param typeno - The notification type number
+ * @param description - The notification description
+ * @param targetDestination - Where the notification should redirect (optional)
+ * @returns Promise<boolean> - Success status
+ */
+async function sendMeetingNotification(userId: string, typeno: number, description: string, targetDestination: string = '/dashboard'): Promise<boolean> {
+  try {
+    const response = await fetch('/api/notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        typeno,
+        description,
+        targetDestination
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send meeting notification:', await response.text());
+      return false;
+    }
+
+    console.log('Meeting notification sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending meeting notification:', error);
+    return false;
+  }
+}
+
+/**
+ * Get user name for notifications
+ * @param userId - User ID to fetch name for
+ * @returns Promise<string> - User's full name
+ */
+async function getUserName(userId: string): Promise<string> {
+  try {
+    const response = await fetch(`/api/users/profile?id=${userId}`);
+    const data = await response.json();
+    
+    if (data.success && data.user) {
+      return `${data.user.firstName} ${data.user.lastName}`.trim();
+    }
+    
+    return 'Unknown User';
+  } catch (error) {
+    console.error('Error fetching user name:', error);
+    return 'Unknown User';
+  }
+}
+
 /**
  ** Fetch meetings between two users
  * 
@@ -59,6 +117,24 @@ export async function createMeeting(meetingData: {
     
     const result = await response.json();
     
+    // Send notification to the receiver about the meeting request
+    try {
+      const senderName = await getUserName(meetingData.senderId);
+      const targetDestination = `/dashboard?tab=meetings`;
+      
+      await sendMeetingNotification(
+        meetingData.receiverId,
+        5, // MEETING_REQUEST
+        `${senderName} sent you a meeting request`,
+        targetDestination
+      );
+      
+      console.log('Meeting request notification sent successfully');
+    } catch (notificationError) {
+      console.error('Failed to send meeting request notification:', notificationError);
+      // Continue even if notification fails
+    }
+    
     // Invalidate cache for both users
     invalidateUsersCaches(meetingData.senderId, meetingData.receiverId);
     
@@ -115,13 +191,38 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
     
     const result = await response.json();
     
-    // Get meeting details to invalidate cache for both users
-    if (result && (result.senderId || result.receiverId)) {
-      const senderId = result.senderId?._id || result.senderId;
-      const receiverId = result.receiverId?._id || result.receiverId;
-      if (senderId && receiverId) {
-        invalidateUsersCaches(senderId, receiverId);
+    // Send notifications based on action
+    if (result && result.senderId && result.receiverId) {
+      const senderId = result.senderId._id || result.senderId;
+      const receiverId = result.receiverId._id || result.receiverId;
+      
+      try {
+        if (action === 'accept') {
+          const accepterName = await getUserName(receiverId);
+          await sendMeetingNotification(
+            senderId,
+            6, // MEETING_APPROVED_AND_SCHEDULED
+            `${accepterName} accepted your meeting request`,
+            `/meeting/${meetingId}`
+          );
+          console.log('Meeting acceptance notification sent successfully');
+        } else if (action === 'reject') {
+          const rejecterName = await getUserName(receiverId);
+          await sendMeetingNotification(
+            senderId,
+            25, // MEETING_REJECTED
+            `${rejecterName} declined your meeting request`,
+            `/dashboard?tab=meetings`
+          );
+          console.log('Meeting rejection notification sent successfully');
+        }
+      } catch (notificationError) {
+        console.error(`Failed to send meeting ${action} notification:`, notificationError);
+        // Continue even if notification fails
       }
+      
+      // Invalidate cache for both users
+      invalidateUsersCaches(senderId, receiverId);
     }
     
     return result;
@@ -215,10 +316,30 @@ export async function cancelMeetingWithReason(
 
     const { meeting } = await response.json();
     
-    // Invalidate cache for both users if we have the meeting data
+    // Send notification to the other user
     if (meeting && meeting.senderId && meeting.receiverId) {
       const senderId = meeting.senderId._id || meeting.senderId;
       const receiverId = meeting.receiverId._id || meeting.receiverId;
+      
+      try {
+        const otherUserId = senderId === cancelledBy ? receiverId : senderId;
+        const cancellerName = await getUserName(cancelledBy);
+        const description = `Meeting cancelled by ${cancellerName}${reason ? `: ${reason}` : ''}`;
+        
+        await sendMeetingNotification(
+          otherUserId,
+          10, // MEETING_CANCELLED
+          description,
+          `/dashboard?tab=meetings`
+        );
+        
+        console.log('Meeting cancellation notification sent successfully');
+      } catch (notificationError) {
+        console.error('Failed to send meeting cancellation notification:', notificationError);
+        // Continue even if notification fails
+      }
+      
+      // Invalidate cache for both users
       invalidateUsersCaches(senderId, receiverId);
     }
     
