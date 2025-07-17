@@ -29,6 +29,7 @@ interface MeetingListProps {
   onAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
   onTogglePastMeetings: () => void;
   onToggleCancelledMeetings: () => void;
+  showCreateMeetingButton?: boolean; // Optional prop to control create meeting button visibility
 }
 
 export default function MeetingList({
@@ -50,7 +51,8 @@ export default function MeetingList({
   onCancelMeeting,
   onAlert,
   onTogglePastMeetings,
-  onToggleCancelledMeetings
+  onToggleCancelledMeetings,
+  showCreateMeetingButton = true // Default to true for backward compatibility
 }: MeetingListProps) {
   const totalMeetings = pendingRequests.length + upcomingMeetings.length + pastMeetings.length + cancelledMeetings.length + currentlyHappeningMeetings.length;
 
@@ -59,13 +61,20 @@ export default function MeetingList({
       <div className="text-center py-8">
         <Calendar className="w-8 h-8 text-gray-400 mx-auto mb-3" />
         <p className="text-gray-500 text-sm mb-4">No meetings scheduled</p>
-        <button 
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto text-sm"
-          onClick={onScheduleMeeting}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Schedule Meeting
-        </button>
+        {showCreateMeetingButton && (
+          <button 
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center mx-auto text-sm"
+            onClick={onScheduleMeeting}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Schedule Meeting
+          </button>
+        )}
+        {!showCreateMeetingButton && (
+          <p className="text-gray-400 text-xs">
+            Meetings can be scheduled through skill matches in the chat system
+          </p>
+        )}
       </div>
     );
   }

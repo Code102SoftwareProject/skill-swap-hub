@@ -1,12 +1,23 @@
 "use client";
 
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Search, Calendar, Filter } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { Search, Calendar, Filter, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
 import MeetingList from '@/components/meetingSystem/MeetingList';
+import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
+import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
 import Meeting from '@/types/meeting';
-import { fetchAllUserMeetings, updateMeeting, filterMeetingsByType, checkMeetingNotesExist } from "@/services/meetingApiServices";
+import { 
+  fetchAllUserMeetings, 
+  updateMeeting, 
+  filterMeetingsByType, 
+  checkMeetingNotesExist,
+  cancelMeetingWithReason,
+  fetchAllUserMeetingNotes,
+  canCancelMeeting
+} from "@/services/meetingApiServices";
+import { fetchUserProfile } from "@/services/chatApiServices";
+import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { debouncedApiService } from '@/services/debouncedApiService';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
@@ -31,9 +42,27 @@ interface CancellationAlert {
   meetingTime: string;
 }
 
+interface MeetingNote {
+  _id: string;
+  meetingId: string;
+  title: string;
+  content: string;
+  tags: string[];
+  wordCount: number;
+  lastModified: string;
+  createdAt: string;
+  isPrivate: boolean;
+  meetingInfo?: {
+    description: string;
+    meetingTime: string;
+    senderId: string;
+    receiverId: string;
+    isDeleted?: boolean;
+  };
+}
+
 export default function MeetingContent() {
   const { user } = useAuth();
-  const router = useRouter();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
@@ -43,6 +72,14 @@ export default function MeetingContent() {
   const [showCancelledMeetings, setShowCancelledMeetings] = useState(false);
   const [meetingNotesStatus, setMeetingNotesStatus] = useState<{[meetingId: string]: boolean}>({});
   const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
+  const [actionLoadingStates, setActionLoadingStates] = useState<{[meetingId: string]: string}>({});
+
+  // Saved notes states
+  const [savedNotes, setSavedNotes] = useState<MeetingNote[]>([]);
+  const [loadingSavedNotes, setLoadingSavedNotes] = useState(false);
+  const [showSavedNotes, setShowSavedNotes] = useState(false);
+  const [selectedNote, setSelectedNote] = useState<MeetingNote | null>(null);
+  const [showNotesModal, setShowNotesModal] = useState(false);
   
   // Search and filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,6 +150,21 @@ export default function MeetingContent() {
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
+  // Check if a meeting is currently happening (in non-cancellation period)
+  const isMeetingHappening = (meeting: Meeting): boolean => {
+    if (meeting.state !== 'accepted') return false;
+    
+    const now = new Date();
+    const meetingTime = new Date(meeting.meetingTime);
+    const tenMinutesBefore = new Date(meetingTime.getTime() - 10 * 60 * 1000); // 10 minutes before
+    const thirtyMinutesAfter = new Date(meetingTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+    
+    return now >= tenMinutesBefore && now <= thirtyMinutesAfter;
+  };
+
+  // Get meetings that are currently happening
+  const currentlyHappeningMeetings = meetings.filter(isMeetingHappening);
+
   // Fetch all meetings for the authenticated user
   const fetchMeetingsData = useCallback(async () => {
     if (!user?._id) return;
@@ -120,7 +172,13 @@ export default function MeetingContent() {
     try {
       setLoading(true);
       const data = await fetchAllUserMeetings(user._id);
-      setMeetings(data);
+      
+      // Additional safety filter to ensure we only show meetings involving the authenticated user
+      const userMeetings = data.filter(meeting => 
+        meeting.senderId === user._id || meeting.receiverId === user._id
+      );
+      
+      setMeetings(userMeetings);
     } catch (error) {
       console.error('Error fetching meetings:', error);
       showAlert('error', 'Failed to load meetings');
@@ -149,9 +207,7 @@ export default function MeetingContent() {
         const profileData = await debouncedApiService.makeRequest(
           cacheKey,
           async () => {
-            const res = await fetch(`/api/users/profile?id=${id}`);
-            const data = await res.json();
-            return data.success ? data.user : null;
+            return await fetchUserProfile(id);
           },
           60000 // 1 minute cache for profiles
         );
@@ -208,22 +264,14 @@ export default function MeetingContent() {
 
     // Check notes for each meeting with caching
     for (const meeting of pastAndCompletedMeetings) {
-      const cacheKey = `notes-check-${meeting._id}-${user._id}`;
-      
       try {
-        const hasNotes = await debouncedApiService.makeRequest(
-          cacheKey,
-          async () => checkMeetingNotesExist(meeting._id, user._id),
-          300000 // Cache for 5 minutes
-        );
-        
+        const hasNotes = await checkMeetingNotesExist(meeting._id, user._id);
         notesStatus[meeting._id] = hasNotes;
       } catch (error) {
         console.error(`Error checking notes for meeting ${meeting._id}:`, error);
         notesStatus[meeting._id] = false;
       } finally {
         checking[meeting._id] = false;
-        setCheckingNotes(prev => ({...prev, [meeting._id]: false}));
       }
     }
 
@@ -231,10 +279,135 @@ export default function MeetingContent() {
     setCheckingNotes(checking);
   }, [user?._id]);
 
+  // Fetch saved notes for all meetings
+  const fetchSavedNotes = useCallback(async () => {
+    if (!user?._id) return;
+    
+    try {
+      setLoadingSavedNotes(true);
+      const notes = await fetchAllUserMeetingNotes(user._id);
+      setSavedNotes(notes || []);
+    } catch (error) {
+      console.error('Error fetching saved notes:', error);
+      setSavedNotes([]);
+    } finally {
+      setLoadingSavedNotes(false);
+    }
+  }, [user?._id]);
+
+  // Handle viewing notes
+  const handleViewNotes = (note: MeetingNote) => {
+    setSelectedNote(note);
+    setShowNotesModal(true);
+  };
+
+  // Handle downloading notes
+  const handleDownloadNotes = async (note: MeetingNote) => {
+    try {
+      // Create markdown content directly from the note data
+      const meetingTitle = note.meetingInfo?.description || note.title;
+      const meetingDate = note.meetingInfo?.meetingTime || note.createdAt;
+      
+      // Create a well-formatted markdown document
+      const formattedDate = new Date(meetingDate).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      
+      const formattedTime = new Date(meetingDate).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+
+      // Clean up the content
+      let formattedContent = note.content
+        .replace(/^## (.*$)/gm, '## $1')
+        .replace(/^# (.*$)/gm, '# $1')
+        .replace(/^> (.*$)/gm, '> $1')
+        .replace(/^- (.*$)/gm, '- $1')
+        .trim();
+
+      const markdownDocument = `# Meeting Notes
+
+---
+
+## Meeting Information
+
+- **Meeting:** ${note.title}
+- **Date:** ${formattedDate}
+- **Time:** ${formattedTime}
+- **Meeting ID:** \`${note.meetingId}\`${note.meetingInfo?.isDeleted ? '\n- **Status:** ⚠️ Meeting Removed from System' : ''}
+
+---
+
+## Content
+
+${formattedContent}
+
+---
+
+## Meeting Details
+
+- **Word Count:** ${note.wordCount}
+- **Tags:** ${note.tags?.join(', ') || 'None'}
+- **Created:** ${new Date(note.createdAt).toLocaleDateString()}
+- **Last Updated:** ${new Date(note.lastModified).toLocaleDateString()}
+- **Privacy:** ${note.isPrivate ? 'Private' : 'Public'}${note.meetingInfo?.isDeleted ? '\n- **Note:** Original meeting has been removed from the system but notes are preserved' : ''}
+
+---
+
+*Generated by SkillSwap Hub - Meeting Notes System*
+      `;
+      
+      // Create and trigger download
+      const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const fileName = `meeting-notes-${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
+      
+      // Create download link
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      showAlert('success', 'Notes downloaded successfully!');
+    } catch (error: any) {
+      console.error('Error downloading notes:', error);
+      showAlert('error', 'Failed to download notes');
+    }
+  };
+
   // Initial data fetch
   useEffect(() => {
     fetchMeetingsData();
-  }, [fetchMeetingsData]);
+    fetchSavedNotes();
+  }, [fetchMeetingsData, fetchSavedNotes]);
+
+  // Update meeting statuses every minute to refresh currently happening meetings
+  useEffect(() => {
+    if (meetings.length === 0) return;
+    
+    const interval = setInterval(() => {
+      // Force a re-render to update currently happening meetings
+      // The isMeetingHappening function will recalculate based on current time
+      setMeetings(prevMeetings => [...prevMeetings]);
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
+  }, [meetings.length]);
 
   // Fetch user profiles when meetings change
   useEffect(() => {
@@ -264,6 +437,11 @@ export default function MeetingContent() {
 
   // Meeting action handler
   const handleMeetingAction = async (meetingId: string, action: 'accept' | 'reject' | 'cancel') => {
+    // Prevent multiple clicks by checking if action is already in progress
+    if (actionLoadingStates[meetingId]) {
+      return;
+    }
+
     const actionText = action === 'accept' ? 'accept' : action === 'reject' ? 'decline' : 'cancel';
     const confirmationTitle = action === 'accept' ? 'Accept Meeting' : 
                              action === 'reject' ? 'Decline Meeting' : 'Cancel Meeting';
@@ -275,6 +453,9 @@ export default function MeetingContent() {
       confirmationMessage,
       async () => {
         try {
+          // Set loading state for this specific meeting and action
+          setActionLoadingStates(prev => ({ ...prev, [meetingId]: action }));
+          
           const updatedMeeting = await updateMeeting(meetingId, action);
           
           if (updatedMeeting) {
@@ -293,6 +474,13 @@ export default function MeetingContent() {
         } catch (error) {
           console.error(`Error ${action}ing meeting:`, error);
           showAlert('error', `Failed to ${actionText} meeting`);
+        } finally {
+          // Clear loading state
+          setActionLoadingStates(prev => {
+            const newState = { ...prev };
+            delete newState[meetingId];
+            return newState;
+          });
         }
       },
       confirmationType,
@@ -307,41 +495,45 @@ export default function MeetingContent() {
     if (!user?._id) return;
     
     try {
-      const response = await fetch('/api/meeting/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          meetingId,
-          cancelledBy: user._id,
-          reason
-        }),
-      });
+      const meeting = await cancelMeetingWithReason(meetingId, user._id, reason);
 
-      if (!response.ok) {
-        throw new Error(`Error cancelling meeting: ${response.status}`);
+      if (meeting) {
+        setMeetings(prevMeetings =>
+          prevMeetings.map(m => m._id === meetingId ? meeting : m)
+        );
+
+        setShowCancelModal(false);
+        setMeetingToCancel(null);
+        showAlert('success', 'Meeting cancelled successfully');
+        
+        // Refresh data
+        fetchMeetingsData();
+      } else {
+        showAlert('error', 'Failed to cancel meeting');
       }
-
-      const { meeting } = await response.json();
-
-      // Update meetings state
-      setMeetings(prevMeetings =>
-        prevMeetings.map(m => m._id === meetingId ? meeting : m)
-      );
-
-      setShowCancelModal(false);
-      setMeetingToCancel(null);
-      showAlert('success', 'Meeting cancelled successfully');
-      
-      // Refresh data
-      fetchMeetingsData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error cancelling meeting:', error);
-      showAlert('error', 'Failed to cancel meeting');
+      const errorMessage = error.message || 'Failed to cancel meeting';
+      showAlert('error', errorMessage);
     }
   };
 
   // Show cancel modal
   const showCancelMeetingModal = (meetingId: string) => {
+    // Find the meeting to check if it can be cancelled
+    const meeting = meetings.find(m => m._id === meetingId);
+    if (!meeting) {
+      showAlert('error', 'Meeting not found');
+      return;
+    }
+
+    // Check if meeting can be cancelled
+    const { canCancel, reason } = canCancelMeeting(meeting);
+    if (!canCancel) {
+      showAlert('warning', reason!, 'Cannot Cancel Meeting');
+      return;
+    }
+
     setMeetingToCancel(meetingId);
     setShowCancelModal(true);
   };
@@ -415,7 +607,7 @@ export default function MeetingContent() {
   const cancelledMeetings = filteredMeetings.cancelledMeetings;
 
   // Check if there are any active meetings or requests
-  const hasActiveMeetingsOrRequests = pendingRequests.length > 0 || upcomingMeetings.length > 0;
+  const hasActiveMeetingsOrRequests = pendingRequests.length > 0 || upcomingMeetings.length > 0 || currentlyHappeningMeetings.length > 0;
 
   if (loading && meetings.length === 0) {
     return (
@@ -501,12 +693,21 @@ export default function MeetingContent() {
               Try adjusting your search or filter criteria
             </p>
           </div>
+        ) : (pendingRequests.length === 0 && upcomingMeetings.length === 0 && pastMeetings.length === 0 && cancelledMeetings.length === 0) ? (
+          <div className="text-center py-12">
+            <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg mb-2">No meetings scheduled</p>
+            <p className="text-gray-400 text-sm mb-6">
+              Connect with other users and schedule meetings through skill matches in the chat system
+            </p>
+          </div>
         ) : (
           <MeetingList
             pendingRequests={pendingRequests}
             upcomingMeetings={upcomingMeetings}
             pastMeetings={pastMeetings}
             cancelledMeetings={cancelledMeetings}
+            currentlyHappeningMeetings={currentlyHappeningMeetings}
             hasActiveMeetingsOrRequests={hasActiveMeetingsOrRequests}
             showPastMeetings={showPastMeetings}
             showCancelledMeetings={showCancelledMeetings}
@@ -514,14 +715,46 @@ export default function MeetingContent() {
             userProfiles={userProfiles}
             meetingNotesStatus={meetingNotesStatus}
             checkingNotes={checkingNotes}
+            actionLoadingStates={actionLoadingStates}
             onScheduleMeeting={() => {}} // No create meeting in this view - it shows all meetings
             onMeetingAction={handleMeetingAction}
             onCancelMeeting={showCancelMeetingModal}
             onAlert={showAlert}
             onTogglePastMeetings={() => setShowPastMeetings(!showPastMeetings)}
             onToggleCancelledMeetings={() => setShowCancelledMeetings(!showCancelledMeetings)}
+            showCreateMeetingButton={false} // Hide create meeting button in dashboard view
           />
         )}
+      </div>
+
+      {/* Saved Meeting Notes - Collapsible */}
+      <div className="border-t border-gray-200 pt-4">
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setShowSavedNotes(!showSavedNotes)}
+            className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
+          >
+            <div className="flex items-center">
+              <FileText className="w-4 h-4 mr-2 text-purple-500" />
+              <span>Saved Meeting Notes ({savedNotes.length})</span>
+            </div>
+            {showSavedNotes ? (
+              <ChevronDown className="w-4 h-4" />
+            ) : (
+              <ChevronRight className="w-4 h-4" />
+            )}
+          </button>
+          {showSavedNotes && (
+            <div className="p-4 bg-white">
+              <SavedNotesList
+                notes={savedNotes}
+                loading={loadingSavedNotes}
+                onViewNotes={handleViewNotes}
+                onDownloadNotes={handleDownloadNotes}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Modals */}
@@ -567,6 +800,18 @@ export default function MeetingContent() {
         confirmText={confirmation.confirmText}
         loading={confirmation.loading}
       />
+
+      {/* Notes View Modal */}
+      {showNotesModal && selectedNote && (
+        <NotesViewModal
+          note={selectedNote}
+          onClose={() => {
+            setShowNotesModal(false);
+            setSelectedNote(null);
+          }}
+          onDownload={handleDownloadNotes}
+        />
+      )}
     </div>
   );
 }
