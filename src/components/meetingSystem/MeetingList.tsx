@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Calendar, CheckCircle, ChevronDown, ChevronRight, Clock, Plus, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, ChevronDown, ChevronRight, Clock, Plus, XCircle, Radio } from 'lucide-react';
 import Meeting from '@/types/meeting';
 import MeetingItem from './MeetingItem';
 
@@ -14,6 +14,7 @@ interface MeetingListProps {
   upcomingMeetings: Meeting[];
   pastMeetings: Meeting[];
   cancelledMeetings: Meeting[];
+  currentlyHappeningMeetings: Meeting[];
   hasActiveMeetingsOrRequests: boolean;
   showPastMeetings: boolean;
   showCancelledMeetings: boolean;
@@ -21,6 +22,7 @@ interface MeetingListProps {
   userProfiles: { [userId: string]: UserProfile };
   meetingNotesStatus: { [meetingId: string]: boolean };
   checkingNotes: { [meetingId: string]: boolean };
+  actionLoadingStates: { [meetingId: string]: string };
   onScheduleMeeting: () => void;
   onMeetingAction: (meetingId: string, action: 'accept' | 'reject' | 'cancel') => void;
   onCancelMeeting: (meetingId: string) => void;
@@ -34,6 +36,7 @@ export default function MeetingList({
   upcomingMeetings,
   pastMeetings,
   cancelledMeetings,
+  currentlyHappeningMeetings,
   hasActiveMeetingsOrRequests,
   showPastMeetings,
   showCancelledMeetings,
@@ -41,6 +44,7 @@ export default function MeetingList({
   userProfiles,
   meetingNotesStatus,
   checkingNotes,
+  actionLoadingStates,
   onScheduleMeeting,
   onMeetingAction,
   onCancelMeeting,
@@ -48,7 +52,7 @@ export default function MeetingList({
   onTogglePastMeetings,
   onToggleCancelledMeetings
 }: MeetingListProps) {
-  const totalMeetings = pendingRequests.length + upcomingMeetings.length + pastMeetings.length + cancelledMeetings.length;
+  const totalMeetings = pendingRequests.length + upcomingMeetings.length + pastMeetings.length + cancelledMeetings.length + currentlyHappeningMeetings.length;
 
   if (totalMeetings === 0) {
     return (
@@ -85,10 +89,45 @@ export default function MeetingList({
                 userProfiles={userProfiles}
                 meetingNotesStatus={meetingNotesStatus}
                 checkingNotes={checkingNotes}
+                actionLoadingStates={actionLoadingStates}
                 onMeetingAction={onMeetingAction}
                 onCancelMeeting={onCancelMeeting}
                 onAlert={onAlert}
               />
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Currently Happening Meetings */}
+      {currentlyHappeningMeetings.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+            <Radio className="w-4 h-4 mr-2 text-red-500 animate-pulse" />
+            <span className="text-red-600 font-semibold">Currently Happening ({currentlyHappeningMeetings.length})</span>
+          </h3>
+          <div className="space-y-3">
+            {currentlyHappeningMeetings.map((meeting) => (
+              <div key={meeting._id} className="relative">
+                {/* Animated highlight border */}
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-red-500 via-orange-500 to-red-500 p-0.5 animate-pulse">
+                  <div className="bg-white rounded-lg h-full w-full"></div>
+                </div>
+                <div className="relative z-10">
+                  <MeetingItem 
+                    meeting={meeting} 
+                    type="happening"
+                    userId={userId}
+                    userProfiles={userProfiles}
+                    meetingNotesStatus={meetingNotesStatus}
+                    checkingNotes={checkingNotes}
+                    actionLoadingStates={actionLoadingStates}
+                    onMeetingAction={onMeetingAction}
+                    onCancelMeeting={onCancelMeeting}
+                    onAlert={onAlert}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -111,6 +150,7 @@ export default function MeetingList({
                 userProfiles={userProfiles}
                 meetingNotesStatus={meetingNotesStatus}
                 checkingNotes={checkingNotes}
+                actionLoadingStates={actionLoadingStates}
                 onMeetingAction={onMeetingAction}
                 onCancelMeeting={onCancelMeeting}
                 onAlert={onAlert}
@@ -158,6 +198,7 @@ export default function MeetingList({
                   userProfiles={userProfiles}
                   meetingNotesStatus={meetingNotesStatus}
                   checkingNotes={checkingNotes}
+                  actionLoadingStates={actionLoadingStates}
                   onMeetingAction={onMeetingAction}
                   onCancelMeeting={onCancelMeeting}
                   onAlert={onAlert}
@@ -196,6 +237,7 @@ export default function MeetingList({
                   userProfiles={userProfiles}
                   meetingNotesStatus={meetingNotesStatus}
                   checkingNotes={checkingNotes}
+                  actionLoadingStates={actionLoadingStates}
                   onMeetingAction={onMeetingAction}
                   onCancelMeeting={onCancelMeeting}
                   onAlert={onAlert}
