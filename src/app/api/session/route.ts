@@ -58,24 +58,27 @@ export async function GET(req: Request) {
       });
     }
 
-    // Fix data consistency: ensure status matches isAccepted
+    // Fix data consistency: ensure status matches isAccepted (but respect cancellation and completion)
     for (let session of sessions) {
       let needsUpdate = false;
       
-      if (session.isAccepted === true && session.status !== 'active') {
-        session.status = 'active';
-        needsUpdate = true;
-      } else if (session.isAccepted === false && session.status !== 'canceled') {
-        session.status = 'canceled'; 
-        needsUpdate = true;
-      } else if (session.isAccepted === null && session.status !== 'pending') {
-        session.status = 'pending';
-        needsUpdate = true;
+      // Only update status if session is not already canceled or completed
+      if (session.status !== 'canceled' && session.status !== 'completed') {
+        if (session.isAccepted === true && session.status !== 'active') {
+          session.status = 'active';
+          needsUpdate = true;
+        } else if (session.isAccepted === false && session.status !== 'rejected') {
+          session.status = 'rejected'; // Use 'rejected' instead of 'canceled' for normal rejections
+          needsUpdate = true;
+        } else if (session.isAccepted === null && session.status !== 'pending') {
+          session.status = 'pending';
+          needsUpdate = true;
+        }
       }
       
       if (needsUpdate) {
         await session.save();
-        console.log(`Updated session ${session._id} status to ${session.status}`);
+        console.log(`Updated session ${session._id} status to ${session.status} (isAccepted: ${session.isAccepted})`);
       }
     }
 
