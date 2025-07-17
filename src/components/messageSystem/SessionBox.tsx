@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus, BookOpen, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
@@ -44,11 +44,15 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [sessionToRate, setSessionToRate] = useState<Session | null>(null);
   const [rating, setRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
   const [submittingRating, setSubmittingRating] = useState(false);
   const [showCancelledSessions, setShowCancelledSessions] = useState(false);
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set());
   const [showActiveCounterOffers, setShowActiveCounterOffers] = useState<{[sessionId: string]: boolean}>({});
+  
+  // Track existing reviews for sessions
+  const [sessionReviews, setSessionReviews] = useState<{[sessionId: string]: any}>({});
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<AlertState>({
@@ -221,6 +225,29 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   }, []);
 
+  // Check if user has already reviewed a session
+  const checkExistingReview = useCallback(async (sessionId: string) => {
+    try {
+      const response = await fetch(`/api/reviews?sessionId=${sessionId}`);
+      const data = await response.json();
+      
+      if (data.success && data.reviews) {
+        const userReview = data.reviews.find((review: any) => review.reviewerId._id === userId);
+        if (userReview) {
+          setSessionReviews(prev => ({
+            ...prev,
+            [sessionId]: userReview
+          }));
+          return userReview;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error checking existing review:', error);
+      return null;
+    }
+  }, [userId]);
+
   // Memoized handler functions
   const handleCounterOffer = useCallback((sessionId: string) => {
     const session = sessions.find(s => s._id === sessionId);
@@ -289,10 +316,22 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
       return;
     }
 
-    handleCompletionResponse(sessionId, action, providedRejectionReason, (session) => {
-      setSessionToRate(session);
-      setShowRatingModal(true);
-    });
+    if (action === 'approve') {
+      // Check if user has already reviewed this session before showing rating modal
+      const existingReview = await checkExistingReview(sessionId);
+      
+      handleCompletionResponse(sessionId, action, providedRejectionReason, (session) => {
+        // Only show rating modal if user hasn't reviewed yet
+        if (!existingReview) {
+          setSessionToRate(session);
+          setShowRatingModal(true);
+        } else {
+          showAlert('info', 'Session completed successfully! You have already submitted a review for this session.');
+        }
+      });
+    } else {
+      handleCompletionResponse(sessionId, action, providedRejectionReason);
+    }
   };
 
   const handleRejectionSubmit = () => {
@@ -308,14 +347,66 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
     }
   };
 
+  // Star rating handlers
+  const handleStarClick = (starRating: number) => {
+    setRating(starRating);
+  };
+
+  const handleStarHover = (starRating: number) => {
+    setHoveredRating(starRating);
+  };
+
+  const handleStarLeave = () => {
+    setHoveredRating(0);
+  };
+
+  const getRatingText = (rating: number) => {
+    switch (rating) {
+      case 1: return 'Poor';
+      case 2: return 'Fair';
+      case 3: return 'Good';
+      case 4: return 'Very Good';
+      case 5: return 'Excellent';
+      default: return 'Select a rating';
+    }
+  };
+
   const handleRatingSubmitLocal = async () => {
     if (!sessionToRate) return;
 
+    // Validate rating and comment
+    if (rating === 0) {
+      showAlert('warning', 'Please select a rating');
+      return;
+    }
+
+    if (!ratingComment.trim()) {
+      showAlert('warning', 'Please provide a comment');
+      return;
+    }
+
     setSubmittingRating(true);
-    const success = await handleRatingSubmit(sessionToRate, rating, ratingComment, () => {
+    const success = await handleRatingSubmit(sessionToRate, rating, ratingComment, async () => {
+      // Update the session reviews to show the new review immediately
+      if (sessionToRate?._id) {
+        const response = await fetch(`/api/reviews?sessionId=${sessionToRate._id}`);
+        const data = await response.json();
+        
+        if (data.success && data.reviews) {
+          const userReview = data.reviews.find((review: any) => review.reviewerId._id === userId);
+          if (userReview) {
+            setSessionReviews(prev => ({
+              ...prev,
+              [sessionToRate._id]: userReview
+            }));
+          }
+        }
+      }
+      
       setShowRatingModal(false);
       setSessionToRate(null);
       setRating(0);
+      setHoveredRating(0);
       setRatingComment('');
     });
     setSubmittingRating(false);
@@ -547,21 +638,35 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
               
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Rating (1 to 5) *
+                  Rating *
                 </label>
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(Number(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value={0}>Select a rating</option>
-                  <option value={1}>1 - Poor</option>
-                  <option value={2}>2 - Fair</option>
-                  <option value={3}>3 - Good</option>
-                  <option value={4}>4 - Very Good</option>
-                  <option value={5}>5 - Excellent</option>
-                </select>
+                
+                {/* Star Rating */}
+                <div className="flex items-center space-x-1 mb-3">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => handleStarClick(star)}
+                      onMouseEnter={() => handleStarHover(star)}
+                      onMouseLeave={handleStarLeave}
+                      className="focus:outline-none transition-colors"
+                    >
+                      <Star 
+                        className={`h-8 w-8 ${
+                          star <= (hoveredRating || rating)
+                            ? 'text-yellow-400 fill-current'
+                            : 'text-gray-300'
+                        } hover:text-yellow-400 transition-colors`}
+                      />
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Rating Text */}
+                <p className="text-sm text-gray-600 mb-2">
+                  {rating > 0 ? getRatingText(rating) : 'Click on stars to rate'}
+                </p>
               </div>
 
               <div className="mb-4">
@@ -584,6 +689,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
                     setShowRatingModal(false);
                     setSessionToRate(null);
                     setRating(0);
+                    setHoveredRating(0);
                     setRatingComment('');
                   }}
                   className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
@@ -592,7 +698,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
                 </button>
                 <button
                   onClick={handleRatingSubmitLocal}
-                  disabled={submittingRating}
+                  disabled={submittingRating || rating === 0 || !ratingComment.trim()}
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
                   {submittingRating ? 'Submitting...' : 'Submit Rating'}

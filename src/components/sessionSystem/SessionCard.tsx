@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Clock, 
   CheckCircle, 
@@ -12,10 +12,12 @@ import {
   Eye, 
   ChevronDown, 
   ChevronRight, 
-  AlertCircle 
+  AlertCircle,
+  Calendar
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Session, CounterOffer, UserProfile } from '@/types';
+import { getSessionCompletionStatus, CompletionStatus } from '@/utils/sessionCompletion';
 
 interface SessionCardProps {
   session: Session;
@@ -62,6 +64,25 @@ export default function SessionCard({
 }: SessionCardProps) {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // Enhanced completion status using new API
+  const [completionStatus, setCompletionStatus] = useState<CompletionStatus | null>(null);
+
+  // Fetch completion status for active sessions
+  useEffect(() => {
+    const fetchCompletionStatus = async () => {
+      if (session.status === 'active' && session._id && userId) {
+        try {
+          const status = await getSessionCompletionStatus(session._id, userId);
+          setCompletionStatus(status);
+        } catch (error) {
+          console.error('Error fetching completion status for session:', session._id, error);
+        }
+      }
+    };
+
+    fetchCompletionStatus();
+  }, [session._id, session.status, userId]);
 
   // Helper functions
   const getSessionStatus = (session: Session) => {
@@ -266,7 +287,10 @@ export default function SessionCard({
             className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <div className="text-xs text-gray-500">
-              {formatDate(session.startDate)}
+              <div>Start: {formatDate(session.startDate)}</div>
+              {session.expectedEndDate && (
+                <div>Expected end: {formatDate(session.expectedEndDate)}</div>
+              )}
             </div>
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
@@ -362,6 +386,26 @@ export default function SessionCard({
                   <span className="font-medium">Description:</span> {session.descriptionOfService2}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* Session Dates */}
+          <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+            <div className="flex items-center space-x-2 mb-2">
+              <Calendar className="h-4 w-4 text-purple-600" />
+              <h4 className="font-medium text-gray-900">Session Timeline</h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="font-medium text-gray-700">Start Date:</span>
+                <div className="text-gray-600">{formatDate(session.startDate)}</div>
+              </div>
+              {session.expectedEndDate && (
+                <div>
+                  <span className="font-medium text-gray-700">Expected End:</span>
+                  <div className="text-gray-600">{formatDate(session.expectedEndDate)}</div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -461,36 +505,33 @@ export default function SessionCard({
                 )}
 
                 {/* Session Completion Buttons */}
-                {session.isAccepted === true && session.status !== 'completed' && (
+                {session.isAccepted === true && session.status !== 'completed' && completionStatus && (
                   <>
-                    {session.completionRequestedBy ? (
-                      <>
-                        {(session.completionRequestedBy._id === userId || session.completionRequestedBy === userId) ? (
-                          <span className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
-                            Completion requested - waiting for approval
-                          </span>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => onCompletionResponse(session._id, 'approve')}
-                              disabled={processingSession === session._id}
-                              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                            >
-                              <CheckCircle className="h-4 w-4" />
-                              <span>Approve Completion</span>
-                            </button>
-                            <button
-                              onClick={() => onCompletionResponse(session._id, 'reject')}
-                              disabled={processingSession === session._id}
-                              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
-                            >
+                    {completionStatus.hasRequestedCompletion ? (
+                      <span className="text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+                        Completion requested - waiting for approval
+                      </span>
+                    ) : completionStatus.needsToApprove ? (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => onCompletionResponse(session._id, 'approve')}
+                          disabled={processingSession === session._id}
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          <span>Approve Completion</span>
+                        </button>
+                        <button
+                          onClick={() => onCompletionResponse(session._id, 'reject')}
+                          disabled={processingSession === session._id}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                        >
                               <XCircle className="h-4 w-4" />
-                              <span>Reject</span>
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    ) : session.completionRejectedBy ? (
+                          <XCircle className="h-4 w-4" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+                    ) : completionStatus.wasRejected ? (
                       <button
                         onClick={() => onRequestCompletion(session._id)}
                         disabled={processingSession === session._id}
@@ -499,7 +540,7 @@ export default function SessionCard({
                         <CheckCircle className="h-4 w-4" />
                         <span>Request Completion Again</span>
                       </button>
-                    ) : (
+                    ) : completionStatus.canRequestCompletion ? (
                       <button
                         onClick={() => onRequestCompletion(session._id)}
                         disabled={processingSession === session._id}
@@ -508,7 +549,7 @@ export default function SessionCard({
                         <CheckCircle className="h-4 w-4" />
                         <span>Request Completion</span>
                       </button>
-                    )}
+                    ) : null}
                   </>
                 )}
               </>
@@ -530,34 +571,32 @@ export default function SessionCard({
                     Both participants have completed their skill exchange. You can view the session details, submitted work, and reviews.
                   </p>
                 </div>
-              ) : session.completionRequestedBy ? (
+              ) : completionStatus?.hasRequestedCompletion ? (
                 <div className="space-y-2">
                   <p className="text-sm text-blue-600">
                     🔄 Completion request pending approval
                   </p>
-                  {session.completionRequestedBy._id === userId || session.completionRequestedBy === userId ? (
-                    <p className="text-xs text-gray-600">
-                      You requested completion on {formatDate(session.completionRequestedAt || '')}. Waiting for {getUserDisplayName(otherUser)} to approve.
-                    </p>
-                  ) : (
-                    <p className="text-xs text-gray-600">
-                      {getUserDisplayName(otherUser)} requested completion on {formatDate(session.completionRequestedAt || '')}. Please review above.
-                    </p>
-                  )}
+                  <p className="text-xs text-gray-600">
+                    You requested completion. Waiting for {getUserDisplayName(otherUser)} to approve.
+                  </p>
                 </div>
-              ) : session.completionRejectedBy ? (
+              ) : completionStatus?.needsToApprove ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-orange-600">
+                    ⏰ Completion approval needed
+                  </p>
+                  <p className="text-xs text-gray-600">
+                    {getUserDisplayName(otherUser)} requested completion. Please review above.
+                  </p>
+                </div>
+              ) : completionStatus?.wasRejected ? (
                 <div className="space-y-2">
                   <p className="text-sm text-red-600">
                     ❌ Completion request was declined
                   </p>
                   <p className="text-xs text-gray-600">
-                    Declined on {formatDate(session.completionRejectedAt || '')}.
+                    Your recent completion request was declined. You can request again when ready.
                   </p>
-                  {session.completionRejectionReason && (
-                    <div className="text-xs bg-red-50 border border-red-200 rounded p-2">
-                      <span className="font-medium text-red-800">Reason:</span> {session.completionRejectionReason}
-                    </div>
-                  )}
                 </div>
               ) : (
                 <p className="text-sm text-gray-600">

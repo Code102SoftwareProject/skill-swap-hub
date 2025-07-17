@@ -10,6 +10,8 @@ import TextMessage from "@/components/messageSystem/box/TextMessage";
 import MessageSearch from "@/components/messageSystem/MessageSearch";
 
 import { fetchChatMessages, fetchChatRoom, fetchUserProfile, markChatRoomMessagesAsRead } from "@/services/chatApiServices";
+import { getCachedMessages, isMessagesCached, clearCachedMessages } from "@/services/messagePreloader";
+import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 
 interface MessageBoxProps {
@@ -124,6 +126,7 @@ export default function MessageBox({
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Store refs for each message to enable scrolling to original message
@@ -184,29 +187,54 @@ export default function MessageBox({
     fetchParticipantNames();
   }, [chatRoomId, userId, participantInfo]);
   
-  // ! Fetch chat history on mount
+  // ! Optimized message fetching - check cache first, then API
   useEffect(() => {
-    async function fetchMessages() {
-      // Clear existing messages FIRST to prevent showing old messages
+    async function loadMessages() {
+      // Clear existing messages FIRST
       setMessages([]);
+      
+      // Check if messages are already cached
+      const cachedMessages = getCachedMessages(chatRoomId);
+      
+      if (cachedMessages) {
+        // Use cached messages for instant loading
+        console.log(`Loading ${cachedMessages.length} cached messages for room ${chatRoomId}`);
+        setMessages(cachedMessages);
+        return;
+      }
 
+      // If not cached, show loading and fetch from API
+      setIsLoading(true);
+      
       try {
+        console.log(`Fetching messages from API for room ${chatRoomId}`);
         const messagesData = await fetchChatMessages(chatRoomId);
         if (messagesData && messagesData.length > 0) {
           setMessages(messagesData);
         }
       } catch (err) {
         console.error("Error fetching messages:", err);
+      } finally {
+        setIsLoading(false);
       }
     }
-    fetchMessages();
+    
+    loadMessages();
   }, [chatRoomId, userId]);
 
   // ! Append new messages if they arrive
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     
-    setMessages((prev) => [...prev, newMessage]);
+    // Decrypt the message content before adding to state
+    const decryptedMessage = {
+      ...newMessage,
+      content: newMessage.content.startsWith('File:') 
+        ? newMessage.content 
+        : decryptMessage(newMessage.content)
+    };
+    
+    setMessages((prev) => [...prev, decryptedMessage]);
   }, [newMessage, chatRoomId, userId, socket]);
 
   // Add/update typing event listeners
@@ -365,8 +393,16 @@ export default function MessageBox({
 
   return (
     <div className="flex flex-col w-full h-full bg-white overflow-hidden">
+      {/* Loading State - only show when not using cached messages */}
+      {isLoading && (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading messages...</span>
+        </div>
+      )}
+
       {/* Search Component */}
-      {showSearch && (
+      {!isLoading && showSearch && (
         <MessageSearch
           messages={messages}
           userId={userId}
@@ -379,12 +415,13 @@ export default function MessageBox({
       )}
       
       {/* Messages Container */}
-      <div
-        ref={containerRef}
-        className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
-      >
-      {/* Always show skill match info message at the top of new chat rooms */}
-      <SkillMatchInfoMessage participantName={participantInfo?.name} />
+      {!isLoading && (
+        <div
+          ref={containerRef}
+          className="flex flex-col w-full h-full bg-white overflow-y-auto overflow-x-hidden p-2 md:p-4"
+        >
+        {/* Always show skill match info message at the top of new chat rooms */}
+        <SkillMatchInfoMessage participantName={participantInfo?.name} />
       
       {messages.map((msg, i) => {
         const isMine = msg.senderId === userId;
@@ -463,13 +500,14 @@ export default function MessageBox({
         );
       })}
 
-      {/* ! IMPORTANT: Typing indicator section */}
-      {isTyping && (
-        <div className="mb-2 md:mb-3 text-left">
-          <TypingIndicator />
+        {/* ! IMPORTANT: Typing indicator section */}
+        {isTyping && (
+          <div className="mb-2 md:mb-3 text-left">
+            <TypingIndicator />
+          </div>
+        )}
         </div>
       )}
-      </div>
     </div>
   );
 }

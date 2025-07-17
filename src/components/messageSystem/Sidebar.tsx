@@ -8,18 +8,21 @@ import {
   fetchUserProfile,
   fetchUnreadMessageCountsByRoom,
 } from "@/services/chatApiServices";
+import { preloadChatMessages } from "@/services/messagePreloader";
 import {useSocket} from "@/lib/context/SocketContext";
 import OptimizedAvatar from "@/components/ui/OptimizedAvatar";
 import { getFirstLetter } from "@/utils/avatarUtils";
 import { useBatchAvatarPreload } from "@/hooks/useOptimizedAvatar";
+import PreloadStatus from "@/components/messageSystem/PreloadStatus";
 
 interface SidebarProps {
   userId: string;
-  selectedChatRoomId?: string | null; // Add this prop
+  selectedChatRoomId?: string | null;
   onChatSelect: (
     chatRoomId: string,
     participantInfo?: { id: string; name: string }
   ) => void;
+  preloadProgress?: { loaded: number; total: number };
 }
 
 interface UserProfile {
@@ -80,7 +83,7 @@ function SidebarBox({
  * @param {function} onChatSelect 
  * @returns {TSX.Element} 
  */
-export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: SidebarProps) {
+export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, preloadProgress }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<{
@@ -317,7 +320,16 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect }: Si
    */
   return (
     <div className="w-full md:w-64 bg-bgcolor text-white h-screen p-2 md:p-4 border-solid border-r border-gray-600 flex-shrink-0">
-      <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-4 text-textcolor font-body">Messages</h2>
+      <div className="flex items-center justify-between mb-2 md:mb-4">
+        <h2 className="text-lg md:text-xl font-bold text-textcolor font-body">Messages</h2>
+        {/* Discrete loading indicator */}
+        {preloadProgress && preloadProgress.total > 0 && preloadProgress.loaded < preloadProgress.total && (
+          <div className="flex items-center space-x-1">
+            <div className="animate-spin rounded-full h-3 w-3 border border-gray-400 border-t-transparent"></div>
+            <span className="text-xs text-gray-400">{preloadProgress.loaded}/{preloadProgress.total}</span>
+          </div>
+        )}
+      </div>
       
       {/* Search bar */}
       <div className="mb-2 md:mb-4 relative bg-primary">
