@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Calendar, Plus, FileText, ChevronDown, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
 import MeetingList from '@/components/meetingSystem/MeetingList';
@@ -75,80 +74,6 @@ interface MeetingBoxProps {
 export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdate }: MeetingBoxProps) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { 
-      opacity: 0,
-      y: 20,
-      scale: 0.95
-    },
-    visible: { 
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-        staggerChildren: 0.1
-      }
-    },
-    exit: {
-      opacity: 0,
-      y: -20,
-      scale: 0.95,
-      transition: {
-        duration: 0.3,
-        ease: "easeIn"
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { 
-      opacity: 0,
-      x: -20
-    },
-    visible: { 
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut"
-      }
-    }
-  };
-
-  const headerVariants = {
-    hidden: { 
-      opacity: 0,
-      y: -10
-    },
-    visible: { 
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-        delay: 0.1
-      }
-    }
-  };
-
-  const buttonHover = {
-    scale: 1.05,
-    transition: {
-      duration: 0.2,
-      ease: "easeInOut"
-    }
-  };
-
-  const buttonTap = {
-    scale: 0.95,
-    transition: {
-      duration: 0.1
-    }
-  };
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -714,167 +639,45 @@ ${formattedContent}
 
   if (loading && meetings.length === 0) {
     return (
-      <motion.div 
-        className="p-6 text-center relative"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <div className="p-6 text-center relative">
         {/* Background pulse effect */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg"
-          animate={{
-            scale: [1, 1.02, 1],
-            opacity: [0.3, 0.6, 0.3],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg opacity-30" />
         
         <div className="relative z-10">
-          <motion.div 
-            className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"
-            animate={{ 
-              rotate: 360,
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ 
-              rotate: { duration: 1, repeat: Infinity, ease: "linear" },
-              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-            }}
-          />
-          <motion.p 
-            className="mt-2 text-gray-500"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
-          >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+          <p className="mt-2 text-gray-500">
             Loading meetings...
-          </motion.p>
+          </p>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
     <>
-      {/* Animated Background Elements */}
-      <motion.div 
-        className="absolute inset-0 pointer-events-none overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
-        transition={{ duration: 1 }}
-      >
-        {/* Floating circles */}
-        <motion.div
-          className="absolute w-20 h-20 bg-blue-100 rounded-full"
-          style={{ top: '10%', left: '5%' }}
-          animate={{
-            y: [0, -20, 0],
-            x: [0, 10, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.div
-          className="absolute w-16 h-16 bg-purple-100 rounded-full"
-          style={{ top: '60%', right: '10%' }}
-          animate={{
-            y: [0, 15, 0],
-            x: [0, -8, 0],
-            scale: [1, 0.9, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
-        />
-        <motion.div
-          className="absolute w-12 h-12 bg-green-100 rounded-full"
-          style={{ bottom: '15%', left: '15%' }}
-          animate={{
-            y: [0, -10, 0],
-            x: [0, 5, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 7,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
-        />
-      </motion.div>
-
-      <motion.div 
-        className="p-4 h-full flex flex-col relative z-10"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-      >
+      <div className="p-4 h-full flex flex-col relative z-10">
         {/* Header */}
-        <motion.div 
-          className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200"
-          variants={headerVariants}
-        >
-          <motion.div 
-            className="flex items-center space-x-3"
-            variants={itemVariants}
-          >
-            <motion.div
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.1, 1]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-                ease: "easeInOut"
-              }}
-            >
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div>
               <Calendar className="w-5 h-5 text-blue-600" />
-            </motion.div>
+            </div>
             <h2 className="text-lg font-semibold text-gray-900">Meetings</h2>
-          </motion.div>
-          <motion.button 
+          </div>
+          <button 
             onClick={handleScheduleMeetingClick}
             className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
             title="Schedule New Meeting"
-            variants={itemVariants}
-            whileHover={buttonHover}
-            whileTap={buttonTap}
           >
-            <motion.div
-              animate={{ rotate: [0, 90, 0] }}
-              transition={{ 
-                duration: 0.5,
-                ease: "easeInOut"
-              }}
-              whileHover={{ rotate: 90 }}
-            >
+            <div>
               <Plus className="w-4 h-4" />
-            </motion.div>
+            </div>
             <span>New</span>
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
 
         {/* Meetings List */}
-        <motion.div 
-          className="flex-1 overflow-y-auto space-y-4"
-          variants={itemVariants}
-        >
+        <div className="flex-1 overflow-y-auto space-y-4">
           <MeetingList
             pendingRequests={filteredMeetings.pendingRequests}
             upcomingMeetings={filteredMeetings.upcomingMeetings}
@@ -896,108 +699,67 @@ ${formattedContent}
             onTogglePastMeetings={() => setShowPastMeetings(!showPastMeetings)}
             onToggleCancelledMeetings={() => setShowCancelledMeetings(!showCancelledMeetings)}
           />
-        </motion.div>
+        </div>
 
         {/* Saved Meeting Notes - Collapsible */}
-        <motion.div 
-          className="border-t border-gray-200 pt-4"
-          variants={itemVariants}
-        >
-          <motion.div 
-            className="border border-gray-200 rounded-lg overflow-hidden"
-            whileHover={{ scale: 1.01 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.button
+        <div className="border-t border-gray-200 pt-4">
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
               onClick={() => setShowSavedNotes(!showSavedNotes)}
               className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
-              whileHover={{ backgroundColor: "rgb(243 244 246)" }}
-              whileTap={{ scale: 0.98 }}
             >
               <div className="flex items-center">
-                <motion.div
-                  animate={{ 
-                    rotate: showSavedNotes ? [0, 10, -10, 0] : 0,
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ 
-                    duration: 0.3,
-                    ease: "easeInOut"
-                  }}
-                >
+                <div>
                   <FileText className="w-4 h-4 mr-2 text-purple-500" />
-                </motion.div>
+                </div>
                 <span>Saved Meeting Notes ({savedNotes.length})</span>
               </div>
-              <motion.div
-                animate={{ rotate: showSavedNotes ? 180 : 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
+              <div>
                 {showSavedNotes ? (
                   <ChevronDown className="w-4 h-4" />
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-              </motion.div>
-            </motion.button>
-            <AnimatePresence>
-              {showSavedNotes && (
-                <motion.div 
-                  className="p-4 bg-white"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
-                  <SavedNotesList
-                    notes={savedNotes}
-                    loading={loadingSavedNotes}
-                    onViewNotes={handleViewNotes}
-                    onDownloadNotes={handleDownloadNotes}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
-      </motion.div>
+              </div>
+            </button>
+            {showSavedNotes && (
+              <div className="p-4 bg-white">
+                <SavedNotesList
+                  notes={savedNotes}
+                  loading={loadingSavedNotes}
+                  onViewNotes={handleViewNotes}
+                  onDownloadNotes={handleDownloadNotes}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Modals */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CreateMeetingModal
-              onClose={() => setShowCreateModal(false)}
-              onCreate={handleCreateMeeting}
-              receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
-            />
-          </motion.div>
-        )}
+      {showCreateModal && (
+        <div>
+          <CreateMeetingModal
+            onClose={() => setShowCreateModal(false)}
+            onCreate={handleCreateMeeting}
+            receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
+          />
+        </div>
+      )}
 
-        {showCancelModal && meetingToCancel && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CancelMeetingModal
-              meetingId={meetingToCancel}
-              onClose={() => {
-                setShowCancelModal(false);
-                setMeetingToCancel(null);
-              }}
-              onCancel={handleCancelMeeting}
-              userName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'User'}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showCancelModal && meetingToCancel && (
+        <div>
+          <CancelMeetingModal
+            meetingId={meetingToCancel}
+            onClose={() => {
+              setShowCancelModal(false);
+              setMeetingToCancel(null);
+            }}
+            onCancel={handleCancelMeeting}
+            userName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'User'}
+          />
+        </div>
+      )}
 
       {/* Alert Component */}
       <Alert
@@ -1026,25 +788,18 @@ ${formattedContent}
       />
 
       {/* Notes View Modal */}
-      <AnimatePresence>
-        {showNotesModal && selectedNote && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            <NotesViewModal
-              note={selectedNote}
-              onClose={() => {
-                setShowNotesModal(false);
-                setSelectedNote(null);
-              }}
-              onDownload={handleDownloadNotes}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showNotesModal && selectedNote && (
+        <div>
+          <NotesViewModal
+            note={selectedNote}
+            onClose={() => {
+              setShowNotesModal(false);
+              setSelectedNote(null);
+            }}
+            onDownload={handleDownloadNotes}
+          />
+        </div>
+      )}
     </>
   );
 }
