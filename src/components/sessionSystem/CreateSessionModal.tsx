@@ -296,7 +296,7 @@ export default function CreateSessionModal({
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <BookOpen className="h-5 w-5 text-green-600" />
-                <h3 className="text-lg font-medium text-gray-900">What You Want to Learn</h3>
+                <h3 className="text-lg font-medium text-gray-900">What You Want to Recive</h3>
               </div>
               
               <div>

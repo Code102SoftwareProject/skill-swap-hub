@@ -3,9 +3,6 @@ import connect from "@/lib/db";
 import meetingSchema from "@/lib/models/meetingSchema";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
 
-// Import notification helper function
-const { sendMeetingCancelledNotification } = require('@/utils/meetingNotifications');
-
 export async function POST(req: Request) {
   await connect();
   
@@ -37,42 +34,81 @@ export async function POST(req: Request) {
       );
     }
 
+    // Check if meeting is too close to start time or currently in progress
+    const now = new Date();
+    const meetingTime = new Date(meeting.meetingTime);
+    const tenMinutesBefore = new Date(meetingTime.getTime() - 10 * 60 * 1000); // 10 minutes before
+    const thirtyMinutesAfter = new Date(meetingTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+
+    if (meeting.state === 'accepted' && now >= tenMinutesBefore && now <= thirtyMinutesAfter) {
+      const timeUntilMeeting = meetingTime.getTime() - now.getTime();
+      const timeAfterMeeting = now.getTime() - meetingTime.getTime();
+      
+      let message;
+      if (timeUntilMeeting > 0) {
+        const minutesUntil = Math.ceil(timeUntilMeeting / (1000 * 60));
+        message = `Cannot cancel meeting. The meeting starts in ${minutesUntil} minute${minutesUntil === 1 ? '' : 's'}. Meetings cannot be cancelled within 10 minutes of the start time.`;
+      } else {
+        const minutesAfter = Math.floor(timeAfterMeeting / (1000 * 60));
+        message = `Cannot cancel meeting. The meeting started ${minutesAfter} minute${minutesAfter === 1 ? '' : 's'} ago and may still be in progress. Meetings cannot be cancelled for up to 30 minutes after the start time.`;
+      }
+      
+      return NextResponse.json(
+        { message },
+        { status: 400 }
+      );
+    }
+
+    // Update meeting state to cancelled
+    meeting.state = 'cancelled';
+    const updatedMeeting = await meeting.save();
+
     // Create cancellation record
     const cancellation = new cancelMeetingSchema({
-      meetingId,
-      cancelledBy,
-      reason: reason.trim()
+      meetingId: meetingId,
+      cancelledBy: cancelledBy,
+      reason: reason.trim(),
+      cancelledAt: new Date()
     });
-
+    
     await cancellation.save();
-
-    // Update meeting state
-    meeting.state = 'cancelled';
-    await meeting.save();
 
     // Send notification to the other user
     try {
-      const otherUserId = meeting.senderId.toString() === cancelledBy 
-        ? meeting.receiverId.toString() 
-        : meeting.senderId.toString();
+      const otherUserId = meeting.senderId.toString() === cancelledBy ? meeting.receiverId : meeting.senderId;
+      
+      // Get canceller's name for notification
+      const cancellerResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/users/profile?id=${cancelledBy}`);
+      let cancellerName = 'Unknown User';
+      
+      if (cancellerResponse.ok) {
+        const cancellerData = await cancellerResponse.json();
+        if (cancellerData.success && cancellerData.user) {
+          cancellerName = `${cancellerData.user.firstName} ${cancellerData.user.lastName}`;
+        }
+      }
 
-      // Send cancellation notification using our new notification system
-      await sendMeetingCancelledNotification(
-        otherUserId,
-        cancelledBy,
-        reason.trim()
-      );
+      // Send notification
+      const notificationResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: otherUserId,
+          typeno: 5, // Meeting cancellation notification
+          description: `${cancellerName} has cancelled your meeting scheduled for ${new Date(meeting.meetingTime).toLocaleDateString()}. Reason: ${reason.trim()}`,
+          targetDestination: '/dashboard'
+        })
+      });
 
-      console.log('Cancellation notification sent successfully');
+      if (!notificationResponse.ok) {
+        console.warn('Failed to send cancellation notification');
+      }
     } catch (notificationError) {
       console.error('Error sending cancellation notification:', notificationError);
-      // Continue even if notification fails
+      // Don't fail the cancellation if notification fails
     }
 
-    return NextResponse.json({
-      meeting,
-      cancellation
-    }, { status: 200 });
+    return NextResponse.json({ meeting: updatedMeeting }, { status: 200 });
 
   } catch (error: any) {
     console.error('Error cancelling meeting:', error);

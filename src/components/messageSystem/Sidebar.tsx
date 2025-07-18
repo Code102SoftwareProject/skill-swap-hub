@@ -14,6 +14,7 @@ import OptimizedAvatar from "@/components/ui/OptimizedAvatar";
 import { getFirstLetter } from "@/utils/avatarUtils";
 import { useBatchAvatarPreload } from "@/hooks/useOptimizedAvatar";
 import PreloadStatus from "@/components/messageSystem/PreloadStatus";
+import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface SidebarProps {
   userId: string;
@@ -29,6 +30,45 @@ interface UserProfile {
   firstName: string;
   lastName: string;
   avatar?: string;
+}
+
+/**
+ * Helper function to decrypt and format last message for display
+ * @param {string} content - The message content (potentially encrypted)
+ * @returns {string} - Formatted message for sidebar display
+ */
+function formatLastMessageForSidebar(content: string): string {
+  if (!content) return "No messages yet";
+  
+  try {
+    // Check if it's a file message
+    if (content.startsWith('File:')) {
+      const parts = content.split(':');
+      const fileName = parts[1] || 'File';
+      return `📎 ${fileName}`;
+    }
+    
+    // Try to decrypt the message
+    const decryptedContent = decryptMessage(content);
+    
+    // Truncate for sidebar display
+    return decryptedContent.length > 30 
+      ? decryptedContent.substring(0, 30) + "..." 
+      : decryptedContent;
+  } catch (error) {
+    // If decryption fails, it might already be decrypted or corrupted
+    console.warn("Failed to decrypt message in sidebar:", error);
+    
+    // Check if it looks like encrypted text (base64-like)
+    if (content.length > 50 && /^[A-Za-z0-9+/=]+$/.test(content)) {
+      return "Message..."; // Show generic text for encrypted content
+    }
+    
+    // If it's short and doesn't look encrypted, show it directly
+    return content.length > 30 
+      ? content.substring(0, 30) + "..." 
+      : content;
+  }
 }
 
 function SidebarBox({ 
@@ -261,7 +301,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
             return {
               ...room,
               lastMessage: {
-                content: messageData.content,
+                content: messageData.content, // Keep encrypted content, will be decrypted in display
                 senderId: messageData.senderId,
                 sentAt: new Date().getTime()
               }
@@ -380,8 +420,10 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
               ? `${profile.firstName} ${profile.lastName}`
               : otherParticipantId.substring(0, 8);
 
-            // ! Last Message 
-            const lastMessage = chat.lastMessage?.content.substring(0, 6) || "No messages yet";
+            // ! Last Message - decrypt and format for display
+            const lastMessage = chat.lastMessage?.content 
+              ? formatLastMessageForSidebar(chat.lastMessage.content)
+              : "No messages yet";
 
             return (
               /*

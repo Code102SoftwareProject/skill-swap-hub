@@ -423,7 +423,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
   // Memoized error component
   const ErrorComponent = useMemo(() => (
     <div className="p-6 text-center">
-      <p className="text-red-600">Failed to load user information</p>
+      <p className="text-red-600">Failed to load user</p>
     </div>
   ), []);
 

@@ -28,15 +28,8 @@ export async function POST(req: Request) {
     // Check if content is a file link and skip encryption if it is
     const isFileLink = content.startsWith('File:');
     
-    // Check if content is already encrypted (coming from socket) by checking if it's valid Base64
-    // and doesn't contain readable text patterns
-    const isAlreadyEncrypted = !isFileLink && 
-      content.match(/^[A-Za-z0-9+/=]+$/) && 
-      content.length > 20 && // Encrypted content is typically longer
-      !content.match(/\s/); // Encrypted content doesn't contain spaces
-    
-    const encryptedContent: string = isFileLink ? content : 
-      (isAlreadyEncrypted ? content : encryptMessage(content));
+    // Now all content comes as plain text from client, so always encrypt (except files)
+    const encryptedContent: string = isFileLink ? content : encryptMessage(content);
 
     if (!chatRoomId || !senderId || !content) {
       return NextResponse.json(
@@ -88,8 +81,8 @@ export async function POST(req: Request) {
         lastMessageContent = "File";
       }
     } else {
-      // Decrypt the content first, then truncate to 18 chars
-      const decryptedContent = isAlreadyEncrypted ? decryptMessage(content) : content;
+      // Since we now always encrypt on server, decrypt the encrypted content
+      const decryptedContent = decryptMessage(encryptedContent);
       lastMessageContent = decryptedContent.length > 18 ? decryptedContent.substring(0, 18) + '...' : decryptedContent;
     }
 
