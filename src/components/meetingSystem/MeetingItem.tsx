@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, Clock, Download, Video, XCircle } from 'lucide-react';
 import Meeting from '@/types/meeting';
-import { getMeetingStatus, downloadMeetingNotesFile } from '@/services/meetingApiServices';
+import { getMeetingStatus, downloadMeetingNotesFile, canCancelMeeting } from '@/services/meetingApiServices';
 import OptimizedAvatar from '@/components/ui/OptimizedAvatar';
 
 interface UserProfile {
@@ -12,11 +12,12 @@ interface UserProfile {
 
 interface MeetingItemProps {
   meeting: Meeting;
-  type: 'pending' | 'upcoming' | 'past' | 'cancelled';
+  type: 'pending' | 'upcoming' | 'past' | 'cancelled' | 'happening';
   userId: string;
   userProfiles: { [userId: string]: UserProfile };
   meetingNotesStatus: { [meetingId: string]: boolean };
   checkingNotes: { [meetingId: string]: boolean };
+  actionLoadingStates: { [meetingId: string]: string };
   onMeetingAction: (meetingId: string, action: 'accept' | 'reject' | 'cancel') => void;
   onCancelMeeting: (meetingId: string) => void;
   onAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
@@ -29,6 +30,7 @@ export default function MeetingItem({
   userProfiles,
   meetingNotesStatus,
   checkingNotes,
+  actionLoadingStates,
   onMeetingAction,
   onCancelMeeting,
   onAlert
@@ -40,9 +42,22 @@ export default function MeetingItem({
     : otherUserProfile?.firstName || 'User';
   
   const isPendingReceiver = type === 'pending' && meeting.receiverId === userId;
-  const canCancel = type === 'upcoming' && (meeting.senderId === userId || meeting.state === 'accepted');
+  const basicCanCancel = type === 'upcoming' && (meeting.senderId === userId || meeting.state === 'accepted');
+  
+  // Check timing restrictions for cancellation
+  const { canCancel: timingAllowsCancel, reason: cancelRestrictionReason } = canCancelMeeting(meeting);
+  const canCancel = basicCanCancel && timingAllowsCancel;
   
   const status = getMeetingStatus(meeting, userId);
+
+  // Handle cancel button click with timing validation
+  const handleCancelClick = () => {
+    if (!timingAllowsCancel && cancelRestrictionReason) {
+      onAlert('warning', cancelRestrictionReason);
+      return;
+    }
+    onCancelMeeting(meeting._id);
+  };
 
   // Format date and time utilities
   const formatDate = (date: string | Date) => {
@@ -87,7 +102,19 @@ export default function MeetingItem({
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
+    <div className={`bg-white border rounded-lg p-4 transition-all duration-200 ${
+      type === 'happening' 
+        ? 'border-red-300 bg-red-50 shadow-lg' 
+        : 'border-gray-200 hover:shadow-sm'
+    }`}>
+      {/* Live indicator for happening meetings */}
+      {type === 'happening' && (
+        <div className="flex items-center text-red-600 text-sm font-medium mb-3">
+          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-2"></div>
+          <span>🔴 Meeting in Progress</span>
+        </div>
+      )}
+      
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-3">
@@ -174,35 +201,59 @@ export default function MeetingItem({
           <>
             <button
               onClick={() => onMeetingAction(meeting._id, 'accept')}
-              className="px-3 py-1.5 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm font-medium transition-colors"
+              disabled={!!actionLoadingStates[meeting._id]}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                actionLoadingStates[meeting._id] === 'accept'
+                  ? 'bg-green-400 text-white cursor-not-allowed'
+                  : actionLoadingStates[meeting._id]
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-500 text-white hover:bg-green-600'
+              }`}
             >
-              Accept
+              {actionLoadingStates[meeting._id] === 'accept' ? 'Accepting...' : 'Accept'}
             </button>
             <button
               onClick={() => onMeetingAction(meeting._id, 'reject')}
-              className="px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium transition-colors"
+              disabled={!!actionLoadingStates[meeting._id]}
+              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                actionLoadingStates[meeting._id] === 'reject'
+                  ? 'bg-red-400 text-white cursor-not-allowed'
+                  : actionLoadingStates[meeting._id]
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
             >
-              Decline
+              {actionLoadingStates[meeting._id] === 'reject' ? 'Declining...' : 'Decline'}
             </button>
           </>
         )}
 
-        {/* Join meeting button - only for upcoming meetings */}
-        {type === 'upcoming' && meeting.state === 'accepted' && meeting.meetingLink && (
+        {/* Join meeting button - for upcoming and happening meetings */}
+        {(type === 'upcoming' || type === 'happening') && meeting.state === 'accepted' && meeting.meetingLink && (
           <button
             onClick={handleJoinMeeting}
-            className="px-4 py-1.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2 transition-colors"
+            className={`px-4 py-1.5 rounded-md text-sm font-medium flex items-center space-x-2 transition-colors ${
+              type === 'happening' 
+                ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' 
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
             <Video className="w-4 h-4" />
-            <span>Join Meeting</span>
+            <span>{type === 'happening' ? '🔴 Join Now' : 'Join Meeting'}</span>
           </button>
         )}
 
         {/* Cancel button */}
-        {canCancel && (
+        {basicCanCancel && (
           <button
-            onClick={() => onCancelMeeting(meeting._id)}
-            className="px-3 py-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 text-sm font-medium transition-colors"
+            onClick={handleCancelClick}
+            disabled={!timingAllowsCancel}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+              timingAllowsCancel 
+                ? 'bg-red-500 text-white hover:bg-red-600' 
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+            title={!timingAllowsCancel ? cancelRestrictionReason : 'Cancel meeting'}
           >
             Cancel
           </button>

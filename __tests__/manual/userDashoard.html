@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Dashboard Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>User Dashboard - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Dashboard Loads for Authenticated User</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Navigate to /dashboard</td>
+        <td>Dashboard greets user by name and loads content</td>
+        <td>Loaded with "Hi Fathima Samhanpm run <i class="fa fa-deviantart" aria-hidden="true"></i>, Welcome back!"</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>ProfileCard Component Renders</td>
+        <td>HIGH</td>
+        <td>User has valid userId</td>
+        <td>1. Check right sidebar<br>2. Confirm profile card is visible</td>
+        <td>Profile card with user data appears</td>
+        <td>Profile shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>SkillsRequested Section Renders</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Scroll to main column<br>2. Confirm "Skills Requested" section shows</td>
+        <td>SkillsRequested component renders with data</td>
+        <td>Section displayed</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>SkillsOffered Section Renders</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Locate "Skills Offered" section</td>
+        <td>SkillsOffered component is visible and styled</td>
+        <td>Section rendered as expected</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>UserSkills Component View More</td>
+        <td>MEDIUM</td>
+        <td>User on dashboard</td>
+        <td>1. Click "View More" in UserSkills component</td>
+        <td>`onNavigateToMySkills` handler is triggered</td>
+        <td>Navigation triggered</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td>ReviewSummary Shows When User Exists</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Scroll to Review section<br>2. Check if ReviewSummary is rendered</td>
+        <td>ReviewSummary visible with review stats</td>
+        <td>Component visible</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td>EarnedBadges Shows When User Exists</td>
+        <td>MEDIUM</td>
+        <td>User is logged in</td>
+        <td>1. Scroll down to "Badges"</td>
+        <td>Badges with earned info should be visible</td>
+        <td>Badges loaded</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>TimeSpentChart Component Loads</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Locate "Time Spent" box<br>2. Confirm chart loads</td>
+        <td>Chart rendered with user stats</td>
+        <td>Chart loaded</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>SkillMatchOverview Works</td>
+        <td>MEDIUM</td>
+        <td>User is on dashboard</td>
+        <td>1. Scroll to Skill Matches<br>2. Verify component renders</td>
+        <td>Component renders with "View All" hook</td>
+        <td>Rendered with no crash</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Session Timer Hook Runs Without Crash</td>
+        <td>MEDIUM</td>
+        <td>User has valid _id</td>
+        <td>1. Load dashboard<br>2. Open dev tools console</td>
+        <td>No hook errors, timer starts silently</td>
+        <td>No errors</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>“View All Reviews” Button Appears</td>
+        <td>MEDIUM</td>
+        <td>User has more than 3 reviews</td>
+        <td>
+            1. Navigate to Dashboard<br>
+            2. Scroll to Reviews section<br>
+            3. Observe review count<br>
+            4. Check if “View all reviews” button appears
+        </td>
+        <td>Button appears only if reviews > 3</td>
+        <td>“View all 4 reviews →” button shown</td>
+        <td class="pass">PASS</td>
+        </tr>
+        <tr>
+        <td>12</td>
+        <td>Navigate to All Reviews Page</td>
+        <td>MEDIUM</td>
+        <td>“View all reviews” button is visible</td>
+        <td>
+            1. Click “View all 4 reviews →”<br>
+            2. Observe navigation<br>
+            3. Confirm all reviews are visible on target page
+        </td>
+        <td>User is taken to full reviews page</td>
+        <td>Navigated to `/reviews` and saw all reviews</td>
+        <td class="pass">PASS</td>
+        </tr>
+
+    </tbody>
+  </table>
+
+</body>
+</html>

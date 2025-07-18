@@ -1,0 +1,119 @@
+name: CI - Build and Test
+
+on:
+  # Trigger on pull requests to main branch
+  pull_request:
+    branches: [ main, master ]
+  
+  # Trigger on pushes to main branch (merges)
+  push:
+    branches: [ main, master ]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm test
+        continue-on-error: false
+        env:
+          CI: true
+          
+      - name: Build application
+        run: npm run build
+        continue-on-error: false
+        env:
+          CI: true
+          
+      - name: Check build output
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi
+          echo "Build successful - .next directory exists"
+          
+      - name: Upload build artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.node-version }}
+          path: |
+            .next/
+            npm-debug.log*
+            yarn-debug.log*
+            yarn-error.log*
+          retention-days: 5
+
+  # Additional job for documentation build (if needed)
+  build-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install main dependencies
+        run: npm ci
+        
+      - name: Install documentation dependencies
+        run: |
+          cd documentation
+          npm ci
+          
+      - name: Build documentation
+        run: |
+          cd documentation
+          npm run build
+        continue-on-error: false
+
+  # Security and quality checks
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+        
+      - name: Check for outdated packages
+        run: npm outdated || true

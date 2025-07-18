@@ -49,4 +49,7 @@ const meetingSchema: Schema<IMeeting> = new Schema({
   }
 });
 
+// Create TTL index to automatically delete meetings 2 weeks after their scheduled time
+meetingSchema.index({ meetingTime: 1 }, { expireAfterSeconds: 14 * 24 * 60 * 60 }); // 14 days in seconds
+
 export default mongoose.models.Meeting || mongoose.model<IMeeting>('Meeting', meetingSchema);
