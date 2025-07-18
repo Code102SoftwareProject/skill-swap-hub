@@ -254,7 +254,8 @@ const SuccessStories: FC = () => {
       </div>
       
       {/* CSS for animations and scrollbar hiding */}
-      <style jsx={true}>{`
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
@@ -375,7 +376,8 @@ const SuccessStories: FC = () => {
         .animate-expand {
           animation: expand 1s ease-out forwards 0.5s;
         }
-      `}</style>
+        `
+      }} />
     </div>
   );
 };
