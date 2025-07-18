@@ -215,7 +215,7 @@ const NotificationPage = () => {
       <Navbar />
       <NotificationAlert />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="container mx-auto max-w-4xl py-8 px-4">
+        <div className="container mx-auto max-w-4xl py-4 sm:py-8 px-4">
           {user && (
             <div className="mb-4 text-gray-600 dark:text-gray-400 font-body">
               <p>Hi {user.firstName}, here are your notifications:</p>
@@ -223,23 +223,23 @@ const NotificationPage = () => {
           )}
         {/*UnReaded Notifications Badge*/}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
-          <div className="flex items-center">
-            <Bell className="h-6 w-6 text-[#006699] mr-3" />
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200 font-body">Notifications</h1>
+          <div className="flex items-center flex-wrap gap-2">
+            <Bell className="h-6 w-6 text-[#006699] mr-1 flex-shrink-0" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-200 font-body">Notifications</h1>
             {unreadNotifications.length > 0 && (
-              <span className="ml-3 bg-[#006699] text-white text-xs font-medium px-2.5 py-0.5 rounded-full font-body">
+              <span className="bg-[#006699] text-white text-xs font-medium px-2.5 py-0.5 rounded-full font-body whitespace-nowrap">
                 {unreadNotifications.length} unread
               </span>
             )}
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
             {notifications.length > 0 && (
-              <div className="relative inline-block text-left font-body">
+              <div className="relative inline-block text-left font-body w-full sm:w-auto">
                 <select
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-                  className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#006699] focus:border-[#006699] appearance-none pr-8 bg-white dark:bg-gray-800"
+                  className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 text-sm font-medium border border-gray-300 dark:border-gray-600 rounded-md px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#006699] focus:border-[#006699] appearance-none pr-8 bg-white dark:bg-gray-800 w-full sm:w-auto min-w-[140px]"
                   aria-label="Sort notifications"
                 >
                   <option value="newest">Newest First</option>
@@ -251,10 +251,11 @@ const NotificationPage = () => {
             {unreadNotifications.length > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="flex items-center text-[#006699] hover:text-[#004466] text-sm font-medium font-body"
+                className="flex items-center text-[#006699] hover:text-[#004466] text-sm font-medium font-body whitespace-nowrap"
               >
-                <CheckCheck className="w-4 h-4 mr-1" />
-                Mark all as read
+                <CheckCheck className="w-4 h-4 mr-1 flex-shrink-0" />
+                <span className="hidden sm:inline">Mark all as read</span>
+                <span className="sm:hidden">Mark all read</span>
               </button>
             )}
           </div>
