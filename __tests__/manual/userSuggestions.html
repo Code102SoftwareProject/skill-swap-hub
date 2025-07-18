@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Suggestions Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>User Suggestions - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td>Suggestions Tab Loads</td>
+        <td>HIGH</td>
+        <td>User is logged in</td>
+        <td>1. Navigate to Dashboard<br>2. Go to Suggestions section/tab</td>
+        <td>Suggestions UI loads with "Submit Suggestion" and "Your History" tabs</td>
+        <td>Tabs loaded as expected</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Suggestion Form Validation</td>
+        <td>HIGH</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Leave all fields empty<br>2. Click Submit</td>
+        <td>Validation errors for all fields</td>
+        <td>All validation errors shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Title Validation</td>
+        <td>HIGH</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Enter less than 3 letters in Title<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Title must be at least 3 characters after trimming"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Description Validation</td>
+        <td>HIGH</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Enter less than 10 letters in Description<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Description must be at least 10 characters after trimming"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Category Validation</td>
+        <td>HIGH</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Leave Category unselected<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Please select a category"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <!-- Zod Validation Edge Cases Start -->
+      <tr>
+        <td>6a</td>
+        <td>All Fields Empty</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Leave all fields empty<br>2. Click Submit</td>
+        <td>Errors for Title, Description, Category</td>
+        <td>All validation errors shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6b</td>
+        <td>Title Too Short</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "Hi" in Title<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Title must be at least 3 characters after trimming"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6c</td>
+        <td>Title Not Enough Letters</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "12@" in Title<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Title must contain at least 3 letters"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6d</td>
+        <td>Description Too Short</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "Short" in Description<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Description must be at least 10 characters after trimming"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6e</td>
+        <td>Description Not Enough Letters</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "1234567890" in Description<br>2. Fill other fields validly<br>3. Submit</td>
+        <td>Error: "Description must contain at least 10 letters"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6f</td>
+        <td>Category Not Selected</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Fill Title and Description validly<br>2. Leave Category blank<br>3. Submit</td>
+        <td>Error: "Please select a category"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6g</td>
+        <td>Valid Input - Issue</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title and Description<br>2. Select "Issue" as Category<br>3. Submit</td>
+        <td>Suggestion submitted, form clears, no errors</td>
+        <td>Suggestion submitted, form cleared</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6h</td>
+        <td>Valid Input - Suggestion</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title and Description<br>2. Select "Suggestion" as Category<br>3. Submit</td>
+        <td>Suggestion submitted, form clears, no errors</td>
+        <td>Suggestion submitted, form cleared</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6i</td>
+        <td>Valid Input - Feature Request</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title and Description<br>2. Select "Feature Request" as Category<br>3. Submit</td>
+        <td>Suggestion submitted, form clears, no errors</td>
+        <td>Suggestion submitted, form cleared</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6j</td>
+        <td>Valid Input - Other</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title and Description<br>2. Select "Other" as Category<br>3. Submit</td>
+        <td>Suggestion submitted, form clears, no errors</td>
+        <td>Suggestion submitted, form cleared</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6k</td>
+        <td>Leading/Trailing Spaces</td>
+        <td>MEDIUM</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "   Valid Title   " and "   Valid Description   "<br>2. Select any Category<br>3. Submit</td>
+        <td>Suggestion submitted, form clears, no errors</td>
+        <td>Suggestion submitted, form cleared</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6l</td>
+        <td>Special Characters in Title</td>
+        <td>MEDIUM</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "Hello!@#" in Title<br>2. Valid Description and Category<br>3. Submit</td>
+        <td>Suggestion submitted if at least 3 letters</td>
+        <td>Suggestion submitted</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6m</td>
+        <td>Special Characters in Description</td>
+        <td>MEDIUM</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title<br>2. Enter "This is a test!@#" in Description<br>3. Valid Category<br>4. Submit</td>
+        <td>Suggestion submitted if at least 10 letters</td>
+        <td>Suggestion submitted</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <!-- Explicit Mixed Input Edge Cases -->
+      <tr>
+        <td>6n</td>
+        <td>Title: 123@gh (Not Enough Letters)</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "123@gh" in Title<br>2. Valid Description and Category<br>3. Submit</td>
+        <td>Error: "Title must contain at least 3 letters"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6o</td>
+        <td>Title: 123@bug (Enough Letters)</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter "123@bug" in Title<br>2. Valid Description and Category<br>3. Submit</td>
+        <td>No error, suggestion submitted</td>
+        <td>Suggestion submitted</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6p</td>
+        <td>Description: 1234567@gh (Not Enough Letters)</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title<br>2. Enter "1234567@gh" in Description<br>3. Valid Category<br>4. Submit</td>
+        <td>Error: "Description must contain at least 10 letters"</td>
+        <td>Error message shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>6q</td>
+        <td>Description: 1234567@ghijklmnopqrst (Enough Letters)</td>
+        <td>HIGH</td>
+        <td>On Suggestions tab</td>
+        <td>1. Enter valid Title<br>2. Enter "1234567@ghijkl" in Description<br>3. Valid Category<br>4. Submit</td>
+        <td>No error, suggestion submitted</td>
+        <td>Suggestion submitted</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <!-- End Explicit Mixed Input Edge Cases -->
+      <tr>
+        <td>7</td>
+        <td>Submit Valid Suggestion</td>
+        <td>HIGH</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Fill all fields validly<br>2. Submit</td>
+        <td>Suggestion is submitted, form clears, history tab updates</td>
+        <td>Suggestion submitted, history updated</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td>Suggestion Appears in History</td>
+        <td>HIGH</td>
+        <td>User has submitted a suggestion</td>
+        <td>1. Switch to "Your History" tab</td>
+        <td>Submitted suggestion appears as a card with correct title, description, category, and status</td>
+        <td>Card shown with correct info</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td>Category & Status Badges Render</td>
+        <td>MEDIUM</td>
+        <td>User has suggestions in history</td>
+        <td>1. View suggestion cards in history</td>
+        <td>Each card shows colored badges for category and status</td>
+        <td>Badges rendered as expected</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>10</td>
+        <td>Filter Suggestions by Status</td>
+        <td>MEDIUM</td>
+        <td>User has multiple suggestions with different statuses</td>
+        <td>1. Use status filter dropdown<br>2. Select "Pending", "Approved", "Rejected"</td>
+        <td>Only suggestions with selected status are shown</td>
+        <td>Filter works for all statuses</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>11</td>
+        <td>Filter Suggestions by Category</td>
+        <td>MEDIUM</td>
+        <td>User has suggestions in multiple categories</td>
+        <td>1. Use category filter dropdown<br>2. Select a category</td>
+        <td>Only suggestions in selected category are shown</td>
+        <td>Category filter works</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td>Feedback Prompt Appears</td>
+        <td>LOW</td>
+        <td>User is on Suggestions tab</td>
+        <td>1. Observe top of Suggestions section</td>
+        <td>Feedback prompt with "Give Feedback" button is visible</td>
+        <td>Prompt shown</td>
+        <td class="pass">PASS</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>Feedback Prompt Dismiss</td>
+        <td>LOW</td>
+        <td>Feedback prompt is visible</td>
+        <td>1. Click "×" on feedback prompt</td>
+        <td>Prompt disappears</td>
+        <td>Prompt dismissed</td>
+        <td class="pass">PASS</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html> 
