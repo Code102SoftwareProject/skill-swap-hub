@@ -20,7 +20,6 @@ const CATEGORIES = [
   "All",
   "Achievement Milestone Badges",
   "Specific Badges",
-  "Engagement and Activity Badges",
   "Exclusive Recognition Badges",
 ];
 
