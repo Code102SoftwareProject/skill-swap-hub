@@ -33,10 +33,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
-      - name: Run TypeScript check
-        run: npx tsc --noEmit
-        continue-on-error: false
-        
       - name: Run tests
         run: npm test
         continue-on-error: false

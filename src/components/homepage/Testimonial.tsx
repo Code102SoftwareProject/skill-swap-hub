@@ -254,7 +254,7 @@ const SuccessStories: FC = () => {
       </div>
       
       {/* CSS for animations and scrollbar hiding */}
-      <style jsx>{`
+      <style jsx={true}>{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;
         }
