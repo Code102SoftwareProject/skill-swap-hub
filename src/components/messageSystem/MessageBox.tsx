@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/lib/context/SocketContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
@@ -42,11 +43,20 @@ function DateBadge({ date }: { date: Date }) {
   }).format(date);
   
   return (
-    <div className="flex items-center justify-center my-2 md:my-4 w-full">
-      <div className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-2 md:px-3 py-1 font-body">
+    <motion.div 
+      className="flex items-center justify-center my-2 md:my-4 w-full"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
+      <motion.div 
+        className="bg-gray-100 text-gray-500 text-xs font-medium rounded-full px-2 md:px-3 py-1 font-body"
+        whileHover={{ scale: 1.05 }}
+        transition={{ duration: 0.2 }}
+      >
         {formattedDate}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -55,20 +65,43 @@ function DateBadge({ date }: { date: Date }) {
  */
 function SkillMatchInfoMessage({ participantName }: { participantName?: string }) {
   return (
-    <div className="flex items-center justify-center my-4 md:my-6 w-full">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 max-w-md mx-auto">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+    <motion.div 
+      className="flex items-center justify-center my-4 md:my-6 w-full"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+      <motion.div 
+        className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 max-w-md mx-auto"
+        whileHover={{ scale: 1.02 }}
+        transition={{ duration: 0.2 }}
+      >
+        <motion.div 
+          className="flex items-center gap-2 mb-2"
+          initial={{ x: -10 }}
+          animate={{ x: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          <motion.div 
+            className="w-2 h-2 bg-blue-500 rounded-full"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
           <span className="text-blue-700 font-semibold text-sm font-body">
             New Skill Match! 🎉
           </span>
-        </div>
-        <p className="text-blue-600 text-sm font-body text-center">
+        </motion.div>
+        <motion.p 
+          className="text-blue-600 text-sm font-body text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+        >
           This chat was created because you and {participantName || 'your chat partner'} were matched based on your skills! 
           You can now discuss your skill exchange and schedule a skill sharing session.
-        </p>
-      </div>
-    </div>
+        </motion.p>
+      </motion.div>
+    </motion.div>
   );
 }
 
