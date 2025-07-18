@@ -6,7 +6,6 @@ import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
-import { encryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface MessageInputProps {
   chatRoomId: string;
@@ -109,22 +108,21 @@ export default function MessageInput({
       if (response.ok) {
         setFileUrl(result?.url || null);
         
-        // Determine content and whether to encrypt
+        // Determine content - no client-side encryption
         const messageContent = `File:${file?.name}:${result?.url || ""}`;
-        const isFileLink = messageContent.startsWith('File:');
-        const encryptedContent = isFileLink ? messageContent : encryptMessage(messageContent);
+        const finalContent = messageContent; // Send as plain text, server will encrypt
 
         // Send message with file URL
         const newMsg = {
           chatRoomId,
           senderId,
           receiverId: chatParticipants.find((id) => id !== senderId),
-          content: encryptedContent, // Now sending encrypted content via socket
+          content: finalContent, // Send plain text, server handles encryption
           sentAt: Date.now(),
           replyFor: replyingTo?._id || null,
         };
 
-        // Send via socket immediately (now encrypted)
+        // Send via socket immediately (plain text)
         socketSendMessage(newMsg);
 
         // Reset UI immediately
@@ -182,21 +180,20 @@ export default function MessageInput({
 
     setLoading(true);
 
-    // Determine content and whether to encrypt
+    // Determine content - no client-side encryption  
     const messageContent = fileUrl ? `File:${file?.name}:${fileUrl}` : message.trim();
-    const isFileLink = messageContent.startsWith('File:');
-    const encryptedContent = isFileLink ? messageContent : encryptMessage(messageContent);
+    const finalContent = messageContent; // Send as plain text, server will encrypt
 
     const newMsg = {
       chatRoomId,
       senderId,
       receiverId: chatParticipants.find((id) => id !== senderId),
-      content: encryptedContent, // Now sending encrypted content via socket
+      content: finalContent, // Send plain text, server handles encryption
       sentAt: Date.now(),
       replyFor: replyingTo?._id || null,
     };
 
-    // Send via socket immediately (now encrypted)
+    // Send via socket immediately (plain text)
     socketSendMessage(newMsg);
 
     // Reset UI immediately after socket send

@@ -26,9 +26,11 @@ import {
   Users,
   Maximize,
   Minimize,
-  StickyNote
+  StickyNote,
+  HelpCircle
 } from 'lucide-react';
 import { MeetingNotesSidebar } from './MeetingNotesSidebar';
+import { MediaDeviceTips } from './MediaDeviceTips';
 
 interface DailyMeetingProps {
   roomUrl: string;
@@ -94,17 +96,32 @@ function DailyMeetingInner({
   // UI State
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [showTips, setShowTips] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Meeting control functions  
+  // Meeting control functions with enhanced error handling
   const toggleAudio = useCallback(async () => {
     if (!daily) return;
-    await daily.setLocalAudio(!localParticipant?.audio);
+    
+    try {
+      await daily.setLocalAudio(!localParticipant?.audio);
+    } catch (error) {
+      console.error('Audio toggle failed:', error);
+      // Show user-friendly error message
+      alert('Unable to access microphone. It might be in use by another application.');
+    }
   }, [daily, localParticipant?.audio]);
 
   const toggleVideo = useCallback(async () => {
     if (!daily) return;
-    await daily.setLocalVideo(!localParticipant?.video);
+    
+    try {
+      await daily.setLocalVideo(!localParticipant?.video);
+    } catch (error) {
+      console.error('Video toggle failed:', error);
+      // Show user-friendly error message
+      alert('Unable to access camera. It might be in use by another browser tab or application.');
+    }
   }, [daily, localParticipant?.video]);
 
   const toggleScreenShare = useCallback(async () => {
@@ -132,6 +149,36 @@ function DailyMeetingInner({
       onLeave();
     }
   }, [daily, onLeave]);
+
+  // Function to join meeting with fallback options
+  const joinMeetingWithFallback = useCallback(async () => {
+    if (!daily) return;
+
+    try {
+      // First try with camera and microphone
+      await daily.setLocalVideo(true);
+      await daily.setLocalAudio(true);
+    } catch (error) {
+      console.warn('Could not enable camera/microphone, trying audio-only mode:', error);
+      try {
+        // Fallback to audio-only if camera fails
+        await daily.setLocalVideo(false);
+        await daily.setLocalAudio(true);
+      } catch (audioError) {
+        console.warn('Audio also failed, joining in listen-only mode:', audioError);
+        // Last resort: join without any media
+        await daily.setLocalVideo(false);
+        await daily.setLocalAudio(false);
+      }
+    }
+  }, [daily]);
+
+  // Call this when meeting state changes to joined
+  useEffect(() => {
+    if (meetingState === 'joined-meeting') {
+      joinMeetingWithFallback();
+    }
+  }, [meetingState, joinMeetingWithFallback]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -250,6 +297,14 @@ function DailyMeetingInner({
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setShowTips(true)}
+            title="Camera & Microphone Tips"
+          >
+            <HelpCircle className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={toggleFullscreen}
           >
             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
@@ -338,6 +393,12 @@ function DailyMeetingInner({
         userName={userName}
         isVisible={showNotes}
         onToggle={() => setShowNotes(!showNotes)}
+      />
+
+      {/* Media Device Tips Modal */}
+      <MediaDeviceTips
+        isVisible={showTips}
+        onClose={() => setShowTips(false)}
       />
     </div>
   );
@@ -443,32 +504,146 @@ export default function DailyMeeting({
   meetingDescription 
 }: DailyMeetingProps) {
   const [callObject, setCallObject] = useState<any>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     import('@daily-co/daily-js').then((DailyIframe) => {
-      const call = DailyIframe.default.createCallObject();
+      if (!isMounted) return;
+      
+      const call = DailyIframe.default.createCallObject({
+        // Enhanced configuration for better device handling
+        videoSource: 'camera',
+        audioSource: 'microphone',
+        // Try to gracefully handle device conflicts
+        startVideoOff: false,
+        startAudioOff: false,
+      });
+
+      // Listen for join events
+      call.on('joined-meeting', () => {
+        if (isMounted) {
+          setIsJoining(false);
+          setJoinError(null);
+        }
+      });
+
+      call.on('error', (error: any) => {
+        if (isMounted) {
+          console.error('Daily meeting error:', error);
+          setIsJoining(false);
+          
+          // Handle specific error types
+          if (error.type === 'cam-in-use' || error.errorMsg?.includes('camera')) {
+            setJoinError('Camera is already in use by another tab or application. Please close other video calls and try again.');
+          } else if (error.type === 'mic-in-use' || error.errorMsg?.includes('microphone')) {
+            setJoinError('Microphone is already in use by another tab or application. Please close other audio calls and try again.');
+          } else if (error.errorMsg?.includes('Permission denied')) {
+            setJoinError('Camera and microphone access denied. Please allow permissions and refresh the page.');
+          } else {
+            setJoinError('Failed to join meeting. Please try again or check your connection.');
+          }
+        }
+      });
+
       setCallObject(call);
 
-      // Join the meeting
+      // Join the meeting with enhanced error handling
       call.join({
         url: roomUrl,
         userName: userName || 'Anonymous User',
       }).catch((error: any) => {
-        console.error('Failed to join meeting:', error);
+        if (isMounted) {
+          console.error('Failed to join meeting:', error);
+          setIsJoining(false);
+          
+          // Parse error messages for better user feedback
+          const errorMessage = error.message || error.toString();
+          if (errorMessage.includes('camera') || errorMessage.includes('video')) {
+            setJoinError('Camera access failed. Another browser tab might be using your camera. Please close other video calls and try again.');
+          } else if (errorMessage.includes('microphone') || errorMessage.includes('audio')) {
+            setJoinError('Microphone access failed. Another application might be using your microphone.');
+          } else if (errorMessage.includes('permission')) {
+            setJoinError('Please allow camera and microphone permissions to join the meeting.');
+          } else {
+            setJoinError('Unable to connect to the meeting. Please check your internet connection and try again.');
+          }
+        }
       });
 
       return () => {
-        call.destroy();
+        if (call && !call.isDestroyed()) {
+          call.destroy();
+        }
       };
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [roomUrl, userName]);
 
-  if (!callObject) {
+  // Show error state with helpful message and retry option
+  if (joinError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+          <div className="mb-6">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <VideoOff className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Unable to Join Meeting</h2>
+            <p className="text-gray-600 mb-4">{joinError}</p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-left">
+              <h3 className="font-semibold text-blue-900 mb-2">💡 Quick Solutions:</h3>
+              <ul className="text-sm text-blue-800 space-y-1">
+                <li>• Close other browser tabs using your camera/microphone</li>
+                <li>• Close video calling apps (Zoom, Teams, Skype, etc.)</li>
+                <li>• Refresh this page and allow camera permissions</li>
+                <li>• Try using a different browser or incognito mode</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button 
+              onClick={() => {
+                setJoinError(null);
+                setIsJoining(true);
+                window.location.reload();
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700"
+            >
+              Try Again
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={onLeave}
+              className="w-full"
+            >
+              Return to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!callObject || isJoining) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg">Initializing meeting...</p>
+          <p className="text-lg">
+            {!callObject ? 'Initializing meeting...' : 'Connecting to meeting...'}
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Make sure no other tabs are using your camera or microphone
+          </p>
         </div>
       </div>
     );
