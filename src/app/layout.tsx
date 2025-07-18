@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/lib/context/AuthContext";
 import { SocketProvider } from "@/lib/context/SocketContext";
 import { ToastProvider } from "@/lib/context/ToastContext";
+import { ReactNode } from "react";
 import NotificationAlert from "@/components/notificationSystem/NotificationAlert";
 import { SuspendedPopupProvider } from "@/components/ui/SuspendedPopup";
 import "./globals.css";
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <html lang="en">
