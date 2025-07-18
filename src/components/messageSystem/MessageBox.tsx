@@ -226,15 +226,14 @@ export default function MessageBox({
   useEffect(() => {
     if (!newMessage || newMessage.chatRoomId !== chatRoomId) return;
     
-    // Decrypt the message content before adding to state
-    const decryptedMessage = {
+    // New messages from socket are plain text (not encrypted yet)
+    // No need to decrypt since they come directly from client before server encryption
+    const messageToAdd = {
       ...newMessage,
-      content: newMessage.content.startsWith('File:') 
-        ? newMessage.content 
-        : decryptMessage(newMessage.content)
+      content: newMessage.content // Keep as-is, it's plain text from socket
     };
     
-    setMessages((prev) => [...prev, decryptedMessage]);
+    setMessages((prev) => [...prev, messageToAdd]);
   }, [newMessage, chatRoomId, userId, socket]);
 
   // Add/update typing event listeners
