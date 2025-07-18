@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Badges Test Results</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        background: #f0f2f5;
+      }
+      h1 {
+        margin-bottom: 0.5em;
+      }
+      .meta {
+        margin-bottom: 1.5em;
+      }
+      .meta p {
+        margin: 0.3em 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+        font-size: 0.9em;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .status-pass {
+        background: #dcfce7;
+        color: #166534;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .status-fail {
+        background: #fee2e2;
+        color: #991b1b;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .status-blocked {
+        background: #ffedd5;
+        color: #92400e;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      code {
+        background: #eee;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Badges Test Results</h1>
+    <div class="meta">
+      <p><strong>Tester:</strong> P.Renulucshmi</p>
+      <p><strong>Date:</strong> 17/07/2025</p>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Test Steps</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Page Load &amp; Default List (BG01)</td>
+          <td>High</td>
+          <td>User authenticated; at least 1 badge exists</td>
+          <td>
+            1. Navigate to <code>/badges</code><br />
+            2. Wait for page load to complete
+          </td>
+          <td>All badges rendered as cards; Category dropdown set to “All”</td>
+          <td>yes worked as expected</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Filter by Category (BG02)</td>
+          <td>Medium</td>
+          <td>Multiple badges across categories exist</td>
+          <td>
+            1. Select “Achievement Milestone” in Category dropdown<br />
+            2. Observe the displayed badge list
+          </td>
+          <td>Only “Achievement Milestone” badges remain visible</td>
+          <td>work as expected</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

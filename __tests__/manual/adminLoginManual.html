@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Login Test Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .status-pass {
+        background: #dcfce7 !important;
+        color: #166534;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Login Test Results</h1>
+    <p><strong>Tester:</strong> P. Renulucshmi</p>
+    <p><strong>Date:</strong> 2025-07-17</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Steps</th>
+          <th>Expected</th>
+          <th>Actual</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Page Load & UI Elements</td>
+          <td>HIGH</td>
+          <td>Browser open; Admin login page reachable</td>
+          <td>Navigate to /admin/login<br />Observe form fields and buttons</td>
+          <td>Username, Password fields and Login button are visible</td>
+          <td>yes can view the page</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Empty Fields Validation</td>
+          <td>MEDIUM</td>
+          <td>Login page open</td>
+          <td>Leave both fields blank<br />Click Login</td>
+          <td>Inline errors: “Username required” and “Password required”</td>
+          <td>yes validated</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Invalid Credentials</td>
+          <td>HIGH</td>
+          <td>Login page open</td>
+          <td>Enter wrong username/password<br />Click Login</td>
+          <td>Error toast: “Invalid credentials”</td>
+          <td>Invalid username or password inline error</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Successful Login</td>
+          <td>HIGH</td>
+          <td>Valid admin credentials</td>
+          <td>Fill in correct username & password<br />Click Login</td>
+          <td>Redirect to /admin/dashboard</td>
+          <td>it redirect to dashboard</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Password Mask Toggle</td>
+          <td>LOW</td>
+          <td>Login form visible</td>
+          <td>Enter password<br />Click show/hide icon</td>
+          <td>Password toggles between masked and plain text</td>
+          <td>when click the toggle password is visible</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
