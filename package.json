@@ -61,7 +61,7 @@
     "dompurify": "^3.2.3",
     "dotenv": "^16.6.1",
     "formidable": "^3.5.2",
-    "framer-motion": "^11.15.0",
+    "framer-motion": "^11.18.2",
     "fuse.js": "^7.1.0",
     "googleapis": "^152.0.0",
     "jotai": "^2.12.5",
