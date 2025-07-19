@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { jwtDecode } from "jwt-decode";
+import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/lib/context/AuthContext";
 
 // API endpoint configuration for file uploads and KYC submission
 const API_ENDPOINTS = {
@@ -120,6 +123,8 @@ const initialFormState: KYCFormState = {
 
 export default function KYCForm() {
   // State management hooks
+  const { user, isLoading ,token} = useAuth();
+  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [fullNameError, setFullNameError] = useState<string | null>(null);
   const [nicError, setNicError] = useState<string | null>(null);
@@ -130,6 +135,43 @@ export default function KYCForm() {
     isError: boolean;
   } | null>(null);
   const [formState, setFormState] = useState<KYCFormState>(initialFormState);
+
+  // 3) Your JWT-decode effect (unconditional)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode<DecodedToken>(token);
+        const name = decoded.username || decoded.email || decoded.sub || "";
+        setFullName(name);
+        if (
+          name.trim().length >= 5 &&
+          name.includes(" ") &&
+          !FULLNAME_VALIDATION.PATTERN.test(name.trim())
+        ) {
+          setFullNameError(MESSAGES.FULLNAME_FORMAT_ERROR);
+        }
+      } catch {
+        console.error("Invalid JWT");
+      }
+    }
+  }, []);
+
+  // 4) Your redirect-if-not-logged-in effect
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      // not logged in → go to login
+      router.replace("/login");
+    }
+  }, [isLoading, user, router]);
+  if (isLoading || !user) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <span>Loading...</span>
+      </div>
+    );
+  }
 
   // Helper function to update specific form field
   const updateField = <K extends keyof KYCFormState>(
@@ -159,26 +201,7 @@ export default function KYCForm() {
   const validateFullName = (fullNameValue: string): boolean => {
     return FULLNAME_VALIDATION.PATTERN.test(fullNameValue);
   };
-  // Extract full name from JWT token on component mount
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      try {
-        const decoded = jwtDecode<DecodedToken>(token);
-        const name = decoded.username || decoded.email || decoded.sub || "";
-        setFullName(name);
 
-        // Only validate if the name from token looks complete
-        if (name && name.trim().length >= 5 && name.includes(" ")) {
-          if (!validateFullName(name.trim())) {
-            setFullNameError(MESSAGES.FULLNAME_FORMAT_ERROR);
-          }
-        }
-      } catch (err) {
-        console.error("Invalid JWT", err);
-      }
-    }
-  }, []);
   // Validate file size and type
   const validateFile = (file: File): string | null => {
     if (file.size > FILE_CONSTRAINTS.MAX_SIZE_BYTES) {
@@ -389,8 +412,10 @@ export default function KYCForm() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`, 
         },
         body: JSON.stringify({
+          userId: user!._id,
           nic: formState.nic,
           recipient: fullName,
           nicUrl: nicUploadData.url,
