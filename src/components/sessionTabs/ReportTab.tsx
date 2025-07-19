@@ -1,4 +1,4 @@
-import { Flag, Upload, X, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Flag, Upload, X, CheckCircle, AlertCircle, Clock, Info, TrendingUp } from 'lucide-react';
 import { useReport } from '@/hooks/useReport';
 import { reportService } from '@/services/reportService';
 import type { Session } from '@/types';
@@ -32,6 +32,8 @@ export default function ReportTab({
     // Data state
     existingReports,
     loadingReports,
+    workStats,
+    loadingWorkStats,
     
     // Validation
     formErrors,
@@ -42,6 +44,7 @@ export default function ReportTab({
     handleSubmit,
     resetForm,
     fetchReports,
+    fetchWorkStats,
     
     // Utilities
     getReportStats,
@@ -61,13 +64,47 @@ export default function ReportTab({
             {(session?.status === 'completed' || session?.status === 'canceled') ? 'Session Reports' : 'Previous Reports'}
           </h2>
           <button
-            onClick={fetchReports}
-            disabled={loadingReports}
+            onClick={() => {
+              fetchReports();
+              fetchWorkStats();
+            }}
+            disabled={loadingReports || loadingWorkStats}
             className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded transition-colors disabled:opacity-50"
           >
-            {loadingReports ? 'Loading...' : 'Refresh'}
+            {(loadingReports || loadingWorkStats) ? 'Loading...' : 'Refresh'}
           </button>
         </div>
+
+        {/* Work Submission Statistics Warning */}
+        {workStats && !loadingWorkStats && workStats.bothUsersActive && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <Info className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900 mb-2">
+                  Both Users Are Actively Contributing
+                </h4>
+                <div className="text-sm text-blue-800 space-y-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                      <span>Your submissions: {workStats.currentUserWorks} ({workStats.currentUserAcceptedRate}% accepted)</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <TrendingUp className="h-4 w-4 text-blue-600" />
+                      <span>Their submissions: {workStats.otherUserWorks} ({workStats.otherUserAcceptedRate}% accepted)</span>
+                    </div>
+                  </div>
+                  <p className="text-xs mt-3 p-2 bg-blue-100 rounded border border-blue-200">
+                    <strong>Consider This:</strong> Both users are actively participating with good quality work. 
+                    Please ensure your report is about genuine issues rather than minor disagreements. 
+                    Reports should focus on serious misconduct or policy violations.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loadingReports ? (
           <div className="text-center py-4">
@@ -207,6 +244,29 @@ export default function ReportTab({
           {/* Collapsible Report Form */}
           {showReportForm && (
             <div className="border-t border-gray-200 pt-6">
+              {/* Active Users Warning in Form */}
+              {workStats && workStats.bothUsersActive && (
+                <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className="flex items-start space-x-3">
+                    <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h4 className="font-medium text-yellow-900 mb-1">
+                        Warning: Both Users Have Strong Participation Records
+                      </h4>
+                      <p className="text-sm text-yellow-800 mb-2">
+                        You ({workStats.currentUserWorks} submissions, {workStats.currentUserAcceptedRate}% accepted) and 
+                        the other user ({workStats.otherUserWorks} submissions, {workStats.otherUserAcceptedRate}% accepted) 
+                        both have good contribution histories in this session.
+                      </p>
+                      <p className="text-xs text-yellow-700 bg-yellow-100 p-2 rounded border border-yellow-200">
+                        Please ensure you're reporting genuine misconduct or policy violations. 
+                        Consider resolving minor issues through direct communication first.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <form onSubmit={handleFormSubmit} className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,12 +1,21 @@
 import { useState, useCallback, useEffect } from 'react';
 import { reportService, type ReportFile, type ExistingReport, type ReportData } from '@/services/reportService';
-import type { Session } from '@/types';
+import { WorkService } from '@/services/workService';
+import type { Session, Work } from '@/types';
 
 interface UseReportProps {
   session: Session | null;
   currentUserId: string | undefined;
   showAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
   user?: any;
+}
+
+interface WorkSubmissionStats {
+  currentUserWorks: number;
+  otherUserWorks: number;
+  currentUserAcceptedRate: number;
+  otherUserAcceptedRate: number;
+  bothUsersActive: boolean;
 }
 
 export const useReport = ({ session, currentUserId, showAlert, user }: UseReportProps) => {
@@ -20,6 +29,8 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
   // Data state
   const [existingReports, setExistingReports] = useState<ExistingReport[]>([]);
   const [loadingReports, setLoadingReports] = useState(false);
+  const [workStats, setWorkStats] = useState<WorkSubmissionStats | null>(null);
+  const [loadingWorkStats, setLoadingWorkStats] = useState(false);
 
   // Validation state
   const [formErrors, setFormErrors] = useState<{
@@ -47,11 +58,77 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
   }, [currentUserId, session?._id, showAlert]);
 
   /**
-   * Load reports on mount
+   * Fetch work submission statistics for both users
+   */
+  const fetchWorkStats = useCallback(async () => {
+    if (!currentUserId || !session?._id) return;
+    
+    setLoadingWorkStats(true);
+    try {
+      // Get the other user ID - handle both populated and string formats
+      let otherUserId: string;
+      if (typeof session.user1Id === 'object') {
+        otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+      } else {
+        otherUserId = session.user1Id === currentUserId ? session.user2Id : session.user1Id;
+      }
+      
+      // Fetch all works for this session
+      const works = await WorkService.getSessionWorks(session._id);
+      
+      // Filter works by user - handle both populated and string formats for provideUser
+      const currentUserWorks = works.filter(w => {
+        const providerId = typeof w.provideUser === 'object' ? w.provideUser._id : w.provideUser;
+        return providerId === currentUserId;
+      });
+      
+      const otherUserWorks = works.filter(w => {
+        const providerId = typeof w.provideUser === 'object' ? w.provideUser._id : w.provideUser;
+        return providerId === otherUserId;
+      });
+      
+      // Calculate acceptance rates
+      const currentUserAccepted = currentUserWorks.filter(w => w.acceptanceStatus === 'accepted').length;
+      const otherUserAccepted = otherUserWorks.filter(w => w.acceptanceStatus === 'accepted').length;
+      
+      const currentUserAcceptedRate = currentUserWorks.length > 0 
+        ? Math.round((currentUserAccepted / currentUserWorks.length) * 100) 
+        : 0;
+      const otherUserAcceptedRate = otherUserWorks.length > 0 
+        ? Math.round((otherUserAccepted / otherUserWorks.length) * 100) 
+        : 0;
+      
+      // Determine if both users are active (have submitted work with good acceptance rate)
+      const bothUsersActive = 
+        currentUserWorks.length >= 2 && 
+        otherUserWorks.length >= 2 && 
+        currentUserAcceptedRate >= 60 && 
+        otherUserAcceptedRate >= 60;
+      
+      const stats: WorkSubmissionStats = {
+        currentUserWorks: currentUserWorks.length,
+        otherUserWorks: otherUserWorks.length,
+        currentUserAcceptedRate,
+        otherUserAcceptedRate,
+        bothUsersActive
+      };
+      
+      setWorkStats(stats);
+    } catch (error) {
+      console.error('Error fetching work statistics:', error);
+      // Don't show error alert for work stats as it's supplementary info
+    } finally {
+      setLoadingWorkStats(false);
+    }
+  }, [currentUserId, session?._id, session?.user1Id, session?.user2Id]);
+
+  /**
+   * Load reports and work stats on mount
    */
   useEffect(() => {
     fetchReports();
-  }, [fetchReports]);
+    fetchWorkStats();
+  }, [fetchReports, fetchWorkStats]);
 
   /**
    * Reset form to initial state
@@ -278,6 +355,8 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
     // Data state
     existingReports,
     loadingReports,
+    workStats,
+    loadingWorkStats,
     
     // Validation
     formErrors,
@@ -288,6 +367,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
     handleSubmit,
     resetForm,
     fetchReports,
+    fetchWorkStats,
     
     // Utilities
     getReportStats,
