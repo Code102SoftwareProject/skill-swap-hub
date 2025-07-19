@@ -1,0 +1,84 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meeting System Test Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Meeting System Test Execution Results</h1>
+        <p><strong>Tester:</strong> Adeepa K</p>
+        <p><strong>Version:</strong> Not specified</p>
+        <p><strong>Browser:</strong> chrome</p>
+        <p><strong>Device:</strong> desktop</p>
+        <p><strong>Test Date:</strong> 2025-07-17</p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Test Name</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Preconditions</th>
+                <th>Test Steps</th>
+                <th>Expected Result</th>
+                <th>Actual Result</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr><td>1</td><td>Access Meeting Dashboard - Authenticated User</td><td>ACCESS</td><td>HIGH</td><td>User has valid account and is logged in</td><td>1. Navigate to /dashboard<br>2. Click on 'Meetings' tab<br>3. Verify meeting interface loads</td><td>Meeting dashboard displays with meeting list and controls</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>2</td><td>Access Meeting Dashboard - Unauthenticated User</td><td>ACCESS</td><td>HIGH</td><td>User is not logged in</td><td>1. Navigate to /dashboard<br>2. Attempt to access meetings section</td><td>User redirected to login page or shown authentication message</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>3</td><td>Schedule New Meeting - Valid Data</td><td>CREATION</td><td>HIGH</td><td>User is logged in and has chat conversation with another user</td><td>1. Open chat with another user<br>2. Click 'Meeting' button<br>3. Click 'Schedule New Meeting'<br>4. Fill description, future date and time<br>5. Click 'Schedule Meeting'</td><td>Meeting request sent successfully, notification shown</td><td>Description is required
+
+</td><td class="pass">PASS</td></tr>
+            <tr><td>4</td><td>Schedule Meeting - Empty Description</td><td>CREATION</td><td>MEDIUM</td><td>User is in meeting creation modal</td><td>1. Leave description field empty<br>2. Fill date and time<br>3. Try to submit</td><td>Error message: 'Description is required'</td><td>Description is required
+
+</td><td class="pass">PASS</td></tr>
+            <tr><td>5</td><td>Schedule Meeting - Past Date</td><td>CREATION</td><td>MEDIUM</td><td>User is in meeting creation modal</td><td>1. Fill description<br>2. Select past date<br>3. Fill time<br>4. Try to submit</td><td>Error message: 'Meeting date must be in the future'</td><td>Meeting date must be in the future</td><td class="pass">PASS</td></tr>
+            <tr><td>6</td><td>Schedule Meeting - Missing Time</td><td>CREATION</td><td>MEDIUM</td><td>User is in meeting creation modal</td><td>1. Fill description<br>2. Select future date<br>3. Leave time empty<br>4. Try to submit</td><td>Error message: 'Time is required'</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>7</td><td>Meeting Limit Validation</td><td>CREATION</td><td>HIGH</td><td>User already has 2 active meetings with another user</td><td>1. Try to schedule a 3rd meeting with same user<br>2. Click 'Schedule Meeting' button</td><td>Warning message about maximum 2 active meetings limit</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>8</td><td>Accept Meeting Request</td><td>MANAGEMENT</td><td>HIGH</td><td>User has received a meeting request</td><td>1. View pending meeting requests<br>2. Click 'Accept' on a meeting request<br>3. Confirm acceptance</td><td>Meeting accepted, Daily.co room created, other user notified</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>9</td><td>Reject Meeting Request</td><td>MANAGEMENT</td><td>HIGH</td><td>User has received a meeting request</td><td>1. View pending meeting requests<br>2. Click 'Decline' on a meeting request<br>3. Confirm rejection</td><td>Meeting rejected, sender notified</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>10</td><td>Cancel Scheduled Meeting</td><td>MANAGEMENT</td><td>HIGH</td><td>User has an accepted/scheduled meeting</td><td>1. View upcoming meetings<br>2. Click 'Cancel' on a meeting<br>3. Provide cancellation reason<br>4. Confirm cancellation</td><td>Meeting cancelled with reason, other user notified</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>11</td><td>Cancel Meeting - Empty Reason</td><td>MANAGEMENT</td><td>MEDIUM</td><td>User is in meeting cancellation modal</td><td>1. Leave reason field empty<br>2. Try to cancel meeting</td><td>Error message requiring cancellation reason</td><td>Cant continue with empty reason</td><td class="pass">PASS</td></tr>
+            <tr><td>12</td><td>Join Meeting - Valid Time</td><td>VIDEO</td><td>HIGH</td><td>User has accepted meeting within 30 minutes of scheduled time</td><td>1. Navigate to meeting from dashboard<br>2. Click 'Join Meeting' button<br>3. Allow camera/microphone access</td><td>Daily.co video interface loads, user enters meeting room</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>13</td><td>Join Meeting - Too Early</td><td>VIDEO</td><td>MEDIUM</td><td>User tries to join meeting more than 30 minutes before scheduled time</td><td>1. Navigate to meeting page<br>2. Attempt to join meeting</td><td>Message shown that meeting cannot be joined yet with countdown timer</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>14</td><td>Join Meeting - Too Late</td><td>VIDEO</td><td>MEDIUM</td><td>User tries to join meeting more than 30 minutes after scheduled time</td><td>1. Navigate to meeting page<br>2. Attempt to join meeting</td><td>Message shown that meeting has ended</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>15</td><td>Join Meeting - Unauthorized User</td><td>VIDEO</td><td>HIGH</td><td>User who is not participant tries to access meeting</td><td>1. Navigate to meeting URL of another user's meeting<br>2. Attempt to access</td><td>Access denied message, redirect to dashboard</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>16</td><td>Meeting Video Controls</td><td>VIDEO</td><td>HIGH</td><td>User is in active video meeting</td><td>1. Test mute/unmute audio<br>2. Test enable/disable video<br>3. Test leave meeting button</td><td>All controls work properly, meeting can be left successfully</td><td>1.works
+2.works
+3.works</td><td class="pass">PASS</td></tr>
+            <tr><td>17</td><td>Create Meeting Notes</td><td>NOTES</td><td>MEDIUM</td><td>User is in completed meeting or viewing past meeting</td><td>1. Access meeting notes section<br>2. Write meeting notes<br>3. Save notes</td><td>Notes saved successfully and visible to participants</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>18</td><td>View Meeting Notes</td><td>NOTES</td><td>MEDIUM</td><td>Meeting has existing notes</td><td>1. Navigate to past meeting<br>2. Click on notes icon<br>3. View notes content</td><td>Meeting notes displayed correctly with author and timestamp</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>19</td><td>Download Meeting Notes</td><td>NOTES</td><td>LOW</td><td>Meeting has saved notes</td><td>1. Access meeting notes<br>2. Click download button<br>3. Check downloaded file</td><td>Notes downloaded as text file with proper formatting</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>20</td><td>Meeting Request Notification</td><td>NOTIFICATIONS</td><td>HIGH</td><td>User A sends meeting request to User B</td><td>1. User A creates meeting request<br>2. Check User B's notifications<br>3. Verify notification content</td><td>User B receives notification: '[Name] sent you a meeting request'</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>21</td><td>Meeting Acceptance Notification</td><td>NOTIFICATIONS</td><td>HIGH</td><td>User B accepts User A's meeting request</td><td>1. User B accepts meeting<br>2. Check User A's notifications<br>3. Verify notification content</td><td>User A receives notification: '[Name] accepted your meeting request'</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>22</td><td>Meeting Rejection Notification</td><td>NOTIFICATIONS</td><td>HIGH</td><td>User B rejects User A's meeting request</td><td>1. User B rejects meeting<br>2. Check User A's notifications<br>3. Verify notification content</td><td>User A receives notification: '[Name] declined your meeting request'</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>23</td><td>Meeting Cancellation Notification</td><td>NOTIFICATIONS</td><td>HIGH</td><td>User cancels scheduled meeting</td><td>1. User cancels meeting with reason<br>2. Check other participant's notifications<br>3. Verify notification and reason</td><td>Other user receives cancellation notification with reason</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>24</td><td>Meeting States Display</td><td>UI</td><td>MEDIUM</td><td>User has meetings in different states</td><td>1. View meeting dashboard<br>2. Check meeting categorization<br>3. Verify state indicators</td><td>Meetings properly categorized: Pending, Upcoming, Past, Cancelled</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>25</td><td>Meeting Time Display</td><td>UI</td><td>MEDIUM</td><td>User has scheduled meetings</td><td>1. View meeting list<br>2. Check time formatting<br>3. Verify timezone handling</td><td>Meeting times displayed in user's local timezone with proper formatting</td><td>As Expected</td><td class="pass">PASS</td></tr>
+            <tr><td>26</td><td>Meeting Participant Information</td><td>UI</td><td>MEDIUM</td><td>User has meetings with different participants</td><td>1. View meeting list<br>2. Check participant names and avatars<br>3. Verify correct information display</td><td>Participant names and avatars displayed correctly for each meeting</td><td>As Expecte</td><td class="pass">PASS</td></tr>
+            <tr><td>27</td><td>Mobile Meeting Interface</td><td>UI</td><td>HIGH</td><td>Access meeting system on mobile device</td><td>1. Open meeting dashboard on mobile<br>2. Test meeting creation<br>3. Test meeting management<br>4. Test joining meeting</td><td>All meeting features work properly on mobile with responsive design</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>28</td><td>Meeting Search Functionality</td><td>UI</td><td>LOW</td><td>User has multiple meetings</td><td>1. Access meeting dashboard<br>2. Use search to find specific meeting<br>3. Test different search terms</td><td>Search returns relevant meetings based on description or participant name</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>29</td><td>Meeting Filter Options</td><td>UI</td><td>LOW</td><td>User has meetings in different states</td><td>1. Access meeting dashboard<br>2. Test filtering by status<br>3. Test filtering by date range</td><td>Filters work correctly and show appropriate meetings</td><td></td><td class="pass">PASS</td></tr>
+            <tr><td>30</td><td>Meeting System Performance</td><td>UI</td><td>MEDIUM</td><td>User has many meetings in system</td><td>1. Load meeting dashboard<br>2. Measure loading time<br>3. Test scrolling through meetings<br>4. Test meeting actions response time</td><td>Meeting system loads quickly and responds promptly to user actions</td><td></td><td class="pass">PASS</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>

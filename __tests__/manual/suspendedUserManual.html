@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Suspended Users Test Results</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+      }
+      td.status-pass {
+        background: #dcfce7;
+        color: #166534;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Suspended Users Test Results</h1>
+    <p><strong>Tester:</strong> P.Renlucshmi</p>
+    <p><strong>Date:</strong> 2025-07-17</p>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Steps</th>
+          <th>Expected Result</th>
+          <th>Exec Date</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SU01</td>
+          <td>Suspend a User</td>
+          <td>High</td>
+          <td>User exists; Admin logged in</td>
+          <td>
+            1. Go to Users<br />
+            2. Click “Suspend”<br />
+            3. Enter reason<br />
+            4. Confirm
+          </td>
+          <td>User moves to Suspended&nbsp;list</td>
+          <td>2025‑07‑17</td>
+          <td>User moved from Users to Suspended Users</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>SU02</td>
+          <td>Search Suspended Users</td>
+          <td>Medium</td>
+          <td>≥1 suspended user</td>
+          <td>
+            1. Open Suspended Users<br />
+            2. Type search
+          </td>
+          <td>Table filters to matching rows</td>
+          <td>2025‑07‑17</td>
+          <td>Search works</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>SU03</td>
+          <td>Prevent Suspended Login</td>
+          <td>High</td>
+          <td>User is suspended</td>
+          <td>1. Attempt login</td>
+          <td>Login blocked with suspend message</td>
+          <td>2025‑07‑17</td>
+          <td>User blocked from login</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>SU04</td>
+          <td>Prevent Re‑registration</td>
+          <td>Medium</td>
+          <td>Email suspended</td>
+          <td>1. Sign up with same email</td>
+          <td>Registration rejected: Email in use</td>
+          <td>2025‑07‑17</td>
+          <td>Cannot create account with same email</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>SU05</td>
+          <td>Unsuspend a User</td>
+          <td>High</td>
+          <td>User in Suspended list</td>
+          <td>
+            1. Click ✓<br />
+            2. Confirm
+          </td>
+          <td>User moves back to Users list</td>
+          <td>2025‑07‑17</td>
+          <td>User unsuspended and can log in again</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+        <tr>
+          <td>SU06</td>
+          <td>Reason Validation</td>
+          <td>Medium</td>
+          <td>Suspend dialog open</td>
+          <td>1. Click Confirm without reason</td>
+          <td>Error: Reason is required</td>
+          <td>2025‑07‑17</td>
+          <td>User isn’t suspended without a reason</td>
+          <td class="status-pass">Pass</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

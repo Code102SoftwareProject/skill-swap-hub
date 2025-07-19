@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import SessionBox from '@/components/messageSystem/SessionBox';
+import { useSessionActions } from '@/hooks/useSessionActions';
 
 // Mock Next.js router
 const mockPush = jest.fn();
@@ -87,6 +88,11 @@ jest.mock('@/utils/avatarUtils', () => ({
   processAvatarUrl: jest.fn((url) => url || '/default-avatar.png'),
 }));
 
+// Mock the useSessionActions hook
+jest.mock('@/hooks/useSessionActions', () => ({
+  useSessionActions: jest.fn(),
+}));
+
 // Mock data
 const mockUser = {
   _id: '6873cc50ac4e1d6e1cddf33f',
@@ -110,8 +116,8 @@ const mockSession = {
   _id: 'session-id-1',
   user1Id: mockUser,
   user2Id: mockOtherUser,
-  skill1Id: { _id: 'skill1', name: 'React' },
-  skill2Id: { _id: 'skill2', name: 'Node.js' },
+  skill1Id: { _id: 'skill1', skillName: 'React' },
+  skill2Id: { _id: 'skill2', skillName: 'Node.js' },
   descriptionOfService1: 'I can teach React basics',
   descriptionOfService2: 'I want to learn Node.js',
   startDate: '2025-01-15',
@@ -197,9 +203,33 @@ describe('SessionBox Component', () => {
     onSessionUpdate: jest.fn()
   };
 
+  // Default mock implementation for useSessionActions
+  const defaultMockSessionActions = {
+    sessions: [],
+    counterOffers: {},
+    loading: false,
+    processingSession: null,
+    pendingSessionCount: 0,
+    activeSessionCount: 0,
+    fetchSessions: jest.fn(),
+    handleAcceptReject: jest.fn(),
+    handleDeleteSession: jest.fn(),
+    handleCounterOfferResponse: jest.fn(),
+    handleRequestCompletion: jest.fn(),
+    handleCompletionResponse: jest.fn(),
+    handleRatingSubmit: jest.fn(),
+    setLoading: jest.fn(),
+    setSessions: jest.fn(),
+    setCounterOffers: jest.fn(),
+    setPendingSessionCount: jest.fn(),
+    setActiveSessionCount: jest.fn()
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = createMockFetch({});
+    // Reset to default mock implementation
+    (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue(defaultMockSessionActions);
   });
 
   afterEach(() => {
@@ -210,6 +240,12 @@ describe('SessionBox Component', () => {
     it('should show New Session button', async () => {
       global.fetch = createMockFetch({ sessions: [] });
       
+      // Mock the hook to return empty sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: []
+      });
+      
       render(<SessionBox {...defaultProps} />);
       
       await waitFor(() => {
@@ -219,6 +255,12 @@ describe('SessionBox Component', () => {
 
     it('should show empty state when no sessions exist', async () => {
       global.fetch = createMockFetch({ sessions: [] });
+      
+      // Mock the hook to return empty sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: []
+      });
       
       render(<SessionBox {...defaultProps} />);
       
@@ -236,11 +278,19 @@ describe('SessionBox Component', () => {
         counterOffers: []
       });
       
+      // Mock the hook to return the session
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: [mockSession],
+        pendingSessionCount: 1,
+        activeSessionCount: 1
+      });
+      
       render(<SessionBox {...defaultProps} />);
       
       await waitFor(() => {
-        expect(screen.getByText('I can teach React basics')).toBeInTheDocument();
-        expect(screen.getByText('I want to learn Node.js')).toBeInTheDocument();
+        expect(screen.getByText('React')).toBeInTheDocument();
+        expect(screen.getByText('Node.js')).toBeInTheDocument();
         expect(screen.getByText('pending')).toBeInTheDocument();
       });
     });
@@ -257,6 +307,14 @@ describe('SessionBox Component', () => {
         counterOffers: []
       });
       
+      // Mock the hook to return multiple sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: multiplePendingSessions,
+        pendingSessionCount: 3,
+        activeSessionCount: 3
+      });
+      
       render(<SessionBox {...defaultProps} />);
       
       await waitFor(() => {
@@ -268,6 +326,12 @@ describe('SessionBox Component', () => {
   describe('User Interactions', () => {
     it('should open create session modal when New Session button is clicked', async () => {
       global.fetch = createMockFetch({ sessions: [] });
+      
+      // Mock the hook to return empty sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: []
+      });
       
       render(<SessionBox {...defaultProps} />);
       
@@ -289,6 +353,14 @@ describe('SessionBox Component', () => {
       global.fetch = createMockFetch({ 
         sessions: multiplePendingSessions,
         counterOffers: []
+      });
+      
+      // Mock the hook to return 3 active sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: multiplePendingSessions,
+        pendingSessionCount: 3,
+        activeSessionCount: 3
       });
       
       render(<SessionBox {...defaultProps} />);
@@ -322,7 +394,7 @@ describe('SessionBox Component', () => {
       render(<SessionBox {...defaultProps} />);
       
       await waitFor(() => {
-        expect(screen.getByText('Failed to load user information')).toBeInTheDocument();
+        expect(screen.getByText('Failed to load user')).toBeInTheDocument();
       });
     });
 
@@ -351,6 +423,12 @@ describe('SessionBox Component', () => {
     it('should close create session modal when close button is clicked', async () => {
       global.fetch = createMockFetch({ sessions: [] });
       
+      // Mock the hook to return empty sessions
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: []
+      });
+      
       render(<SessionBox {...defaultProps} />);
       
       await waitFor(() => {
@@ -372,6 +450,14 @@ describe('SessionBox Component', () => {
       global.fetch = createMockFetch({ 
         sessions: [mockSession],
         counterOffers: []
+      });
+      
+      // Mock the hook to return the session
+      (useSessionActions as jest.MockedFunction<typeof useSessionActions>).mockReturnValue({
+        ...defaultMockSessionActions,
+        sessions: [mockSession],
+        pendingSessionCount: 1,
+        activeSessionCount: 1
       });
       
       render(<SessionBox {...defaultProps} />);

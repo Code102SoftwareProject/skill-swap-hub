@@ -27,7 +27,6 @@ export interface Badge {
 export const criteriaOptions = [
   "Achievement Milestone Badges",
   "Specific Badges",
-  "Engagement and Activity Badges",
   "Exclusive Recognition Badges",
 ];
 
@@ -124,6 +123,13 @@ export const validateBadgeInput = (
     return {
       isValid: false,
       errorMessage: "Badge name must be less than 50 characters",
+    };
+  }
+
+  if (name.trim().length < 3) {
+    return {
+      isValid: false,
+      errorMessage: "Badge name must be at least 3 characters long.",
     };
   }
   if (!description || description.trim().length === 0) {

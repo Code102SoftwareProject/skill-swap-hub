@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>BadgeManager Results</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      h1 {
+        margin-bottom: 0.2em;
+      }
+      .meta p {
+        margin: 0.1em 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1em;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+        font-size: 0.9em;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .status-pass {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .status-fail {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .status-blocked {
+        background: #ffedd5;
+        color: #92400e;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>BadgeManager Test Results</h1>
+    <div class="meta">
+      <p><strong>Tester:</strong> P. Renulucshmi</p>
+
+      <p><strong>Browser:</strong> Chrome</p>
+      <p><strong>Device:</strong> desktop</p>
+      <p><strong>Date:</strong> 2025-07-17</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Test Steps</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Badge Name Required</td>
+          <td>ADD</td>
+          <td>HIGH</td>
+          <td>“Add New Badge” form visible; all fields empty</td>
+          <td>
+            1. Leave Badge Name blank<br />2. Fill other fields correctly<br />3.
+            Click Add Badge
+          </td>
+          <td>Inline error “Badge Name is required”; form not submitted</td>
+          <td>Badge name is required inline error</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Badge Name Min‑Length (≥3 chars)</td>
+          <td>ADD</td>
+          <td>MEDIUM</td>
+          <td>“Add New Badge” form visible</td>
+          <td>
+            1. Enter 1–2 chars in Badge Name<br />2. Fill others correctly<br />3.
+            Click Add Badge
+          </td>
+          <td>
+            Inline error “Name must be at least 3 characters”; submit disabled
+          </td>
+          <td>inline error Badge name must be at least 3 characters long.</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Description Required & Min‑Length</td>
+          <td>ADD</td>
+          <td>HIGH</td>
+          <td>“Add New Badge” form visible</td>
+          <td>
+            1. Leave Description blank or <10 chars<br />2. Fill other fields
+            correctly<br />3. Click Add Badge
+          </td>
+          <td>
+            Inline error “Description must be at least 10 characters”; form not
+            submitted
+          </td>
+          <td>inline error showed</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Image Required & Format</td>
+          <td>ADD</td>
+          <td>HIGH</td>
+          <td>“Add New Badge” form visible</td>
+          <td>1. Leave Badge Image empty<br />2. Click Add Badge</td>
+          <td>
+            Inline error “Please upload an image” or “Unsupported file format”
+          </td>
+          <td>
+            Invalid image type. Please use JPEG, PNG, GIF or WEBP inline error
+          </td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Image Size Limit (≤2 MB)</td>
+          <td>ADD</td>
+          <td>MEDIUM</td>
+          <td>“Add New Badge” form visible</td>
+          <td>1. Upload file >2 MB<br />2. Click Add Badge</td>
+          <td>Inline error “Image must be smaller than 2 MB”</td>
+          <td>Image size should be less than 2MB inline error</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Edit Badge Inline Validation</td>
+          <td>UPDATE</td>
+          <td>HIGH</td>
+          <td>At least one badge card present</td>
+          <td>
+            1. Click Edit on a badge<br />2. Clear or shorten Badge
+            Name/Description
+          </td>
+          <td>Same inline errors as BM01–BM03; Save blocked until valid</td>
+          <td>inline error showed</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Submit Edit Updates List</td>
+          <td>UPDATE</td>
+          <td>MEDIUM</td>
+          <td>Edit form open; fields valid</td>
+          <td>1. Modify name or image<br />2. Click Save</td>
+          <td>Badge card updates immediately without full reload</td>
+          <td>its updated without reloading page</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Delete Badge Confirmation</td>
+          <td>DELETE</td>
+          <td>MEDIUM</td>
+          <td>At least one badge card present</td>
+          <td>1. Click Delete on a badge<br />2. Confirm deletion</td>
+          <td>
+            Confirmation dialog appears; after confirm, badge removed and
+            success alert shown
+          </td>
+          <td>Badge deleted successfully! alert shown</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

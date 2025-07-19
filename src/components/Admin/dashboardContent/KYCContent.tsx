@@ -347,7 +347,7 @@ export default function KYCContent() {
   }
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="p-6 bg-gray-100 min-h-screen text-gray-900 dark:text-gray-900">
       <h1 className="text-2xl font-semibold text-[#0077b6] mb-6">
         Admin Dashboard - KYC
       </h1>

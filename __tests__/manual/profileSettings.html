@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Profile Settings Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Profile Settings - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Profile Loads for Authenticated User</td><td>HIGH</td><td>User is logged in</td><td>1. Navigate to Profile Settings</td><td>Profile form loads with user data</td><td>Form loaded, data shown</td><td class="pass">PASS</td></tr>
+      <tr><td>2</td><td>Edit Profile Button Works</td><td>HIGH</td><td>Profile loaded</td><td>1. Click "Edit Profile"</td><td>Fields become editable, Save/Discard buttons appear</td><td>Fields editable</td><td class="pass">PASS</td></tr>
+      <tr><td>3</td><td>Cancel Edit Discards Changes</td><td>HIGH</td><td>In edit mode</td><td>1. Change a field<br>2. Click "Cancel"</td><td>Changes are not saved, view mode restored</td><td>Changes discarded</td><td class="pass">PASS</td></tr>
+      <tr><td>4</td><td>Discard Changes Button</td><td>HIGH</td><td>In edit mode</td><td>1. Change a field<br>2. Click "Discard Changes"</td><td>Changes are not saved, view mode restored</td><td>Changes discarded</td><td class="pass">PASS</td></tr>
+      <tr><td>5</td><td>Save Changes Button</td><td>HIGH</td><td>In edit mode</td><td>1. Change a field<br>2. Click "Save Changes"</td><td>Changes are saved, success message shown</td><td>Changes saved, message shown</td><td class="pass">PASS</td></tr>
+      <tr><td>6</td><td>First Name Required</td><td>HIGH</td><td>In edit mode</td><td>1. Clear First Name<br>2. Try to save</td><td>Browser shows required field error</td><td>Error shown, cannot save</td><td class="pass">PASS</td></tr>
+      <tr><td>7</td><td>Last Name Required</td><td>HIGH</td><td>In edit mode</td><td>1. Clear Last Name<br>2. Try to save</td><td>Browser shows required field error</td><td>Error shown, cannot save</td><td class="pass">PASS</td></tr>
+      <tr><td>8</td><td>Email Required</td><td>HIGH</td><td>In edit mode</td><td>1. Clear Email<br>2. Try to save</td><td>Browser shows required field error</td><td>Error shown, cannot save</td><td class="pass">PASS</td></tr>
+      <tr><td>9</td><td>Email Format Validation</td><td>HIGH</td><td>In edit mode</td><td>1. Enter "notanemail" in Email<br>2. Try to save</td><td>Browser shows invalid email error</td><td>Error shown, cannot save</td><td class="pass">PASS</td></tr>
+      <tr><td>10</td><td>Phone Optional</td><td>MEDIUM</td><td>In edit mode</td><td>1. Clear Phone<br>2. Save</td><td>Profile saves without phone</td><td>Saved, no error</td><td class="pass">PASS</td></tr>
+      <tr><td>11</td><td>Title Optional</td><td>MEDIUM</td><td>In edit mode</td><td>1. Clear Title<br>2. Save</td><td>Profile saves without title</td><td>Saved, no error</td><td class="pass">PASS</td></tr>
+      <tr><td>12</td><td>Avatar Upload Accepts Image</td><td>HIGH</td><td>In edit mode</td><td>1. Click avatar<br>2. Upload valid image file</td><td>Avatar preview updates, can save</td><td>Preview updates, saved</td><td class="pass">PASS</td></tr>
+      <tr><td>13</td><td>Avatar Upload Rejects Non-Image</td><td>HIGH</td><td>In edit mode</td><td>1. Try to upload .txt or .pdf file</td><td>File not accepted, no preview</td><td>File not accepted</td><td class="pass">PASS</td></tr>
+      <tr><td>14</td><td>Avatar Upload Cancel</td><td>MEDIUM</td><td>In edit mode</td><td>1. Click avatar<br>2. Cancel file dialog</td><td>No change to avatar</td><td>No change</td><td class="pass">PASS</td></tr>
+      <tr><td>15</td><td>Large Image Upload</td><td>MEDIUM</td><td>In edit mode</td><td>1. Upload very large image</td><td>Preview updates, very slow</td><td>Not tested</td><td class="not-executed">NOT EXECUTED</td></tr>
+      <tr><td>16</td><td>Save With All Fields Changed</td><td>HIGH</td><td>In edit mode</td><td>1. Change all fields<br>2. Save</td><td>All changes saved, message shown</td><td>All changes saved</td><td class="pass">PASS</td></tr>
+      <tr><td>17</td><td>Save With No Changes</td><td>LOW</td><td>In edit mode</td><td>1. Click Save without changing anything</td><td>No error, message shown</td><td>No error, message shown</td><td class="pass">PASS</td></tr>
+      <tr><td>18</td><td>Network Error on Save</td><td>MEDIUM</td><td>In edit mode</td><td>1. Disconnect network<br>2. Try to save</td><td>Error message shown</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>20</td><td>Profile Loads With Missing Data</td><td>LOW</td><td>User has missing fields</td><td>1. Navigate to Profile Settings</td><td>Fields show "Not provided"</td><td>"Not provided" shown</td><td class="pass">PASS</td></tr>
+      <tr><td>21</td><td>Avatar Loads Default If None</td><td>LOW</td><td>User has no avatar</td><td>1. Navigate to Profile Settings</td><td>Default avatar shown</td><td>Default shown</td><td class="pass">PASS</td></tr>
+    </tbody>
+  </table>
+
+</body>
+</html> 

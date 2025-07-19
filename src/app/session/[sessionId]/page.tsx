@@ -537,54 +537,88 @@ export default function SessionWorkspace() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header - Reduced from 4 nested divs to 1 semantic header */}
+      {/* Header - Mobile responsive header */}
       <header className="bg-white shadow-sm border-b">
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={() => router.back()}
-              className="text-gray-600 hover:text-gray-900"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <h1 className="text-xl font-semibold text-gray-900">
-              Session with {getOtherUserName()}
-            </h1>
-            {session?.status === 'completed' && (
-              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                ✓ Completed
-              </span>
-            )}
-            {session?.status === 'active' && (
-              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                ● Active
-              </span>
-            )}
-            {session?.status === 'canceled' && (
-              <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                ✕ Cancelled
-              </span>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-gray-500" />
-            <span className="text-sm text-gray-500">Started:</span>
-            <span className="text-sm font-medium">{formatDate(session.startDate)}</span>
-            {session?.status === 'completed' && (
-              <>
-                <span className="text-sm text-gray-400 mx-2">•</span>
-                <span className="text-sm text-gray-500">Status:</span>
-                <span className="text-sm font-medium text-green-600">Completed</span>
-              </>
-            )}
+        <nav className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+          {/* Mobile layout - stack vertically */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between py-2 sm:py-0 sm:h-16">
+            {/* Top row on mobile - back button and title */}
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <button
+                onClick={() => router.back()}
+                className="text-gray-600 hover:text-gray-900 flex-shrink-0"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+                Session with {getOtherUserName()}
+              </h1>
+              {/* Status badges - hidden on mobile, shown on larger screens */}
+              <div className="hidden sm:flex items-center space-x-2">
+                {session?.status === 'completed' && (
+                  <span className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                    ✓ Completed
+                  </span>
+                )}
+                {session?.status === 'active' && (
+                  <span className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                    ● Active
+                  </span>
+                )}
+                {session?.status === 'canceled' && (
+                  <span className="bg-red-100 text-red-800 px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap">
+                    ✕ Cancelled
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Bottom row on mobile - session info and status */}
+            <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mt-2 sm:mt-0">
+              {/* Date info */}
+              <div className="flex items-center space-x-1 sm:space-x-2">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500 flex-shrink-0" />
+                <span className="text-xs sm:text-sm text-gray-500">Started:</span>
+                <span className="text-xs sm:text-sm font-medium">{formatDate(session.startDate)}</span>
+              </div>
+              
+              {/* Status badges - visible on mobile */}
+              <div className="flex items-center space-x-2 sm:hidden">
+                {session?.status === 'completed' && (
+                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                    ✓ Completed
+                  </span>
+                )}
+                {session?.status === 'active' && (
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                    ● Active
+                  </span>
+                )}
+                {session?.status === 'canceled' && (
+                  <span className="bg-red-100 text-red-800 px-2 py-1 rounded-full text-xs font-medium">
+                    ✕ Cancelled
+                  </span>
+                )}
+              </div>
+              
+              {/* Completion status for larger screens */}
+              {session?.status === 'completed' && (
+                <div className="hidden sm:flex items-center space-x-2">
+                  <span className="text-sm text-gray-400">•</span>
+                  <span className="text-sm text-gray-500">Status:</span>
+                  <span className="text-sm font-medium text-green-600">Completed</span>
+                </div>
+              )}
+            </div>
           </div>
         </nav>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tab Navigation - Removed unnecessary wrapper div */}
-        <nav className="flex space-x-8 mb-8">
+      <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
+        {/* Tab Navigation - Mobile responsive with horizontal scroll */}
+        <nav className="mb-4 sm:mb-8">
+          {/* Mobile: Horizontal scrolling tabs */}
+          <div className="flex overflow-x-auto scrollbar-hide space-x-2 sm:space-x-8 pb-2 sm:pb-0">
             {[
               { id: 'overview', label: 'Overview', icon: FileText },
               { id: 'submit-work', label: 'Submit Work', icon: Upload },
@@ -601,7 +635,7 @@ export default function SessionWorkspace() {
                   key={tab.id}
                   onClick={() => !isDisabled && setActiveTab(tab.id as any)}
                   disabled={isDisabled}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  className={`flex items-center space-x-1 sm:space-x-2 py-2 px-2 sm:px-1 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap flex-shrink-0 ${
                     isDisabled
                       ? 'border-transparent text-gray-400 cursor-not-allowed opacity-60'
                       : activeTab === tab.id
@@ -613,17 +647,20 @@ export default function SessionWorkspace() {
                     undefined
                   }
                 >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
+                  <Icon className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                  <span className="hidden xs:inline sm:inline">{tab.label}</span>
+                  {/* Show only icon on very small screens */}
+                  <span className="xs:hidden sm:hidden sr-only">{tab.label}</span>
                   {isDisabled && (
-                    <span className="text-xs text-gray-400 ml-1">
+                    <span className="hidden sm:inline text-xs text-gray-400 ml-1">
                       ({session?.status === 'completed' ? 'Completed' : 'Cancelled'})
                     </span>
                   )}
                 </button>
               );
             })}
-          </nav>
+          </div>
+        </nav>
 
         {/* Tab Content */}
         {activeTab === 'overview' && (

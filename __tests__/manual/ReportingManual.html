@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reporting Test Execution Results</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f2f5; }
+    .header { text-align: left; margin-bottom: 20px; }
+    .header h1 { margin-bottom: 5px; }
+    .header p { margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 8px; vertical-align: top; }
+    th { background: #e2e8f0; text-transform: uppercase; font-size: 0.9em; }
+    tbody tr:nth-child(even) { background: #fafafa; }
+    .status { font-weight: 600; text-align: center; }
+    .status-pass { background: #dcfce7; color: #166534; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Reporting Page Test Results</h1>
+    <p><strong>Tester:</strong> P. Renulucshmi</p>
+    <p><strong>Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Category</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>RP01</td>
+        <td>Reporting List Renders</td>
+        <td>VIEW</td>
+        <td>HIGH</td>
+        <td>Logged in as Admin; ≥1 report exists</td>
+        <td>
+          1. Navigate to Reporting<br>
+          2. Wait for table to load
+        </td>
+        <td>Table displays all columns and rows correctly</td>
+        <td>All reports appeared as expected</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP02</td>
+        <td>Search Reports</td>
+        <td>FUNCTIONALITY</td>
+        <td>MEDIUM</td>
+        <td>≥3 reports with distinct data</td>
+        <td>
+          1. Enter “Not Following” in search<br>
+          2. Press Enter
+        </td>
+        <td>Only matching rows remain visible</td>
+        <td>Search filtered correctly</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP03</td>
+        <td>Filter by Status</td>
+        <td>FUNCTIONALITY</td>
+        <td>MEDIUM</td>
+        <td>Reports in multiple statuses exist</td>
+        <td>
+          1. Open Status dropdown<br>
+          2. Select “Under Review”
+        </td>
+        <td>Only “Under Review” rows remain</td>
+        <td>Filter worked as expected</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP04</td>
+        <td>Download Report Data</td>
+        <td>UTILITY</td>
+        <td>LOW</td>
+        <td>Table loaded</td>
+        <td>
+          1. Click the download (↓) icon on a row
+        </td>
+        <td>Report data downloads successfully</td>
+        <td>Download triggered with correct payload</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP05</td>
+        <td>Email Reporting User</td>
+        <td>WORKFLOW–EMAIL</td>
+        <td>HIGH</td>
+        <td>A pending report exists</td>
+        <td>
+          1. Click ✉️ next to Reporting User<br>
+          2. Send “Investigating…” email
+        </td>
+        <td>Status changes to “Under Review”</td>
+        <td>Email sent; status updated</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP06</td>
+        <td>Email Reported User</td>
+        <td>WORKFLOW–EMAIL</td>
+        <td>HIGH</td>
+        <td>Report is “Under Review”</td>
+        <td>
+          1. Click ✉️ next to Reported User<br>
+          2. Send “Please provide details” email
+        </td>
+        <td>Email confirmation shown</td>
+        <td>Email sent successfully</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP07</td>
+        <td>Issue Warning on False Report</td>
+        <td>WORKFLOW–ACTION</td>
+        <td>MEDIUM</td>
+        <td>Status “Under Review”</td>
+        <td>
+          1. Click ❌ (reject) icon<br>
+          2. Choose “Warn Reporter”
+        </td>
+        <td>Reporter warned; status = “Resolved – Reporter Warned”</td>
+        <td>Warning email sent; status updated</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP08</td>
+        <td>Issue Warning to Reported User</td>
+        <td>WORKFLOW–ACTION</td>
+        <td>MEDIUM</td>
+        <td>Status “Under Review”</td>
+        <td>
+          1. Click 🛡️ (warn) icon<br>
+          2. Confirm
+        </td>
+        <td>Reported user warned; status = “Resolved – Reported Warned”</td>
+        <td>Warning email sent; status updated</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+      <tr>
+        <td>RP09</td>
+        <td>Resolve Report</td>
+        <td>WORKFLOW–COMPLETE</td>
+        <td>HIGH</td>
+        <td>Any non-resolved status</td>
+        <td>
+          1. Click ✔️ (resolve) icon<br>
+          2. Confirm
+        </td>
+        <td>Status changes to “Resolved”</td>
+        <td>Report marked Resolved</td>
+        <td class="status status-pass">PASS</td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>
