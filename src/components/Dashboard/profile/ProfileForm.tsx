@@ -116,27 +116,35 @@ export default function ProfileForm() {
   };
 
   const [kycStatus, setKycStatus] = useState<string | null>(null);
+  const [kycRejectionReason, setKycRejectionReason] = useState<string | null>(null);
 
-useEffect(() => {
-  const fetchKycStatus = async () => {
-    if (!user?._id) return;
+  useEffect(() => {
+    const fetchKycStatus = async () => {
+      if (!user?._id) return;
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${user._id}`);
+        const data = await res.json();
 
-    try {
-      const res = await fetch(`/api/kyc/status?userId=${user._id}`);
-      const data = await res.json();
-
-      if (data.success) {
-        setKycStatus(data.status); // "Approved", "Rejected", or "Not Reviewed"
-      } else {
+        if (data.success) {
+          setKycStatus(data.status);
+          if (data.status === 'Rejected') {
+            setKycRejectionReason(data.reason || 'No reason provided');
+          } else {
+            setKycRejectionReason(null);
+          }
+        } else {
+          setKycStatus(null);
+          setKycRejectionReason(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch KYC status:', err);
         setKycStatus(null);
+        setKycRejectionReason(null);
       }
-    } catch (err) {
-      console.error("Failed to fetch KYC status:", err);
-    }
-  };
+    };
 
-  fetchKycStatus();
-}, [user?._id]);
+    fetchKycStatus();
+  }, [user?._id]);
 
 
   if (isLoading) {
@@ -370,9 +378,10 @@ useEffect(() => {
 
 {/* Enhanced KYC Status UI */}
 <div className="mt-8 space-y-4">
-  {kycStatus === "Approved" && (
+  {(kycStatus === 'Accepted' || kycStatus === 'Approved') && (
     <div className="animate-fade-in">
       <div className="inline-flex items-center px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-lg font-medium text-sm shadow-sm">
+        {/* Green verified tick icon */}
         <svg className="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
         </svg>
@@ -394,7 +403,7 @@ useEffect(() => {
     </div>
   )}
 
-  {kycStatus === "Rejected" && (
+  {kycStatus === 'Rejected' && (
     <div className="animate-fade-in">
       <div className="inline-flex items-center px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg font-medium text-sm shadow-sm">
         <svg className="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
@@ -404,14 +413,11 @@ useEffect(() => {
       </div>
       <div className="mt-3 p-4 bg-red-50 rounded-lg border border-red-100">
         <h4 className="font-medium text-red-800 text-sm mb-2">Reason for rejection:</h4>
-        <p className="text-red-700 text-sm mb-3">The document photo was unclear. Please ensure all text is readable.</p>
+        <p className="text-red-700 text-sm mb-3">{kycRejectionReason || 'No reason provided'}</p>
         <a
           href="/user/kyc"
           className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
         >
-          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M7.707 10.293a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 9.414V16a1 1 0 11-2 0V9.414L8.707 10.293a1 1 0 01-1.414 0z" />
-          </svg>
           Resubmit KYC
         </a>
       </div>
