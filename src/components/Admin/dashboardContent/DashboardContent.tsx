@@ -97,6 +97,7 @@ const DASHBOARD_API_URL = "/api/admin/dashboard";
 interface DashboardData {
   totalUsers: number;
   sessions: number;
+  suspendedUsers: number;
   newUsersThisWeek: number;
   skillsOffered: number;
   skillsRequested: number;
@@ -661,12 +662,10 @@ export default function DashboardContent() {
           value={filteredMetrics.newUsers.toString()}
         />
         <StatCard
-          title="Skill Match Rate"
-          value={
-            data.skillsRequested > 0
-              ? `${Math.round((data.matches / data.skillsRequested) * 100)}%`
-              : "0%"
-          }
+        
+ title="No of Suspended Users"
+ value={data.suspendedUsers.toString()}
+          
         />
         <StatCard
           title="No of Skills Requested"

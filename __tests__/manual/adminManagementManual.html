@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Management Results</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      h1 {
+        margin-bottom: 0.2em;
+      }
+      .meta p {
+        margin: 0.1em 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1em;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+        font-size: 0.9em;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .status-pass {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .status-fail {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .status-blocked {
+        background: #ffedd5;
+        color: #92400e;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Management Test Results</h1>
+    <div class="meta">
+      <p><strong>Tester:</strong> P. Renulucshmi</p>
+      <p><strong>Browser:</strong> Chrome</p>
+      <p><strong>Device:</strong> desktop</p>
+      <p><strong>Date:</strong> 2025-07-17</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Test Steps</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>View Admin List</td>
+          <td>VIEWING</td>
+          <td>MEDIUM</td>
+          <td>Logged in as Admin or Super Admin; Admin Management page open</td>
+          <td>
+            1. Navigate to Admin Management<br />2. Wait for table to load
+          </td>
+          <td>
+            Table shows Username, Email, Role, Permissions, Created, Actions; ≥1
+            row present
+          </td>
+          <td>table with the all columns showed</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Search by Username or Email</td>
+          <td>FILTERING</td>
+          <td>LOW</td>
+          <td>Admin Mgmt page loaded with ≥2 entries</td>
+          <td>1. Type part of a username or email into search box</td>
+          <td>Only matching rows remain visible</td>
+          <td>yes search box is functioning as expected</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Filter by Role</td>
+          <td>FILTERING</td>
+          <td>LOW</td>
+          <td>Mixed Admin & Super Admin rows present</td>
+          <td>1. Select Admin then Super Admin from dropdown</td>
+          <td>Table filters to show only rows for the selected role</td>
+          <td>filter show only respected column</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Edit Admin Details</td>
+          <td>UPDATE</td>
+          <td>MEDIUM</td>
+          <td>At least one row present; Edit icon visible</td>
+          <td>
+            1. Click ✏️ on a row<br />2. Change email or role<br />3. Click Save
+          </td>
+          <td>That row updates to reflect the new email/role</td>
+          <td>the row update after edit</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Delete Another Admin</td>
+          <td>DELETION</td>
+          <td>HIGH</td>
+          <td>Another user’s row exists</td>
+          <td>1. Click 🗑️ on that row<br />2. Confirm deletion</td>
+          <td>Row is removed; success message shown</td>
+          <td>successfully deleted</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Prevent Self‑Deletion</td>
+          <td>VALIDATION</td>
+          <td>HIGH</td>
+          <td>Your own row present</td>
+          <td>1. Attempt to click 🗑️ on your own row</td>
+          <td>Delete button disabled or error “Cannot delete yourself.”</td>
+          <td>its not allowing to deleted myself</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Create New Admin (Super only)</td>
+          <td>CREATION</td>
+          <td>HIGH</td>
+          <td>Logged in as Super Admin; Create Admin button visible</td>
+          <td>
+            1. Click Create Admin<br />2. Fill Username, Email, Password,
+            Role=Admin, Permissions<br />3. Click Create Admin
+          </td>
+          <td>New admin appears in the table with correct details</td>
+          <td>yes superadmin can create new admin</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Deny Access to Admin Mgmt (Admin only)</td>
+          <td>VALIDATION</td>
+          <td>HIGH</td>
+          <td>Logged in as normal Admin</td>
+          <td>1. Look for Admin Management tab/menu item</td>
+          <td>No Admin Management entry is visible to normal Admin</td>
+          <td>
+            admin admin management tab is not visible. only visible for
+            superAdmin
+          </td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Validate Create‑Form</td>
+          <td>VALIDATION</td>
+          <td>MEDIUM</td>
+          <td>Create Admin modal open</td>
+          <td>
+            1. Leave required fields blank or invalid<br />2. Click Create Admin
+          </td>
+          <td>Inline validation errors appear; form not submitted</td>
+          <td>username ,password ,email validation are included</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>Permission Persistence</td>
+          <td>FUNCTIONALITY</td>
+          <td>MEDIUM</td>
+          <td>After Create or Edit</td>
+          <td>1. Reload Admin Management page</td>
+          <td>Created/edited admins & permissions persist correctly</td>
+          <td>after reload also its persisted</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

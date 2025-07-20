@@ -385,7 +385,24 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
         />
       </div>
 
-      <ul className="space-y-1 md:space-y-2 overflow-y-auto max-h-[calc(100vh-120px)]">
+      {/* No chat rooms message */}
+      {chatRooms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+          <div className="mb-4">
+            <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-3">
+              <Search className="w-8 h-8 text-gray-400" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-textcolor mb-2">No Chat Rooms Yet</h3>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            Once you have a skill matching with another user, you will be assigned a chat room to start conversations.
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            Keep exploring and connecting with others!
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-1 md:space-y-2 overflow-y-auto max-h-[calc(100vh-120px)]">
         {chatRooms
           // Sort by most recent message
           .sort((a, b) => {
@@ -452,7 +469,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
               </li>
             );
           })}
-      </ul>
+        </ul>
+      )}
     </div>
   );
 }

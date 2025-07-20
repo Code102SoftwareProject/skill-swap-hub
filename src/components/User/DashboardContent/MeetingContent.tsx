@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import  { useEffect, useState, useCallback, useRef } from 'react';
 import { Search, Calendar, Filter, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
 import MeetingList from '@/components/meetingSystem/MeetingList';
 import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
 import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
+import CancellationAlert from '@/components/meetingSystem/CancellationAlert';
 import Meeting from '@/types/meeting';
 import { 
   fetchAllUserMeetings, 
@@ -14,7 +15,9 @@ import {
   checkMeetingNotesExist,
   cancelMeetingWithReason,
   fetchAllUserMeetingNotes,
-  canCancelMeeting
+  canCancelMeeting,
+  fetchUnacknowledgedCancellations,
+  acknowledgeMeetingCancellation
 } from "@/services/meetingApiServices";
 import { fetchUserProfile } from "@/services/chatApiServices";
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
@@ -86,6 +89,11 @@ export default function MeetingContent() {
   const [sortBy, setSortBy] = useState<'date' | 'name' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'accepted' | 'completed' | 'cancelled'>('all');
+
+  // Cancellation alerts states
+  const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
+  const [loadingCancellations, setLoadingCancellations] = useState(false);
+  const [acknowledgingCancellation, setAcknowledgingCancellation] = useState<string | null>(null);
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -538,6 +546,45 @@ ${formattedContent}
     setShowCancelModal(true);
   };
 
+  // Fetch cancellation alerts
+  const fetchCancellationAlerts = useCallback(async () => {
+    if (!user?._id) return;
+    
+    try {
+      setLoadingCancellations(true);
+      const alerts = await fetchUnacknowledgedCancellations(user._id);
+      setCancellationAlerts(alerts);
+    } catch (error) {
+      console.error('Error fetching cancellation alerts:', error);
+    } finally {
+      setLoadingCancellations(false);
+    }
+  }, [user?._id]);
+
+  // Acknowledge cancellation alert
+  const handleAcknowledgeCancellation = async (cancellationId: string) => {
+    if (!user?._id) return;
+    
+    try {
+      setAcknowledgingCancellation(cancellationId);
+      const success = await acknowledgeMeetingCancellation(cancellationId, user._id);
+      
+      if (success) {
+        setCancellationAlerts(prev => 
+          prev.filter(alert => alert._id !== cancellationId)
+        );
+        showAlert('success', 'Cancellation acknowledged');
+      } else {
+        showAlert('error', 'Failed to acknowledge cancellation');
+      }
+    } catch (error) {
+      console.error('Error acknowledging cancellation:', error);
+      showAlert('error', 'Failed to acknowledge cancellation');
+    } finally {
+      setAcknowledgingCancellation(null);
+    }
+  };
+
   // Get user display name (needed for search/filter)
   const getUserDisplayName = (userId: string): string => {
     if (userId === user?._id) return 'You';
@@ -595,6 +642,11 @@ ${formattedContent}
 
     return filtered;
   };
+
+  // Fetch cancellation alerts when component mounts and when meetings change
+  useEffect(() => {
+    fetchCancellationAlerts();
+  }, [fetchCancellationAlerts]);
 
   // Use API service to filter meetings (same as MeetingBox)
   const allFilteredMeetings = getFilteredAndSortedMeetings();
@@ -681,6 +733,28 @@ ${formattedContent}
           </button>
         </div>
       </div>
+
+      {/* Cancellation Alerts */}
+      {cancellationAlerts.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+            <span>⚠️ Meeting Cancellation Alerts</span>
+            {loadingCancellations && (
+              <div className="ml-2 animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+            )}
+          </h3>
+          <div className="space-y-3">
+            {cancellationAlerts.map(alert => (
+              <CancellationAlert
+                key={alert._id}
+                cancellation={alert}
+                onAcknowledge={handleAcknowledgeCancellation}
+                loading={acknowledgingCancellation === alert._id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Meetings List */}
       <div className="flex-1 overflow-y-auto">
