@@ -18,6 +18,7 @@ import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessSt
 
 // Import AdminManagementContent directly to avoid chunk loading issues
 import AdminManagementContent from "../../../components/Admin/dashboardContent/AdminManagementContent";
+import AdminModerationPanel from '@/components/Admin/dashboardContent/AdminModerationPanel';
 
 // Constants to avoid magic strings
 const COMPONENTS = {
@@ -307,7 +308,14 @@ export default function AdminDashboard() {
         case COMPONENTS.SUCCESS_STORIES:
           return <SuccessStoriesContent key={activeComponent} />;
         case COMPONENTS.SUGGESTIONS:
-          return <SuggestionsContent key={activeComponent} />;
+          return (
+            <SuggestionsContent
+              key={activeComponent}
+              onNavigateToPanel={() => setActiveComponent('AdminModerationPanel')}
+            />
+          );
+        case 'AdminModerationPanel':
+          return <AdminModerationPanel key={activeComponent} />;
         case COMPONENTS.SYSTEM:
           return <SystemContent key={activeComponent} />;
         case COMPONENTS.VERIFY_DOCUMENTS:
