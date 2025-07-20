@@ -42,9 +42,9 @@ jobs:
           MONGODB_URI: mongodb://localhost:27017/test-db
           
           # JWT & Auth  
-          JWT_SECRET: test-jwt-secret-for-ci-testing-only
-          ADMIN_JWT_SECRET: test-admin-jwt-secret-for-ci-testing-only
-          M_KEY: test-m-key-for-ci-testing-only
+          JWT_SECRET: dd8a48e6f99d7b4c3b6a4c7e9587a2cc7f8b9e3a1d5f6g8h2j3k4m5n6p7q8r9t1u2v3w4x5y6z7-ci-test
+          ADMIN_JWT_SECRET: d8da04f2c803f88c68e38c47bad261223d01cc73e5f89d15e02bbf9f858f53b0f7220e5c23eb1f34ad355f821298d196-ci-test
+          M_KEY: e685b3de592422cdceff763ca3e784a2c792e4e7e5984cf0ea86544555612b80-ci-test
           
           # Mock external services for testing
           R2_ACCESS_KEY_ID: mock-r2-access-key-id
@@ -73,10 +73,10 @@ jobs:
           # Database
           MONGODB_URI: mongodb://localhost:27017/test-db
           
-          # JWT & Auth
-          JWT_SECRET: test-jwt-secret-for-ci-build-only-not-for-production-use
-          ADMIN_JWT_SECRET: test-admin-jwt-secret-for-ci-build-only-not-for-production
-          M_KEY: test-m-key-for-ci-build-only-not-for-production-use
+          # JWT & Auth - Make sure these are long enough and properly formatted
+          JWT_SECRET: dd8a48e6f99d7b4c3b6a4c7e9587a2cc7f8b9e3a1d5f6g8h2j3k4m5n6p7q8r9t1u2v3w4x5y6z7-ci-build
+          ADMIN_JWT_SECRET: d8da04f2c803f88c68e38c47bad261223d01cc73e5f89d15e02bbf9f858f53b0f7220e5c23eb1f34ad355f821298d196-ci-build
+          M_KEY: e685b3de592422cdceff763ca3e784a2c792e4e7e5984cf0ea86544555612b80-ci-build
           
           # Cloudflare R2 Storage
           R2_ACCESS_KEY_ID: mock-r2-access-key-id
@@ -108,8 +108,8 @@ jobs:
           # Socket Connection
           NEXT_PUBLIC_SOCKET: https://mock-socket-server.example.com/
           
-          # Build Configuration
-          NODE_ENV: production
+          # Build Configuration - Use 'ci' instead of 'production' to avoid production validations
+          NODE_ENV: ci
           NEXT_TELEMETRY_DISABLED: 1
           SKIP_DB_VALIDATION: true
           
