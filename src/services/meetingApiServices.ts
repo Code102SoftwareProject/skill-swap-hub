@@ -208,9 +208,10 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
           console.log('Meeting acceptance notification sent successfully');
         } else if (action === 'reject') {
           const rejecterName = await getUserName(receiverId);
+          // ! Decline Notification
           await sendMeetingNotification(
             senderId,
-            25, // MEETING_REJECTED
+            30, // MEETING_DECLIENED
             `${rejecterName} declined your meeting request`,
             `/dashboard?tab=meetings`
           );
@@ -351,6 +352,26 @@ export async function fetchMeetingCancellation(meetingId: string, userId: string
       return await response.json();
     },
     300000 // 5 minute cache
+  );
+}
+
+/**
+ ** Fetch all unacknowledged cancellations for a user
+ * 
+ * @param userId - ID of the current user
+ * @returns Promise that resolves to array of unacknowledged cancellations
+ */
+export async function fetchUnacknowledgedCancellations(userId: string) {
+  const cacheKey = `unacknowledged-cancellations-${userId}`;
+  
+  return debouncedApiService.makeRequest(
+    cacheKey,
+    async () => {
+      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`);
+      if (!response.ok) return [];
+      return await response.json();
+    },
+    30000 // 30 second cache
   );
 }
 

@@ -7,7 +7,6 @@ interface MeetingNotes {
   userName: string;
   title: string;
   content: string;
-  tags: string[];
   isPrivate: boolean;
   wordCount: number;
   autoSaveCount: number;
@@ -60,7 +59,6 @@ export const useMeetingNotes = ({
             userName: userName || 'Anonymous',
             title: 'Meeting Notes',
             content: '',
-            tags: [],
             isPrivate: true,
             wordCount: 0,
             autoSaveCount: 0,
@@ -156,33 +154,6 @@ export const useMeetingNotes = ({
     scheduleAutoSave();
   }, [notes, scheduleAutoSave]);
 
-  // Add tag
-  const addTag = useCallback((tag: string) => {
-    if (!notes || !tag.trim()) return;
-    
-    const trimmedTag = tag.trim().toLowerCase();
-    if (notes.tags.includes(trimmedTag)) return;
-    
-    setNotes(prev => prev ? { 
-      ...prev, 
-      tags: [...prev.tags, trimmedTag] 
-    } : null);
-    hasUnsavedChanges.current = true;
-    scheduleAutoSave();
-  }, [notes, scheduleAutoSave]);
-
-  // Remove tag
-  const removeTag = useCallback((tagToRemove: string) => {
-    if (!notes) return;
-    
-    setNotes(prev => prev ? {
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    } : null);
-    hasUnsavedChanges.current = true;
-    scheduleAutoSave();
-  }, [notes, scheduleAutoSave]);
-
   // Toggle privacy
   const togglePrivacy = useCallback(() => {
     if (!notes) return;
@@ -259,8 +230,6 @@ export const useMeetingNotes = ({
     hasUnsavedChanges: hasUnsavedChanges.current,
     updateContent,
     updateTitle,
-    addTag,
-    removeTag,
     togglePrivacy,
     saveNotes: forceSave,
     deleteNotes,

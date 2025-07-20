@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Calendar, Plus, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
+import CancellationAlert from '@/components/meetingSystem/CancellationAlert';
 import MeetingList from '@/components/meetingSystem/MeetingList';
 import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
 import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
 import Meeting from '@/types/meeting';
+import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
 import { 
   fetchMeetings, 
   createMeeting, 
@@ -13,6 +15,7 @@ import {
   cancelMeetingWithReason,
   fetchMeetingCancellation,
   acknowledgeMeetingCancellation,
+  fetchUnacknowledgedCancellations,
   checkMeetingNotesExist,
   fetchAllUserMeetingNotes,
   downloadMeetingNotesFile,
@@ -43,6 +46,7 @@ interface CancellationAlert {
   cancelledAt: string;
   cancellerName: string;
   meetingTime: string;
+  meetingDescription?: string;
 }
 
 interface MeetingNote {
@@ -84,6 +88,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [meetingNotesStatus, setMeetingNotesStatus] = useState<{[meetingId: string]: boolean}>({});
   const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
   const [actionLoadingStates, setActionLoadingStates] = useState<{[meetingId: string]: string}>({});
+
+  // Cancellation alerts state
+  const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
+  const [loadingCancellationAlerts, setLoadingCancellationAlerts] = useState(false);
 
   // Saved notes states
   const [savedNotes, setSavedNotes] = useState<MeetingNote[]>([]);
@@ -155,6 +163,56 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
+  // Fetch cancellation alerts for the current user from the specific other user
+  const fetchCancellationAlerts = useCallback(async () => {
+    if (!userId || !otherUserId) return;
+    
+    try {
+      setLoadingCancellationAlerts(true);
+      const alerts = await fetchUnacknowledgedCancellations(userId);
+      
+      // Filter alerts to only show cancellations from the current chat partner
+      const filteredAlerts = (alerts || []).filter((alert: CancellationAlert) => {
+        // Check if this cancellation is related to a meeting with the current other user
+        // We can match by checking if the meeting involves both users
+        return meetings.some(meeting => 
+          meeting._id === alert.meetingId && 
+          (
+            (meeting.senderId === userId && meeting.receiverId === otherUserId) ||
+            (meeting.senderId === otherUserId && meeting.receiverId === userId)
+          )
+        );
+      });
+      
+      setCancellationAlerts(filteredAlerts);
+    } catch (error) {
+      console.error('Error fetching cancellation alerts:', error);
+      setCancellationAlerts([]);
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
+  }, [userId, otherUserId, meetings]);
+
+  // Handle acknowledging a cancellation
+  const handleAcknowledgeCancellation = async (cancellationId: string) => {
+    try {
+      setLoadingCancellationAlerts(true);
+      await acknowledgeMeetingCancellation(cancellationId, userId);
+      
+      // Remove the acknowledged cancellation from the list
+      setCancellationAlerts(prev => 
+        prev.filter(alert => alert._id !== cancellationId)
+      );
+      
+      showAlert('success', 'Cancellation acknowledged successfully');
+    } catch (error) {
+      console.error('Error acknowledging cancellation:', error);
+      showAlert('error', 'Failed to acknowledge cancellation');
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
+  };
+
   // Check if a meeting is currently happening (in non-cancellation period)
   const isMeetingHappening = (meeting: Meeting): boolean => {
     if (meeting.state !== 'accepted') return false;
@@ -170,6 +228,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Get meetings that are currently happening
   const currentlyHappeningMeetings = meetings.filter(isMeetingHappening);
 
+  // Get meetings excluding currently happening ones for other categories
+  const meetingsExcludingCurrent = meetings.filter(meeting => !isMeetingHappening(meeting));
+
   // Update meeting statuses every minute to refresh currently happening meetings
   useEffect(() => {
     if (meetings.length === 0) return;
@@ -183,9 +244,18 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     return () => clearInterval(interval);
   }, [meetings.length]);
 
-  // Use API service to filter meetings
-  const filteredMeetings = filterMeetingsByType(meetings, userId);
-  const hasActiveMeetingsOrRequests = filteredMeetings.pendingRequests.length > 0 || filteredMeetings.upcomingMeetings.length > 0 || currentlyHappeningMeetings.length > 0;
+  // Use API service to filter meetings (excluding currently happening ones)
+  const filteredMeetings = filterMeetingsByType(meetingsExcludingCurrent, userId);
+  
+  // Additional filtering to ensure no overlap between currently happening and upcoming
+  const cleanedUpcomingMeetings = filteredMeetings.upcomingMeetings.filter(meeting => !isMeetingHappening(meeting));
+  
+  const finalFilteredMeetings = {
+    ...filteredMeetings,
+    upcomingMeetings: cleanedUpcomingMeetings
+  };
+  
+  const hasActiveMeetingsOrRequests = finalFilteredMeetings.pendingRequests.length > 0 || finalFilteredMeetings.upcomingMeetings.length > 0 || currentlyHappeningMeetings.length > 0;
 
   // Track if meetings have been loaded to prevent duplicate onMeetingUpdate calls
   const hasFetchedMeetings = useRef(false);
@@ -245,6 +315,13 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     hasFetchedMeetings.current = false; // Reset for new otherUserId
     loadMeetings();
   }, [otherUserId, userId]);
+
+  // Fetch cancellation alerts when userId, otherUserId, or meetings change
+  useEffect(() => {
+    if (userId && otherUserId && meetings.length > 0) {
+      fetchCancellationAlerts();
+    }
+  }, [userId, otherUserId, meetings.length, fetchCancellationAlerts]);
 
   // Fetch user profiles for all meeting participants
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
@@ -377,86 +454,26 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Handle downloading notes
   const handleDownloadNotes = async (note: MeetingNote) => {
     try {
-      // Create markdown content directly from the note data
-      const meetingTitle = note.meetingInfo?.description || note.title;
-      const meetingDate = note.meetingInfo?.meetingTime || note.createdAt;
+      // Get the other user's name
+      const otherUserName = otherUserId && userProfiles[otherUserId] 
+        ? `${userProfiles[otherUserId].firstName} ${userProfiles[otherUserId].lastName}`.trim()
+        : 'User';
       
-      // Create a well-formatted markdown document
-      const formattedDate = new Date(meetingDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      const pdfData: MeetingNotePDFData = {
+        title: note.title,
+        content: note.content,
+        meetingId: note.meetingId,
+        createdAt: note.createdAt,
+        lastModified: note.lastModified,
+        wordCount: note.wordCount,
+        tags: note.tags,
+        isPrivate: note.isPrivate,
+        otherUserName: otherUserName,
+        meetingInfo: note.meetingInfo
+      };
       
-      const formattedTime = new Date(meetingDate).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-
-      // Clean up the content
-      let formattedContent = note.content
-        .replace(/^## (.*$)/gm, '## $1')
-        .replace(/^# (.*$)/gm, '# $1')
-        .replace(/^> (.*$)/gm, '> $1')
-        .replace(/^- (.*$)/gm, '- $1')
-        .trim();
-
-      const markdownDocument = `# Meeting Notes
-
----
-
-## Meeting Information
-
-- **Meeting:** ${note.title}
-- **Date:** ${formattedDate}
-- **Time:** ${formattedTime}
-- **Meeting ID:** \`${note.meetingId}\`${note.meetingInfo?.isDeleted ? '\n- **Status:** ⚠️ Meeting Removed from System' : ''}
-
----
-
-## Content
-
-${formattedContent}
-
----
-
-## Meeting Details
-
-- **Word Count:** ${note.wordCount}
-- **Tags:** ${note.tags?.join(', ') || 'None'}
-- **Created:** ${new Date(note.createdAt).toLocaleDateString()}
-- **Last Updated:** ${new Date(note.lastModified).toLocaleDateString()}
-- **Privacy:** ${note.isPrivate ? 'Private' : 'Public'}${note.meetingInfo?.isDeleted ? '\n- **Note:** Original meeting has been removed from the system but notes are preserved' : ''}
-
----
-
-*Generated by SkillSwap Hub - Meeting Notes System*
-      `;
-      
-      // Create and trigger download
-      const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const fileName = `meeting-notes-${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
-      
-      // Create download link
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      
-      // Add to DOM, click, and remove
-      document.body.appendChild(a);
-      a.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      showAlert('success', 'Notes downloaded successfully!');
+      generateMeetingNotesPDF(pdfData);
+      showAlert('success', 'Notes downloaded successfully as PDF!');
     } catch (error: any) {
       console.error('Error downloading notes:', error);
       showAlert('error', 'Failed to download notes');
@@ -552,7 +569,7 @@ ${formattedContent}
     setShowCreateModal(true);
   };
 
-  // Create Meeting Function
+  //* Create Meeting Function
   const handleCreateMeeting = async (meetingData: any) => {
     if (!otherUserId) return;
     
@@ -607,6 +624,9 @@ ${formattedContent}
         if (onMeetingUpdateRef.current) {
           onMeetingUpdateRef.current();
         }
+        
+        // Refresh cancellation alerts in case there are new ones
+        fetchCancellationAlerts();
       } else {
         showAlert('error', 'Failed to cancel meeting');
       }
@@ -676,13 +696,29 @@ ${formattedContent}
           </button>
         </div>
 
+        {/* Cancellation Alerts */}
+        {cancellationAlerts.length > 0 && (
+          <div className="mb-4">
+            <div className="space-y-2">
+              {cancellationAlerts.map((cancellation) => (
+                <CancellationAlert
+                  key={cancellation._id}
+                  cancellation={cancellation}
+                  onAcknowledge={handleAcknowledgeCancellation}
+                  loading={loadingCancellationAlerts}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Meetings List */}
         <div className="flex-1 overflow-y-auto space-y-4">
           <MeetingList
-            pendingRequests={filteredMeetings.pendingRequests}
-            upcomingMeetings={filteredMeetings.upcomingMeetings}
-            pastMeetings={filteredMeetings.pastMeetings}
-            cancelledMeetings={filteredMeetings.cancelledMeetings}
+            pendingRequests={finalFilteredMeetings.pendingRequests}
+            upcomingMeetings={finalFilteredMeetings.upcomingMeetings}
+            pastMeetings={finalFilteredMeetings.pastMeetings}
+            cancelledMeetings={finalFilteredMeetings.cancelledMeetings}
             currentlyHappeningMeetings={currentlyHappeningMeetings}
             hasActiveMeetingsOrRequests={hasActiveMeetingsOrRequests}
             showPastMeetings={showPastMeetings}
