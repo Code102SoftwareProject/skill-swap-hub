@@ -402,7 +402,7 @@ function DailyMeetingInner({
   );
 }
 
-// Participant tile component
+//* Participant tile component
 function ParticipantTile({ 
   participantId, 
   isLocal, 
@@ -451,7 +451,7 @@ function ParticipantTile({
   );
 }
 
-// Camera tile for screen share sidebar
+//* Camera tile for screen share sidebar
 function CameraTile({ participantId }: { participantId: string }) {
   const participant = useParticipant(participantId);
   const localParticipant = useLocalParticipant();
@@ -491,7 +491,7 @@ function CameraTile({ participantId }: { participantId: string }) {
   );
 }
 
-// Main component with DailyProvider
+//* DailyProvider
 export default function DailyMeeting({ 
   roomUrl, 
   onLeave, 
@@ -515,7 +515,7 @@ export default function DailyMeeting({
         // Enhanced configuration for better device handling
         videoSource: 'camera',
         audioSource: 'microphone',
-        // Try to gracefully handle device conflicts
+        //* handle device conflicts
         startVideoOff: false,
         startAudioOff: false,
       });

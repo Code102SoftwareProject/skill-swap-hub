@@ -1,0 +1,144 @@
+/* Tiptap Editor Styles */
+.ProseMirror {
+  outline: none !important;
+  padding: 1rem;
+  min-height: 200px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.6;
+}
+
+.ProseMirror h1 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin: 1.5em 0 0.8em 0;
+  color: #1a1a1a;
+}
+
+.ProseMirror h2 {
+  font-size: 1.3em;
+  font-weight: bold;
+  margin: 1.3em 0 0.7em 0;
+  color: #1a1a1a;
+}
+
+.ProseMirror h3 {
+  font-size: 1.1em;
+  font-weight: bold;
+  margin: 1.2em 0 0.6em 0;
+  color: #1a1a1a;
+}
+
+.ProseMirror p {
+  margin: 0.5em 0;
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.8em 0;
+}
+
+.ProseMirror li {
+  margin: 0.3em 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid #e2e8f0;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  background-color: #f8fafc;
+  font-style: italic;
+  color: #64748b;
+}
+
+.ProseMirror strong {
+  font-weight: bold;
+}
+
+.ProseMirror em {
+  font-style: italic;
+}
+
+.ProseMirror u {
+  text-decoration: underline;
+}
+
+.ProseMirror mark {
+  background-color: #fbbf24;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.ProseMirror code {
+  background-color: #f1f5f9;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9em;
+}
+
+.ProseMirror pre {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* Dark mode styles */
+.dark .ProseMirror h1,
+.dark .ProseMirror h2,
+.dark .ProseMirror h3 {
+  color: #f8fafc;
+}
+
+.dark .ProseMirror blockquote {
+  border-left-color: #475569;
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+.dark .ProseMirror mark {
+  background-color: #f59e0b;
+  color: #1a1a1a;
+}
+
+.dark .ProseMirror code {
+  background-color: #475569;
+  color: #e2e8f0;
+}
+
+/* Placeholder styles */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #94a3b8;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  white-space: pre-wrap;
+}
+
+.dark .ProseMirror p.is-editor-empty:first-child::before {
+  color: #64748b;
+}
+
+/* Focus styles */
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Selection styles */
+.ProseMirror ::selection {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.dark .ProseMirror ::selection {
+  background-color: #2563eb;
+}

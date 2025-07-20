@@ -23,7 +23,13 @@ import {
   List,
   Quote
 } from 'lucide-react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Highlight from '@tiptap/extension-highlight';
+import UnderlineExtension from '@tiptap/extension-underline';
+import Placeholder from '@tiptap/extension-placeholder';
 import { useMeetingNotes } from '@/hooks/useMeetingNotes';
+import '@/styles/tiptap.css';
 
 interface MeetingNotesSidebarProps {
   meetingId?: string;
@@ -59,18 +65,66 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [newTag, setNewTag] = useState('');
   const [showTagInput, setShowTagInput] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
   const [currentTopic, setCurrentTopic] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-resize textarea
+  // Tiptap editor configuration
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Highlight.configure({
+        HTMLAttributes: {
+          class: 'bg-yellow-200 dark:bg-yellow-800 px-1 rounded',
+        },
+      }),
+      UnderlineExtension,
+      Placeholder.configure({
+        placeholder: `Start typing your meeting notes here...
+
+💡 Keyboard shortcuts:
+• Ctrl+B for bold, Ctrl+I for italic, Ctrl+U for underline
+• Ctrl+H for highlight, Ctrl+Q for quotes, Ctrl+L for bullet points
+• Ctrl+S to save, Add topics using the input above
+
+Tips:
+- Use **bold** for emphasis
+- Use *italic* for highlights  
+- Use ==highlight== for important points
+- Use ## Topic for headings (or use topic input)
+- Use - for bullet points
+- Use > for quotes`,
+      }),
+    ],
+    content: notes?.content || '',
+    onUpdate: ({ editor }) => {
+      updateContent(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: 'flex-1 p-4 border-none resize-none focus:outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm leading-relaxed prose prose-sm max-w-none dark:prose-invert',
+      },
+    },
+  });
+
+  // Update editor content when notes change
   useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    if (editor && notes?.content !== editor.getHTML()) {
+      editor.commands.setContent(notes?.content || '');
     }
-  }, [notes?.content]);
+  }, [notes?.content, editor]);
+
+  // Cleanup editor on unmount
+  useEffect(() => {
+    return () => {
+      if (editor) {
+        editor.destroy();
+      }
+    };
+  }, [editor]);
 
   // Focus title input when editing
   useEffect(() => {
@@ -110,7 +164,7 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
   };
 
   const downloadNotes = () => {
-    if (!notes?.content) return;
+    if (!notes?.content || !editor) return;
     
     // Create a well-formatted markdown document
     const formattedDate = new Date(notes.createdAt).toLocaleDateString('en-US', {
@@ -126,12 +180,20 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
       hour12: true
     });
 
-    // Keep markdown formatting intact and clean it up
-    let formattedContent = notes.content
-      .replace(/^## (.*$)/gm, '## $1')  // Ensure proper heading format
-      .replace(/^# (.*$)/gm, '# $1')    // Ensure proper heading format
-      .replace(/^> (.*$)/gm, '> $1')    // Ensure proper quote format
-      .replace(/^- (.*$)/gm, '- $1')    // Ensure proper list format
+    // Convert HTML to markdown-like format for download
+    const htmlContent = editor.getHTML();
+    let formattedContent = htmlContent
+      .replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1')
+      .replace(/<h1[^>]*>(.*?)<\/h1>/g, '# $1')
+      .replace(/<h3[^>]*>(.*?)<\/h3>/g, '### $1')
+      .replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**')
+      .replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*')
+      .replace(/<u[^>]*>(.*?)<\/u>/g, '<u>$1</u>')
+      .replace(/<mark[^>]*>(.*?)<\/mark>/g, '==$1==')
+      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/g, '> $1')
+      .replace(/<li[^>]*>(.*?)<\/li>/g, '- $1')
+      .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
+      .replace(/\n\s*\n/g, '\n\n') // Clean up extra whitespace
       .trim();
 
     const wordCount = getWordCount();
@@ -179,72 +241,36 @@ ${formattedContent}
     URL.revokeObjectURL(url);
   };
 
-  // Rich text editing functions
-  const getSelectedText = () => {
-    const textarea = textareaRef.current;
-    if (!textarea) return '';
-    return textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
-  };
-
-  const insertAtCursor = (before: string, after: string = '', replaceBehavior: 'wrap' | 'insert' = 'wrap') => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = textarea.value.substring(start, end);
-    
-    let newText = '';
-    if (replaceBehavior === 'wrap' && selectedText) {
-      newText = before + selectedText + after;
-    } else {
-      newText = before + after;
-    }
-    
-    const newContent = textarea.value.substring(0, start) + newText + textarea.value.substring(end);
-    updateContent(newContent);
-    
-    // Set cursor position after the inserted text
-    setTimeout(() => {
-      if (replaceBehavior === 'wrap' && selectedText) {
-        textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
-      } else {
-        const cursorPos = start + before.length;
-        textarea.setSelectionRange(cursorPos, cursorPos);
-      }
-      textarea.focus();
-    }, 0);
-  };
-
+  // Rich text editing functions for Tiptap
   const formatBold = () => {
-    insertAtCursor('**', '**');
+    editor?.chain().focus().toggleBold().run();
   };
 
   const formatItalic = () => {
-    insertAtCursor('*', '*');
+    editor?.chain().focus().toggleItalic().run();
   };
 
   const formatUnderline = () => {
-    insertAtCursor('<u>', '</u>');
+    editor?.chain().focus().toggleUnderline().run();
   };
 
   const formatHighlight = () => {
-    insertAtCursor('==', '==');
+    editor?.chain().focus().toggleHighlight().run();
   };
 
   const insertTopic = () => {
-    if (currentTopic.trim()) {
-      insertAtCursor(`\n## ${currentTopic.trim()}\n\n`, '', 'insert');
+    if (currentTopic.trim() && editor) {
+      editor.chain().focus().setHeading({ level: 2 }).insertContent(currentTopic.trim()).insertContent('<p></p>').run();
       setCurrentTopic('');
     }
   };
 
   const insertBulletPoint = () => {
-    insertAtCursor('\n- ', '', 'insert');
+    editor?.chain().focus().toggleBulletList().run();
   };
 
   const insertQuote = () => {
-    insertAtCursor('\n> ', '', 'insert');
+    editor?.chain().focus().toggleBlockquote().run();
   };
 
   const handleTopicKeyDown = (e: React.KeyboardEvent) => {
@@ -253,7 +279,7 @@ ${formattedContent}
     }
   };
 
-  // Enhanced keyboard shortcuts
+  // Enhanced keyboard shortcuts for Tiptap
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.ctrlKey || e.metaKey) {
       switch (e.key) {
@@ -290,8 +316,9 @@ ${formattedContent}
   };
 
   const getWordCount = () => {
-    if (!notes?.content) return 0;
-    return notes.content.trim().split(/\s+/).filter(word => word.length > 0).length;
+    if (!editor) return 0;
+    const text = editor.getText();
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
   };
 
   const formatTime = (date: Date | string) => {
@@ -299,41 +326,6 @@ ${formattedContent}
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  // Function to render markdown-like content as HTML
-  const renderFormattedContent = (content: string) => {
-    if (!content) return '';
-    
-    let formatted = content
-      // Convert bold
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      // Convert italic
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      // Convert underline
-      .replace(/<u>(.*?)<\/u>/g, '<u>$1</u>')
-      // Convert highlight
-      .replace(/==(.*?)==/g, '<mark style="background-color: #ffff00; padding: 2px 4px; border-radius: 3px;">$1</mark>')
-      // Convert code
-      .replace(/`(.*?)`/g, '<code style="background-color: #f1f1f1; padding: 2px 4px; border-radius: 3px; font-family: monospace;">$1</code>')
-      // Convert headings
-      .replace(/^## (.*$)/gm, '<h3 style="font-size: 1.2em; font-weight: bold; margin: 16px 0 8px 0; color: #333;">$1</h3>')
-      .replace(/^# (.*$)/gm, '<h2 style="font-size: 1.4em; font-weight: bold; margin: 20px 0 10px 0; color: #333;">$1</h2>')
-      // Convert quotes
-      .replace(/^> (.*$)/gm, '<blockquote style="border-left: 4px solid #ddd; margin: 8px 0; padding: 8px 16px; background-color: #f9f9f9; font-style: italic;">$1</blockquote>')
-      // Convert bullet points
-      .replace(/^- (.*$)/gm, '<li style="margin: 4px 0;">$1</li>')
-      // Convert line breaks
-      .replace(/\n/g, '<br>');
-
-    // Wrap consecutive list items in <ul>
-    formatted = formatted.replace(/(<li[^>]*>.*?<\/li>)(<br>)*(?=<li|$)/gs, (match, listItems) => {
-      // Remove trailing <br> tags and wrap in <ul>
-      const cleanListItems = listItems.replace(/(<br>)+$/g, '');
-      return `<ul style="margin: 8px 0; padding-left: 20px;">${cleanListItems}</ul>`;
-    });
-
-    return formatted;
   };
 
   if (!meetingId || !userId) {
@@ -510,28 +502,36 @@ ${formattedContent}
                 {/* Text Formatting */}
                 <button
                   onClick={formatBold}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('bold') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
+                  }`}
                   title="Bold (Ctrl+B)"
                 >
                   <Bold size={12} />
                 </button>
                 <button
                   onClick={formatItalic}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('italic') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
+                  }`}
                   title="Italic (Ctrl+I)"
                 >
                   <Italic size={12} />
                 </button>
                 <button
                   onClick={formatUnderline}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('underline') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
+                  }`}
                   title="Underline (Ctrl+U)"
                 >
                   <Underline size={12} />
                 </button>
                 <button
                   onClick={formatHighlight}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('highlight') ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : ''
+                  }`}
                   title="Highlight (Ctrl+H)"
                 >
                   <Highlighter size={12} />
@@ -542,14 +542,18 @@ ${formattedContent}
                 {/* Lists and Structure */}
                 <button
                   onClick={insertBulletPoint}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('bulletList') ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : ''
+                  }`}
                   title="Bullet List (Ctrl+L)"
                 >
                   <List size={12} />
                 </button>
                 <button
                   onClick={insertQuote}
-                  className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
+                    editor?.isActive('blockquote') ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : ''
+                  }`}
                   title="Quote (Ctrl+Q)"
                 >
                   <Quote size={12} />
@@ -589,28 +593,16 @@ ${formattedContent}
                 <p className="text-sm">{error}</p>
               </div>
             ) : (
-              <textarea
-                ref={textareaRef}
-                value={notes?.content || ''}
-                onChange={(e) => updateContent(e.target.value)}
+              <div 
+                className="flex-1 overflow-y-auto"
                 onKeyDown={handleKeyDown}
-                placeholder="Start typing your meeting notes here...
-
-💡 Keyboard shortcuts:
-• Ctrl+B for **bold**, Ctrl+I for *italic*, Ctrl+U for underline
-• Ctrl+H for ==highlight==, Ctrl+Q for quotes, Ctrl+L for bullet points
-• Ctrl+S to save, Add topics using the input above
-
-Tips:
-- Use **bold** for emphasis
-- Use *italic* for highlights  
-- Use ==highlight== for important points
-- Use ## Topic for headings (or use topic input)
-- Use - for bullet points
-- Use > for quotes"
-                className="flex-1 p-4 border-none resize-none focus:outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm leading-relaxed font-mono"
                 style={{ minHeight: '200px' }}
-              />
+              >
+                <EditorContent 
+                  editor={editor}
+                  className="h-full"
+                />
+              </div>
             )}
           </div>
 
