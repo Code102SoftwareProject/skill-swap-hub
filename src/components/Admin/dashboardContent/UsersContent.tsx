@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { debounce } from 'lodash-es';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { debounce } from "lodash-es";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 //import { processAvatarUrl } from '@/utils/avatarUtils';
-import { processAvatarUrl } from '@/utils/imageUtils';
-import Image from 'next/image';
+import { processAvatarUrl } from "@/utils/imageUtils";
+import Image from "next/image";
+import { UserRoundX } from "lucide-react";
 // Types
 interface User {
   _id: string;
@@ -252,7 +253,6 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
   );
 };
 
-
 const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   onClick,
   label,
@@ -309,20 +309,7 @@ const SuspendButton: React.FC<{
         />
       </svg>
     ) : (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="#f59e0b"
-        className="w-6 h-6"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-        />
-      </svg>
+      <UserRoundX className="w-6 h-6 text-yellow-500" />
     )}
   </button>
 );
