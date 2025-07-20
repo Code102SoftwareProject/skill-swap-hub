@@ -4,7 +4,6 @@ import {
   Download,
   Check,
   X,
-  Circle,
   Search,
   SortDesc,
   SortAsc,
