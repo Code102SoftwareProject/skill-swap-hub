@@ -8,10 +8,11 @@ import Image from 'next/image';
 //import { processAvatarUrl } from '@/utils/avatarUtils';
 import { processAvatarUrl } from '@/utils/imageUtils';
 import SuggestionSummaryModal from "@/components/Admin/SuggestionSummaryModal";
+import Link from 'next/link';
 
 
 interface Suggestion {
-  _id: string;
+  _id: string; 
   userName: string;
   role: string;
   avatar: string;
@@ -22,7 +23,11 @@ interface Suggestion {
   status: 'Pending' | 'Approved' | 'Rejected';
 }
 
-export default function SuggestionsContent() {
+interface SuggestionsContentProps {
+  onNavigateToPanel?: () => void;
+}
+
+export default function SuggestionsContent({ onNavigateToPanel }: SuggestionsContentProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearchTerm] = useDebounce(searchTerm, 300);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -34,6 +39,7 @@ export default function SuggestionsContent() {
   const [isModalClosing, setIsModalClosing] = useState(false);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [isAnalysisClosing, setIsAnalysisClosing] = useState(false);
+  // Remove showModerationPanel state and AdminModerationPanel import
 
   const itemsPerPage = 8;
 
@@ -145,8 +151,71 @@ export default function SuggestionsContent() {
     return { categoryStats, statusStats, monthlyStats };
   };
 
+  // --- Moderation Table State ---
+  interface UserStat {
+    userId: string;
+    name: string;
+    email: string;
+    totalSuggestions: number;
+    maxSuggestionsIn1Day: number;
+    status: 'Normal' | 'Suspicious';
+    isBlocked?: boolean;
+  }
+
+  const [userStats, setUserStats] = useState<UserStat[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserStat | null>(null);
+  const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isUserModalLoading, setIsUserModalLoading] = useState(false);
+
+  // Fetch user stats for moderation
+  const fetchUserStats = async () => {
+    try {
+      const res = await fetch('/api/suggestions/admin-stats');
+      const data = await res.json();
+      setUserStats(data);
+    } catch (error) {
+      toast.error('Failed to load user stats');
+    }
+  };
+
+  // Fetch user details for block status
+  const fetchUserBlockStatus = async (userId: string) => {
+    try {
+      const res = await fetch(`/api/User-managment/${userId}`);
+      if (!res.ok) return false;
+      const data = await res.json();
+      return data.isBlocked || false;
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    fetchUserStats();
+  }, []);
+
+  // Fetch all suggestions for a user
+  const fetchUserSuggestions = async (userId: string) => {
+    setIsUserModalLoading(true);
+    try {
+      const res = await fetch(`/api/suggestions/user/${userId}`);
+      const data = await res.json();
+      setUserSuggestions(data);
+    } catch (error) {
+      toast.error('Failed to load user suggestions');
+    } finally {
+      setIsUserModalLoading(false);
+    }
+  };
+
+  // --- Moderation Table UI ---
+  // Place this below your existing content, e.g. after the search/filter section
+
   return (
-    <div className="w-full h-full p-6">
+    <div className="w-full h-full p-6 mb-10">
+      {/* Moderation Panel Navigation Button (always visible) */}
+      
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <div>
@@ -156,6 +225,19 @@ export default function SuggestionsContent() {
         
         {/* Top Buttons */}
         <div className="flex gap-3 mt-4 md:mt-0">
+                {/* Moderation Panel Navigation Button (always visible) */}
+      <button
+        className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md"
+        onClick={() => {
+          if (onNavigateToPanel) {
+            onNavigateToPanel();
+          } else {
+            alert('No navigation handler provided for Moderation Panel.');
+          }
+        }}
+      >
+        Go to Moderation Panel
+      </button>
           <button
           onClick={() => setShowSummary(true)}
           className="flex items-center gap-2 bg-white border border-blue-100 text-[#026aa1] px-4 py-2 rounded-lg font-medium text-sm hover:bg-blue-50 transition-all shadow-sm hover:shadow-md">
@@ -494,6 +576,9 @@ export default function SuggestionsContent() {
           </>
         )}
       </div>
+
+      {/* Moderation Panel Section */}
+      {/* This section is now handled by AdminModerationPanel */}
 
       {/* Suggestion Details Modal */}
       {selectedSuggestion && (
