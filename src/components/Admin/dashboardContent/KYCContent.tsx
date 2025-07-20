@@ -208,6 +208,7 @@ export default function KYCContent() {
    * @param newStatus The new status to set
    */
   const updateStatus = async (id: string, newStatus: string) => {
+    
     // Prevent duplicate status updates
     if (loadingActions.statusUpdates[id]) return;
 
