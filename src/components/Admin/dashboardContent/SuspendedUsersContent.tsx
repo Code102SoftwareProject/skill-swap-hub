@@ -10,6 +10,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { debounce } from "lodash-es";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import { UserRoundCheck } from "lucide-react";
 
 // ─── TYPE DEFINITIONS ─────────────────────────────────────────────────────────
 interface SuspendedUser {
@@ -243,7 +244,8 @@ const UnsuspendButton: React.FC<{ onClick: () => void; label: string }> = ({
     className="p-2 rounded-full hover:bg-green-100 focus:ring-2 focus:ring-green-500"
     aria-label={label}
   >
-    ✓
+     <UserRoundCheck className="w-5 h-5 text-green-600" />
+
   </button>
 );
 
