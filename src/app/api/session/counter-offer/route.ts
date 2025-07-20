@@ -1,13 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import SessionCounterOffer from '@/lib/models/sessionCounterOfferSchema';
 import Session from '@/lib/models/sessionSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 import { Types } from 'mongoose';
 
 // POST - Create a counter offer
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const body = await req.json();
     const {
       originalSessionId,
@@ -20,6 +32,14 @@ export async function POST(req: Request) {
       expectedEndDate,
       counterOfferMessage
     } = body;
+
+    // Validate that the authenticated user matches counterOfferedBy
+    if (counterOfferedBy !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Cannot create counter offers for other users"
+      }, { status: 403 });
+    }
 
     // Validate required fields
     if (!originalSessionId || !counterOfferedBy || !skill1Id || !descriptionOfService1 || 
@@ -92,7 +112,7 @@ export async function POST(req: Request) {
 }
 
 // GET - Get counter offers for a session
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   try {
     const { searchParams } = new URL(req.url);

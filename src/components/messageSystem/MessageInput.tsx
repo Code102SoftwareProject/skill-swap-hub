@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSocket } from '@/lib/context/SocketContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { Paperclip, X, CornerUpLeft } from "lucide-react";
 import { IMessage } from "@/types/chat";
 
@@ -24,6 +25,7 @@ export default function MessageInput({
   chatParticipants,
 }: MessageInputProps) {
   const { socket, sendMessage: socketSendMessage, startTyping, stopTyping } = useSocket();
+  const { token } = useAuth();
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   // State for storing the reply sender's name
@@ -136,7 +138,7 @@ export default function MessageInput({
 
         // Save to database in background
         try {
-          await sendMessageService(newMsg);
+          await sendMessageService(newMsg, token);
         } catch (error) {
           console.error("Error saving file message to database:", error);
         }
@@ -208,7 +210,7 @@ export default function MessageInput({
 
     // Save to database in background (don't block UI)
     try {
-      await sendMessageService(newMsg);
+      await sendMessageService(newMsg, token);
     } catch (error) {
       console.error("Error sending message:", error);
       // Optional: You could show a retry mechanism or error state here

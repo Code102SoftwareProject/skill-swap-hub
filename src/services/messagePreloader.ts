@@ -17,7 +17,7 @@ export function setProgressCallback(callback: (loaded: number, total: number) =>
 /**
  * Preload messages for multiple chat rooms in the background
  */
-export async function preloadChatMessages(chatRooms: IChatRoom[]): Promise<void> {
+export async function preloadChatMessages(chatRooms: IChatRoom[], token?: string | null): Promise<void> {
   let loadedCount = 0;
   const totalRooms = chatRooms.length;
   
@@ -32,7 +32,14 @@ export async function preloadChatMessages(chatRooms: IChatRoom[]): Promise<void>
     loadingRooms.add(room._id);
     
     try {
-      const response = await fetch(`/api/messages?chatRoomId=${room._id}`);
+      const headers: HeadersInit = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`/api/messages?chatRoomId=${room._id}`, {
+        headers
+      });
       const data = await response.json();
 
       if (data.success && data.messages) {

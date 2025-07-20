@@ -1,14 +1,25 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import ReportInSession from '@/lib/models/reportInSessionSchema';
 import OnlineLogSchema from '@/lib/models/onlineLogSchema';
 import Work from '@/lib/models/workSchema';
 import { Types } from 'mongoose';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // POST - Submit a report for a user in a session
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json(
+        { success: false, message: authResult.error },
+        { status: 401 }
+      );
+    }
+    const authenticatedUserId = authResult.userId!;
+
     const body = await req.json();
     const { 
       sessionId, 
@@ -18,6 +29,14 @@ export async function POST(req: Request) {
       description, 
       evidenceFiles 
     } = body;
+
+    // Verify that the authenticated user matches the reportedBy ID
+    if (authenticatedUserId !== reportedBy) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: You can only submit reports as yourself' },
+        { status: 403 }
+      );
+    }
 
     // Validate required fields
     if (!sessionId || !reportedBy || !reportedUser || !reason || !description) {
@@ -113,7 +132,7 @@ export async function POST(req: Request) {
 }
 
 // GET - Get reports for a session (for admin use)
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   try {
     const { searchParams } = new URL(req.url);

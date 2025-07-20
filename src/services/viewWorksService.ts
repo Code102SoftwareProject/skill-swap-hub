@@ -1,3 +1,5 @@
+import { createSystemApiHeaders } from '@/utils/systemApiAuth';
+
 class ViewWorksService {
   // Work review methods
   async reviewWork(workId: string, action: 'accept' | 'reject', userId: string, message: string): Promise<any> {
@@ -101,9 +103,7 @@ class ViewWorksService {
     try {
       await fetch('/api/notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createSystemApiHeaders(),
         body: JSON.stringify({
           userId,
           typeno,

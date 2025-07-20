@@ -7,9 +7,10 @@ interface UseReportProps {
   currentUserId: string | undefined;
   showAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
   user?: any;
+  token: string; // JWT token for API authentication
 }
 
-export const useReport = ({ session, currentUserId, showAlert, user }: UseReportProps) => {
+export const useReport = ({ session, currentUserId, showAlert, user, token }: UseReportProps) => {
   // Form state
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportReason, setReportReason] = useState('');
@@ -32,11 +33,11 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
    * Fetch existing reports
    */
   const fetchReports = useCallback(async () => {
-    if (!currentUserId || !session?._id) return;
+    if (!currentUserId || !session?._id || !token) return;
     
     setLoadingReports(true);
     try {
-      const reports = await reportService.fetchReports(session._id, currentUserId);
+      const reports = await reportService.fetchReports(session._id, currentUserId, token);
       setExistingReports(reports);
     } catch (error) {
       console.error('Error fetching reports:', error);
@@ -44,7 +45,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
     } finally {
       setLoadingReports(false);
     }
-  }, [currentUserId, session?._id, showAlert]);
+  }, [currentUserId, session?._id, showAlert, token]);
 
   /**
    * Load reports on mount
@@ -214,7 +215,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
       console.log('Final report data to be sent:', reportData);
 
       // Submit the report
-      await reportService.submitReport(reportData);
+      await reportService.submitReport(reportData, token);
 
       // Send notification to the reported user
       const currentUserName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Someone';
@@ -243,7 +244,8 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
     user, 
     showAlert, 
     resetForm, 
-    fetchReports
+    fetchReports,
+    token
   ]);
 
   /**

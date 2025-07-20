@@ -23,7 +23,7 @@ import { preloadChatMessages, updateCachedMessages, setProgressCallback } from "
  */
 export default function ChatPage() {
   // * Authentication state from context
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth();
   const userId = user?._id;
 
   // * Get socket from context instead of managing it locally
@@ -94,7 +94,7 @@ export default function ChatPage() {
     // Mark messages as read when chat is selected
     if (userId) {
       try {
-        await markChatRoomMessagesAsRead(chatRoomId, userId);
+        await markChatRoomMessagesAsRead(chatRoomId, userId, token);
       } catch (error) {
         console.error("Error marking messages as read:", error);
       }
@@ -134,7 +134,7 @@ export default function ChatPage() {
           setPreloadProgress({ loaded: 0, total: chatRooms.length });
           
           // Preload messages in the background
-          await preloadChatMessages(chatRooms);
+          await preloadChatMessages(chatRooms, token);
           setMessagesPreloaded(true);
           console.log(`Successfully preloaded messages for ${chatRooms.length} chat rooms`);
           
@@ -152,7 +152,7 @@ export default function ChatPage() {
     const timeoutId = setTimeout(preloadAllMessages, 1000);
     
     return () => clearTimeout(timeoutId);
-  }, [userId, messagesPreloaded]);
+  }, [userId, messagesPreloaded, token]);
 
   /**
    * * Fetch chat participants whenever selected chat room changes
@@ -257,6 +257,7 @@ export default function ChatPage() {
         `}>
           <Sidebar 
             userId={userId} 
+            token={token}
             selectedChatRoomId={selectedChatRoomId} 
             onChatSelect={handleChatSelect}
             preloadProgress={preloadProgress}

@@ -4,12 +4,24 @@ import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import SessionCompletion from '@/lib/models/sessionCompletionSchema';
 import User from '@/lib/models/userSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 import { Types } from 'mongoose';
 
 // POST - Request session completion
 export async function POST(req: NextRequest) {
   try {
     await connect();
+    
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
     
     const body = await req.json();
     const { sessionId, userId, requestForUser = 'both' } = body;
@@ -19,6 +31,14 @@ export async function POST(req: NextRequest) {
         { success: false, message: "Session ID and User ID are required" },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user matches the userId in the request
+    if (userId !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Cannot request completion for other users"
+      }, { status: 403 });
     }
 
     if (!Types.ObjectId.isValid(sessionId) || !Types.ObjectId.isValid(userId)) {
@@ -98,10 +118,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH - Approve or reject session completion (replaces PUT for better REST practices)
+// PATCH - Approve or reject session completion 
 export async function PATCH(req: NextRequest) {
   try {
     await connect();
+    
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
     
     const body = await req.json();
     const { sessionId, userId, action, rejectionReason } = body;
@@ -111,6 +142,14 @@ export async function PATCH(req: NextRequest) {
         { success: false, message: "Session ID, User ID, and action are required" },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user matches the userId in the request
+    if (userId !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Cannot respond to completion requests for other users"
+      }, { status: 403 });
     }
 
     if (!['approve', 'reject'].includes(action)) {
@@ -236,6 +275,17 @@ export async function GET(req: NextRequest) {
   try {
     await connect();
     
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');
     const userId = searchParams.get('userId');
@@ -245,6 +295,14 @@ export async function GET(req: NextRequest) {
         { success: false, message: 'Session ID is required' },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user matches the userId if provided
+    if (userId && userId !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Cannot access completion requests for other users"
+      }, { status: 403 });
     }
 
     if (!Types.ObjectId.isValid(sessionId)) {

@@ -18,6 +18,7 @@ interface UseMeetingNotesProps {
   meetingId?: string;
   userId?: string;
   userName?: string;
+  token?: string;  // Add JWT token for authentication
   autoSaveDelay?: number;
 }
 
@@ -25,9 +26,23 @@ export const useMeetingNotes = ({
   meetingId, 
   userId, 
   userName,
+  token,  // Add token parameter
   autoSaveDelay = 2000 
 }: UseMeetingNotesProps) => {
   const [notes, setNotes] = useState<MeetingNotes | null>(null);
+  
+  // Helper function to create auth headers
+  const createAuthHeaders = useCallback(() => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }, [token]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +61,9 @@ export const useMeetingNotes = ({
     setError(null);
     
     try {
-      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
+        headers: createAuthHeaders()
+      });
       const data = await response.json();
       
       if (response.ok) {
@@ -74,7 +91,7 @@ export const useMeetingNotes = ({
     } finally {
       setIsLoading(false);
     }
-  }, [meetingId, userId, userName]);
+  }, [meetingId, userId, userName, createAuthHeaders]);
 
   // Save notes to server
   const saveNotes = useCallback(async (notesToSave?: Partial<MeetingNotes>) => {
@@ -93,7 +110,7 @@ export const useMeetingNotes = ({
     try {
       const response = await fetch('/api/meeting-notes', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: createAuthHeaders(),
         body: JSON.stringify({
           meetingId,
           userId,
@@ -119,7 +136,7 @@ export const useMeetingNotes = ({
     } finally {
       setIsSaving(false);
     }
-  }, [meetingId, userId, userName, notes]);
+  }, [meetingId, userId, userName, notes, createAuthHeaders]);
 
   // Auto-save with debouncing
   const scheduleAutoSave = useCallback(() => {
@@ -177,7 +194,8 @@ export const useMeetingNotes = ({
     
     try {
       const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: createAuthHeaders()
       });
       
       if (response.ok) {
@@ -191,7 +209,7 @@ export const useMeetingNotes = ({
       setError('Failed to delete notes');
       return false;
     }
-  }, [meetingId, userId]);
+  }, [meetingId, userId, createAuthHeaders]);
 
   // Load notes on mount
   useEffect(() => {

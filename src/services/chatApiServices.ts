@@ -1,5 +1,6 @@
 import { IChatRoom, IMessage } from "@/types/chat";
 import { method } from "lodash";
+import { createSystemApiHeaders } from "@/utils/systemApiAuth";
 
 interface ChatRoomResponse {
   success: boolean;
@@ -26,6 +27,21 @@ interface OnlineLogResponse {
     userId: string;
     lastOnline: string;
   };
+}
+
+/**
+ * Helper function to create authenticated headers
+ */
+function createAuthHeaders(token?: string | null): HeadersInit {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+  
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+  
+  return headers;
 }
 
 /**
@@ -217,14 +233,15 @@ export async function updateLastSeen(userId: string) {
  *
  * @param messageData - Object containing message details, including:
  *                      chatRoomId<senderId, content,timestamp:
+ * @param token - Optional JWT token for authentication
  * @returns Promise that resolves to the response data from the server,
  *          or throws an error if the message could not be sent
  */
-export async function sendMessage(messageData: any) {
+export async function sendMessage(messageData: any, token?: string | null) {
   try {
     const response = await fetch("/api/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: createAuthHeaders(token),
       body: JSON.stringify(messageData),
     });
 
@@ -249,7 +266,7 @@ export async function sendMessage(messageData: any) {
         //  ! Create notification 
         await fetch("/api/notification", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: createSystemApiHeaders(),
           body: JSON.stringify({
             userId: recipientId,
             typeno: 2, // Type 2 for new message notification
@@ -271,12 +288,20 @@ export async function sendMessage(messageData: any) {
  * Fetch all messages for a specific chat room
  *
  * @param chatRoomId - The unique identifier of the chat room whose messages to retrieve
+ * @param token - Optional JWT token for authentication
  * @returns Promise that resolves to an array of message objects,
  *          or an empty array if no messages exist or an error occurs
  */
-export async function fetchChatMessages(chatRoomId: string) {
+export async function fetchChatMessages(chatRoomId: string, token?: string | null) {
   try {
-    const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`, {
+      headers
+    });
     const data = await response.json();
 
     if (data.success) {
@@ -294,13 +319,14 @@ export async function fetchChatMessages(chatRoomId: string) {
  * Mark multiple messages as read in a single request
  * 
  * @param messageIds - Array of message IDs to mark as read
+ * @param token - Optional JWT token for authentication
  * @returns Promise with the response data
  */
-export async function markMessagesAsRead(messageIds: string[]) {
+export async function markMessagesAsRead(messageIds: string[], token?: string | null) {
   try {
     const response = await fetch("/api/messages/read-status", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: createAuthHeaders(token),
       body: JSON.stringify({ messageIds }),
     });
 
@@ -315,11 +341,19 @@ export async function markMessagesAsRead(messageIds: string[]) {
  * Get unread message count for a user
  * 
  * @param userId - The user ID to get unread count for
+ * @param token - Optional JWT token for authentication
  * @returns Promise with the unread count
  */
-export async function fetchUnreadMessageCount(userId: string) {
+export async function fetchUnreadMessageCount(userId: string, token?: string | null) {
   try {
-    const response = await fetch(`/api/messages/unread-count?userId=${userId}`);
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/messages/unread-count?userId=${userId}`, {
+      headers
+    });
     const data = await response.json();
 
     if (data.success) {
@@ -337,11 +371,19 @@ export async function fetchUnreadMessageCount(userId: string) {
  * Get unread message counts per chat room for a user
  * 
  * @param userId - The user ID to get unread counts for
+ * @param token - Optional JWT token for authentication
  * @returns Promise with the unread counts map (chatRoomId -> count)
  */
-export async function fetchUnreadMessageCountsByRoom(userId: string) {
+export async function fetchUnreadMessageCountsByRoom(userId: string, token?: string | null) {
   try {
-    const response = await fetch(`/api/messages/unread-by-room?userId=${userId}`);
+    const headers: HeadersInit = {};
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`/api/messages/unread-by-room?userId=${userId}`, {
+      headers
+    });
     const data = await response.json();
 
     if (data.success) {
@@ -360,12 +402,13 @@ export async function fetchUnreadMessageCountsByRoom(userId: string) {
  * 
  * @param chatRoomId - The chat room ID
  * @param userId - The current user ID (to exclude their own messages)
+ * @param token - Optional JWT token for authentication
  * @returns Promise with the response data
  */
-export async function markChatRoomMessagesAsRead(chatRoomId: string, userId: string) {
+export async function markChatRoomMessagesAsRead(chatRoomId: string, userId: string, token?: string | null) {
   try {
     // First, get all messages for this chat room
-    const messages = await fetchChatMessages(chatRoomId);
+    const messages = await fetchChatMessages(chatRoomId, token);
     
     // Filter for unread messages sent by others (not current user)
     const unreadMessageIds = messages
@@ -378,7 +421,7 @@ export async function markChatRoomMessagesAsRead(chatRoomId: string, userId: str
 
     // Only make API call if there are unread messages
     if (unreadMessageIds.length > 0) {
-      return await markMessagesAsRead(unreadMessageIds);
+      return await markMessagesAsRead(unreadMessageIds, token);
     }
 
     return { success: true, message: "No unread messages to mark", modifiedCount: 0 };

@@ -2,11 +2,22 @@ import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import meetingSchema from "@/lib/models/meetingSchema";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
+import { createServerSystemApiHeaders } from "@/utils/systemApiAuth";
 
 export async function POST(req: Request) {
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
     const { meetingId, cancelledBy, reason } = await req.json();
 
     // Validate input
@@ -17,6 +28,13 @@ export async function POST(req: Request) {
       );
     }
 
+    // Validate that the authenticated user matches the cancelledBy user
+    if (cancelledBy !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only cancel meetings as yourself" 
+      }, { status: 403 });
+    }
+
     // Find the meeting
     const meeting = await meetingSchema.findById(meetingId);
     if (!meeting) {
@@ -24,6 +42,16 @@ export async function POST(req: Request) {
         { message: "Meeting not found" },
         { status: 404 }
       );
+    }
+
+    // Validate that the authenticated user is involved in this meeting
+    const senderIdString = meeting.senderId.toString();
+    const receiverIdString = meeting.receiverId.toString();
+    
+    if (senderIdString !== authenticatedUserId && receiverIdString !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only cancel meetings you are involved in" 
+      }, { status: 403 });
     }
 
     // Check if meeting can be cancelled
@@ -91,7 +119,7 @@ export async function POST(req: Request) {
       // Send notification
       const notificationResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notification`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: createServerSystemApiHeaders(),
         body: JSON.stringify({
           userId: otherUserId,
           typeno: 10, // MEETING_CANCELLED

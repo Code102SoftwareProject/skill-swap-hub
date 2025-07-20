@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import DailyMeeting from '@/components/meetingSystem/DailyMeeting';
 import { useAuth } from '@/lib/context/AuthContext';
@@ -28,13 +28,26 @@ interface User {
 export default function MeetingPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, token, isLoading: authLoading } = useAuth(); // Get token
   const meetingId = params.id as string;
 
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Helper function to create auth headers
+  const createAuthHeaders = useCallback(() => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }, [token]);
 
   // Fetch meeting details and user information
   useEffect(() => {
@@ -50,7 +63,7 @@ export default function MeetingPage() {
 
         // Fetch meeting details
         const meetingResponse = await fetch(`/api/meeting/${meetingId}`, {
-          credentials: 'include',
+          headers: createAuthHeaders()
         });
 
         if (!meetingResponse.ok) {
@@ -67,7 +80,7 @@ export default function MeetingPage() {
 
         // Fetch other user's profile
         const otherUserResponse = await fetch(`/api/users/profile?id=${otherUserId}`, {
-          credentials: 'include',
+          headers: createAuthHeaders()
         });
 
         if (otherUserResponse.ok) {
@@ -86,7 +99,7 @@ export default function MeetingPage() {
     if (meetingId) {
       fetchMeetingData();
     }
-  }, [meetingId, user, authLoading]);
+  }, [meetingId, user, authLoading, createAuthHeaders]);
 
   // Handle leaving the meeting
   const handleLeaveMeeting = () => {

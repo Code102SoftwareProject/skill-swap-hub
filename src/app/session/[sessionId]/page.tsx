@@ -6,6 +6,7 @@ import { ArrowLeft, Calendar, User, BookOpen, FileText, Upload, CheckCircle, Clo
 import { useAuth } from '@/lib/context/AuthContext';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
+import { createSystemApiHeaders } from '@/utils/systemApiAuth';
 
 // Type imports
 import type { 
@@ -33,7 +34,7 @@ import ReportTab from '@/components/sessionTabs/ReportTab';
 export default function SessionWorkspace() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, token } = useAuth(); // Get JWT token for API calls
   const sessionId = params.sessionId as string;
   const currentUserId = user?._id
   
@@ -73,9 +74,7 @@ export default function SessionWorkspace() {
     try {
       await fetch('/api/notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createSystemApiHeaders(),
         body: JSON.stringify({
           userId,
           typeno,
@@ -129,10 +128,10 @@ export default function SessionWorkspace() {
   useEffect(() => {
     // Get current user ID - this should be from auth context in real app
     // For now, we'll try to get it from the session data
-    if (sessionId) {
+    if (sessionId && token) {
       fetchSessionData();
     }
-  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionId, token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (currentUserId && sessionId) {
@@ -165,8 +164,18 @@ export default function SessionWorkspace() {
   };
 
   const fetchSessionData = async () => {
+    if (!token) {
+      console.error('No token available for session fetch');
+      return;
+    }
+
     try {
-      const response = await fetch(`/api/session/${sessionId}`);
+      const response = await fetch(`/api/session/${sessionId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       const data = await response.json();
       
       if (data.success) {
@@ -675,6 +684,7 @@ export default function SessionWorkspace() {
             showAlert={(type: string, message: string, title?: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message, title)}
             setActiveTab={(tab: string) => setActiveTab(tab as 'overview' | 'submit-work' | 'view-works' | 'progress' | 'report')}
             onSessionUpdate={refreshSessionData}
+            token={token!}
           />
         )}
 
@@ -715,6 +725,7 @@ export default function SessionWorkspace() {
             showAlert={(type: string, message: string) => showAlert(type as 'success' | 'error' | 'warning' | 'info', message)}
             formatDate={formatDate!}
             user={user}
+            token={token!}
           />
         )}
       </main>

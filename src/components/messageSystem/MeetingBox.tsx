@@ -8,6 +8,7 @@ import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
 import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
 import Meeting from '@/types/meeting';
 import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
+import { useAuth } from '@/lib/context/AuthContext';
 import { 
   fetchMeetings, 
   createMeeting, 
@@ -76,6 +77,7 @@ interface MeetingBoxProps {
 }
 
 export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdate }: MeetingBoxProps) {
+  const { user, token } = useAuth(); // Get token from auth context
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
@@ -169,7 +171,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     
     try {
       setLoadingCancellationAlerts(true);
-      const alerts = await fetchUnacknowledgedCancellations(userId);
+      const alerts = await fetchUnacknowledgedCancellations(userId, token || undefined);
       
       // Filter alerts to only show cancellations from the current chat partner
       const filteredAlerts = (alerts || []).filter((alert: CancellationAlert) => {
@@ -191,13 +193,13 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     } finally {
       setLoadingCancellationAlerts(false);
     }
-  }, [userId, otherUserId, meetings]);
+  }, [userId, otherUserId, meetings, token]);
 
   // Handle acknowledging a cancellation
   const handleAcknowledgeCancellation = async (cancellationId: string) => {
     try {
       setLoadingCancellationAlerts(true);
-      await acknowledgeMeetingCancellation(cancellationId, userId);
+      await acknowledgeMeetingCancellation(cancellationId, userId, token || undefined);
       
       // Remove the acknowledged cancellation from the list
       setCancellationAlerts(prev => 
@@ -297,7 +299,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     const loadMeetings = async () => {
       try {
         setLoading(true);
-        const data = await fetchMeetings(userId, otherUserId);
+        const data = await fetchMeetings(userId, otherUserId, token || undefined);
         setMeetings(data);
 
         // Notify parent component about meeting updates (only once per mount)
@@ -314,7 +316,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     
     hasFetchedMeetings.current = false; // Reset for new otherUserId
     loadMeetings();
-  }, [otherUserId, userId]);
+  }, [otherUserId, userId, token]);
 
   // Fetch cancellation alerts when userId, otherUserId, or meetings change
   useEffect(() => {
@@ -408,7 +410,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     // Check notes for each meeting with caching
     for (const meeting of pastAndCompletedMeetings) {
       try {
-        const hasNotes = await checkMeetingNotesExist(meeting._id, userId);
+        const hasNotes = await checkMeetingNotesExist(meeting._id, userId, token || undefined);
         notesStatus[meeting._id] = hasNotes;
       } catch (error) {
         console.error(`Error checking notes for meeting ${meeting._id}:`, error);
@@ -420,7 +422,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
 
     setMeetingNotesStatus(notesStatus);
     setCheckingNotes(checking);
-  }, [userId]);
+  }, [userId, token]);
 
   // Fetch saved notes when otherUserId is available
   const fetchSavedNotes = useCallback(async () => {
@@ -428,7 +430,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     
     try {
       setLoadingSavedNotes(true);
-      const notes = await fetchAllUserMeetingNotes(userId, otherUserId);
+      const notes = await fetchAllUserMeetingNotes(userId, otherUserId, token || undefined);
       setSavedNotes(notes || []);
     } catch (error) {
       console.error('Error fetching saved notes:', error);
@@ -436,7 +438,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     } finally {
       setLoadingSavedNotes(false);
     }
-  }, [userId, otherUserId]);
+  }, [userId, otherUserId, token]);
 
   // Fetch saved notes when otherUserId changes
   useEffect(() => {
@@ -516,7 +518,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
           // Set loading state for this specific meeting and action
           setActionLoadingStates(prev => ({ ...prev, [meetingId]: action }));
           
-          const updatedMeeting = await updateMeeting(meetingId, action);
+          const updatedMeeting = await updateMeeting(meetingId, action, token || undefined);
           
           if (updatedMeeting) {
             setMeetings(prevMeetings => 
@@ -579,7 +581,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         receiverId: otherUserId,
         description: meetingData.description,
         meetingTime: new Date(meetingData.date + 'T' + meetingData.time)
-      });
+      }, token || undefined);
       
       if (newMeeting) {
         setMeetings(prevMeetings => [...prevMeetings, newMeeting]);
@@ -605,7 +607,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Handle meeting cancellation with reason
   const handleCancelMeeting = async (meetingId: string, reason: string) => {
     try {
-      const meeting = await cancelMeetingWithReason(meetingId, userId, reason);
+      const meeting = await cancelMeetingWithReason(meetingId, userId, reason, token || undefined);
 
       if (meeting) {
         setMeetings(prevMeetings =>
@@ -728,6 +730,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
             meetingNotesStatus={meetingNotesStatus}
             checkingNotes={checkingNotes}
             actionLoadingStates={actionLoadingStates}
+            token={token || undefined}
             onScheduleMeeting={handleScheduleMeetingClick}
             onMeetingAction={handleMeetingAction}
             onCancelMeeting={showCancelMeetingModal}

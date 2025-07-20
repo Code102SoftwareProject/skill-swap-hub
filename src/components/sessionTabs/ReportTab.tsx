@@ -9,6 +9,7 @@ interface ReportTabProps {
   showAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
   formatDate: (dateString: string) => string;
   user?: any;
+  token: string; // JWT token for API authentication
 }
 
 export default function ReportTab({
@@ -17,6 +18,7 @@ export default function ReportTab({
   showAlert,
   formatDate,
   user,
+  token,
 }: ReportTabProps) {
   const {
     // Form state
@@ -46,7 +48,7 @@ export default function ReportTab({
     // Utilities
     getReportStats,
     formatFileSize,
-  } = useReport({ session, currentUserId, showAlert, user });
+  } = useReport({ session, currentUserId, showAlert, user, token });
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();

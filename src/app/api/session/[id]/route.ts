@@ -1,18 +1,29 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import User from '@/lib/models/userSchema';
 import UserSkill from '@/lib/models/userSkill';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 import { Types } from 'mongoose';
 
 // GET - Get session by ID
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
     const { id } = await params;
 
     if (!Types.ObjectId.isValid(id)) {
@@ -26,14 +37,24 @@ export async function GET(
       .populate('user1Id', 'firstName lastName email avatar')
       .populate('user2Id', 'firstName lastName email avatar')
       .populate('skill1Id', 'skillTitle proficiencyLevel categoryName')
-      .populate('skill2Id', 'skillTitle proficiencyLevel categoryName')
-      .lean(); // Use lean for better performance
+      .populate('skill2Id', 'skillTitle proficiencyLevel categoryName');
 
     if (!session) {
       return NextResponse.json(
         { success: false, message: 'Session not found' },
         { status: 404 }
       );
+    }
+
+    // Validate that the authenticated user is involved in this session
+    const user1IdString = session.user1Id._id ? session.user1Id._id.toString() : session.user1Id.toString();
+    const user2IdString = session.user2Id._id ? session.user2Id._id.toString() : session.user2Id.toString();
+    
+    if (user1IdString !== authenticatedUserId && user2IdString !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You can only access sessions you are involved in"
+      }, { status: 403 });
     }
 
     return NextResponse.json({
@@ -52,11 +73,21 @@ export async function GET(
 
 // PATCH - Update session by ID
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
     const { id } = await params;
     const body = await req.json();
 
@@ -65,6 +96,23 @@ export async function PATCH(
         { success: false, message: 'Invalid session ID format' },
         { status: 400 }
       );
+    }
+
+    // Find the session first to validate access
+    const existingSession = await Session.findById(id);
+    if (!existingSession) {
+      return NextResponse.json(
+        { success: false, message: 'Session not found' },
+        { status: 404 }
+      );
+    }
+
+    // Validate that the authenticated user is involved in this session
+    if (existingSession.user1Id.toString() !== authenticatedUserId && existingSession.user2Id.toString() !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You can only update sessions you are involved in"
+      }, { status: 403 });
     }
 
     // Validate status if being updated
@@ -152,11 +200,21 @@ export async function PATCH(
 
 // DELETE - Delete session by ID
 export async function DELETE(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
     const { id } = await params;
 
     if (!Types.ObjectId.isValid(id)) {
@@ -166,19 +224,29 @@ export async function DELETE(
       );
     }
 
-    const session = await Session.findByIdAndDelete(id);
-
-    if (!session) {
+    // Find the session first to validate access
+    const existingSession = await Session.findById(id);
+    if (!existingSession) {
       return NextResponse.json(
         { success: false, message: 'Session not found' },
         { status: 404 }
       );
     }
 
+    // Validate that the authenticated user is involved in this session
+    if (existingSession.user1Id.toString() !== authenticatedUserId && existingSession.user2Id.toString() !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You can only delete sessions you are involved in"
+      }, { status: 403 });
+    }
+
+    const session = await Session.findByIdAndDelete(id);
+
     return NextResponse.json({
       success: true,
       message: 'Session deleted successfully',
-      session
+      session: existingSession
     }, { status: 200 });
 
   } catch (error: any) {

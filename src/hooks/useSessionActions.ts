@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from 'react';
+import { useAuth } from '@/lib/context/AuthContext';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import type { Session, CounterOffer } from '@/types';
 
@@ -25,6 +26,7 @@ export function useSessionActions({
   showAlert,
   showConfirmation
 }: SessionActionsOptions) {
+  const { token } = useAuth(); // Get the JWT token from AuthContext
   const fetchingRef = useRef(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [counterOffers, setCounterOffers] = useState<{ [sessionId: string]: CounterOffer[] }>({});
@@ -33,9 +35,22 @@ export function useSessionActions({
   const [pendingSessionCount, setPendingSessionCount] = useState(0);
   const [activeSessionCount, setActiveSessionCount] = useState(0);
 
+  // Helper function to create auth headers
+  const createAuthHeaders = useCallback(() => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }, [token]);
+
   // Fetch sessions between two users with counter offers in a single request
   const fetchSessions = useCallback(async () => {
-    if (!userId || !otherUserId || fetchingRef.current) {
+    if (!userId || !otherUserId || fetchingRef.current || !token) {
       return;
     }
 
@@ -43,7 +58,9 @@ export function useSessionActions({
     
     try {
       // Use the optimized endpoint that includes counter offers
-      const response = await fetch(`/api/session/between-users-with-offers?user1Id=${userId}&user2Id=${otherUserId}`);
+      const response = await fetch(`/api/session/between-users-with-offers?user1Id=${userId}&user2Id=${otherUserId}`, {
+        headers: createAuthHeaders()
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -90,7 +107,7 @@ export function useSessionActions({
       setLoading(false);
       fetchingRef.current = false;
     }
-  }, [userId, otherUserId, onSessionUpdate, showAlert]);
+  }, [userId, otherUserId, onSessionUpdate, showAlert, token, createAuthHeaders]);
 
   // Handle session accept/reject
   const handleAcceptReject = async (sessionId: string, action: 'accept' | 'reject') => {
@@ -98,9 +115,7 @@ export function useSessionActions({
     try {
       const response = await fetch(`/api/session/${sessionId}/accept`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createAuthHeaders(),
         body: JSON.stringify({
           action,
           userId
@@ -134,6 +149,7 @@ export function useSessionActions({
         try {
           const response = await fetch(`/api/session/${sessionId}`, {
             method: 'DELETE',
+            headers: createAuthHeaders(),
           });
 
           const data = await response.json();
@@ -162,9 +178,7 @@ export function useSessionActions({
     try {
       const response = await fetch(`/api/session/counter-offer/${counterOfferId}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createAuthHeaders(),
         body: JSON.stringify({
           action,
           userId
@@ -198,9 +212,7 @@ export function useSessionActions({
         try {
           const response = await fetch('/api/session/completion', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: createAuthHeaders(),
             body: JSON.stringify({
               sessionId,
               userId,
@@ -257,9 +269,7 @@ export function useSessionActions({
 
           const response = await fetch('/api/session/completion', {
             method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: createAuthHeaders(),
             body: JSON.stringify(requestBody),
           });
 
@@ -321,9 +331,7 @@ export function useSessionActions({
 
       const response = await fetch('/api/reviews', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createAuthHeaders(),
         body: JSON.stringify({
           sessionId: sessionToRate._id,
           reviewerId: userId,

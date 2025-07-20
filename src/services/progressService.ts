@@ -1,4 +1,5 @@
 // Progress Service - Handles all progress-related API operations
+import { createSystemApiHeaders } from '@/utils/systemApiAuth';
 export interface SessionProgress {
   _id: string;
   userId: string | any;
@@ -161,9 +162,7 @@ class ProgressService {
     try {
       await fetch('/api/notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createSystemApiHeaders(),
         body: JSON.stringify({
           userId,
           typeno,

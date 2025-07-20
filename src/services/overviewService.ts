@@ -1,12 +1,23 @@
 class OverviewService {
+  // Helper function to create auth headers
+  private createAuthHeaders(token?: string): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }
+
   // Session completion methods
-  async requestCompletion(sessionId: string, userId: string): Promise<any> {
+  async requestCompletion(sessionId: string, userId: string, token?: string): Promise<any> {
     try {
       const response = await fetch('/api/session/completion', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({ sessionId, userId }),
       });
 
@@ -22,13 +33,11 @@ class OverviewService {
     }
   }
 
-  async respondToCompletion(sessionId: string, userId: string, action: 'approve' | 'reject', rejectionReason?: string): Promise<any> {
+  async respondToCompletion(sessionId: string, userId: string, action: 'approve' | 'reject', rejectionReason?: string, token?: string): Promise<any> {
     try {
       const response = await fetch('/api/session/completion', {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({ 
           sessionId, 
           userId,
@@ -50,7 +59,7 @@ class OverviewService {
   }
 
   // Session cancellation methods
-  async requestCancellation(sessionId: string, reason: string, description: string, evidenceFiles: File[]): Promise<any> {
+  async requestCancellation(sessionId: string, reason: string, description: string, evidenceFiles: File[], token: string): Promise<any> {
     try {
       const formData = new FormData();
       formData.append('sessionId', sessionId);
@@ -63,6 +72,7 @@ class OverviewService {
 
       const response = await fetch('/api/sessions/cancel/request', {
         method: 'POST',
+        headers: this.createAuthHeaders(token, true), // true for FormData
         body: formData,
       });
 
@@ -83,15 +93,14 @@ class OverviewService {
     responderId: string,
     action: 'agree' | 'dispute', 
     responseDescription: string,
+    token: string,
     workCompletionPercentage?: number,
     responseEvidenceFiles: string[] = []
   ): Promise<any> {
     try {
       const response = await fetch(`/api/session/${sessionId}/cancel`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({
           responderId,
           action,
@@ -113,13 +122,11 @@ class OverviewService {
     }
   }
 
-  async finalizeCancellation(sessionId: string, finalNote: string): Promise<any> {
+  async finalizeCancellation(sessionId: string, finalNote: string, token: string): Promise<any> {
     try {
       const response = await fetch('/api/sessions/cancel/finalize', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({ 
           sessionId, 
           finalNote 
@@ -139,13 +146,11 @@ class OverviewService {
   }
 
   // Review methods
-  async submitReview(sessionId: string, rating: number, comment: string): Promise<any> {
+  async submitReview(sessionId: string, rating: number, comment: string, token?: string): Promise<any> {
     try {
       const response = await fetch('/api/reviews', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({ 
           sessionId, 
           rating, 
@@ -165,9 +170,11 @@ class OverviewService {
     }
   }
 
-  async fetchReviews(sessionId: string): Promise<any> {
+  async fetchReviews(sessionId: string, token?: string): Promise<any> {
     try {
-      const response = await fetch(`/api/reviews?sessionId=${sessionId}`);
+      const response = await fetch(`/api/reviews?sessionId=${sessionId}`, {
+        headers: this.createAuthHeaders(token)
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -182,9 +189,11 @@ class OverviewService {
   }
 
   // Cancel request fetching
-  async fetchCancelRequest(sessionId: string): Promise<any> {
+  async fetchCancelRequest(sessionId: string, token: string): Promise<any> {
     try {
-      const response = await fetch(`/api/session/${sessionId}/cancel`);
+      const response = await fetch(`/api/session/${sessionId}/cancel`, {
+        headers: this.createAuthHeaders(token),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -200,13 +209,11 @@ class OverviewService {
   }
 
   // Session cancellation methods
-  async cancelSession(sessionId: string, initiatorId: string, reason: string, description: string, evidenceFiles: string[] = []): Promise<any> {
+  async cancelSession(sessionId: string, initiatorId: string, reason: string, description: string, token: string, evidenceFiles: string[] = []): Promise<any> {
     try {
       const response = await fetch(`/api/session/${sessionId}/cancel`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: this.createAuthHeaders(token),
         body: JSON.stringify({
           initiatorId,
           reason,
@@ -228,11 +235,13 @@ class OverviewService {
   }
 
   // File download
-  async downloadFile(fileURL: string, fileName?: string): Promise<void> {
+  async downloadFile(fileURL: string, token: string, fileName?: string): Promise<void> {
     try {
       console.log('OverviewService: Downloading file', { fileURL, fileName });
       
-      const response = await fetch(`/api/file/retrieve?fileUrl=${encodeURIComponent(fileURL)}`);
+      const response = await fetch(`/api/file/retrieve?fileUrl=${encodeURIComponent(fileURL)}`, {
+        headers: this.createAuthHeaders(token),
+      });
       
       if (!response.ok) {
         throw new Error('Failed to download file');

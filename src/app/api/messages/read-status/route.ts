@@ -1,14 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import connect from "@/lib/db";
 import Message from "@/lib/models/messageSchema";
 import mongoose from "mongoose";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 /**
  * PATCH handler for bulk updating message read status
  */
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
     const body = await req.json();
     const { messageIds } = body;
 

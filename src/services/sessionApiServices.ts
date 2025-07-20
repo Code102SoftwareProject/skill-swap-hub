@@ -9,6 +9,23 @@ interface SessionResponse {
 }
 
 /**
+ * Helper function to create authorization headers
+ * @param token - JWT token (optional)
+ * @returns Headers object with authorization if token is provided
+ */
+function createAuthHeaders(token?: string): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
+
+/**
  * Fetch sessions for a specific user
  * @param userId - The user ID to fetch sessions for
  * @param status - Optional status filter (pending, active, completed, canceled, rejected)
@@ -126,15 +143,18 @@ export async function fetchSessionsBetweenUsers(user1Id: string, user2Id: string
 /**
  * Check if user has upcoming meetings or pending meeting requests
  * @param userId - The user ID to check
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to boolean indicating if there are upcoming/pending meetings
  */
-export async function hasUpcomingOrPendingMeetings(userId: string): Promise<boolean> {
+export async function hasUpcomingOrPendingMeetings(userId: string, token?: string): Promise<boolean> {
   const cacheKey = `meeting-indicator-${userId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting?userId=${userId}`);
+      const response = await fetch(`/api/meeting?userId=${userId}`, {
+        headers: createAuthHeaders(token)
+      });
       
       if (!response.ok) {
         console.error('Error fetching meetings:', response.status);
@@ -151,17 +171,12 @@ export async function hasUpcomingOrPendingMeetings(userId: string): Promise<bool
       const now = new Date();
       
       // Check for upcoming accepted meetings or pending meeting requests
-      const hasRelevantMeetings = meetings.some(meeting => {
-        const meetingTime = new Date(meeting.meetingTime);
+      const hasRelevantMeetings = meetings.some((meeting: any) => {
+        if (meeting.state === 'pending') return true;
         
-        // Check for upcoming accepted meetings
-        if (meeting.state === 'accepted' && meetingTime > now) {
-          return true;
-        }
-        
-        // Check for pending meeting requests (both sent and received)
-        if (meeting.state === 'pending') {
-          return true;
+        if (meeting.acceptStatus === true && meeting.meetingTime) {
+          const meetingDate = new Date(meeting.meetingTime);
+          return meetingDate > now;
         }
         
         return false;
@@ -172,15 +187,17 @@ export async function hasUpcomingOrPendingMeetings(userId: string): Promise<bool
     10000 // 10 second cache for indicators
   );
 }
-
 /**
  * Get count of upcoming meetings for a user
  * @param userId - The user ID
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to the count of upcoming meetings
  */
-export async function getUpcomingMeetingsCount(userId: string): Promise<number> {
+export async function getUpcomingMeetingsCount(userId: string, token?: string): Promise<number> {
   try {
-    const response = await fetch(`/api/meeting?userId=${userId}`);
+    const response = await fetch(`/api/meeting?userId=${userId}`, {
+      headers: createAuthHeaders(token)
+    });
     
     if (!response.ok) {
       return 0;
@@ -193,7 +210,7 @@ export async function getUpcomingMeetingsCount(userId: string): Promise<number> 
     }
     
     const now = new Date();
-    const upcomingMeetings = meetings.filter(meeting => {
+    const upcomingMeetings = meetings.filter((meeting: any) => {
       const meetingTime = new Date(meeting.meetingTime);
       return meeting.state === 'accepted' && meetingTime > now;
     });
@@ -208,11 +225,14 @@ export async function getUpcomingMeetingsCount(userId: string): Promise<number> 
 /**
  * Get count of pending meeting requests for a user
  * @param userId - The user ID
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to the count of pending meeting requests
  */
-export async function getPendingMeetingsCount(userId: string): Promise<number> {
+export async function getPendingMeetingsCount(userId: string, token?: string): Promise<number> {
   try {
-    const response = await fetch(`/api/meeting?userId=${userId}`);
+    const response = await fetch(`/api/meeting?userId=${userId}`, {
+      headers: createAuthHeaders(token)
+    });
     
     if (!response.ok) {
       return 0;
@@ -224,7 +244,7 @@ export async function getPendingMeetingsCount(userId: string): Promise<number> {
       return 0;
     }
     
-    const pendingMeetings = meetings.filter(meeting => meeting.state === 'pending');
+    const pendingMeetings = meetings.filter((meeting: any) => meeting.state === 'pending');
     
     return pendingMeetings.length;
   } catch (error) {

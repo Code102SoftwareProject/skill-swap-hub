@@ -1,9 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import connect from "@/lib/db";
 import Message from "@/lib/models/messageSchema";
 import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
 import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encryption";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 /**
  ** POST handler - Creates a new message in a chat room
@@ -17,13 +18,30 @@ import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encrypti
  * @returns JSON response with created message
  *          
  */
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     //console.log("Received body:", body);
 
     const { chatRoomId, senderId, content, replyFor } = body;
+
+    // Ensure the authenticated user matches the senderId
+    if (tokenResult.userId !== senderId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Cannot send message for another user" },
+        { status: 403 }
+      );
+    }
 
     // Check if content is a file link and skip encryption if it is
     const isFileLink = content.startsWith('File:');
@@ -117,9 +135,18 @@ export async function POST(req: Request) {
  *          Missing ID: { success: false, message: "ChatRoom ID is required" } with 400 status
  *          Error: { success: false, message: "Error message" } with 500 status
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get("chatRoomId");
     const lastMessageOnly = searchParams.get("lastMessage") === "true";
@@ -132,6 +159,27 @@ export async function GET(req: Request) {
     }
 
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
+
+    // Verify user has access to this chat room
+    const chatRoom = await ChatRoom.findById(chatRoomObjectId);
+    if (!chatRoom) {
+      return NextResponse.json(
+        { success: false, message: "Chat room not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is a participant in this chat room
+    const isParticipant = chatRoom.participants.some(
+      (participantId: any) => participantId.toString() === tokenResult.userId
+    );
+
+    if (!isParticipant) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: You are not a participant in this chat room" },
+        { status: 403 }
+      );
+    }
 
     if (lastMessageOnly) {
       const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
@@ -199,9 +247,18 @@ export async function GET(req: Request) {
  * @returns JSON response with updated message
  *          
  */
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
     const { messageId } = body;
 
@@ -217,6 +274,26 @@ export async function PATCH(req: Request) {
       return NextResponse.json(
         { success: false, message: "Message not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify user has access to this message by checking chat room participation
+    const chatRoom = await ChatRoom.findById(existingMessage.chatRoomId);
+    if (!chatRoom) {
+      return NextResponse.json(
+        { success: false, message: "Chat room not found" },
+        { status: 404 }
+      );
+    }
+
+    const isParticipant = chatRoom.participants.some(
+      (participantId: any) => participantId.toString() === tokenResult.userId
+    );
+
+    if (!isParticipant) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: You are not a participant in this chat room" },
+        { status: 403 }
       );
     }
 
@@ -255,9 +332,18 @@ export async function PATCH(req: Request) {
  * @returns JSON response with deletion status
  *         
  */
-export async function DELETE(req: Request) {
+export async function DELETE(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
 
@@ -273,6 +359,14 @@ export async function DELETE(req: Request) {
       return NextResponse.json(
         { success: false, message: "Message not found" },
         { status: 404 }
+      );
+    }
+
+    // Only allow users to delete their own messages
+    if (existingMessage.senderId !== tokenResult.userId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: You can only delete your own messages" },
+        { status: 403 }
       );
     }
 

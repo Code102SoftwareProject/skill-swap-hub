@@ -4,6 +4,7 @@ import overviewService from '../services/overviewService';
 export interface UseOverviewProps {
   session: any;
   currentUserId: string;
+  token?: string; // Add JWT token for authentication
   onAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string, title?: string) => void;
   onTabChange: (tab: string) => void;
   onSessionUpdate?: () => void; // Callback to refresh session data
@@ -17,6 +18,7 @@ export interface UseOverviewProps {
 export function useOverview({
   session,
   currentUserId,
+  token, // Add token parameter
   onAlert,
   onTabChange,
   onSessionUpdate,
@@ -74,7 +76,7 @@ export function useOverview({
 
     try {
       setLoadingReviews(true);
-      const reviewsData = await overviewService.fetchReviews(session._id);
+      const reviewsData = await overviewService.fetchReviews(session._id, token);
       setReviews(reviewsData.reviews || []);
       
       // Find user's review and received review
@@ -89,7 +91,7 @@ export function useOverview({
     } finally {
       setLoadingReviews(false);
     }
-  }, [session?._id, currentUserId, onAlert]);
+  }, [session?._id, currentUserId, onAlert, token]);
 
   // Fetch cancel request
   const fetchCancelRequest = useCallback(async () => {
@@ -97,7 +99,7 @@ export function useOverview({
 
     try {
       setLoadingCancelRequest(true);
-      const cancelData = await overviewService.fetchCancelRequest(session._id);
+      const cancelData = await overviewService.fetchCancelRequest(session._id, token);
       setCancelRequest(cancelData || null);
     } catch (error) {
       console.error('Error fetching cancel request:', error);
@@ -105,7 +107,7 @@ export function useOverview({
     } finally {
       setLoadingCancelRequest(false);
     }
-  }, [session?._id]);
+  }, [session?._id, token]);
 
   // Handle completion request
   const handleRequestCompletion = useCallback(async () => {
@@ -113,7 +115,7 @@ export function useOverview({
 
     try {
       setRequestingCompletion(true);
-      await overviewService.requestCompletion(session._id, currentUserId);
+      await overviewService.requestCompletion(session._id, currentUserId, token);
       onAlert('success', 'Completion request sent successfully');
       
       // Refresh session data
@@ -128,7 +130,7 @@ export function useOverview({
     } finally {
       setRequestingCompletion(false);
     }
-  }, [session?._id, currentUserId, onAlert, onSessionUpdate]);
+  }, [session?._id, currentUserId, onAlert, onSessionUpdate, token]);
 
   // Handle completion response
   const handleCompletionResponse = useCallback(async (action: 'approve' | 'reject', rejectionReason?: string) => {
@@ -136,7 +138,7 @@ export function useOverview({
 
     try {
       setRespondingToCompletion(true);
-      await overviewService.respondToCompletion(session._id, currentUserId, action, rejectionReason);
+      await overviewService.respondToCompletion(session._id, currentUserId, action, rejectionReason, token);
       
       const message = action === 'approve' 
         ? 'Session marked as completed successfully!' 
@@ -156,17 +158,17 @@ export function useOverview({
     } finally {
       setRespondingToCompletion(false);
     }
-  }, [session?._id, currentUserId, onAlert, onSessionUpdate]);
+  }, [session?._id, currentUserId, onAlert, onSessionUpdate, token]);
 
   // Handle file download
   const handleDownloadFile = useCallback(async (fileURL: string, fileName?: string) => {
     try {
-      await overviewService.downloadFile(fileURL, fileName);
+      await overviewService.downloadFile(fileURL, token, fileName);
     } catch (error: any) {
       console.error('Error downloading file:', error);
       onAlert('error', 'Failed to download file');
     }
-  }, [onAlert]);
+  }, [onAlert, token]);
 
   // Handle tab change
   const setActiveTab = useCallback((tab: string) => {
@@ -178,7 +180,7 @@ export function useOverview({
     if (!session?._id || !currentUserId) return;
 
     try {
-      await overviewService.cancelSession(session._id, currentUserId, reason, description, evidenceFiles);
+      await overviewService.cancelSession(session._id, currentUserId, reason, description, token, evidenceFiles);
       onAlert('success', 'Cancellation request submitted successfully');
       setShowCancelModal(false);
       
@@ -188,7 +190,7 @@ export function useOverview({
       console.error('Error canceling session:', error);
       onAlert('error', error.message || 'Failed to submit cancellation request');
     }
-  }, [session?._id, currentUserId, onAlert, fetchCancelRequest]);
+  }, [session?._id, currentUserId, onAlert, fetchCancelRequest, token]);
 
   // Handle cancellation response
   const handleCancelResponse = useCallback(async (action: 'agree' | 'dispute', responseDescription: string, workCompletionPercentage?: number) => {
@@ -200,6 +202,7 @@ export function useOverview({
         currentUserId, 
         action, 
         responseDescription, 
+        token,
         workCompletionPercentage
       );
       onAlert('success', `Cancellation response submitted successfully`);
@@ -220,7 +223,7 @@ export function useOverview({
       console.error('Error responding to cancellation:', error);
       onAlert('error', error.message || 'Failed to respond to cancellation');
     }
-  }, [session?._id, currentUserId, onAlert, fetchCancelRequest, onSessionUpdate]);
+  }, [session?._id, currentUserId, onAlert, fetchCancelRequest, onSessionUpdate, token]);
 
   // Effects
   useEffect(() => {

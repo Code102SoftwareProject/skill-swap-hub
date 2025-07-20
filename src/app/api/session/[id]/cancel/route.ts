@@ -1,20 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import SessionCancel from '@/lib/models/sessionCancelSchema';
 import User from '@/lib/models/userSchema';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
 import { Types } from 'mongoose';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // POST - Request session cancellation
 export async function POST(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json(
+        { success: false, message: authResult.error },
+        { status: 401 }
+      );
+    }
+    const authenticatedUserId = authResult.userId!;
+
     const { id: sessionId } = await params;
     const { initiatorId, reason, description, evidenceFiles = [] } = await req.json();
+
+    // Verify that the authenticated user matches the initiatorId
+    if (authenticatedUserId !== initiatorId) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: You can only cancel sessions as yourself' },
+        { status: 403 }
+      );
+    }
 
     if (!Types.ObjectId.isValid(sessionId) || !Types.ObjectId.isValid(initiatorId)) {
       return NextResponse.json(
@@ -109,7 +128,7 @@ export async function POST(
 
 // GET - Get cancellation status/request for a session
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
@@ -143,7 +162,7 @@ export async function GET(
 
 // PATCH - Respond to cancellation request (agree/dispute)
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();

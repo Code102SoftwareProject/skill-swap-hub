@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Plus, BookOpen, Star } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/context/AuthContext';
 import CreateSessionModal from '@/components/sessionSystem/CreateSessionModal';
 import EditSessionModal from '@/components/sessionSystem/EditSessionModal';
 import CounterOfferModal from '@/components/sessionSystem/CounterOfferModal';
@@ -31,6 +32,7 @@ interface SessionBoxProps {
 
 export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser: passedOtherUser, onSessionUpdate }: SessionBoxProps) {
   const router = useRouter();
+  const { token } = useAuth(); // Get JWT token for API calls
   const [otherUser, setOtherUser] = useState<UserProfile | null>(passedOtherUser || null);
   const [userLoading, setUserLoading] = useState(!passedOtherUser);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -96,6 +98,19 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
     });
   };
 
+  // Helper function to create auth headers
+  const createAuthHeaders = useCallback(() => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json'
+    };
+    
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+    
+    return headers;
+  }, [token]);
+
   // Use the custom hook for session actions
   const {
     sessions,
@@ -133,7 +148,9 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
 
       try {
         setUserLoading(true);
-        const response = await fetch(`/api/users/${otherUserId}`);
+        const response = await fetch(`/api/users/${otherUserId}`, {
+          headers: createAuthHeaders()
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -149,7 +166,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
     };
 
     fetchOtherUser();
-  }, [otherUserId, passedOtherUser]);
+  }, [otherUserId, passedOtherUser, createAuthHeaders]);
 
   // Fetch sessions with optimized timing
   useEffect(() => {
@@ -228,7 +245,9 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
   // Check if user has already reviewed a session
   const checkExistingReview = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/reviews?sessionId=${sessionId}`);
+      const response = await fetch(`/api/reviews?sessionId=${sessionId}`, {
+        headers: createAuthHeaders()
+      });
       const data = await response.json();
       
       if (data.success && data.reviews) {
@@ -246,7 +265,7 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
       console.error('Error checking existing review:', error);
       return null;
     }
-  }, [userId]);
+  }, [userId, createAuthHeaders]);
 
   // Memoized handler functions
   const handleCounterOffer = useCallback((sessionId: string) => {
@@ -389,7 +408,9 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
     const success = await handleRatingSubmit(sessionToRate, rating, ratingComment, async () => {
       // Update the session reviews to show the new review immediately
       if (sessionToRate?._id) {
-        const response = await fetch(`/api/reviews?sessionId=${sessionToRate._id}`);
+        const response = await fetch(`/api/reviews?sessionId=${sessionToRate._id}`, {
+          headers: createAuthHeaders()
+        });
         const data = await response.json();
         
         if (data.success && data.reviews) {

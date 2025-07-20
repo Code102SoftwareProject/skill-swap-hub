@@ -7,6 +7,7 @@ import { Forum } from '@/lib/models/Forum';
 import User from '@/lib/models/userSchema';
 import Admin from '@/lib/models/adminSchema';
 import { getUserIdFromToken } from '@/utils/jwtAuth';
+import { createServerSystemApiHeaders } from '@/utils/systemApiAuth';
 
 // Ensure Forum model is registered
 Forum;
@@ -172,9 +173,7 @@ export async function PATCH(request: NextRequest) {
 			try {
 				await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notification`, {
 					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json',
-					},
+					headers: createServerSystemApiHeaders(),
 					body: JSON.stringify({
 						userId,
 						typeno,

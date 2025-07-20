@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '@/lib/context/SocketContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Calendar, BookOpen, Search } from 'lucide-react';
@@ -36,6 +37,7 @@ export default function ChatHeader({
   sessionUpdateTrigger = 0
 }: ChatHeaderProps) {
   const { socket, onlineUsers, refreshOnlineUsers } = useSocket(); // Get onlineUsers from socket context
+  const { token } = useAuth(); // Get JWT token for API calls
   
   const [isTyping, setIsTyping] = useState(false);
   const [lastOnline, setLastOnline] = useState<Date | null>(null);
@@ -143,13 +145,47 @@ export default function ChatHeader({
 
   const checkActiveMeetings = useCallback(async () => {
     try {
-      const hasActivePendingMeetings = await hasUpcomingOrPendingMeetings(userId);
-      setHasActiveMeetings(hasActivePendingMeetings);
+      // Direct API call with authentication instead of using corrupted service function
+      const response = await fetch(`/api/meeting?userId=${userId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { Authorization: `Bearer ${token}` })
+        }
+      });
+      
+      if (!response.ok) {
+        console.error('Error fetching meetings:', response.status);
+        setHasActiveMeetings(false);
+        return;
+      }
+      
+      const meetings = await response.json();
+      
+      if (!Array.isArray(meetings)) {
+        console.error('Invalid meetings response format');
+        setHasActiveMeetings(false);
+        return;
+      }
+      
+      const now = new Date();
+      
+      // Check for upcoming accepted meetings or pending meeting requests
+      const hasRelevantMeetings = meetings.some(meeting => {
+        const meetingTime = new Date(meeting.meetingTime);
+        return (
+          // Upcoming accepted meetings
+          (meeting.acceptStatus === true && meetingTime > now && meeting.state !== 'cancelled') ||
+          // Pending meeting requests (sent or received)
+          (meeting.acceptStatus === null && meeting.state === 'pending')
+        );
+      });
+      
+      setHasActiveMeetings(hasRelevantMeetings);
     } catch (error) {
       console.error('Error checking active meetings:', error);
       setHasActiveMeetings(false);
     }
-  }, [userId]);
+  }, [userId, token]);
 
   // Fetch last online time when user goes offline (using onlineUsers from context)
   useEffect(() => {

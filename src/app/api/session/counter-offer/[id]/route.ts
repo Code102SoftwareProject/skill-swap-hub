@@ -1,17 +1,28 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import SessionCounterOffer from '@/lib/models/sessionCounterOfferSchema';
 import Session from '@/lib/models/sessionSchema';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
 import { Types } from 'mongoose';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // PATCH - Accept or reject a counter offer
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json(
+        { success: false, message: authResult.error },
+        { status: 401 }
+      );
+    }
+    const authenticatedUserId = authResult.userId!;
+
     const { id } = await params;
     const body = await req.json();
     const { action, userId } = body; // action: 'accept' | 'reject'
@@ -27,6 +38,14 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, message: 'Action must be either "accept" or "reject"' },
         { status: 400 }
+      );
+    }
+
+    // Verify that the authenticated user matches the userId in the body
+    if (authenticatedUserId !== userId) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: Authentication mismatch' },
+        { status: 403 }
       );
     }
 

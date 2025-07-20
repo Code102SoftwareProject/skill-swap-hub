@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import mongoose, { Types } from 'mongoose';
 import connect from '@/lib/db';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 // Import models in the correct order to avoid schema registration issues
 import User from '@/lib/models/userSchema';
 import UserSkill from '@/lib/models/userSkill';
@@ -8,9 +9,20 @@ import SessionProgress from '@/lib/models/sessionProgressSchema';
 import Session from '@/lib/models/sessionSchema';
 
 // GET - Get all sessions (with optional user filter)
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
     const status = searchParams.get('status');
@@ -18,17 +30,24 @@ export async function GET(req: Request) {
 
     console.log('Session API called with:', { userId, status, search });
 
+    // Validate that the authenticated user can access the requested sessions
+    if (userId && userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        success: false,
+        message: "Forbidden: Cannot access other user's sessions" 
+      }, { status: 403 });
+    }
+
     let query: any = {};
     
-    // Filter by user if provided
-    if (userId) {
-      query = {
-        $or: [
-          { user1Id: new Types.ObjectId(userId) },
-          { user2Id: new Types.ObjectId(userId) }
-        ]
-      };
-    }
+    // Filter by user if provided, otherwise use authenticated user
+    const targetUserId = userId || authenticatedUserId;
+    query = {
+      $or: [
+        { user1Id: new Types.ObjectId(targetUserId) },
+        { user2Id: new Types.ObjectId(targetUserId) }
+      ]
+    };
 
     // Filter by status if provided
     if (status && status !== 'all') {
@@ -143,9 +162,20 @@ export async function GET(req: Request) {
 }
 
 // POST - Create a new session
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const body = await req.json();
     const {
       user1Id,
@@ -157,6 +187,14 @@ export async function POST(req: Request) {
       startDate,
       expectedEndDate
     } = body;
+
+    // Validate that the authenticated user is creating a session for themselves
+    if (user1Id !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Cannot create sessions for other users"
+      }, { status: 403 });
+    }
 
     // Validate required fields
     if (!user1Id || !skill1Id || !descriptionOfService1 || 
@@ -264,6 +302,18 @@ export async function POST(req: Request) {
 export async function PUT(req: NextRequest) {
   try {
     await connect();
+    
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
     const action = url.searchParams.get("action"); // accept or reject
@@ -289,6 +339,22 @@ export async function PUT(req: NextRequest) {
         { success: false, message: "Session not found" },
         { status: 404 }
       );
+    }
+
+    // Validate that the authenticated user is involved in this session
+    if (session.user1Id.toString() !== authenticatedUserId && session.user2Id.toString() !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You can only update sessions you are involved in"
+      }, { status: 403 });
+    }
+
+    // For acceptance/rejection, only the receiver (user2) should be able to perform these actions
+    if (session.user2Id.toString() !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: Only the session receiver can accept or reject the session"
+      }, { status: 403 });
     }
 
     // Process based on action parameter

@@ -16,9 +16,9 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = false }) => {
-  const { user, logout, isLoading } = useAuth();
+  const { user, token, logout, isLoading } = useAuth();
   const { unreadCount, fetchUnreadCount } = useNotifications(user?._id || null);
-  const { unreadCount: unreadMessageCount, fetchUnreadCount: fetchUnreadMessageCount } = useUnreadMessages(user?._id || null);
+  const { unreadCount: unreadMessageCount, fetchUnreadCount: fetchUnreadMessageCount } = useUnreadMessages(user?._id || null, token);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

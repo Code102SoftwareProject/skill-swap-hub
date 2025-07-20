@@ -65,7 +65,7 @@ interface MeetingNote {
 }
 
 export default function MeetingContent() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
@@ -179,7 +179,7 @@ export default function MeetingContent() {
     
     try {
       setLoading(true);
-      const data = await fetchAllUserMeetings(user._id);
+      const data = await fetchAllUserMeetings(user._id, token || undefined);
       
       // Additional safety filter to ensure we only show meetings involving the authenticated user
       const userMeetings = data.filter(meeting => 
@@ -193,7 +193,7 @@ export default function MeetingContent() {
     } finally {
       setLoading(false);
     }
-  }, [user?._id]);
+  }, [user?._id, token]);
 
   // Fetch user profiles for all meeting participants
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
@@ -273,7 +273,7 @@ export default function MeetingContent() {
     // Check notes for each meeting with caching
     for (const meeting of pastAndCompletedMeetings) {
       try {
-        const hasNotes = await checkMeetingNotesExist(meeting._id, user._id);
+        const hasNotes = await checkMeetingNotesExist(meeting._id, user._id, token || undefined);
         notesStatus[meeting._id] = hasNotes;
       } catch (error) {
         console.error(`Error checking notes for meeting ${meeting._id}:`, error);
@@ -285,7 +285,7 @@ export default function MeetingContent() {
 
     setMeetingNotesStatus(notesStatus);
     setCheckingNotes(checking);
-  }, [user?._id]);
+  }, [user?._id, token]);
 
   // Fetch saved notes for all meetings
   const fetchSavedNotes = useCallback(async () => {
@@ -293,7 +293,7 @@ export default function MeetingContent() {
     
     try {
       setLoadingSavedNotes(true);
-      const notes = await fetchAllUserMeetingNotes(user._id);
+      const notes = await fetchAllUserMeetingNotes(user._id, undefined, token || undefined);
       setSavedNotes(notes || []);
     } catch (error) {
       console.error('Error fetching saved notes:', error);
@@ -301,7 +301,7 @@ export default function MeetingContent() {
     } finally {
       setLoadingSavedNotes(false);
     }
-  }, [user?._id]);
+  }, [user?._id, token]);
 
   // Handle viewing notes
   const handleViewNotes = (note: MeetingNote) => {
@@ -464,7 +464,7 @@ ${formattedContent}
           // Set loading state for this specific meeting and action
           setActionLoadingStates(prev => ({ ...prev, [meetingId]: action }));
           
-          const updatedMeeting = await updateMeeting(meetingId, action);
+          const updatedMeeting = await updateMeeting(meetingId, action, token || undefined);
           
           if (updatedMeeting) {
             setMeetings(prevMeetings => 
@@ -503,7 +503,7 @@ ${formattedContent}
     if (!user?._id) return;
     
     try {
-      const meeting = await cancelMeetingWithReason(meetingId, user._id, reason);
+      const meeting = await cancelMeetingWithReason(meetingId, user._id, reason, token || undefined);
 
       if (meeting) {
         setMeetings(prevMeetings =>
@@ -552,14 +552,14 @@ ${formattedContent}
     
     try {
       setLoadingCancellations(true);
-      const alerts = await fetchUnacknowledgedCancellations(user._id);
+      const alerts = await fetchUnacknowledgedCancellations(user._id, token || undefined);
       setCancellationAlerts(alerts);
     } catch (error) {
       console.error('Error fetching cancellation alerts:', error);
     } finally {
       setLoadingCancellations(false);
     }
-  }, [user?._id]);
+  }, [user?._id, token]);
 
   // Acknowledge cancellation alert
   const handleAcknowledgeCancellation = async (cancellationId: string) => {
@@ -567,7 +567,7 @@ ${formattedContent}
     
     try {
       setAcknowledgingCancellation(cancellationId);
-      const success = await acknowledgeMeetingCancellation(cancellationId, user._id);
+      const success = await acknowledgeMeetingCancellation(cancellationId, user._id, token || undefined);
       
       if (success) {
         setCancellationAlerts(prev => 
@@ -790,6 +790,7 @@ ${formattedContent}
             meetingNotesStatus={meetingNotesStatus}
             checkingNotes={checkingNotes}
             actionLoadingStates={actionLoadingStates}
+            token={token || undefined}
             onScheduleMeeting={() => {}} // No create meeting in this view - it shows all meetings
             onMeetingAction={handleMeetingAction}
             onCancelMeeting={showCancelMeetingModal}

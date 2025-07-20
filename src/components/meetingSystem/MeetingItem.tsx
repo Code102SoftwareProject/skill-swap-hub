@@ -19,6 +19,7 @@ interface MeetingItemProps {
   meetingNotesStatus: { [meetingId: string]: boolean };
   checkingNotes: { [meetingId: string]: boolean };
   actionLoadingStates: { [meetingId: string]: string };
+  token?: string;
   onMeetingAction: (meetingId: string, action: 'accept' | 'reject' | 'cancel') => void;
   onCancelMeeting: (meetingId: string) => void;
   onAlert: (type: 'success' | 'error' | 'warning' | 'info', message: string) => void;
@@ -32,6 +33,7 @@ export default function MeetingItem({
   meetingNotesStatus,
   checkingNotes,
   actionLoadingStates,
+  token,
   onMeetingAction,
   onCancelMeeting,
   onAlert
@@ -84,7 +86,7 @@ export default function MeetingItem({
   // Download notes for a meeting
   const handleDownloadNotes = async () => {
     try {
-      const notesData = await fetchMeetingNotes(meeting._id, userId);
+      const notesData = await fetchMeetingNotes(meeting._id, userId, token);
       
       if (notesData) {
         const pdfData: MeetingNotePDFData = {

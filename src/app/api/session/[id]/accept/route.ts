@@ -1,20 +1,39 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import connect from '@/lib/db';
 import Session from '@/lib/models/sessionSchema';
 import SessionProgress from '@/lib/models/sessionProgressSchema';
 import { Types } from 'mongoose';
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // PATCH - Accept or reject a session and create progress if accepted
 export async function PATCH(
-  req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json(
+        { success: false, message: authResult.error },
+        { status: 401 }
+      );
+    }
+    const authenticatedUserId = authResult.userId!;
+
     const { id } = await params;
     const body = await req.json();
     const { action, userId } = body; // action: 'accept' | 'reject'
+
+    // Verify that the authenticated user matches the userId
+    if (authenticatedUserId !== userId) {
+      return NextResponse.json(
+        { success: false, message: 'Forbidden: You can only accept/reject sessions as yourself' },
+        { status: 403 }
+      );
+    }
 
     if (!Types.ObjectId.isValid(id)) {
       return NextResponse.json(

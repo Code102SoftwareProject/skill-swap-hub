@@ -1,18 +1,36 @@
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import connect from "@/lib/db";
 import Message from "@/lib/models/messageSchema";
 import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 /**
  * GET handler for fetching unread message count per chat room for a user
  */
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
+
+    // Ensure the authenticated user matches the requested userId
+    if (tokenResult.userId !== userId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized: Cannot access another user's data" },
+        { status: 403 }
+      );
+    }
 
     if (!userId) {
       return NextResponse.json(

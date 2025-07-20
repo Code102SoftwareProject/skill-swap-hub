@@ -18,6 +18,7 @@ import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
 interface SidebarProps {
   userId: string;
+  token?: string | null;
   selectedChatRoomId?: string | null;
   onChatSelect: (
     chatRoomId: string,
@@ -123,7 +124,7 @@ function SidebarBox({
  * @param {function} onChatSelect 
  * @returns {TSX.Element} 
  */
-export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, preloadProgress }: SidebarProps) {
+export default function Sidebar({ userId, token, selectedChatRoomId, onChatSelect, preloadProgress }: SidebarProps) {
   const [chatRooms, setChatRooms] = useState<IChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [userProfiles, setUserProfiles] = useState<{
@@ -144,12 +145,12 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
    */
   const fetchUnreadCounts = useCallback(async () => {
     try {
-      const unreadCountsData = await fetchUnreadMessageCountsByRoom(userId);
+      const unreadCountsData = await fetchUnreadMessageCountsByRoom(userId, token);
       setUnreadCounts(unreadCountsData);
     } catch (err) {
       console.error("Error fetching unread counts:", err);
     }
-  }, [userId]);
+  }, [userId, token]);
 
   /**
    * Fetches all chat rooms for the current user from the API

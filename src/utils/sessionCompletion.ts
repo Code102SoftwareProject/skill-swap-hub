@@ -11,11 +11,17 @@ export interface CompletionStatus {
 
 export async function getSessionCompletionStatus(
   sessionId: string, 
-  currentUserId: string
+  currentUserId: string,
+  token: string
 ): Promise<CompletionStatus> {
   try {
     // Fetch completion requests for this session
-    const response = await fetch(`/api/session/completion?sessionId=${sessionId}`);
+    const response = await fetch(`/api/session/completion?sessionId=${sessionId}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
     const data = await response.json();
     
     if (!data.success) {

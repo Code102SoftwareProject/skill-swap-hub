@@ -1,11 +1,21 @@
 import meetingSchema from "@/lib/models/meetingSchema";
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
     const { id } = await params;
     
     if (!id) {
@@ -16,6 +26,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     if (!meeting) {
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
+    }
+
+    // Validate that the authenticated user is involved in this meeting
+    if (meeting.senderId.toString() !== authenticatedUserId && meeting.receiverId.toString() !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only access meetings you are involved in" 
+      }, { status: 403 });
     }
 
     return NextResponse.json(meeting, { status: 200 });
@@ -29,6 +46,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
     const { id } = await params;
     const updateData = await req.json();
     
@@ -40,6 +66,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (!meeting) {
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
+    }
+
+    // Validate that the authenticated user is involved in this meeting
+    if (meeting.senderId.toString() !== authenticatedUserId && meeting.receiverId.toString() !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only update meetings you are involved in" 
+      }, { status: 403 });
     }
 
     // Update the meeting with the provided data

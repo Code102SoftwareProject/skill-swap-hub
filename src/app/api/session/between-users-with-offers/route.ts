@@ -1,10 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import mongoose, { Types } from 'mongoose';
 import connect from '@/lib/db';
 import User from '@/lib/models/userSchema';
 import UserSkill from '@/lib/models/userSkill';
 import Session from '@/lib/models/sessionSchema';
 import SessionCounterOffer from '@/lib/models/sessionCounterOfferSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // Ensure all models are registered
 User;
@@ -13,9 +14,20 @@ Session;
 SessionCounterOffer;
 
 // GET - Get sessions between two specific users with counter offers included
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const authResult = await validateAndExtractUserId(req);
+    if (authResult.error) {
+      return NextResponse.json({
+        success: false,
+        message: authResult.error
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = authResult.userId!;
+    
     const { searchParams } = new URL(req.url);
     const user1Id = searchParams.get('user1Id');
     const user2Id = searchParams.get('user2Id');
@@ -25,6 +37,14 @@ export async function GET(req: Request) {
         { success: false, message: 'Both user1Id and user2Id are required' },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user is one of the users in the request
+    if (user1Id !== authenticatedUserId && user2Id !== authenticatedUserId) {
+      return NextResponse.json({
+        success: false,
+        message: "Forbidden: You can only access sessions you are involved in"
+      }, { status: 403 });
     }
 
     // Find sessions between these two users (in either direction)

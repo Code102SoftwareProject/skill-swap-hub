@@ -1,12 +1,23 @@
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 // Get cancellation details
 export async function GET(req: Request) {
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
+    
     const url = new URL(req.url);
     const meetingId = url.searchParams.get('meetingId');
     const userId = url.searchParams.get('userId');
@@ -17,6 +28,13 @@ export async function GET(req: Request) {
         { message: "Meeting ID is required" },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user matches the requested userId (if provided)
+    if (userId && userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: Cannot access other user's cancellation data" 
+      }, { status: 403 });
     }
 
     let query: any = { meetingId };
@@ -47,6 +65,15 @@ export async function PATCH(req: Request) {
   await connect();
   
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
     const { cancellationId, acknowledgedBy } = await req.json();
 
     if (!cancellationId || !acknowledgedBy) {
@@ -54,6 +81,13 @@ export async function PATCH(req: Request) {
         { message: "Cancellation ID and acknowledged by user are required" },
         { status: 400 }
       );
+    }
+
+    // Validate that the authenticated user matches the acknowledgedBy user
+    if (acknowledgedBy !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only acknowledge cancellations as yourself" 
+      }, { status: 403 });
     }
 
     const cancellation = await cancelMeetingSchema.findById(cancellationId);

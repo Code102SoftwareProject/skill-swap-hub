@@ -1,4 +1,5 @@
 import type { Session } from '@/types';
+import { createSystemApiHeaders } from '@/utils/systemApiAuth';
 
 export interface ReportData {
   sessionId: string;
@@ -42,6 +43,21 @@ export interface ExistingReport {
 
 class ReportService {
   /**
+   * Create authorization headers for API calls
+   */
+  private createAuthHeaders(token: string, isFormData: boolean = false): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+    };
+    
+    if (!isFormData) {
+      headers['Content-Type'] = 'application/json';
+    }
+    
+    return headers;
+  }
+
+  /**
    * Map user-friendly reason labels to database enum values
    */
   private reasonEnumMap: Record<string, string> = {
@@ -77,8 +93,10 @@ class ReportService {
   /**
    * Fetch existing reports for a session and user
    */
-  async fetchReports(sessionId: string, userId: string): Promise<ExistingReport[]> {
-    const response = await fetch(`/api/session/report/${sessionId}?userId=${userId}`);
+  async fetchReports(sessionId: string, userId: string, token: string): Promise<ExistingReport[]> {
+    const response = await fetch(`/api/session/report/${sessionId}?userId=${userId}`, {
+      headers: this.createAuthHeaders(token),
+    });
     const data = await response.json();
     
     if (!response.ok) {
@@ -113,7 +131,7 @@ class ReportService {
   /**
    * Submit a new report
    */
-  async submitReport(reportData: ReportData): Promise<void> {
+  async submitReport(reportData: ReportData, token: string): Promise<void> {
     console.log('Submitting report with data:', reportData);
     
     // Validate reason enum value
@@ -123,9 +141,7 @@ class ReportService {
     
     const response = await fetch('/api/session/report', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: this.createAuthHeaders(token),
       body: JSON.stringify(reportData),
     });
 
@@ -148,9 +164,7 @@ class ReportService {
     try {
       await fetch('/api/notification', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: createSystemApiHeaders(),
         body: JSON.stringify({
           userId: reportedUserId,
           typeno: 21, // REPORT_SUBMITTED

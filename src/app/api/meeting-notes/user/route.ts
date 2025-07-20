@@ -2,16 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import MeetingNotes from '@/lib/models/meetingNotesSchema';
 import Meeting from '@/lib/models/meetingSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 export async function GET(req: NextRequest) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
+    
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const otherUserId = url.searchParams.get('otherUserId');
     
     if (!userId) {
       return NextResponse.json({ message: 'Missing userId parameter' }, { status: 400 });
+    }
+    
+    // Validate that the authenticated user matches the requested userId
+    if (userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: Cannot access other user's meeting notes" 
+      }, { status: 403 });
     }
     
     let query: any = { userId };

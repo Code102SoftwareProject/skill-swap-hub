@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSocket } from '@/lib/context/SocketContext';
+import { useAuth } from '@/lib/context/AuthContext';
 import { IMessage } from "@/types/chat";
 import { CornerUpLeft } from "lucide-react";
 
@@ -156,6 +157,7 @@ export default function MessageBox({
   onCloseSearch,
 }: MessageBoxProps) {
   const { socket, onlineUsers } = useSocket();
+  const { token } = useAuth();
   
   const [messages, setMessages] = useState<IMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -241,7 +243,7 @@ export default function MessageBox({
       
       try {
         console.log(`Fetching messages from API for room ${chatRoomId}`);
-        const messagesData = await fetchChatMessages(chatRoomId);
+        const messagesData = await fetchChatMessages(chatRoomId, token);
         if (messagesData && messagesData.length > 0) {
           setMessages(messagesData);
         }
@@ -253,7 +255,7 @@ export default function MessageBox({
     }
     
     loadMessages();
-  }, [chatRoomId, userId]);
+  }, [chatRoomId, userId, token]);
 
   // ! Append new messages if they arrive
   useEffect(() => {
@@ -317,7 +319,7 @@ export default function MessageBox({
     // Use API to mark unread messages as read (no sockets)
     const markMessagesRead = async () => {
       try {
-        const result = await markChatRoomMessagesAsRead(chatRoomId, userId);
+        const result = await markChatRoomMessagesAsRead(chatRoomId, userId, token);
         if (result.success && result.modifiedCount > 0) {
           console.log(`Marked ${result.modifiedCount} messages as read`);
         }
@@ -327,7 +329,7 @@ export default function MessageBox({
     };
 
     markMessagesRead();
-  }, [chatRoomId, userId]); // Only run when chat room or user changes, not on every message update
+  }, [chatRoomId, userId, token]); // Only run when chat room or user changes, not on every message update
 
   // ! Auto-scroll to the bottom when messages update
   useEffect(() => {

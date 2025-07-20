@@ -57,9 +57,16 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     // Update user's last seen status
     updateLastSeen(userId).catch(console.error);
 
-    // Create socket connection
+    // Create socket connection with system API key authentication
     const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET;
-    const newSocket = io(SOCKET_URL, { transports: ['websocket'] });
+    const SYSTEM_API_KEY = process.env.NEXT_PUBLIC_SYSTEM_API_KEY || 'XhgL7Pkz5vBYtRQj2DAm9cEq3UF8TnW4ZsV6HdxfKCNr1pGya0JuLiMo4eS5wbP2';
+    
+    const newSocket = io(SOCKET_URL, { 
+      transports: ['websocket'],
+      auth: {
+        apiKey: SYSTEM_API_KEY // Required for socket server authentication
+      }
+    });
 
     // Important: Set socket state only once
     setSocket(newSocket);
@@ -80,6 +87,9 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
 
       newSocket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
+        if (error.message?.includes('Authentication failed')) {
+          console.error('Socket authentication failed: Invalid API key');
+        }
         setIsConnected(false);
       });
 
@@ -150,7 +160,8 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
         }
       }
     };
-  }, [userId]);
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Note: socket and isConnected are intentionally not included to prevent infinite reconnection loops
 
   // Join a chat room
   const joinRoom = (chatRoomId: string) => {

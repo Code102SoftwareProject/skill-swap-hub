@@ -1,6 +1,24 @@
 import Meeting from "@/types/meeting";
 import { debouncedApiService } from './debouncedApiService';
 import { invalidateMeetingCache, invalidateUsersCaches } from './sessionApiServices';
+import { createSystemApiHeaders } from '@/utils/systemApiAuth';
+
+/**
+ * Helper function to create authorization headers
+ * @param token - JWT token (optional)
+ * @returns Headers object with authorization if token is provided
+ */
+function createAuthHeaders(token?: string): HeadersInit {
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return headers;
+}
 
 // Notification helper functions
 /**
@@ -15,9 +33,7 @@ async function sendMeetingNotification(userId: string, typeno: number, descripti
   try {
     const response = await fetch('/api/notification', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: createSystemApiHeaders(),
       body: JSON.stringify({
         userId,
         typeno,
@@ -65,16 +81,19 @@ async function getUserName(userId: string): Promise<string> {
  * 
  * @param userId - ID of the first user
  * @param otherUserId - ID of the second user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to an array of Meeting objects between the specified users,
  *          or an empty array if the request fails
  */
-export async function fetchMeetings(userId: string, otherUserId: string): Promise<Meeting[]> {
+export async function fetchMeetings(userId: string, otherUserId: string, token?: string): Promise<Meeting[]> {
   const cacheKey = `meetings-${userId}-${otherUserId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`);
+      const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`, {
+        headers: createAuthHeaders(token)
+      });
       
       if (!response.ok) {
         throw new Error(`Error fetching meetings: ${response.status}`);
@@ -94,6 +113,7 @@ export async function fetchMeetings(userId: string, otherUserId: string): Promis
  * @param meetingData.receiverId - ID of the user receiving the meeting invitation
  * @param meetingData.description - Text description of the meeting purpose
  * @param meetingData.meetingTime - Date and time when the meeting will occur
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to the created Meeting object if successful,
  *          or null if the request fails
  */
@@ -102,11 +122,11 @@ export async function createMeeting(meetingData: {
   receiverId: string;
   description: string;
   meetingTime: Date;
-}): Promise<Meeting | null> {
+}, token?: string): Promise<Meeting | null> {
   try {
     const response = await fetch('/api/meeting', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: createAuthHeaders(token),
       body: JSON.stringify(meetingData),
     });
     
@@ -154,10 +174,11 @@ export async function createMeeting(meetingData: {
  *                'accept' - Accept the meeting invitation
  *                'reject' - Reject the meeting invitation
  *                'cancel' - Cancel a previously scheduled meeting
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to the updated Meeting object if successful,
  *          or null if the request fails
  */
-export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel'): Promise<Meeting | null> {
+export async function updateMeeting(meetingId: string, action: 'accept' | 'reject' | 'cancel', token?: string): Promise<Meeting | null> {
   try {
     let response: Response;
     
@@ -165,7 +186,7 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
     if (action === 'reject') {
       response = await fetch('/api/meeting/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: createAuthHeaders(token),
         body: JSON.stringify({ meetingId }),
       });
     } else {
@@ -180,7 +201,7 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
       
       response = await fetch('/api/meeting', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: createAuthHeaders(token),
         body: JSON.stringify(body),
       });
     }
@@ -264,16 +285,19 @@ export async function fetchUpcomingMeetingsCount(userId: string, otherUserId: st
  ** Fetch all meetings for a specific user (cached)
  * 
  * @param userId - ID of the user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to an array of Meeting objects for the specified user,
  *          or an empty array if the request fails
  */
-export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> => {
+export const fetchAllUserMeetings = async (userId: string, token?: string): Promise<Meeting[]> => {
   const cacheKey = `user-meetings-${userId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting?userId=${userId}`);
+      const response = await fetch(`/api/meeting?userId=${userId}`, {
+        headers: createAuthHeaders(token)
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
@@ -292,20 +316,22 @@ export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> =
  * @param meetingId - ID of the meeting to cancel
  * @param cancelledBy - ID of the user cancelling the meeting
  * @param reason - Reason for cancellation
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to the updated Meeting object if successful,
  *          or null if the request fails
  */
 export async function cancelMeetingWithReason(
   meetingId: string, 
   cancelledBy: string, 
-  reason: string
+  reason: string,
+  token?: string
 ): Promise<Meeting | null> {
   try {
     // Use relative URL for client-side requests
     const url = '/api/meeting/cancel';
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: createAuthHeaders(token),
       body: JSON.stringify({
         meetingId,
         cancelledBy,
@@ -339,15 +365,18 @@ export async function cancelMeetingWithReason(
  * 
  * @param meetingId - ID of the meeting
  * @param userId - ID of the current user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to cancellation data or null
  */
-export async function fetchMeetingCancellation(meetingId: string, userId: string) {
+export async function fetchMeetingCancellation(meetingId: string, userId: string, token?: string) {
   const cacheKey = `cancellation-${meetingId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting/cancellation?meetingId=${meetingId}&userId=${userId}`);
+      const response = await fetch(`/api/meeting/cancellation?meetingId=${meetingId}&userId=${userId}`, {
+        headers: createAuthHeaders(token)
+      });
       if (!response.ok) return null;
       return await response.json();
     },
@@ -359,15 +388,18 @@ export async function fetchMeetingCancellation(meetingId: string, userId: string
  ** Fetch all unacknowledged cancellations for a user
  * 
  * @param userId - ID of the current user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to array of unacknowledged cancellations
  */
-export async function fetchUnacknowledgedCancellations(userId: string) {
+export async function fetchUnacknowledgedCancellations(userId: string, token?: string) {
   const cacheKey = `unacknowledged-cancellations-${userId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`);
+      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`, {
+        headers: createAuthHeaders(token)
+      });
       if (!response.ok) return [];
       return await response.json();
     },
@@ -380,16 +412,18 @@ export async function fetchUnacknowledgedCancellations(userId: string) {
  * 
  * @param cancellationId - ID of the cancellation to acknowledge
  * @param acknowledgedBy - ID of the user acknowledging
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to true if successful, false otherwise
  */
 export async function acknowledgeMeetingCancellation(
   cancellationId: string, 
-  acknowledgedBy: string
+  acknowledgedBy: string,
+  token?: string
 ): Promise<boolean> {
   try {
     const response = await fetch('/api/meeting/cancellation', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: createAuthHeaders(token),
       body: JSON.stringify({
         cancellationId,
         acknowledgedBy
@@ -415,15 +449,18 @@ export async function acknowledgeMeetingCancellation(
  * 
  * @param meetingId - ID of the meeting
  * @param userId - ID of the current user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to boolean indicating if notes exist
  */
-export async function checkMeetingNotesExist(meetingId: string, userId: string): Promise<boolean> {
+export async function checkMeetingNotesExist(meetingId: string, userId: string, token?: string): Promise<boolean> {
   const cacheKey = `notes-check-${meetingId}-${userId}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
+        headers: createAuthHeaders(token)
+      });
       const data = await response.json();
       return response.ok && data._id && data.content && data.content.trim().length > 0;
     },
@@ -436,11 +473,14 @@ export async function checkMeetingNotesExist(meetingId: string, userId: string):
  * 
  * @param meetingId - ID of the meeting
  * @param userId - ID of the current user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to meeting notes data or null
  */
-export async function fetchMeetingNotes(meetingId: string, userId: string) {
+export async function fetchMeetingNotes(meetingId: string, userId: string, token?: string) {
   try {
-    const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+    const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
+      headers: createAuthHeaders(token)
+    });
     const data = await response.json();
     
     if (response.ok && data._id && data.content && data.content.trim().length > 0) {
@@ -459,16 +499,19 @@ export async function fetchMeetingNotes(meetingId: string, userId: string) {
  * 
  * @param userId - ID of the current user
  * @param otherUserId - Optional ID of the other user to filter notes for meetings with specific user
+ * @param token - JWT token for authentication (optional)
  * @returns Promise that resolves to array of meeting notes data
  */
-export async function fetchAllUserMeetingNotes(userId: string, otherUserId?: string) {
+export async function fetchAllUserMeetingNotes(userId: string, otherUserId?: string, token?: string) {
   const cacheKey = `user-notes-${userId}${otherUserId ? `-${otherUserId}` : ''}`;
   
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
       const url = `/api/meeting-notes/user?userId=${userId}${otherUserId ? `&otherUserId=${otherUserId}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: createAuthHeaders(token)
+      });
       
       if (!response.ok) {
         throw new Error(`Error fetching user meeting notes: ${response.status}`);

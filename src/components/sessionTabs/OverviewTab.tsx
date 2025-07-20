@@ -18,6 +18,7 @@ interface OverviewTabProps {
   showAlert: (type: string, message: string, title?: string) => void;
   setActiveTab: (tab: string) => void;
   onSessionUpdate?: () => void; // Callback to refresh session data
+  token: string; // JWT token for API authentication
 }
 
 export default function OverviewTab({
@@ -31,6 +32,7 @@ export default function OverviewTab({
   showAlert,
   setActiveTab,
   onSessionUpdate,
+  token,
 }: OverviewTabProps) {
   const {
     // Data
@@ -89,6 +91,7 @@ export default function OverviewTab({
     otherProgress,
     user,
     otherUserDetails,
+    token,
   });
 
   // Local state for new modals
@@ -110,11 +113,11 @@ export default function OverviewTab({
   // Fetch completion status
   useEffect(() => {
     const fetchCompletionStatus = async () => {
-      if (!session?._id || !currentUserId) return;
+      if (!session?._id || !currentUserId || !token) return;
       
       setLoadingCompletionStatus(true);
       try {
-        const status = await getSessionCompletionStatus(session._id, currentUserId);
+        const status = await getSessionCompletionStatus(session._id, currentUserId, token);
         setCompletionStatus(status);
       } catch (error) {
         console.error('Error fetching completion status:', error);
@@ -124,14 +127,14 @@ export default function OverviewTab({
     };
 
     fetchCompletionStatus();
-  }, [session?._id, currentUserId]);
+  }, [session?._id, currentUserId, token]);
 
   // Refresh completion status after actions
   const refreshCompletionStatus = async () => {
-    if (!session?._id || !currentUserId) return;
+    if (!session?._id || !currentUserId || !token) return;
     
     try {
-      const status = await getSessionCompletionStatus(session._id, currentUserId);
+      const status = await getSessionCompletionStatus(session._id, currentUserId, token);
       setCompletionStatus(status);
     } catch (error) {
       console.error('Error refreshing completion status:', error);

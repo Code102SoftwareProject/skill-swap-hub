@@ -12,6 +12,7 @@ import {
   Clock
 } from 'lucide-react';
 import { useMeetingNotes } from '@/hooks/useMeetingNotes';
+import { useAuth } from '@/lib/context/AuthContext';
 import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
 
 interface MeetingNotesSidebarProps {
@@ -31,6 +32,7 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
   isVisible,
   onToggle
 }) => {
+  const { token } = useAuth(); // Get JWT token
   const {
     notes,
     isLoading,
@@ -43,7 +45,7 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
     togglePrivacy,
     saveNotes,
     deleteNotes
-  } = useMeetingNotes({ meetingId, userId, userName });
+  } = useMeetingNotes({ meetingId, userId, userName, token: token || undefined });
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

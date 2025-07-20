@@ -1,6 +1,7 @@
 import meetingSchema from "@/lib/models/meetingSchema";
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 // Daily.co configuration
 const DAILY_API_KEY = process.env.DAILY_API_KEY || "30a32b5fc8651595f2b981d1210cdd8b9e5b9caececb714da81b825a18f6aa11";
@@ -99,9 +100,26 @@ const testDailyAPI = async () => {
 export async function GET(req: Request) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
+    
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const otherUserId = url.searchParams.get('otherUserId');
+    
+    // Validate that the authenticated user matches the requested userId
+    if (userId && userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: Cannot access other user's meetings" 
+      }, { status: 403 });
+    }
     
     let query = {};
     if (userId && otherUserId) {
@@ -120,8 +138,15 @@ export async function GET(req: Request) {
           { receiverId: userId }
         ]
       };
+    } else {
+      // If no userId is provided, use authenticated user ID
+      query = {
+        $or: [
+          { senderId: authenticatedUserId },
+          { receiverId: authenticatedUserId }
+        ]
+      };
     }
-    // If no userId is provided, return empty array (don't return all meetings)
     
     const meetings = await meetingSchema.find(query);
     return NextResponse.json(meetings, { status: 200 });
@@ -133,7 +158,24 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
+    
     const body = await req.json(); // Parse the JSON body first
+    
+    // Validate that the authenticated user is the sender
+    if (body.senderId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: Cannot create meetings for other users" 
+      }, { status: 403 });
+    }
     
     // Check if users already have 2 active meetings
     const existingMeetings = await meetingSchema.find({
@@ -181,6 +223,16 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   await connect();
   try {
+    // Validate JWT token and extract user ID
+    const tokenResult = validateAndExtractUserId(req as any);
+    if (!tokenResult.isValid) {
+      return NextResponse.json({ 
+        message: "Unauthorized: " + tokenResult.error 
+      }, { status: 401 });
+    }
+    
+    const authenticatedUserId = tokenResult.userId;
+    
     const meetingData = await req.json();    
     const meeting = await meetingSchema.findById(meetingData._id);
 
@@ -188,7 +240,22 @@ export async function PATCH(req: Request) {
       console.error('Meeting not found:', meetingData._id);
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
     }
+    
+    // Validate that the authenticated user is involved in this meeting
+    if (meeting.senderId.toString() !== authenticatedUserId && meeting.receiverId.toString() !== authenticatedUserId) {
+      return NextResponse.json({ 
+        message: "Forbidden: You can only update meetings you are involved in" 
+      }, { status: 403 });
+    }
+    
     if (meeting.state === "pending" && meetingData.acceptStatus) {
+      // Only the receiver can accept a meeting
+      if (meeting.receiverId.toString() !== authenticatedUserId) {
+        return NextResponse.json({ 
+          message: "Forbidden: Only the meeting receiver can accept the meeting" 
+        }, { status: 403 });
+      }
+      
       const apiWorking = await testDailyAPI();
       try {
         const dailyRoomUrl = await createDailyRoom(meeting.meetingTime);
@@ -209,6 +276,13 @@ export async function PATCH(req: Request) {
     }
     // ! Handle rejection of pending meetings
     else if (meeting.state === "pending" && meetingData.state === "rejected") {
+      // Only the receiver can reject a meeting
+      if (meeting.receiverId.toString() !== authenticatedUserId) {
+        return NextResponse.json({ 
+          message: "Forbidden: Only the meeting receiver can reject the meeting" 
+        }, { status: 403 });
+      }
+      
       meeting.state = "rejected";
       console.log('Meeting rejected');
     }

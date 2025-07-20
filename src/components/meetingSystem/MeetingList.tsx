@@ -23,6 +23,7 @@ interface MeetingListProps {
   meetingNotesStatus: { [meetingId: string]: boolean };
   checkingNotes: { [meetingId: string]: boolean };
   actionLoadingStates: { [meetingId: string]: string };
+  token?: string;
   onScheduleMeeting: () => void;
   onMeetingAction: (meetingId: string, action: 'accept' | 'reject' | 'cancel') => void;
   onCancelMeeting: (meetingId: string) => void;
@@ -52,7 +53,8 @@ export default function MeetingList({
   onAlert,
   onTogglePastMeetings,
   onToggleCancelledMeetings,
-  showCreateMeetingButton = true // Default to true for backward compatibility
+  showCreateMeetingButton = true, // Default to true for backward compatibility
+  token
 }: MeetingListProps) {
   const totalMeetings = pendingRequests.length + upcomingMeetings.length + pastMeetings.length + cancelledMeetings.length + currentlyHappeningMeetings.length;
 
@@ -99,6 +101,7 @@ export default function MeetingList({
                 meetingNotesStatus={meetingNotesStatus}
                 checkingNotes={checkingNotes}
                 actionLoadingStates={actionLoadingStates}
+                token={token}
                 onMeetingAction={onMeetingAction}
                 onCancelMeeting={onCancelMeeting}
                 onAlert={onAlert}
@@ -131,6 +134,7 @@ export default function MeetingList({
                     meetingNotesStatus={meetingNotesStatus}
                     checkingNotes={checkingNotes}
                     actionLoadingStates={actionLoadingStates}
+                    token={token}
                     onMeetingAction={onMeetingAction}
                     onCancelMeeting={onCancelMeeting}
                     onAlert={onAlert}
@@ -160,6 +164,7 @@ export default function MeetingList({
                 meetingNotesStatus={meetingNotesStatus}
                 checkingNotes={checkingNotes}
                 actionLoadingStates={actionLoadingStates}
+                token={token}
                 onMeetingAction={onMeetingAction}
                 onCancelMeeting={onCancelMeeting}
                 onAlert={onAlert}
@@ -208,6 +213,7 @@ export default function MeetingList({
                   meetingNotesStatus={meetingNotesStatus}
                   checkingNotes={checkingNotes}
                   actionLoadingStates={actionLoadingStates}
+                  token={token}
                   onMeetingAction={onMeetingAction}
                   onCancelMeeting={onCancelMeeting}
                   onAlert={onAlert}
@@ -247,6 +253,7 @@ export default function MeetingList({
                   meetingNotesStatus={meetingNotesStatus}
                   checkingNotes={checkingNotes}
                   actionLoadingStates={actionLoadingStates}
+                  token={token}
                   onMeetingAction={onMeetingAction}
                   onCancelMeeting={onCancelMeeting}
                   onAlert={onAlert}
