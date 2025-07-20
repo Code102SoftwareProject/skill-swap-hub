@@ -2,8 +2,8 @@ import CryptoJS from "crypto-js";
 
 /**
  * Secret key used for encryption/decryption.
- * SECURITY NOTE: Ideally, this should be stored in environment variables,
- * with a strong randomly generated value in production.
+ * SECURITY NOTE: Only used on server-side for better security.
+ * Client-side no longer encrypts messages.
  */
 const secretKey: string = process.env.M_KEY || "secretKey";
 

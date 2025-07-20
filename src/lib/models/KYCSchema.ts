@@ -8,6 +8,12 @@ const KYCSchema = new mongoose.Schema({
   // National Identity Card number
   nic: { type: String, required: true },
 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+
   // User ID or email of the person submitting KYC
   recipient: { type: String, required: true },
 
@@ -29,6 +35,18 @@ const KYCSchema = new mongoose.Schema({
 
   // URL to stored image of user holding their NIC (for verification)
   nicWithPersonUrl: { type: String },
+
+  // Reason why an admin rejected this KYC (required when status === "Rejected")
+  rejectionReason: {
+    type: String,
+    required: [
+      // annotate `this` so TS knows it has a `.status`
+      function (this: any): boolean {
+        return this.status === "Rejected";
+      },
+      "Rejection reason is required",
+    ],
+ },
 });
 
 /**

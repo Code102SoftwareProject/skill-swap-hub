@@ -2,6 +2,64 @@ import Meeting from "@/types/meeting";
 import { debouncedApiService } from './debouncedApiService';
 import { invalidateMeetingCache, invalidateUsersCaches } from './sessionApiServices';
 
+// Notification helper functions
+/**
+ * Send meeting notification to a user
+ * @param userId - The user ID to send notification to
+ * @param typeno - The notification type number
+ * @param description - The notification description
+ * @param targetDestination - Where the notification should redirect (optional)
+ * @returns Promise<boolean> - Success status
+ */
+async function sendMeetingNotification(userId: string, typeno: number, description: string, targetDestination: string = '/dashboard'): Promise<boolean> {
+  try {
+    const response = await fetch('/api/notification', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        userId,
+        typeno,
+        description,
+        targetDestination
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Failed to send meeting notification:', await response.text());
+      return false;
+    }
+
+    console.log('Meeting notification sent successfully');
+    return true;
+  } catch (error) {
+    console.error('Error sending meeting notification:', error);
+    return false;
+  }
+}
+
+/**
+ * Get user name for notifications
+ * @param userId - User ID to fetch name for
+ * @returns Promise<string> - User's full name
+ */
+async function getUserName(userId: string): Promise<string> {
+  try {
+    const response = await fetch(`/api/users/profile?id=${userId}`);
+    const data = await response.json();
+    
+    if (data.success && data.user) {
+      return `${data.user.firstName} ${data.user.lastName}`.trim();
+    }
+    
+    return 'Unknown User';
+  } catch (error) {
+    console.error('Error fetching user name:', error);
+    return 'Unknown User';
+  }
+}
+
 /**
  ** Fetch meetings between two users
  * 
@@ -59,6 +117,24 @@ export async function createMeeting(meetingData: {
     
     const result = await response.json();
     
+    // Send notification to the receiver about the meeting request
+    try {
+      const senderName = await getUserName(meetingData.senderId);
+      const targetDestination = `/dashboard?tab=meetings`;
+      
+      await sendMeetingNotification(
+        meetingData.receiverId,
+        5, // MEETING_REQUEST
+        `${senderName} sent you a meeting request`,
+        targetDestination
+      );
+      
+      console.log('Meeting request notification sent successfully');
+    } catch (notificationError) {
+      console.error('Failed to send meeting request notification:', notificationError);
+      // Continue even if notification fails
+    }
+    
     // Invalidate cache for both users
     invalidateUsersCaches(meetingData.senderId, meetingData.receiverId);
     
@@ -115,13 +191,39 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
     
     const result = await response.json();
     
-    // Get meeting details to invalidate cache for both users
-    if (result && (result.senderId || result.receiverId)) {
-      const senderId = result.senderId?._id || result.senderId;
-      const receiverId = result.receiverId?._id || result.receiverId;
-      if (senderId && receiverId) {
-        invalidateUsersCaches(senderId, receiverId);
+    // Send notifications based on action
+    if (result && result.senderId && result.receiverId) {
+      const senderId = result.senderId._id || result.senderId;
+      const receiverId = result.receiverId._id || result.receiverId;
+      
+      try {
+        if (action === 'accept') {
+          const accepterName = await getUserName(receiverId);
+          await sendMeetingNotification(
+            senderId,
+            6, // MEETING_APPROVED_AND_SCHEDULED
+            `${accepterName} accepted your meeting request`,
+            `/meeting/${meetingId}`
+          );
+          console.log('Meeting acceptance notification sent successfully');
+        } else if (action === 'reject') {
+          const rejecterName = await getUserName(receiverId);
+          // ! Decline Notification
+          await sendMeetingNotification(
+            senderId,
+            30, // MEETING_DECLIENED
+            `${rejecterName} declined your meeting request`,
+            `/dashboard?tab=meetings`
+          );
+          console.log('Meeting rejection notification sent successfully');
+        }
+      } catch (notificationError) {
+        console.error(`Failed to send meeting ${action} notification:`, notificationError);
+        // Continue even if notification fails
       }
+      
+      // Invalidate cache for both users
+      invalidateUsersCaches(senderId, receiverId);
     }
     
     return result;
@@ -199,7 +301,9 @@ export async function cancelMeetingWithReason(
   reason: string
 ): Promise<Meeting | null> {
   try {
-    const response = await fetch('/api/meeting/cancel', {
+    // Use relative URL for client-side requests
+    const url = '/api/meeting/cancel';
+    const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -210,12 +314,13 @@ export async function cancelMeetingWithReason(
     });
 
     if (!response.ok) {
-      throw new Error(`Error cancelling meeting: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Error cancelling meeting: ${response.status}`);
     }
 
     const { meeting } = await response.json();
     
-    // Invalidate cache for both users if we have the meeting data
+    // Invalidate cache for both users
     if (meeting && meeting.senderId && meeting.receiverId) {
       const senderId = meeting.senderId._id || meeting.senderId;
       const receiverId = meeting.receiverId._id || meeting.receiverId;
@@ -225,7 +330,7 @@ export async function cancelMeetingWithReason(
     return meeting;
   } catch (error) {
     console.error('Error cancelling meeting:', error);
-    return null;
+    throw error; // Re-throw the error so the UI can handle it properly
   }
 }
 
@@ -247,6 +352,26 @@ export async function fetchMeetingCancellation(meetingId: string, userId: string
       return await response.json();
     },
     300000 // 5 minute cache
+  );
+}
+
+/**
+ ** Fetch all unacknowledged cancellations for a user
+ * 
+ * @param userId - ID of the current user
+ * @returns Promise that resolves to array of unacknowledged cancellations
+ */
+export async function fetchUnacknowledgedCancellations(userId: string) {
+  const cacheKey = `unacknowledged-cancellations-${userId}`;
+  
+  return debouncedApiService.makeRequest(
+    cacheKey,
+    async () => {
+      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`);
+      if (!response.ok) return [];
+      return await response.json();
+    },
+    30000 // 30 second cache
   );
 }
 
@@ -327,6 +452,32 @@ export async function fetchMeetingNotes(meetingId: string, userId: string) {
     console.error('Error fetching meeting notes:', error);
     return null;
   }
+}
+
+/**
+ ** Fetch all meeting notes for a user
+ * 
+ * @param userId - ID of the current user
+ * @param otherUserId - Optional ID of the other user to filter notes for meetings with specific user
+ * @returns Promise that resolves to array of meeting notes data
+ */
+export async function fetchAllUserMeetingNotes(userId: string, otherUserId?: string) {
+  const cacheKey = `user-notes-${userId}${otherUserId ? `-${otherUserId}` : ''}`;
+  
+  return debouncedApiService.makeRequest(
+    cacheKey,
+    async () => {
+      const url = `/api/meeting-notes/user?userId=${userId}${otherUserId ? `&otherUserId=${otherUserId}` : ''}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Error fetching user meeting notes: ${response.status}`);
+      }
+      
+      return await response.json();
+    },
+    60000 // 1 minute cache
+  );
 }
 
 /**
@@ -438,8 +589,8 @@ export async function downloadMeetingNotesFile(
   try {
     const data = await fetchMeetingNotes(meetingId, userId);
     
-    if (!data) {
-      return false;
+    if (!data || !data.content || data.content.trim().length === 0) {
+      throw new Error('No notes content found for this meeting');
     }
 
     // Create a well-formatted markdown document
@@ -491,26 +642,87 @@ ${formattedContent}
 - **Word Count:** ${wordCount}
 - **Tags:** ${data.tags?.join(', ') || 'None'}
 - **Created:** ${new Date(data.createdAt || meetingDate).toLocaleDateString()}
-- **Last Updated:** ${data.updatedAt ? new Date(data.updatedAt).toLocaleDateString() : 'N/A'}
+- **Last Updated:** ${data.lastModified ? new Date(data.lastModified).toLocaleDateString() : 'N/A'}
 
 ---
 
 *Generated by SkillSwap Hub - Meeting Notes System*
     `;
     
+    // Create and trigger download
     const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meeting-notes-${meetingId}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
     
+    // Check if browser supports download
+    if (typeof window === 'undefined') {
+      throw new Error('Download not supported in server environment');
+    }
+    
+    const url = URL.createObjectURL(blob);
+    const fileName = `meeting-notes-${meetingId}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
+    
+    // Try modern download approach first
+    if ((navigator as any).msSaveBlob) {
+      // IE 10+
+      (navigator as any).msSaveBlob(blob, fileName);
+    } else {
+      // Modern browsers
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      
+      // Add to DOM, click, and remove
+      document.body.appendChild(a);
+      a.click();
+      
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
+    }
+    
+    console.log('Download triggered successfully for:', fileName);
     return true;
   } catch (error) {
     console.error('Error downloading notes:', error);
-    return false;
+    throw error; // Re-throw to let the caller handle the error properly
   }
+}
+
+/**
+ ** Check if a meeting can be cancelled based on timing rules
+ * 
+ * @param meeting - Meeting object to check
+ * @returns Object with canCancel boolean and reason message if cannot cancel
+ */
+export function canCancelMeeting(meeting: Meeting): { canCancel: boolean; reason?: string } {
+  // Only accepted meetings have timing restrictions
+  if (meeting.state !== 'accepted') {
+    return { canCancel: true };
+  }
+
+  const now = new Date();
+  const meetingTime = new Date(meeting.meetingTime);
+  const tenMinutesBefore = new Date(meetingTime.getTime() - 10 * 60 * 1000); // 10 minutes before
+  const thirtyMinutesAfter = new Date(meetingTime.getTime() + 30 * 60 * 1000); // 30 minutes after
+
+  // Check if meeting is too close to start time or currently in progress
+  if (now >= tenMinutesBefore && now <= thirtyMinutesAfter) {
+    const timeUntilMeeting = meetingTime.getTime() - now.getTime();
+    const timeAfterMeeting = now.getTime() - meetingTime.getTime();
+    
+    let reason;
+    if (timeUntilMeeting > 0) {
+      const minutesUntil = Math.ceil(timeUntilMeeting / (1000 * 60));
+      reason = `Cannot cancel meeting. The meeting starts in ${minutesUntil} minute${minutesUntil === 1 ? '' : 's'}. Meetings cannot be cancelled within 10 minutes of the start time.`;
+    } else {
+      const minutesAfter = Math.floor(timeAfterMeeting / (1000 * 60));
+      reason = `Cannot cancel meeting. The meeting started ${minutesAfter} minute${minutesAfter === 1 ? '' : 's'} ago and may still be in progress. Meetings cannot be cancelled for up to 30 minutes after the start time.`;
+    }
+    
+    return { canCancel: false, reason };
+  }
+
+  return { canCancel: true };
 }

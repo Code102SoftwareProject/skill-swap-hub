@@ -46,6 +46,17 @@ const meetingNotesSchema = new mongoose.Schema({
   autoSaveCount: {
     type: Number,
     default: 0
+  },
+  // Embedded meeting info for when meetings are deleted
+  meetingInfo: {
+    description: String,
+    meetingTime: Date,
+    senderId: String,
+    receiverId: String,
+    isDeleted: {
+      type: Boolean,
+      default: false
+    }
   }
 }, {
   timestamps: true

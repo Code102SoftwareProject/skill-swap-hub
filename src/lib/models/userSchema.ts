@@ -23,6 +23,7 @@ export interface IUser extends Document {
   };
   // Soft delete flag
   isDeleted?: boolean;
+  isBlocked?: boolean;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
@@ -41,6 +42,7 @@ const UserSchema: Schema = new Schema<IUser>(
     googleId: { type: String, unique: true, sparse: true },
     isGoogleUser: { type: Boolean, default: false },
     profileCompleted: { type: Boolean, default: false },
+    isBlocked: { type: Boolean, default: false },
     // Suspension info
     suspension: {
       isSuspended: { type: Boolean, default: false },

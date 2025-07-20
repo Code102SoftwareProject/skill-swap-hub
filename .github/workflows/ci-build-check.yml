@@ -1,0 +1,187 @@
+name: CI - Build and Test
+
+on:
+  # Trigger on pull requests to main branch
+  pull_request:
+    branches: [ main, master ]
+  
+  # Trigger on pushes to main branch (merges)
+  push:
+    branches: [ main, master ]
+  
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run tests
+        run: npm test
+        continue-on-error: false
+        env:
+          CI: true
+          # Database
+          MONGODB_URI: mongodb://localhost:27017/test-db
+          
+          # JWT & Auth  
+          JWT_SECRET: dd8a48e6f99d7b4c3b6a4c7e9587a2cc7f8b9e3a1d5f6g8h2j3k4m5n6p7q8r9t1u2v3w4x5y6z7-ci-test
+          ADMIN_JWT_SECRET: d8da04f2c803f88c68e38c47bad261223d01cc73e5f89d15e02bbf9f858f53b0f7220e5c23eb1f34ad355f821298d196-ci-test
+          M_KEY: e685b3de592422cdceff763ca3e784a2c792e4e7e5984cf0ea86544555612b80-ci-test
+          
+          # Mock external services for testing
+          R2_ACCESS_KEY_ID: mock-r2-access-key-id
+          R2_SECRET_ACCESS_KEY: mock-r2-secret-access-key
+          R2_ACCOUNT_ID: mock-r2-account-id
+          R2_BUCKET_NAME: mock-test-bucket
+          R2_ENDPOINT: https://mock-endpoint.r2.cloudflarestorage.com
+          
+          SENDGRID_API_KEY: SG.mock-sendgrid-api-key-for-testing-only
+          SENDGRID_FROM_EMAIL: test@example.com
+          DAILY_API_KEY: mock-daily-api-key-for-testing-only
+          GOOGLE_CLIENT_ID: mock-google-client-id
+          GOOGLE_CLIENT_SECRET: mock-google-client-secret
+          GEMINI_API_KEY: mock-gemini-api-key-for-testing-only
+          SYSTEM_API_KEY: mock-system-api-key-for-testing-only
+          
+          # Test environment
+          NODE_ENV: test
+          NEXT_TELEMETRY_DISABLED: 1
+          
+      - name: Build application
+        run: npm run build
+        continue-on-error: false
+        env:
+          CI: true
+          # Database
+          MONGODB_URI: mongodb://localhost:27017/test-db
+          
+          # JWT & Auth - Make sure these are long enough and properly formatted
+          JWT_SECRET: dd8a48e6f99d7b4c3b6a4c7e9587a2cc7f8b9e3a1d5f6g8h2j3k4m5n6p7q8r9t1u2v3w4x5y6z7-ci-build
+          ADMIN_JWT_SECRET: d8da04f2c803f88c68e38c47bad261223d01cc73e5f89d15e02bbf9f858f53b0f7220e5c23eb1f34ad355f821298d196-ci-build
+          M_KEY: e685b3de592422cdceff763ca3e784a2c792e4e7e5984cf0ea86544555612b80-ci-build
+          
+          # Cloudflare R2 Storage
+          R2_ACCESS_KEY_ID: mock-r2-access-key-id
+          R2_SECRET_ACCESS_KEY: mock-r2-secret-access-key
+          R2_ACCOUNT_ID: mock-r2-account-id
+          R2_BUCKET_NAME: mock-skillswaphub-bucket
+          R2_ENDPOINT: https://mock-endpoint.r2.cloudflarestorage.com
+          
+          # Email Services
+          SENDGRID_API_KEY: SG.mock-sendgrid-api-key-for-ci-build-only
+          SENDGRID_FROM_EMAIL: test@example.com
+          MEETING_NOTI_MAIL: test@example.com
+          MEETING_NOTI_PW: mock-email-password
+          
+          # Daily.co Video
+          DAILY_API_KEY: mock-daily-api-key-for-ci-build-only
+          
+          # Google OAuth
+          GOOGLE_CLIENT_ID: mock-google-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET: mock-google-client-secret
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: mock-google-client-id.apps.googleusercontent.com
+          
+          # AI Service
+          GEMINI_API_KEY: mock-gemini-api-key-for-ci-build-only
+          
+          # System API
+          SYSTEM_API_KEY: mock-system-api-key-for-ci-build-only
+          
+          # Socket Connection
+          NEXT_PUBLIC_SOCKET: https://mock-socket-server.example.com/
+          
+          # Build Configuration - Use 'ci' instead of 'production' to avoid production validations
+          NODE_ENV: ci
+          NEXT_TELEMETRY_DISABLED: 1
+          SKIP_DB_VALIDATION: true
+          
+      - name: Check build output
+        run: |
+          if [ ! -d ".next" ]; then
+            echo "Build failed - .next directory not found"
+            exit 1
+          fi
+          echo "Build successful - .next directory exists"
+          
+      - name: Upload build artifacts (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-${{ matrix.node-version }}
+          path: |
+            .next/
+            npm-debug.log*
+            yarn-debug.log*
+            yarn-error.log*
+          retention-days: 5
+
+  # Additional job for documentation build (if needed)
+  build-docs:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install main dependencies
+        run: npm ci
+        
+      - name: Install documentation dependencies
+        run: |
+          cd documentation
+          npm ci
+          
+      - name: Build documentation
+        run: |
+          cd documentation
+          npm run build
+        continue-on-error: false
+
+  # Security and quality checks
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run security audit
+        run: npm audit --audit-level=high
+        continue-on-error: true
+        
+      - name: Check for outdated packages
+        run: npm outdated || true

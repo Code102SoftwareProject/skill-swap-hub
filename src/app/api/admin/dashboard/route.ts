@@ -4,13 +4,14 @@ import Session from "@/lib/models/sessionSchema";
 import SkillList from "@/lib/models/skillListing";
 import SkillListing from "@/lib/models/skillListing";
 import SkillMatch from "@/lib/models/skillMatch";
+import SuspendedUser from "@/lib/models/suspendedUserSchema";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
     await connect(); // Connect to your MongoDB
 
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await User.countDocuments({ isDeleted: false });
     const sessions = await Session.countDocuments();
     const skillsRequested = await SkillList.countDocuments();
     const skillsOffered = await SkillListing.countDocuments();
@@ -19,6 +20,8 @@ export async function GET() {
     // Get active users (users with recent session activity - adjust time period as needed)
     const userIds = await Session.distinct("userId");
     const activeUsers = userIds.length;
+
+    const suspendedUsers = await SuspendedUser.countDocuments();
 
     const popularSkillDoc = await SkillList.aggregate([
       { $group: { _id: "$skillName", count: { $sum: 1 } } },
@@ -88,6 +91,7 @@ export async function GET() {
       totalUsers,
       activeUsers,
       sessions,
+      suspendedUsers,
       popularSkill,
       skillsOffered,
       skillsRequested,

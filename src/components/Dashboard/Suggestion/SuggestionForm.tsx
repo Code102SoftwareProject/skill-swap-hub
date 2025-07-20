@@ -7,6 +7,8 @@ import { z } from 'zod';
 
 type SuggestionFormProps = {
   onSubmit: (data: { title: string; description: string; category: string }) => void;
+  isBlocked?: boolean;
+  blockReason?: string;
 };
 
 // Zod validation schema with smart rules
@@ -34,7 +36,7 @@ const SuggestionSchema = z.object({
   }),
 });
 
-export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
+export default function SuggestionForm({ onSubmit, isBlocked = false, blockReason }: SuggestionFormProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -69,6 +71,50 @@ export default function SuggestionForm({ onSubmit }: SuggestionFormProps) {
     setDescription('');
     setCategory('');
   };
+
+  // If user is blocked, show blocked message instead of form
+  if (isBlocked) {
+    return (
+      <div className="space-y-6 bg-red-50 border border-red-200 p-6 rounded-lg">
+        <div className="flex items-center space-x-3">
+          <div className="flex-shrink-0">
+            <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="text-lg font-medium text-red-800">Account Blocked</h3>
+            <p className="text-sm text-red-600 mt-1">
+              Your account has been blocked from submitting suggestions.
+            </p>
+          </div>
+        </div>
+        
+        <div className="bg-white border border-red-200 rounded-md p-4">
+          <p className="text-sm text-gray-700">
+            {blockReason || "Your account has been blocked due to violation of our community guidelines. If you believe this is an error, please contact our support team."}
+          </p>
+        </div>
+        
+        <div className="flex items-center justify-center space-x-4">
+          <button
+            type="button"
+            onClick={() => window.location.href = '/contact'}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+          >
+            Contact Support
+          </button>
+          <button
+            type="button"
+            onClick={() => window.location.href = '/dashboard'}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 bg-card p-6 rounded-lg border">

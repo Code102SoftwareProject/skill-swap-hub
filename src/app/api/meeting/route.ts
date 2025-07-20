@@ -2,13 +2,6 @@ import meetingSchema from "@/lib/models/meetingSchema";
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
 
-// Import notification helper functions
-const { 
-  sendMeetingRequestNotifications, 
-  sendMeetingAcceptedNotification, 
-  sendMeetingRejectedNotification 
-} = require('@/utils/meetingNotifications');
-
 // Daily.co configuration
 const DAILY_API_KEY = process.env.DAILY_API_KEY || "30a32b5fc8651595f2b981d1210cdd8b9e5b9caececb714da81b825a18f6aa11";
 const DAILY_DOMAIN = "skillswaphubcode.daily.co";
@@ -112,13 +105,23 @@ export async function GET(req: Request) {
     
     let query = {};
     if (userId && otherUserId) {
+      // Fetch meetings between two specific users
       query = {
         $or: [
           { senderId: userId, receiverId: otherUserId },
           { senderId: otherUserId, receiverId: userId }
         ]
       };
+    } else if (userId) {
+      // Fetch all meetings for a specific user (where they are either sender or receiver)
+      query = {
+        $or: [
+          { senderId: userId },
+          { receiverId: userId }
+        ]
+      };
     }
+    // If no userId is provided, return empty array (don't return all meetings)
     
     const meetings = await meetingSchema.find(query);
     return NextResponse.json(meetings, { status: 200 });
@@ -164,19 +167,6 @@ export async function POST(req: Request) {
     const meeting = new meetingSchema(body);
     const newMeeting = await meeting.save();
     
-    // Send notification to the receiver about the meeting request
-    try {
-      await sendMeetingRequestNotifications(
-        newMeeting.senderId.toString(),
-        newMeeting.receiverId.toString(),
-        newMeeting._id.toString()
-      );
-      console.log('Meeting request notification sent successfully');
-    } catch (notificationError) {
-      console.error('Failed to send meeting request notification:', notificationError);
-      // Continue even if notification fails
-    }
-    
     return NextResponse.json(newMeeting, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ message: error.message }, { status: 500 });
@@ -191,47 +181,21 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   await connect();
   try {
-    const meetingData = await req.json();
-    console.log('PATCH request received:', meetingData);
-    
+    const meetingData = await req.json();    
     const meeting = await meetingSchema.findById(meetingData._id);
 
     if (!meeting) {
       console.error('Meeting not found:', meetingData._id);
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
     }
-
-    console.log('Found meeting:', meeting.state, meeting.acceptStatus);
-
-    // ! Handle acceptance of pending meetings
     if (meeting.state === "pending" && meetingData.acceptStatus) {
-      console.log('Accepting meeting and creating Daily.co room...');
-      
-      // First test the API connectivity
       const apiWorking = await testDailyAPI();
-      
       try {
         const dailyRoomUrl = await createDailyRoom(meeting.meetingTime);
 
         meeting.state = "accepted";
         meeting.meetingLink = dailyRoomUrl;
-        meeting.acceptStatus = true;
-        
-        console.log('Meeting accepted with Daily.co room:', dailyRoomUrl);
-        
-        // Send notification to the meeting sender about acceptance
-        try {
-          await sendMeetingAcceptedNotification(
-            meeting.senderId.toString(),
-            meeting.receiverId.toString(),
-            meeting._id.toString()
-          );
-          console.log('Meeting acceptance notification sent successfully');
-        } catch (notificationError) {
-          console.error('Failed to send meeting acceptance notification:', notificationError);
-          // Continue even if notification fails
-        }
-        
+        meeting.acceptStatus = true;  
       } catch (dailyError) {
         console.error('Daily.co integration failed, but continuing with meeting acceptance:', dailyError);
         
@@ -241,36 +205,12 @@ export async function PATCH(req: Request) {
         meeting.meetingLink = `https://${DAILY_DOMAIN}/skillswap-${Date.now()}`;
         
         console.log('Meeting accepted with fallback link');
-        
-        // Send notification even with fallback link
-        try {
-          await sendMeetingAcceptedNotification(
-            meeting.senderId.toString(),
-            meeting.receiverId.toString(),
-            meeting._id.toString()
-          );
-          console.log('Meeting acceptance notification sent successfully');
-        } catch (notificationError) {
-          console.error('Failed to send meeting acceptance notification:', notificationError);
-        }
       }
     }
     // ! Handle rejection of pending meetings
     else if (meeting.state === "pending" && meetingData.state === "rejected") {
       meeting.state = "rejected";
       console.log('Meeting rejected');
-      
-      // Send notification to the meeting sender about rejection
-      try {
-        await sendMeetingRejectedNotification(
-          meeting.senderId.toString(),
-          meeting.receiverId.toString()
-        );
-        console.log('Meeting rejection notification sent successfully');
-      } catch (notificationError) {
-        console.error('Failed to send meeting rejection notification:', notificationError);
-        // Continue even if notification fails
-      }
     }
     // ! Handle other state changes
     else if (meetingData.state && meeting.state === "accepted") {

@@ -296,7 +296,7 @@ export default function CreateSessionModal({
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <BookOpen className="h-5 w-5 text-green-600" />
-                <h3 className="text-lg font-medium text-gray-900">What You Want to Learn</h3>
+                <h3 className="text-lg font-medium text-gray-900">What You Want to Recive</h3>
               </div>
               
               <div>
@@ -308,7 +308,7 @@ export default function CreateSessionModal({
                   onChange={(e) => setSelectedOtherSkill(e.target.value)}
                   className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">Choose a skill to learn...</option>
+                  <option value="">Choose a skill to get...</option>
                   {otherUserSkills.map((skill) => (
                     <option key={skill.id} value={skill.id}>
                       {skill.skillTitle} ({skill.proficiencyLevel}) - {skill.categoryName}
@@ -320,7 +320,7 @@ export default function CreateSessionModal({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Describe What You Want to Learn
+                  Describe What You Want to Receive
                 </label>
                 <textarea
                   value={otherDescription}

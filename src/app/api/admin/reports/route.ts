@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     }
 
     // Check if we can fetch without population first
-    const reportsBasic = await ReportInSession.find({}).limit(1);
+    const reportsBasic = await ReportInSession.find({}).limit(1).lean();
     console.log(
       "Basic report sample:",
       JSON.stringify(reportsBasic[0], null, 2)
