@@ -166,31 +166,45 @@ const SkillVerificationPortal: React.FC = () => {
   // Handle file upload
   const handleFileUpload = (files: FileList | null) => {
     if (files) {
+      let hasInvalidType = false;
+      let hasTooLargeFile = false;
+      
       const validFiles = Array.from(files).filter(file => {
         const validTypes = ['application/pdf', 'image/jpeg', 'image/png'];
         const maxSize = 10 * 1024 * 1024; // 10MB
 
         if (!validTypes.includes(file.type)) {
-          Swal.fire({
-            icon: 'error',
-            title: 'Invalid File Type',
-            text: 'Only PDF, JPG, and PNG files are allowed.',
-            confirmButtonColor: '#1e3a8a'
-          });
+          hasInvalidType = true;
           return false;
         }
 
         if (file.size > maxSize) {
-          Swal.fire({
-            icon: 'error',
-            title: 'File Too Large',
-            text: 'File size exceeds 10MB limit.',
-            confirmButtonColor: '#1e3a8a'
-          });
+          hasTooLargeFile = true;
           return false;
         }
         return true;
       });
+
+      // Show error messages first
+      if (hasInvalidType) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Invalid File Type',
+          text: 'Only PDF, JPG, and PNG files are allowed.',
+          confirmButtonColor: '#1e3a8a'
+        });
+        return;
+      }
+      
+      if (hasTooLargeFile) {
+        Swal.fire({
+          icon: 'error',
+          title: 'File Too Large',
+          text: 'File size exceeds 10MB limit.',
+          confirmButtonColor: '#1e3a8a'
+        });
+        return;
+      }
 
       setDocuments(validFiles);
       if (validFiles.length > 0) {
@@ -235,11 +249,25 @@ const SkillVerificationPortal: React.FC = () => {
       }
   
       if (hasActiveRequest(selectedSkillId)) {
-        throw new Error('This skill already has a pending verification request');
+        Swal.fire({
+          icon: 'error',
+          title: 'Submission Failed',
+          text: 'This skill already has a pending verification request',
+          confirmButtonColor: '#1e3a8a'
+        });
+        setIsSubmitting(false);
+        return;
       }
   
       if (documents.length === 0) {
-        throw new Error('Please upload at least one document');
+        Swal.fire({
+          icon: 'error',
+          title: 'Submission Failed',
+          text: 'Please upload at least one document',
+          confirmButtonColor: '#1e3a8a'
+        });
+        setIsSubmitting(false);
+        return;
       }
   
       // Upload all documents sequentially

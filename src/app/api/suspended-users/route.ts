@@ -3,6 +3,8 @@ import connect from "@/lib/db";
 import User from "@/lib/models/userSchema";
 import SuspendedUser from "@/lib/models/suspendedUserSchema";
 import jwt from "jsonwebtoken";
+import { Types } from "mongoose";
+
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
@@ -117,6 +119,7 @@ export async function PATCH(request: NextRequest) {
 
     // Restore user to main users collection
     const restoredUserData = {
+      _id: new Types.ObjectId(suspendedUser.originalUserId),
       firstName: suspendedUser.firstName,
       lastName: suspendedUser.lastName,
       email: suspendedUser.email,
@@ -144,14 +147,27 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Insert the user data directly into the database to avoid pre-save middleware
-    // that would re-hash the already hashed password
-    const insertResult = await User.collection.insertOne(restoredUserData);
-    
+   // ── BEGIN: avoid `googleId: null` unique-index collisions ──
+    if (restoredUserData.googleId == null) {
+      delete restoredUserData.googleId;
+    }
+
+    let insertResult;
+    try {
+      insertResult = await User.collection.insertOne(restoredUserData);
+    } catch (err: any) {
+      // if it still fails on a null‐googleId duplicate, strip again & retry
+      if (err.code === 11000 && err.keyPattern?.googleId) {
+        delete restoredUserData.googleId;
+        insertResult = await User.collection.insertOne(restoredUserData);
+      } else {
+        throw err;
+      }
+    }
+
     if (!insertResult.acknowledged) {
       throw new Error("Failed to insert restored user");
     }
-    
     // Get the inserted user for response
     const restoredUser = await User.findById(insertResult.insertedId);
 
