@@ -35,6 +35,7 @@ type KYCRecord = {
   nicWithPersonUrl?: string; // URL to photo of person with NIC
   frontPhotoUrl?: string; // URL to front photo of ID
   backPhotoUrl?: string; // URL to back photo of ID
+  rejectionReason?: string; // Reason for rejection (if applicable)
 };
 
 // Color mapping for different statuses to provide visual feedback
@@ -207,8 +208,11 @@ export default function KYCContent() {
    * @param id The KYC record ID to update
    * @param newStatus The new status to set
    */
-  const updateStatus = async (id: string, newStatus: string) => {
-    
+  const updateStatus = async (
+    id: string,
+    newStatus: string,
+    reason?: string
+  ) => {
     // Prevent duplicate status updates
     if (loadingActions.statusUpdates[id]) return;
 
@@ -232,6 +236,7 @@ export default function KYCContent() {
         body: JSON.stringify({
           id,
           status: newStatus,
+          ...(reason ? { rejectionReason: reason } : {}),
         }),
       });
 
@@ -247,6 +252,7 @@ export default function KYCContent() {
                 ...record,
                 status: newStatus,
                 reviewed: new Date().toISOString(),
+                ...(reason ? { rejectionReason: reason } : {}),
               }
             : record
         )
@@ -450,6 +456,7 @@ export default function KYCContent() {
                   <th className="px-4 py-2 text-left">Date Submitted</th>
                   <th className="px-4 py-2 text-left">Status</th>
                   <th className="px-4 py-2 text-left">Reviewed</th>
+                  <th className="px-4 py-2 text-left">Rejection Reason</th>
                   <th className="px-4 py-2 text-left">Documents</th>
                   <th className="px-4 py-2 text-left">Accept/Reject</th>
                 </tr>
@@ -476,6 +483,11 @@ export default function KYCContent() {
                     </td>
                     <td className="px-4 py-3 border-b">
                       {record.reviewed ? formatDate(record.reviewed) : "-"}
+                    </td>
+                    <td className="px-4 py-3 border-b">
+                      {record.status === KYC_STATUSES.REJECTED
+                        ? record.rejectionReason || "-"
+                        : "-"}
                     </td>
                     {/* Document download buttons */}
                     <td className="px-4 py-3 border-b">
@@ -554,10 +566,24 @@ export default function KYCContent() {
                             >
                               <Check className="h-4 w-4" />
                             </button>
+                            +{" "}
                             <button
-                              onClick={() =>
-                                updateStatus(record._id, KYC_STATUSES.REJECTED)
-                              }
+                              onClick={() => {
+                                const reason = window.prompt(
+                                  "Please enter a reason for rejection:"
+                                );
+                                if (!reason?.trim()) {
+                                  toast.error(
+                                    "A rejection reason is required."
+                                  );
+                                  return;
+                                }
+                                updateStatus(
+                                  record._id,
+                                  KYC_STATUSES.REJECTED,
+                                  reason.trim()
+                                );
+                              }}
                               className={`p-2 text-white rounded flex items-center justify-center ${
                                 loadingActions.statusUpdates[record._id]
                                   ? "bg-red-300 cursor-not-allowed"
