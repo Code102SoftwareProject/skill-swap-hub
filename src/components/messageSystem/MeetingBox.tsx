@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Calendar, Plus, FileText, ChevronDown, ChevronRight } from 'lucide-react';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
+import CancellationAlert from '@/components/meetingSystem/CancellationAlert';
 import MeetingList from '@/components/meetingSystem/MeetingList';
 import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
 import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
@@ -14,6 +15,7 @@ import {
   cancelMeetingWithReason,
   fetchMeetingCancellation,
   acknowledgeMeetingCancellation,
+  fetchUnacknowledgedCancellations,
   checkMeetingNotesExist,
   fetchAllUserMeetingNotes,
   downloadMeetingNotesFile,
@@ -44,6 +46,7 @@ interface CancellationAlert {
   cancelledAt: string;
   cancellerName: string;
   meetingTime: string;
+  meetingDescription?: string;
 }
 
 interface MeetingNote {
@@ -85,6 +88,10 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [meetingNotesStatus, setMeetingNotesStatus] = useState<{[meetingId: string]: boolean}>({});
   const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
   const [actionLoadingStates, setActionLoadingStates] = useState<{[meetingId: string]: string}>({});
+
+  // Cancellation alerts state
+  const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
+  const [loadingCancellationAlerts, setLoadingCancellationAlerts] = useState(false);
 
   // Saved notes states
   const [savedNotes, setSavedNotes] = useState<MeetingNote[]>([]);
@@ -154,6 +161,56 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
 
   const closeConfirmation = () => {
     setConfirmation(prev => ({ ...prev, isOpen: false }));
+  };
+
+  // Fetch cancellation alerts for the current user from the specific other user
+  const fetchCancellationAlerts = useCallback(async () => {
+    if (!userId || !otherUserId) return;
+    
+    try {
+      setLoadingCancellationAlerts(true);
+      const alerts = await fetchUnacknowledgedCancellations(userId);
+      
+      // Filter alerts to only show cancellations from the current chat partner
+      const filteredAlerts = (alerts || []).filter((alert: CancellationAlert) => {
+        // Check if this cancellation is related to a meeting with the current other user
+        // We can match by checking if the meeting involves both users
+        return meetings.some(meeting => 
+          meeting._id === alert.meetingId && 
+          (
+            (meeting.senderId === userId && meeting.receiverId === otherUserId) ||
+            (meeting.senderId === otherUserId && meeting.receiverId === userId)
+          )
+        );
+      });
+      
+      setCancellationAlerts(filteredAlerts);
+    } catch (error) {
+      console.error('Error fetching cancellation alerts:', error);
+      setCancellationAlerts([]);
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
+  }, [userId, otherUserId, meetings]);
+
+  // Handle acknowledging a cancellation
+  const handleAcknowledgeCancellation = async (cancellationId: string) => {
+    try {
+      setLoadingCancellationAlerts(true);
+      await acknowledgeMeetingCancellation(cancellationId, userId);
+      
+      // Remove the acknowledged cancellation from the list
+      setCancellationAlerts(prev => 
+        prev.filter(alert => alert._id !== cancellationId)
+      );
+      
+      showAlert('success', 'Cancellation acknowledged successfully');
+    } catch (error) {
+      console.error('Error acknowledging cancellation:', error);
+      showAlert('error', 'Failed to acknowledge cancellation');
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
   };
 
   // Check if a meeting is currently happening (in non-cancellation period)
@@ -258,6 +315,13 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     hasFetchedMeetings.current = false; // Reset for new otherUserId
     loadMeetings();
   }, [otherUserId, userId]);
+
+  // Fetch cancellation alerts when userId, otherUserId, or meetings change
+  useEffect(() => {
+    if (userId && otherUserId && meetings.length > 0) {
+      fetchCancellationAlerts();
+    }
+  }, [userId, otherUserId, meetings.length, fetchCancellationAlerts]);
 
   // Fetch user profiles for all meeting participants
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
@@ -560,6 +624,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
         if (onMeetingUpdateRef.current) {
           onMeetingUpdateRef.current();
         }
+        
+        // Refresh cancellation alerts in case there are new ones
+        fetchCancellationAlerts();
       } else {
         showAlert('error', 'Failed to cancel meeting');
       }
@@ -628,6 +695,22 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
             <span>New</span>
           </button>
         </div>
+
+        {/* Cancellation Alerts */}
+        {cancellationAlerts.length > 0 && (
+          <div className="mb-4">
+            <div className="space-y-2">
+              {cancellationAlerts.map((cancellation) => (
+                <CancellationAlert
+                  key={cancellation._id}
+                  cancellation={cancellation}
+                  onAcknowledge={handleAcknowledgeCancellation}
+                  loading={loadingCancellationAlerts}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Meetings List */}
         <div className="flex-1 overflow-y-auto space-y-4">
