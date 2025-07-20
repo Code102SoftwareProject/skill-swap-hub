@@ -38,12 +38,80 @@ jobs:
         continue-on-error: false
         env:
           CI: true
+          # Database
+          MONGODB_URI: mongodb://localhost:27017/test-db
+          
+          # JWT & Auth  
+          JWT_SECRET: test-jwt-secret-for-ci-testing-only
+          ADMIN_JWT_SECRET: test-admin-jwt-secret-for-ci-testing-only
+          M_KEY: test-m-key-for-ci-testing-only
+          
+          # Mock external services for testing
+          R2_ACCESS_KEY_ID: mock-r2-access-key-id
+          R2_SECRET_ACCESS_KEY: mock-r2-secret-access-key
+          R2_ACCOUNT_ID: mock-r2-account-id
+          R2_BUCKET_NAME: mock-test-bucket
+          R2_ENDPOINT: https://mock-endpoint.r2.cloudflarestorage.com
+          
+          SENDGRID_API_KEY: SG.mock-sendgrid-api-key-for-testing-only
+          SENDGRID_FROM_EMAIL: test@example.com
+          DAILY_API_KEY: mock-daily-api-key-for-testing-only
+          GOOGLE_CLIENT_ID: mock-google-client-id
+          GOOGLE_CLIENT_SECRET: mock-google-client-secret
+          GEMINI_API_KEY: mock-gemini-api-key-for-testing-only
+          SYSTEM_API_KEY: mock-system-api-key-for-testing-only
+          
+          # Test environment
+          NODE_ENV: test
+          NEXT_TELEMETRY_DISABLED: 1
           
       - name: Build application
         run: npm run build
         continue-on-error: false
         env:
           CI: true
+          # Database
+          MONGODB_URI: mongodb://localhost:27017/test-db
+          
+          # JWT & Auth
+          JWT_SECRET: test-jwt-secret-for-ci-build-only-not-for-production-use
+          ADMIN_JWT_SECRET: test-admin-jwt-secret-for-ci-build-only-not-for-production
+          M_KEY: test-m-key-for-ci-build-only-not-for-production-use
+          
+          # Cloudflare R2 Storage
+          R2_ACCESS_KEY_ID: mock-r2-access-key-id
+          R2_SECRET_ACCESS_KEY: mock-r2-secret-access-key
+          R2_ACCOUNT_ID: mock-r2-account-id
+          R2_BUCKET_NAME: mock-skillswaphub-bucket
+          R2_ENDPOINT: https://mock-endpoint.r2.cloudflarestorage.com
+          
+          # Email Services
+          SENDGRID_API_KEY: SG.mock-sendgrid-api-key-for-ci-build-only
+          SENDGRID_FROM_EMAIL: test@example.com
+          MEETING_NOTI_MAIL: test@example.com
+          MEETING_NOTI_PW: mock-email-password
+          
+          # Daily.co Video
+          DAILY_API_KEY: mock-daily-api-key-for-ci-build-only
+          
+          # Google OAuth
+          GOOGLE_CLIENT_ID: mock-google-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET: mock-google-client-secret
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: mock-google-client-id.apps.googleusercontent.com
+          
+          # AI Service
+          GEMINI_API_KEY: mock-gemini-api-key-for-ci-build-only
+          
+          # System API
+          SYSTEM_API_KEY: mock-system-api-key-for-ci-build-only
+          
+          # Socket Connection
+          NEXT_PUBLIC_SOCKET: https://mock-socket-server.example.com/
+          
+          # Build Configuration
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: 1
+          SKIP_DB_VALIDATION: true
           
       - name: Check build output
         run: |
