@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Suggestions Management Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Admin Suggestions Management - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Error State</td><td>HIGH</td><td>API returns error</td><td>1. Simulate API error<br>2. Load Suggestions page</td><td>Error message shown</td><td>Error message displayed: "Failed to load suggestions"</td><td class="pass">PASS</td></tr>
+      <tr><td>2</td><td>Empty State</td><td>MEDIUM</td><td>No suggestions in DB</td><td>1. Load Suggestions page</td><td>"No suggestions found" message shown</td><td>No suggestions found message displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>3</td><td>Search by Name</td><td>HIGH</td><td>Suggestions exist</td><td>1. Enter name in search<br>2. Observe results</td><td>Only matching suggestions shown</td><td>Search filters suggestions by name correctly</td><td class="pass">PASS</td></tr>
+      <tr><td>4</td><td>Search by Title</td><td>HIGH</td><td>Suggestions exist</td><td>1. Enter title in search<br>2. Observe results</td><td>Only matching suggestions shown</td><td>Search filters suggestions by title correctly</td><td class="pass">PASS</td></tr>
+      <tr><td>5</td><td>Clear Search</td><td>MEDIUM</td><td>Search active</td><td>1. Click clear button</td><td>Search input cleared, all suggestions shown</td><td>Search cleared, all suggestions displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>6</td><td>Filter by Category</td><td>MEDIUM</td><td>Multiple categories exist</td><td>1. Select category filter</td><td>Only suggestions in selected category shown</td><td>Category filter works</td><td class="pass">PASS</td></tr>
+      <tr><td>7</td><td>Pagination Next/Prev</td><td>HIGH</td><td>>1 page of suggestions</td><td>1. Click next/prev page</td><td>Suggestions list updates to correct page</td><td>Pagination works, correct page shown</td><td class="pass">PASS</td></tr>
+      <tr><td>8</td><td>Pagination Direct Page</td><td>MEDIUM</td><td>>5 pages of suggestions</td><td>1. Click a page number</td><td>Suggestions list updates to selected page</td><td>Direct page navigation works</td><td class="pass">PASS</td></tr>
+      <tr><td>9</td><td>Approve Suggestion</td><td>HIGH</td><td>Suggestions exist</td><td>1. Click approve on suggestion</td><td>Status updates to Approved, toast shown</td><td>Status updated, toast shown</td><td class="pass">PASS</td></tr>
+      <tr><td>10</td><td>Reject Suggestion</td><td>HIGH</td><td>Suggestions exist</td><td>1. Click reject on suggestion</td><td>Status updates to Rejected, toast shown</td><td>Status updated, toast shown</td><td class="pass">PASS</td></tr>
+      <tr><td>11</td><td>View Suggestion Details</td><td>MEDIUM</td><td>Suggestions exist</td><td>1. Click on suggestion row/card</td><td>Modal opens with suggestion details</td><td>Modal opens, details shown</td><td class="pass">PASS</td></tr>
+      <tr><td>12</td><td>Close Suggestion Modal</td><td>MEDIUM</td><td>Modal open</td><td>1. Click close button</td><td>Modal closes</td><td>Modal closed</td><td class="pass">PASS</td></tr>
+      <tr><td>13</td><td>Open Summary Modal</td><td>HIGH</td><td>Suggestions exist</td><td>1. Click "View Summary"</td><td>Summary modal opens</td><td>Summary modal opens</td><td class="pass">PASS</td></tr>
+      <tr><td>14</td><td>Close Summary Modal</td><td>MEDIUM</td><td>Summary modal open</td><td>1. Click close button</td><td>Modal closes</td><td>Modal closed</td><td class="pass">PASS</td></tr>
+      <tr><td>15</td><td>Summary Modal Error State</td><td>HIGH</td><td>API returns error</td><td>1. Simulate API error<br>2. Open summary modal</td><td>Error message shown</td><td>Error message displayed: "Failed to load summary"</td><td class="pass">PASS</td></tr>
+      <tr><td>16</td><td>Summary Modal Empty State</td><td>MEDIUM</td><td>No pending suggestions</td><td>1. Open summary modal</td><td>"No pending suggestions to summarize" shown</td><td>Message displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>17</td><td>Summary Modal Insights Tab</td><td>HIGH</td><td>Summary data exists</td><td>1. Open summary modal<br>2. View Insights tab</td><td>Insights and analysis displayed</td><td>Insights shown</td><td class="pass">PASS</td></tr>
+      <tr><td>18</td><td>Summary Modal Similarity Tab</td><td>HIGH</td><td>Summary data exists</td><td>1. Open summary modal<br>2. View Similarity tab</td><td>Similarity groups displayed</td><td>Similarity groups shown</td><td class="pass">PASS</td></tr>
+      <tr><td>19</td><td>Category Stats in Summary</td><td>MEDIUM</td><td>Summary data exists</td><td>1. Open summary modal<br>2. View category breakdown</td><td>Category stats shown</td><td>Category stats displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>20</td><td>Action Recommendations in Summary</td><td>MEDIUM</td><td>Summary data exists</td><td>1. Open summary modal<br>2. View recommendations</td><td>Recommendations shown</td><td>Recommendations displayed</td><td class="pass">PASS</td></tr>
+    </tbody>
+  </table>
+
+</body>
+</html> 

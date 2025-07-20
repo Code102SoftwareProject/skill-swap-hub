@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Feedback Form Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Feedback Form - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Feedback Required</td><td>HIGH</td><td>On Feedback form</td><td>1. Leave Feedback empty<br>2. Submit</td><td>Error: "Feedback must be at least 10 characters long"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>2</td><td>Feedback Only Spaces</td><td>HIGH</td><td>On Feedback form</td><td>1. Enter only spaces in Feedback<br>2. Submit</td><td>Error: "Feedback cannot be only spaces"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>3</td><td>Feedback Not Enough Letters</td><td>HIGH</td><td>On Feedback form</td><td>1. Enter "1234567890" in Feedback<br>2. Submit</td><td>Error: "Feedback must contain at least 10 letters"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>4</td><td>Feedback Too Short</td><td>HIGH</td><td>On Feedback form</td><td>1. Enter "short" in Feedback<br>2. Submit</td><td>Error: "Feedback must be at least 10 characters long"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>5</td><td>Valid Feedback</td><td>HIGH</td><td>On Feedback form</td><td>1. Enter valid feedback (10+ letters)<br>2. Submit</td><td>Feedback submitted, success message shown</td><td>Success message shown</td><td class="pass">PASS</td></tr>
+      <tr><td>6</td><td>Rating Required</td><td>HIGH</td><td>On Feedback form</td><td>1. Deselect all ratings<br>2. Submit</td><td>Error: "Required" or similar</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>7</td><td>Rating Min/Max</td><td>HIGH</td><td>On Feedback form</td><td>1. Select rating below 1 or above 5 (if possible)<br>2. Submit</td><td>Error: "Rating must be between 1 and 5"</td><td>Not possible in UI</td><td class="pass">PASS</td></tr>
+      <tr><td>8</td><td>Zero Rating</td><td>HIGH</td><td>On Feedback form</td><td>1. Set rating to 0 (if possible)<br>2. Submit</td><td>Error: "Rating must be between 1 and 5"</td><td>Error shown</td><td class="fail">FAIL</td></tr>
+      <tr><td>9</td><td>Anonymous Option</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Check "Submit as anonymous"<br>2. Submit valid feedback</td><td>Feedback submitted as anonymous</td><td>Success, no name shown</td><td class="pass">PASS</td></tr>
+      <tr><td>10</td><td>Display Name Validation</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Enter "12" as Display Name<br>2. Submit</td><td>Error: "Display name must contain at least 3 letters"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>11</td><td>Display Name Valid</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Enter "Samha" as Display Name<br>2. Submit valid feedback</td><td>Feedback submitted, name shown</td><td>Success, name shown</td><td class="pass">PASS</td></tr>
+      <tr><td>12</td><td>Success Story Optional</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Leave Success Story empty<br>2. Submit valid feedback</td><td>Feedback submitted, no error</td><td>Success</td><td class="pass">PASS</td></tr>
+      <tr><td>13</td><td>Success Story Required When Allowed</td><td>HIGH</td><td>On Feedback form</td><td>1. Check "Allow to post as success story"<br>2. Leave Success Story empty<br>3. Submit</td><td>Error: "Success story must contain at least 10 letters"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>14</td><td>Success Story Not Enough Letters</td><td>HIGH</td><td>On Feedback form</td><td>1. Check "Allow to post as success story"<br>2. Enter "1234567890" in Success Story<br>3. Submit</td><td>Error: "Success story must contain at least 10 letters"</td><td>Error shown</td><td class="pass">PASS</td></tr>
+      <tr><td>15</td><td>Valid Success Story</td><td>HIGH</td><td>On Feedback form</td><td>1. Check "Allow to post as success story"<br>2. Enter valid story (10+ letters)<br>3. Submit</td><td>Feedback submitted, success message shown</td><td>Success message shown</td><td class="pass">PASS</td></tr>
+      <tr><td>16</td><td>Form Reset After Submit</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Submit valid feedback<br>2. Observe form</td><td>Form resets, fields cleared</td><td>Form reset</td><td class="pass">PASS</td></tr>
+      <tr><td>17</td><td>API Error on Submit</td><td>MEDIUM</td><td>On Feedback form</td><td>1. Simulate API error<br>2. Submit valid feedback</td><td>Error toast shown</td><td>Error toast shown</td><td class="pass">PASS</td></tr>
+    </tbody>
+  </table>
+
+</body>
+</html> 

@@ -57,8 +57,22 @@ const videoStyles = `
   }
   
   .daily-camera-box {
-    min-width: 128px;
-    min-height: 96px;
+    min-width: 100px;
+    min-height: 75px;
+    aspect-ratio: 4/3;
+  }
+  
+  @media (min-width: 768px) {
+    .daily-camera-box {
+      min-width: 128px;
+      min-height: 96px;
+    }
+  }
+  
+  @media (max-width: 767px) {
+    .daily-camera-box {
+      flex-shrink: 0;
+    }
   }
 `;
 
@@ -96,15 +110,29 @@ function DailyMeetingInner({
   const [showNotes, setShowNotes] = useState(false);
   const videoContainerRef = useRef<HTMLDivElement>(null);
 
-  // Meeting control functions  
+  // Meeting control functions with enhanced error handling
   const toggleAudio = useCallback(async () => {
     if (!daily) return;
-    await daily.setLocalAudio(!localParticipant?.audio);
+    
+    try {
+      await daily.setLocalAudio(!localParticipant?.audio);
+    } catch (error) {
+      console.error('Audio toggle failed:', error);
+      // Show user-friendly error message
+      alert('Unable to access microphone. It might be in use by another application.');
+    }
   }, [daily, localParticipant?.audio]);
 
   const toggleVideo = useCallback(async () => {
     if (!daily) return;
-    await daily.setLocalVideo(!localParticipant?.video);
+    
+    try {
+      await daily.setLocalVideo(!localParticipant?.video);
+    } catch (error) {
+      console.error('Video toggle failed:', error);
+      // Show user-friendly error message
+      alert('Unable to access camera. It might be in use by another browser tab or application.');
+    }
   }, [daily, localParticipant?.video]);
 
   const toggleScreenShare = useCallback(async () => {
@@ -132,6 +160,36 @@ function DailyMeetingInner({
       onLeave();
     }
   }, [daily, onLeave]);
+
+  // Function to join meeting with fallback options
+  const joinMeetingWithFallback = useCallback(async () => {
+    if (!daily) return;
+
+    try {
+      // First try with camera and microphone
+      await daily.setLocalVideo(true);
+      await daily.setLocalAudio(true);
+    } catch (error) {
+      console.warn('Could not enable camera/microphone, trying audio-only mode:', error);
+      try {
+        // Fallback to audio-only if camera fails
+        await daily.setLocalVideo(false);
+        await daily.setLocalAudio(true);
+      } catch (audioError) {
+        console.warn('Audio also failed, joining in listen-only mode:', audioError);
+        // Last resort: join without any media
+        await daily.setLocalVideo(false);
+        await daily.setLocalAudio(false);
+      }
+    }
+  }, [daily]);
+
+  // Call this when meeting state changes to joined
+  useEffect(() => {
+    if (meetingState === 'joined-meeting') {
+      joinMeetingWithFallback();
+    }
+  }, [meetingState, joinMeetingWithFallback]);
 
   // Toggle fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -177,9 +235,9 @@ function DailyMeetingInner({
     const screenShareParticipant = screens[0];
     
     return (
-      <div className="flex h-full gap-4">
+      <div className="flex flex-col lg:flex-row h-full gap-2 md:gap-4">
         {/* Main screen share area */}
-        <div className="flex-1 relative bg-gray-900 rounded-lg overflow-hidden">
+        <div className="flex-1 relative bg-gray-900 rounded-lg overflow-hidden min-h-[200px]">
           <div className="daily-screen-share">
             <DailyVideo 
               sessionId={screenShareParticipant.session_id}
@@ -193,7 +251,7 @@ function DailyMeetingInner({
         </div>
         
         {/* Camera videos sidebar */}
-        <div className="w-40 flex flex-col gap-2 overflow-y-auto">
+        <div className="w-full lg:w-32 xl:w-40 flex flex-row lg:flex-col gap-2 overflow-x-auto lg:overflow-y-auto lg:overflow-x-visible">
           {participantIds.map(id => (
             <CameraTile key={id} participantId={id} />
           ))}
@@ -230,29 +288,30 @@ function DailyMeetingInner({
       <DailyAudio />
       
       {/* Header */}
-      <div className="bg-white shadow-sm border-b px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <div>
-            <h1 className="text-lg font-semibold">
+      <div className="bg-white shadow-sm border-b px-2 md:px-4 py-2 md:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-base md:text-lg font-semibold truncate">
               {otherUserName ? `Meeting with ${otherUserName}` : 'Meeting Room'}
             </h1>
             {meetingDescription && (
-              <p className="text-sm text-gray-500">{meetingDescription}</p>
+              <p className="text-xs md:text-sm text-gray-500 truncate">{meetingDescription}</p>
             )}
           </div>
-          <div className="flex items-center space-x-2 text-sm text-gray-600">
-            <Users className="w-4 h-4" />
+          <div className="flex items-center space-x-2 text-xs md:text-sm text-gray-600 shrink-0">
+            <Users className="w-3 h-3 md:w-4 md:h-4" />
             <span>{participantIds.length} participant{participantIds.length !== 1 ? 's' : ''}</span>
           </div>
         </div>
         
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2 w-full sm:w-auto justify-end">
           <Button
             variant="outline"
             size="sm"
             onClick={toggleFullscreen}
+            className="text-xs px-2 py-1"
           >
-            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+            {isFullscreen ? <Minimize className="w-3 h-3 md:w-4 md:h-4" /> : <Maximize className="w-3 h-3 md:w-4 md:h-4" />}
           </Button>
         </div>
       </div>
@@ -262,17 +321,17 @@ function DailyMeetingInner({
         {/* Video Area */}
         <div 
           ref={videoContainerRef}
-          className="w-full p-4 overflow-hidden"
+          className="w-full p-2 md:p-4 overflow-hidden"
         >
           {screens.length > 0 ? (
             renderScreenShare()
           ) : (
             <div className={`
-              grid gap-4 h-full
+              grid gap-2 md:gap-4 h-full
               ${participantIds.length === 1 ? 'grid-cols-1' : 
-                participantIds.length === 2 ? 'grid-cols-2' : 
-                participantIds.length <= 4 ? 'grid-cols-2 grid-rows-2' : 
-                'grid-cols-3 grid-rows-3'}
+                participantIds.length === 2 ? 'grid-cols-1 sm:grid-cols-2' : 
+                participantIds.length <= 4 ? 'grid-cols-1 sm:grid-cols-2' : 
+                'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}
             `}>
               {participantIds.map(renderParticipant)}
             </div>
@@ -281,52 +340,52 @@ function DailyMeetingInner({
       </div>
 
       {/* Controls */}
-      <div className="bg-white border-t px-4 py-4">
-        <div className="flex items-center justify-center space-x-4">
+      <div className="bg-white border-t px-2 md:px-4 py-3 md:py-4">
+        <div className="flex items-center justify-center space-x-3 md:space-x-4">
           <Button
             variant={!localParticipant?.audio ? "destructive" : "outline"}
             size="lg"
             onClick={toggleAudio}
-            className="w-12 h-12 rounded-full p-0"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full p-0"
           >
-            {!localParticipant?.audio ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+            {!localParticipant?.audio ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
           </Button>
 
           <Button
             variant={!localParticipant?.video ? "destructive" : "outline"}
             size="lg"
             onClick={toggleVideo}
-            className="w-12 h-12 rounded-full p-0"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full p-0"
           >
-            {!localParticipant?.video ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+            {!localParticipant?.video ? <VideoOff className="w-4 h-4 md:w-5 md:h-5" /> : <Video className="w-4 h-4 md:w-5 md:h-5" />}
           </Button>
 
           <Button
             variant={isSharingScreen ? "default" : "outline"}
             size="lg"
             onClick={toggleScreenShare}
-            className="w-12 h-12 rounded-full p-0"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full p-0"
           >
-            <Monitor className="w-5 h-5" />
+            <Monitor className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
 
           <Button
             variant={showNotes ? "default" : "outline"}
             size="lg"
             onClick={() => setShowNotes(!showNotes)}
-            className="w-12 h-12 rounded-full p-0"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full p-0"
             title="Toggle Notes"
           >
-            <StickyNote className="w-5 h-5" />
+            <StickyNote className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
 
           <Button
             variant="destructive"
             size="lg"
             onClick={leaveMeeting}
-            className="w-12 h-12 rounded-full p-0"
+            className="w-10 h-10 md:w-12 md:h-12 rounded-full p-0"
           >
-            <PhoneOff className="w-5 h-5" />
+            <PhoneOff className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         </div>
       </div>
@@ -366,14 +425,14 @@ function ParticipantTile({
       </div>
       
       {/* Participant info overlay */}
-      <div className="absolute bottom-2 left-2 bg-black bg-opacity-75 text-white px-2 py-1 rounded text-sm">
+      <div className="absolute bottom-1 md:bottom-2 left-1 md:left-2 bg-black bg-opacity-75 text-white px-1 md:px-2 py-0.5 md:py-1 rounded text-xs md:text-sm">
         {participant.user_name || 'Anonymous'} {isLocal && '(You)'}
       </div>
 
       {/* Audio muted indicator */}
       {!participant.audio && (
-        <div className="absolute top-2 right-2 bg-red-500 rounded-full p-1">
-          <MicOff className="w-4 h-4 text-white" />
+        <div className="absolute top-1 md:top-2 right-1 md:right-2 bg-red-500 rounded-full p-0.5 md:p-1">
+          <MicOff className="w-3 h-3 md:w-4 md:h-4 text-white" />
         </div>
       )}
 
@@ -381,10 +440,10 @@ function ParticipantTile({
       {!participant.video && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
           <div className="text-center text-white">
-            <div className="w-12 h-12 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Users className="w-6 h-6" />
+            <div className="w-8 h-8 md:w-12 md:h-12 bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-1 md:mb-2">
+              <Users className="w-4 h-4 md:w-6 md:h-6" />
             </div>
-            <p className="text-sm opacity-75">Camera off</p>
+            <p className="text-xs md:text-sm opacity-75">Camera off</p>
           </div>
         </div>
       )}
@@ -401,7 +460,7 @@ function CameraTile({ participantId }: { participantId: string }) {
   if (!participant) return null;
 
   return (
-    <div className={`relative bg-gray-900 rounded-lg overflow-hidden daily-camera-box ${
+    <div className={`relative bg-gray-900 rounded-lg overflow-hidden daily-camera-box min-w-[100px] lg:min-w-[128px] ${
       isLocal ? 'border-2 border-blue-500' : 'border border-gray-600'
     }`}>
       <div className="daily-video-container">
@@ -409,22 +468,22 @@ function CameraTile({ participantId }: { participantId: string }) {
       </div>
       
       {/* Participant name */}
-      <div className="absolute bottom-1 left-1 bg-black bg-opacity-75 text-white px-1 py-0.5 rounded text-xs">
+      <div className="absolute bottom-0.5 left-0.5 md:bottom-1 md:left-1 bg-black bg-opacity-75 text-white px-1 py-0.5 rounded text-xs">
         {participant.user_name || 'Anonymous'} {isLocal && '(You)'}
       </div>
 
       {/* Audio muted indicator */}
       {!participant.audio && (
-        <div className="absolute top-1 right-1 bg-red-500 rounded-full p-0.5">
-          <MicOff className="w-3 h-3 text-white" />
+        <div className="absolute top-0.5 right-0.5 md:top-1 md:right-1 bg-red-500 rounded-full p-0.5">
+          <MicOff className="w-2.5 h-2.5 md:w-3 md:h-3 text-white" />
         </div>
       )}
 
       {/* Video off indicator */}
       {!participant.video && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-          <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center">
-            <Users className="w-4 h-4 text-white" />
+          <div className="w-6 h-6 md:w-8 md:h-8 bg-gray-600 rounded-full flex items-center justify-center">
+            <Users className="w-3 h-3 md:w-4 md:h-4 text-white" />
           </div>
         </div>
       )}
@@ -443,32 +502,146 @@ export default function DailyMeeting({
   meetingDescription 
 }: DailyMeetingProps) {
   const [callObject, setCallObject] = useState<any>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoining, setIsJoining] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    
     import('@daily-co/daily-js').then((DailyIframe) => {
-      const call = DailyIframe.default.createCallObject();
+      if (!isMounted) return;
+      
+      const call = DailyIframe.default.createCallObject({
+        // Enhanced configuration for better device handling
+        videoSource: 'camera',
+        audioSource: 'microphone',
+        // Try to gracefully handle device conflicts
+        startVideoOff: false,
+        startAudioOff: false,
+      });
+
+      // Listen for join events
+      call.on('joined-meeting', () => {
+        if (isMounted) {
+          setIsJoining(false);
+          setJoinError(null);
+        }
+      });
+
+      call.on('error', (error: any) => {
+        if (isMounted) {
+          console.error('Daily meeting error:', error);
+          setIsJoining(false);
+          
+          // Handle specific error types
+          if (error.type === 'cam-in-use' || error.errorMsg?.includes('camera')) {
+            setJoinError('Camera is already in use by another tab or application. Please close other video calls and try again.');
+          } else if (error.type === 'mic-in-use' || error.errorMsg?.includes('microphone')) {
+            setJoinError('Microphone is already in use by another tab or application. Please close other audio calls and try again.');
+          } else if (error.errorMsg?.includes('Permission denied')) {
+            setJoinError('Camera and microphone access denied. Please allow permissions and refresh the page.');
+          } else {
+            setJoinError('Failed to join meeting. Please try again or check your connection.');
+          }
+        }
+      });
+
       setCallObject(call);
 
-      // Join the meeting
+      // Join the meeting with enhanced error handling
       call.join({
         url: roomUrl,
         userName: userName || 'Anonymous User',
       }).catch((error: any) => {
-        console.error('Failed to join meeting:', error);
+        if (isMounted) {
+          console.error('Failed to join meeting:', error);
+          setIsJoining(false);
+          
+          // Parse error messages for better user feedback
+          const errorMessage = error.message || error.toString();
+          if (errorMessage.includes('camera') || errorMessage.includes('video')) {
+            setJoinError('Camera access failed. Another browser tab might be using your camera. Please close other video calls and try again.');
+          } else if (errorMessage.includes('microphone') || errorMessage.includes('audio')) {
+            setJoinError('Microphone access failed. Another application might be using your microphone.');
+          } else if (errorMessage.includes('permission')) {
+            setJoinError('Please allow camera and microphone permissions to join the meeting.');
+          } else {
+            setJoinError('Unable to connect to the meeting. Please check your internet connection and try again.');
+          }
+        }
       });
 
       return () => {
-        call.destroy();
+        if (call && !call.isDestroyed()) {
+          call.destroy();
+        }
       };
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, [roomUrl, userName]);
 
-  if (!callObject) {
+  // Show error state with helpful message and retry option
+  if (joinError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-8 max-w-md w-full text-center">
+          <div className="mb-4 md:mb-6">
+            <div className="w-12 h-12 md:w-16 md:h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
+              <VideoOff className="w-6 h-6 md:w-8 md:h-8 text-red-600" />
+            </div>
+            <h2 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">Unable to Join Meeting</h2>
+            <p className="text-sm md:text-base text-gray-600 mb-3 md:mb-4">{joinError}</p>
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 md:p-4 mb-4 md:mb-6 text-left">
+              <h3 className="text-sm md:text-base font-semibold text-blue-900 mb-2">💡 Quick Solutions:</h3>
+              <ul className="text-xs md:text-sm text-blue-800 space-y-1">
+                <li>• Close other browser tabs using your camera/microphone</li>
+                <li>• Close video calling apps (Zoom, Teams, Skype, etc.)</li>
+                <li>• Refresh this page and allow camera permissions</li>
+                <li>• Try using a different browser or incognito mode</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            <Button 
+              onClick={() => {
+                setJoinError(null);
+                setIsJoining(true);
+                window.location.reload();
+              }}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-sm md:text-base"
+            >
+              Try Again
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              onClick={onLeave}
+              className="w-full text-sm md:text-base"
+            >
+              Return to Dashboard
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!callObject || isJoining) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-lg">Initializing meeting...</p>
+          <p className="text-lg">
+            {!callObject ? 'Initializing meeting...' : 'Connecting to meeting...'}
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Make sure no other tabs are using your camera or microphone
+          </p>
         </div>
       </div>
     );

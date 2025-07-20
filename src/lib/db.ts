@@ -3,12 +3,28 @@ import mongoose from "mongoose";
 const MONGODB_URI = process.env.MONGODB_URI as string;
 
 if (!MONGODB_URI) {
-  throw new Error('MONGODB_URI is not defined in environment variables');
+  // In CI environment or when SKIP_DB_VALIDATION is set, provide a mock URI
+  if (process.env.CI === 'true' || process.env.SKIP_DB_VALIDATION === 'true') {
+    console.warn('Running in CI environment or DB validation skipped - using mock database connection');
+  } else {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
 }
 
 
 
 const connect = async () => {
+  // In CI environment or when DB validation is skipped, don't attempt real connection
+  if (process.env.CI === 'true' || process.env.SKIP_DB_VALIDATION === 'true') {
+    console.log('Skipping database connection in CI environment');
+    return;
+  }
+
+  // If no MONGODB_URI in non-CI environment, throw error
+  if (!MONGODB_URI) {
+    throw new Error('MONGODB_URI is not defined in environment variables');
+  }
+
   const connectionState = mongoose.connection.readyState;
   
   // If already connected, return early

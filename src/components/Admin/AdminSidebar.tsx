@@ -17,6 +17,7 @@ import {
   Shield,
   Star,
   UserX,
+  NotebookTabs,
 } from "lucide-react";
 
 import clsx from "clsx"; // Utility for conditional class names
@@ -88,7 +89,7 @@ const navItems = [
   {
     id: "forum-reports",
     label: "Forum Reports",
-    icon: Flag,
+    icon: NotebookTabs,
     permission: "manage_forum_reports",
   },
 ];

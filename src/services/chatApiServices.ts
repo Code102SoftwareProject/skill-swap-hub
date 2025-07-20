@@ -254,7 +254,7 @@ export async function sendMessage(messageData: any) {
             userId: recipientId,
             typeno: 2, // Type 2 for new message notification
             description: `New message from ${senderName}`,
-            targetDestination: `/chat`,
+            targetDestination: `/user/chat`,
           }),
         });
       }

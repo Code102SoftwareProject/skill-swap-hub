@@ -30,7 +30,7 @@ const getUserName = async (userId: string): Promise<string> => {
  */
 const sendMeetingNotification = async (userId: string, typeno: number, description: string, targetDestination: string = '/dashboard'): Promise<boolean> => {
   try {
-    const response = await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/notification`, {
+    const response = await fetch(`${process.env.NEXTAUTH_URL }/api/notification`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

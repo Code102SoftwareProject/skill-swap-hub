@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Admin Users Management Test Results</title>
+  <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: #333; }
+        .header p { margin: 5px 0; color: #666; }
+        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; font-weight: bold; }
+        .pass { background-color: #d4edda; color: #155724; }
+        .fail { background-color: #f8d7da; color: #721c24; }
+        .blocked { background-color: #fff3cd; color: #856404; }
+        .not-executed { background-color: #e2e3e5; color: #383d41; }
+    </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Admin Users Management - Test Execution Results</h1>
+    <p><strong>Tester:</strong> Fathima Samha</p>
+    <p><strong>Version:</strong> Not specified</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Device:</strong> Desktop</p>
+    <p><strong>Test Date:</strong> 2025-07-17</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Test Name</th>
+        <th>Priority</th>
+        <th>Preconditions</th>
+        <th>Test Steps</th>
+        <th>Expected Result</th>
+        <th>Actual Result</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Users List Loads</td><td>HIGH</td><td>Admin logged in</td><td>1. Navigate to Users page</td><td>List of users loads, shows user info</td><td>User list loaded, all info visible</td><td class="pass">PASS</td></tr>
+      <tr><td>3</td><td>Error State</td><td>HIGH</td><td>API returns error</td><td>1. Simulate API error<br>2. Load Users page</td><td>Error message shown</td><td>Error message displayed: "Failed to fetch users"</td><td class="pass">PASS</td></tr>
+      <tr><td>4</td><td>Empty State</td><td>MEDIUM</td><td>No users in DB</td><td>1. Load Users page</td><td>"No users found" message shown</td><td>No users found message displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>5</td><td>Search by Name</td><td>HIGH</td><td>Users exist</td><td>1. Enter name in search<br>2. Observe results</td><td>Only matching users shown</td><td>Search filters users by name correctly</td><td class="pass">PASS</td></tr>
+      <tr><td>6</td><td>Search by Email</td><td>HIGH</td><td>Users exist</td><td>1. Enter email in search<br>2. Observe results</td><td>Only matching users shown</td><td>Search filters users by email correctly</td><td class="pass">PASS</td></tr>
+      <tr><td>7</td><td>Search by Title</td><td>MEDIUM</td><td>Users exist</td><td>1. Enter title in search<br>2. Observe results</td><td>Only matching users shown</td><td>Search filters users by title correctly</td><td class="pass">PASS</td></tr>
+      <tr><td>8</td><td>Clear Search</td><td>MEDIUM</td><td>Search active</td><td>1. Click clear button</td><td>Search input cleared, all users shown</td><td>Search cleared, all users displayed</td><td class="pass">PASS</td></tr>
+      <tr><td>9</td><td>Pagination Next/Prev</td><td>HIGH</td><td>>1 page of users</td><td>1. Click next/prev page</td><td>User list updates to correct page</td><td>Pagination works, correct page shown</td><td class="pass">PASS</td></tr>
+      <tr><td>10</td><td>Pagination Direct Page</td><td>MEDIUM</td><td>>5 pages of users</td><td>1. Click a page number</td><td>User list updates to selected page</td><td>Direct page navigation works</td><td class="pass">PASS</td></tr>
+      <tr><td>11</td><td>Change Page Size</td><td>MEDIUM</td><td>Users exist</td><td>1. Change page size dropdown</td><td>User list updates, correct # per page</td><td>Page size changes, correct number shown</td><td class="pass">PASS</td></tr>
+      <tr><td>12</td><td>Sort by Name</td><td>HIGH</td><td>Users exist</td><td>1. Sort by first/last name</td><td>List sorted correctly</td><td>Sort by name works as expected</td><td class="pass">PASS</td></tr>
+      <tr><td>13</td><td>Sort by Email</td><td>MEDIUM</td><td>Users exist</td><td>1. Sort by email</td><td>List sorted correctly</td><td>Sort by email works as expected</td><td class="pass">PASS</td></tr>
+      <tr><td>14</td><td>Sort by Created At</td><td>MEDIUM</td><td>Users exist</td><td>1. Sort by created date</td><td>List sorted correctly</td><td>Sort by created date works</td><td class="pass">PASS</td></tr>
+      <tr><td>15</td><td>Sort Order Toggle</td><td>MEDIUM</td><td>Users exist</td><td>1. Toggle sort order</td><td>List order reverses</td><td>Sort order toggles as expected</td><td class="pass">PASS</td></tr>
+      <tr><td>16</td><td>Delete User (Soft)</td><td>HIGH</td><td>Users exist</td><td>1. Click delete on user<br>2. Confirm in modal</td><td>User removed from list, toast shown</td><td>User deleted, toast shown</td><td class="pass">PASS</td></tr>
+      <tr><td>17</td><td>Cancel Delete</td><td>MEDIUM</td><td>Users exist</td><td>1. Click delete<br>2. Cancel modal</td><td>No user deleted, modal closes</td><td>Modal closed, no user deleted</td><td class="pass">PASS</td></tr>
+    </tbody>
+  </table>
+
+</body>
+</html> 

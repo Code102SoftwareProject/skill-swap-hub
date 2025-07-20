@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin Dashboard Results</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+      }
+      tbody tr:nth-child(even) {
+        background: #fafafa;
+      }
+      .status-pass {
+        background: #dcfce7 !important;
+        color: #166534;
+        font-weight: bold;
+      }
+      .status-fail {
+        background: #fee2e2 !important;
+        color: #991b1b;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Dashboard Test Results</h1>
+    <p><strong>Tester:</strong> P. Renulucshmi</p>
+    <p><strong>Date:</strong> 2025-07-17</p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Test Steps</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Dashboard Cards Load</td>
+          <td>VIEW</td>
+          <td>HIGH</td>
+          <td>Logged in as Admin/SuperAdmin</td>
+          <td>1. Navigate to /admin/dashboard<br />2. Wait for page load</td>
+          <td>All five metric cards appear with correct values</td>
+          <td>its loading as expected</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Cards Accuracy</td>
+          <td>VERIFICATION</td>
+          <td>HIGH</td>
+          <td>Dashboard loaded; known backend data</td>
+          <td>1. Compare card values to API/DB<br />2. Refresh page</td>
+          <td>Each card value matches the source of truth</td>
+          <td>it matches with database count as well</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Registration Chart Plot</td>
+          <td>VISUALIZATION</td>
+          <td>MEDIUM</td>
+          <td>≥1 registration record exists</td>
+          <td>1. Observe line chart<br />2. Hover data points</td>
+          <td>Chart shows daily points; tooltip shows date & count</td>
+          <td>
+            when hover points in shows no of users registered on a specific day
+          </td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Chart Date Range Filter</td>
+          <td>FUNCTIONALITY</td>
+          <td>MEDIUM</td>
+          <td>Date‑range dropdown visible</td>
+          <td>1. Select Last 7 Days<br />2. Select All Time</td>
+          <td>Chart re‑renders to selected range</td>
+          <td>chart re renders when we change the drop down</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Skill Distribution Donut</td>
+          <td>VISUALIZATION</td>
+          <td>MEDIUM</td>
+          <td>≥1 skill assignment exists</td>
+          <td>1. Observe donut chart<br />2. Hover slices</td>
+          <td>Each slice shows category & %; total sums to 100%</td>
+          <td>each hover shows no of skills in each cateogory</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Loading Skeletons</td>
+          <td>UX</td>
+          <td>LOW</td>
+          <td>Network throttled</td>
+          <td>1. Throttle to Slow 3G<br />2. Reload page</td>
+          <td>Skeleton placeholders displayed until data arrives</td>
+          <td>until data arrives it shows loading sign</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Network Calls Verification</td>
+          <td>DEBUG</td>
+          <td>LOW</td>
+          <td>DevTools open</td>
+          <td>1. Monitor Network tab<br />2. Reload page</td>
+          <td>GET /api/dashboard fires once; no 404/500 errors</td>
+          <td>
+            A single GET /api/dashboard request fired on load (200 OK), followed
+            by two GET /api/skillLists requests; no 404/500 errors.
+          </td>
+          <td class="status-pass">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
