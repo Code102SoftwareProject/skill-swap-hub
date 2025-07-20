@@ -1,55 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
+// /src/app/api/kyc/status/route.ts
+import { NextRequest, NextResponse } from 'next/server';
 import Connect from "@/lib/db";
-import KYC from "@/lib/models/KYCSchema"; // Assuming userId is stored as 'recipient'
+import KYC from "@/lib/models/KYCSchema";
 
-/**
- * GET KYC status for a specific user by their userId (recipient)
- * @example /api/kyc/status?userId=abc123
- */
 export async function GET(req: NextRequest) {
+  const userId = req.nextUrl.searchParams.get('userId');
+  if (!userId) {
+    return NextResponse.json({ success: false, message: 'User ID is required' }, { status: 400 });
+  }
+
   try {
     await Connect();
 
-    // Get userId (recipient) from query param
-    const userId = req.nextUrl.searchParams.get("userId");
+    const latestKyc = await KYC
+  .findOne({ userId })
+  .sort({ dateSubmitted: -1 }) // 💥 FIXED
+  .lean() as {
+    status?: string;
+    rejectionReason?: string;
+  } | null;
 
-    if (!userId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Missing userId in query parameters",
-        },
-        { status: 400 }
-      );
-    }
 
-    // Find KYC record for the given user
-    const record = await KYC.findOne({ recipient: userId });
-
-    if (!record) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "KYC record not found for this user",
-        },
-        { status: 404 }
-      );
+    if (!latestKyc) {
+      return NextResponse.json({ success: true, status: null });
     }
 
     return NextResponse.json({
       success: true,
-      status: record.status,
-      message: `KYC status for user ${userId} is '${record.status}'`,
+      status: latestKyc.status,
+      reason: latestKyc.status === 'Rejected' ? latestKyc.rejectionReason || null : null,
     });
-  } catch (error) {
-    console.error("KYC status fetch error:", error);
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Server error while fetching KYC status",
-        error: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 }
-    );
+
+  } catch (err) {
+    console.error('[KYC STATUS ERROR]', err);
+    return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
   }
 }
