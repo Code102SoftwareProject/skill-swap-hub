@@ -7,6 +7,7 @@ interface ISuggestion extends Document {
   status: string;
   userId: mongoose.Types.ObjectId; // Link to user
   date: Date;
+  isHidden?: boolean;
 }
 
 const SuggestionSchema = new Schema<ISuggestion>({
@@ -16,6 +17,7 @@ const SuggestionSchema = new Schema<ISuggestion>({
   status: { type: String, default: 'Pending' },
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: Date, default: Date.now },
+  isHidden: { type: Boolean, default: false },
 });
 
 const Suggestion = mongoose.models.Suggestion || mongoose.model<ISuggestion>('Suggestion', SuggestionSchema);
