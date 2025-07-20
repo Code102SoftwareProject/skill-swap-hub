@@ -8,6 +8,7 @@ import {
   Search,
   SortDesc,
   SortAsc,
+  RefreshCw,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
@@ -59,6 +60,9 @@ export default function KYCContent() {
   const [recordsPerPage, setRecordsPerPage] = useState(10);
   const pageSizeOptions = [5, 10, 25, 50];
 
+  // 2. trigger to re-run fetch
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
   // Track loading states for asynchronous operations (downloads, status updates)
   const [loadingActions, setLoadingActions] = useState<{
     downloads: Record<string, boolean>;
@@ -68,31 +72,26 @@ export default function KYCContent() {
     statusUpdates: {},
   });
 
-  // Fetch KYC records from the API when component mounts
-  useEffect(() => {
-    async function fetchKYCRecords() {
-      try {
-        setLoading(true);
-        const response = await fetch("/api/kyc/getAll");
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch KYC records");
-        }
-
-        const data = await response.json();
-        setRecords(data.data);
-      } catch (err) {
-        console.error("Error fetching KYC records:", err);
-        setError("Failed to load KYC records");
-        toast.error("Failed to load KYC records");
-      } finally {
-        setLoading(false);
-      }
+  // ← Insert single fetch fn + top‐level effect
+  const fetchKYCRecords = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("/api/kyc/getAll");
+      if (!response.ok) throw new Error("Failed to fetch KYC records");
+      const data = await response.json();
+      setRecords(data.data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load KYC records");
+      toast.error("Failed to load KYC records");
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     fetchKYCRecords();
-  }, []);
-
+  }, [refreshTrigger]);
   // Log records for debugging purposes
   useEffect(() => {
     console.log("Records data:", records);
@@ -353,11 +352,23 @@ export default function KYCContent() {
     pageNumbers.push(i);
   }
 
+  const handleRefresh = () => setRefreshTrigger((prev) => prev + 1);
   return (
     <div className="p-6 bg-gray-100 min-h-screen text-gray-900 dark:text-gray-900">
-      <h1 className="text-2xl font-semibold text-[#0077b6] mb-6">
-        Admin Dashboard - KYC
-      </h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold text-[#0077b6]">
+          Admin Dashboard - KYC
+        </h1>
+
+        {/* ← New Refresh button */}
+        <button
+          onClick={handleRefresh}
+          className="flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+          title="Reload KYC records"
+        >
+          <RefreshCw className="h-4 w-4" /> Refresh
+        </button>
+      </div>
 
       <div className="bg-white rounded-lg shadow p-6">
         {/* Search and filter controls */}
