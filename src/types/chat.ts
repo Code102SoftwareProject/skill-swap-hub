@@ -5,7 +5,7 @@ export interface IMessage {
     content: string;
     sentAt?: number;
     type?: "text" | "file"; 
-    replyFor?: string; 
+    replyFor?: string | { _id?: string; senderId?: string; content?: string }; // Can be ID string or full message object
     replyForSender?: string; 
     replyForContent?: string; 
     readStatus: boolean;

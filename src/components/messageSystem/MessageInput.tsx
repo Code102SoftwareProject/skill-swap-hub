@@ -119,10 +119,14 @@ export default function MessageInput({
           receiverId: chatParticipants.find((id) => id !== senderId),
           content: finalContent, // Send plain text, server handles encryption
           sentAt: Date.now(),
-          replyFor: replyingTo?._id || null,
+          replyFor: replyingTo ? {
+            _id: replyingTo._id,
+            senderId: replyingTo.senderId,
+            content: replyingTo.content
+          } : null,
         };
 
-        // Send via socket immediately (plain text)
+        // Send via socket immediately (plain text) with full reply object
         socketSendMessage(newMsg);
 
         // Reset UI immediately
@@ -134,9 +138,14 @@ export default function MessageInput({
           onCancelReply();
         }
 
-        // Save to database in background
+        // Save to database in background - use just the ID for database
+        const dbMsg = {
+          ...newMsg,
+          replyFor: replyingTo?._id || null, // Use just the ID for database
+        };
+        
         try {
-          await sendMessageService(newMsg);
+          await sendMessageService(dbMsg);
         } catch (error) {
           console.error("Error saving file message to database:", error);
         }
@@ -190,10 +199,14 @@ export default function MessageInput({
       receiverId: chatParticipants.find((id) => id !== senderId),
       content: finalContent, // Send plain text, server handles encryption
       sentAt: Date.now(),
-      replyFor: replyingTo?._id || null,
+      replyFor: replyingTo ? {
+        _id: replyingTo._id,
+        senderId: replyingTo.senderId,
+        content: replyingTo.content
+      } : null,
     };
 
-    // Send via socket immediately (plain text)
+    // Send via socket immediately (plain text) with full reply object
     socketSendMessage(newMsg);
 
     // Reset UI immediately after socket send
@@ -206,9 +219,14 @@ export default function MessageInput({
       onCancelReply();
     }
 
-    // Save to database in background (don't block UI)
+    // Save to database in background (don't block UI) - use just the ID for database
+    const dbMsg = {
+      ...newMsg,
+      replyFor: replyingTo?._id || null, // Use just the ID for database
+    };
+    
     try {
-      await sendMessageService(newMsg);
+      await sendMessageService(dbMsg);
     } catch (error) {
       console.error("Error sending message:", error);
       // Optional: You could show a retry mechanism or error state here

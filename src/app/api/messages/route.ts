@@ -58,12 +58,14 @@ export async function POST(req: Request) {
         { status: 404 }
       );
       
-    }    const message = await Message.create({
+    }
+    
+    const message = await Message.create({
       chatRoomId: chatRoomObjectId,
       senderId,
       content: encryptedContent,
       sentAt: new Date(),
-      readStatus: false,
+      readStatus: false, // Default: message is unread for recipients
       replyFor: replyForObjectId,
       deliveryStatus: 'sent'
     });
