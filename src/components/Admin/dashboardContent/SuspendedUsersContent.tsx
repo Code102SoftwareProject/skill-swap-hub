@@ -10,7 +10,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { debounce } from "lodash-es";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { UserRoundCheck } from "lucide-react";
+import { UserRoundCheck, SortDesc, SortAsc } from "lucide-react";
 
 // ─── TYPE DEFINITIONS ─────────────────────────────────────────────────────────
 interface SuspendedUser {
@@ -244,8 +244,7 @@ const UnsuspendButton: React.FC<{ onClick: () => void; label: string }> = ({
     className="p-2 rounded-full hover:bg-green-100 focus:ring-2 focus:ring-green-500"
     aria-label={label}
   >
-     <UserRoundCheck className="w-5 h-5 text-green-600" />
-
+    <UserRoundCheck className="w-5 h-5 text-green-600" />
   </button>
 );
 
@@ -380,6 +379,10 @@ const SuspendedUsersContent: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  // whether to show oldest-first ("asc") or newest-first ("desc")
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const toggleSortDirection = () =>
+    setSortDirection((d) => (d === "asc" ? "desc" : "asc"));
 
   // Fetch data on mount
   useEffect(() => {
@@ -453,9 +456,21 @@ const SuspendedUsersContent: React.FC = () => {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / USERS_PER_PAGE));
 
+  // sort filtered users by suspendedAt date, newest↔oldest
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const aTime = new Date(a.suspendedAt || "").getTime();
+      const bTime = new Date(b.suspendedAt || "").getTime();
+      return sortDirection === "asc"
+        ? aTime - bTime // oldest first
+        : bTime - aTime; // newest first
+    });
+  }, [filtered, sortDirection]);
+
+  // then paginate the sorted array
   const paginated = useMemo(
-    () => filtered.slice((page - 1) * USERS_PER_PAGE, page * USERS_PER_PAGE),
-    [filtered, page]
+    () => sorted.slice((page - 1) * USERS_PER_PAGE, page * USERS_PER_PAGE),
+    [sorted, page]
   );
 
   // Reset page if out of range
@@ -470,22 +485,51 @@ const SuspendedUsersContent: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen mt-7">
       <ToastContainer />
 
-      {/* Header with count and search */}
-      <div className="flex flex-col sm:flex-row sm:justify-between mb-8 gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-blue-800">
-            Suspended Users
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            {filtered.length} user{filtered.length !== 1 && "s"} found
-          </p>
-        </div>
-        <SearchInput
-          value={search}
-          onChange={handleSearchChange}
-          onClear={clearSearch}
-        />
-      </div>
+      {/* NEW */}
+<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+  {/* Title + count on the left */}
+  <div>
+    <h2 className="text-2xl font-semibold text-blue-800">
+      Suspended Users
+    </h2>
+    <p className="text-sm text-gray-600 mt-1">
+      {filtered.length} user{filtered.length !== 1 && "s"} found
+    </p>
+  </div>
+
+  {/* Search on the left, toggle on the right */}
+  <div className="flex w-full sm:w-auto items-center justify-between gap-4">
+    <SearchInput
+      value={search}
+      onChange={handleSearchChange}
+      onClear={clearSearch}
+    />
+
+    <button
+      onClick={toggleSortDirection}
+      className="flex-shrink-0 flex items-center gap-1 px-3 py-2 border rounded hover:bg-gray-100"
+      title={
+        sortDirection === "desc"
+          ? "Showing newest first"
+          : "Showing oldest first"
+      }
+      aria-label={`Sort by date: ${
+        sortDirection === "desc" ? "newest first" : "oldest first"
+      }`}
+    >
+      {sortDirection === "desc" ? (
+        <>
+          <SortDesc className="h-4 w-4" /> Newest
+        </>
+      ) : (
+        <>
+          <SortAsc className="h-4 w-4" /> Oldest
+        </>
+      )}
+    </button>
+  </div>
+</div>
+
 
       {/* Content area */}
       <div className="bg-white shadow-lg rounded-xl overflow-hidden">

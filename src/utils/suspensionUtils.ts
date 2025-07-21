@@ -135,7 +135,7 @@ export const isSuspensionResponse = (
   );
 };
 
-export default {
+const suspensionUtils = {
   handleSuspensionResponse,
   createSuspendedAlertProps,
   fetchWithSuspensionHandler,
@@ -143,3 +143,5 @@ export default {
   SUSPENSION_MESSAGES,
   isSuspensionResponse,
 };
+
+export default suspensionUtils;

@@ -63,7 +63,7 @@ export default function AdminEditModal({
       {/* Modal container */}
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <h2 className="text-xl font-bold mb-4">
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-900">
           Edit Admin: {selectedAdmin.username}
         </h2>
 
@@ -73,17 +73,17 @@ export default function AdminEditModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Username input */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1  dark:text-gray-700">
                 Username
               </label>
               <input
                 type="text"
                 value={form.username}
-                onChange={e =>
+                onChange={(e) =>
                   onChange({ ...form, username: e.target.value })
                 }
                 placeholder="At least 4 characters"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-gray-900"
                 required
                 minLength={4}
               />
@@ -98,16 +98,16 @@ export default function AdminEditModal({
                 <input
                   type="email"
                   value={form.email}
-                  onChange={e => onChange({ ...form, email: e.target.value })}
+                  onChange={(e) => onChange({ ...form, email: e.target.value })}
                   placeholder="admin@example.com"
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent ${
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:border-transparent text-gray-900 dark:text-gray-900${
                     form.email === selectedAdmin.email
                       ? "border-gray-300 focus:ring-blue-500"
                       : emailValidation.isChecking
-                      ? "border-yellow-300 focus:ring-yellow-500"
-                      : emailValidation.isValid
-                      ? "border-green-300 focus:ring-green-500"
-                      : "border-red-300 focus:ring-red-500"
+                        ? "border-yellow-300 focus:ring-yellow-500"
+                        : emailValidation.isValid
+                          ? "border-green-300 focus:ring-green-500"
+                          : "border-red-300 focus:ring-red-500"
                   }`}
                   required
                 />
@@ -135,38 +135,37 @@ export default function AdminEditModal({
                   form.email === selectedAdmin.email
                     ? "text-gray-500"
                     : emailValidation.isChecking
-                    ? "text-yellow-600"
-                    : emailValidation.isValid
-                    ? "text-green-600"
-                    : emailValidation.message
-                    ? "text-red-600"
-                    : "text-gray-500"
+                      ? "text-yellow-600"
+                      : emailValidation.isValid
+                        ? "text-green-600"
+                        : emailValidation.message
+                          ? "text-red-600"
+                          : "text-gray-500"
                 }`}
               >
                 {form.email === selectedAdmin.email
                   ? "Current email address"
                   : emailValidation.isChecking
-                  ? "Validating email..."
-                  : emailValidation.message ||
-                    "Valid email address required"}
+                    ? "Validating email..."
+                    : emailValidation.message || "Valid email address required"}
               </p>
             </div>
           </div>
 
           {/* Password field with visibility toggle */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1 text-gray-900 dark:text-gray-900">
               New Password (optional)
             </label>
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 value={form.password}
-                onChange={e =>
+                onChange={(e) =>
                   onChange({ ...form, password: e.target.value })
                 }
                 placeholder="Leave blank to keep current password"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-gray-900"
               />
               <button
                 type="button"
@@ -186,8 +185,8 @@ export default function AdminEditModal({
               </label>
               <select
                 value={form.role}
-                onChange={e => onChange({ ...form, role: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) => onChange({ ...form, role: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 dark:text-gray-900"
               >
                 <option value={ROLE_ADMIN}>Admin</option>
                 <option value={ROLE_SUPER_ADMIN}>Super Admin</option>
@@ -201,58 +200,47 @@ export default function AdminEditModal({
               Permissions
             </label>
             <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-              {form.role === ROLE_SUPER_ADMIN ? (
-                // Super admin sees all permissions pre-checked
-                <div className="space-y-2">
-                  {availablePermissions.map(permission => (
-                    <div
-                      key={permission.key}
-                      className="flex items-start bg-purple-50 p-2 rounded"
-                    >
-                      <CheckCircle className="mt-1 h-4 w-4 text-purple-600 flex-shrink-0" />
-                      <div className="ml-2 block text-sm">
-                        <span className="font-medium text-gray-900">
-                          {permission.label}
-                        </span>
-                        <span className="text-gray-500 block text-xs">
-                          {permission.description}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Regular admin can toggle each permission
-                <div className="space-y-2">
-                  {availablePermissions.map(permission => (
-                    <div
-                      key={permission.key}
-                      className="flex items-start bg-gray-50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.permissions.includes(permission.key)}
-                        onChange={() => {
-                          const has = form.permissions.includes(permission.key);
-                          const updated = has
-                            ? form.permissions.filter(p => p !== permission.key)
-                            : [...form.permissions, permission.key];
-                          onChange({ ...form, permissions: updated });
-                        }}
-                        className="mr-2"
-                      />
-                      <div className="block text-sm">
-                        <span className="font-medium text-gray-900">
-                          {permission.label}
-                        </span>
-                        <span className="text-gray-500 block text-xs">
-                          {permission.description}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* read-only list for both roles */}
+<div className="space-y-2">
+  {availablePermissions
+    .filter(p =>
+      form.role === ROLE_SUPER_ADMIN ||
+      (form.role === ROLE_ADMIN && p.key !== "manage_admins")
+    )
+    .map(p => (
+      <div
+        key={p.key}
+        className={`flex items-start p-2 rounded ${
+          form.role === ROLE_SUPER_ADMIN ? "bg-purple-50" : "bg-gray-50"
+        }`}
+      >
+        <CheckCircle
+          className={`mt-1 h-4 w-4 flex-shrink-0 ${
+            form.role === ROLE_SUPER_ADMIN
+              ? "text-purple-600"
+              : "text-green-600"
+          }`}
+        />
+        <div className="ml-2 text-sm">
+          <div className="font-medium text-gray-900">{p.label}</div>
+          <div className="text-xs text-gray-500">{p.description}</div>
+        </div>
+      </div>
+    ))}
+  {form.role === ROLE_ADMIN && (
+    <div className="flex items-start bg-red-50 p-2 rounded">
+      <XCircle className="mt-1 h-4 w-4 text-red-600 flex-shrink-0" />
+      <div className="ml-2 text-sm">
+        <div className="font-medium text-gray-900">Manage Admins</div>
+        <div className="text-xs text-red-500">
+          Not available for regular admins
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
+              
             </div>
           </div>
 

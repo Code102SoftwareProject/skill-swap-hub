@@ -31,18 +31,18 @@ export function Filters({
           type="text"
           placeholder="Search by name, email, reason , or report ID…"
           value={searchQuery}
-          onChange={e => onSearchChange(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors"
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-colors text-gray-900 dark:text-gray-900"
         />
       </div>
 
       {/* Status dropdown */}
       <select
         value={statusFilter}
-        onChange={e => onStatusChange(e.target.value)}
-        className="border px-4 py-2 rounded"
+        onChange={(e) => onStatusChange(e.target.value)}
+        className="border px-4 py-2 rounded text-gray-900 dark:text-gray-900"
       >
-        {statusOptions.map(opt => (
+        {statusOptions.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label} ({opt.count})
           </option>
@@ -54,7 +54,7 @@ export function Filters({
         onClick={onToggleSort}
         variant="outline"
         size="sm"
-        className="flex items-center gap-2"
+        className="flex items-center gap-2 text-gray-900 dark:text-gray-900"
         title={`Sort by date: ${sortDirection === "desc" ? "newest first" : "oldest first"}`}
       >
         {sortDirection === "desc" ? (
