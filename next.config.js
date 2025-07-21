@@ -11,6 +11,7 @@ const nextConfig = {
       "lh5.googleusercontent.com", // Google profile images (alternative)
       "lh6.googleusercontent.com", // Google profile images (alternative)
       "ui-avatars.com", // UI Avatars service for fallback avatars
+      "localhost", // Allow localhost for development API endpoints
     ],
     // Modern pattern-based configuration for external image sources
     remotePatterns: [
@@ -37,6 +38,36 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "ui-avatars.com", // UI Avatars service for fallback avatars
+        pathname: "/api/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost", // Development server HTTP
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "localhost", // Development server HTTPS
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.vercel.app", // Vercel deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.netlify.app", // Netlify deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.herokuapp.com", // Heroku deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: process.env.NEXT_PUBLIC_DOMAIN || "code102.site", // Custom production domain
         pathname: "/api/**",
       },
     ],

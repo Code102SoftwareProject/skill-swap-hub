@@ -67,14 +67,14 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
     // Set up event handlers for this socket instance
     const setupSocketEvents = () => {
       newSocket.on('connect', () => {
-        console.log('Socket connected:', newSocket.id);
+        //console.log('Socket connected:', newSocket.id);
         setIsConnected(true);
         newSocket.emit('presence_online', { userId });
         newSocket.emit('get_online_users');
       });
 
       newSocket.on('disconnect', () => {
-        console.log('Socket disconnected');
+        //console.log('Socket disconnected');
         setIsConnected(false);
       });
 
@@ -84,12 +84,12 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       });
 
       newSocket.on('online_users', (users: string[]) => {
-        console.log('Received online users:', users);
+        //console.log('Received online users:', users);
         setOnlineUsers(users);
       });
 
       newSocket.on('user_online', ({ userId: onlineUserId }) => {
-        console.log('User came online:', onlineUserId);
+        //console.log('User came online:', onlineUserId);
         setOnlineUsers(prev => {
           if (prev.includes(onlineUserId)) return prev;
           return [...prev, onlineUserId];
@@ -100,18 +100,18 @@ export const SocketProvider = ({ children }: { children: ReactNode }) => {
       });
 
       newSocket.on('user_offline', ({ userId: offlineUserId }) => {
-        console.log('User went offline:', offlineUserId);
+        //console.log('User went offline:', offlineUserId);
         setOnlineUsers(prev => prev.filter(id => id !== offlineUserId));
       });
 
       // Listen for delivery status updates
       newSocket.on('message_delivery_update', (data) => {
         // This will be handled by individual chat components
-        console.log('Delivery status update:', data);
+        //console.log('Delivery status update:', data);
       });
 
       newSocket.on('receive_notification', (notification) => {
-        console.log('Received notification:', notification);
+        //console.log('Received notification:', notification);
       });
     };
 

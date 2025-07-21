@@ -35,6 +35,7 @@ export default function ReportTab({
     
     // Validation
     formErrors,
+    hasUserAlreadyReported,
     
     // Actions
     handleFileAdd,
@@ -183,6 +184,21 @@ export default function ReportTab({
             </p>
             <p className="text-sm text-gray-500">
               If you have concerns about {session?.status === 'completed' ? 'completed' : 'cancelled'} sessions, please contact support directly.
+            </p>
+          </div>
+        </div>
+      ) : hasUserAlreadyReported() ? (
+        <div className="bg-white rounded-lg shadow p-6">
+          <div className="text-center py-8">
+            <Flag className="h-12 w-12 text-amber-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Report Already Submitted
+            </h3>
+            <p className="text-gray-600 mb-4">
+              You have already submitted a report for this session. Only one report per user is allowed per session.
+            </p>
+            <p className="text-sm text-gray-500">
+              If you need to provide additional information, please contact support directly with your session details.
             </p>
           </div>
         </div>

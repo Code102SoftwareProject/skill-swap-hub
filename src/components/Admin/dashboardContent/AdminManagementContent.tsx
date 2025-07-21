@@ -121,6 +121,11 @@ const AVAILABLE_PERMISSIONS = [
     label: "View Dashboard",
     description: "Access to dashboard overview",
   },
+    {
+      key: "manage_inbox",
+      label: "Manage Inbox",
+      description: "View and respond to contact-form submissions",
+    },
 ];
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────

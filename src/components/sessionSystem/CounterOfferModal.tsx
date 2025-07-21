@@ -199,6 +199,62 @@ export default function CounterOfferModal({
 
     if (!session) return;
 
+    // Check if the counter offer is identical to the original session
+    const isUser1 = session.user1Id._id === currentUserId;
+    
+    // Extract original skill IDs
+    let originalSkill1Id = '';
+    let originalSkill2Id = '';
+    
+    if (session.skill1Id) {
+      if (typeof session.skill1Id === 'string') {
+        originalSkill1Id = session.skill1Id;
+      } else if (session.skill1Id.id) {
+        originalSkill1Id = session.skill1Id.id;
+      } else if (session.skill1Id._id) {
+        originalSkill1Id = session.skill1Id._id;
+      } else if (session.skill1Id.toString) {
+        originalSkill1Id = session.skill1Id.toString();
+      }
+    }
+    
+    if (session.skill2Id) {
+      if (typeof session.skill2Id === 'string') {
+        originalSkill2Id = session.skill2Id;
+      } else if (session.skill2Id.id) {
+        originalSkill2Id = session.skill2Id.id;
+      } else if (session.skill2Id._id) {
+        originalSkill2Id = session.skill2Id._id;
+      } else if (session.skill2Id.toString) {
+        originalSkill2Id = session.skill2Id.toString();
+      }
+    }
+
+    // Compare current form data with original session data
+    const currentSkill1Id = isUser1 ? selectedUserSkill : selectedOtherSkill;
+    const currentSkill2Id = isUser1 ? selectedOtherSkill : selectedUserSkill;
+    const currentDesc1 = isUser1 ? userDescription : otherDescription;
+    const currentDesc2 = isUser1 ? otherDescription : userDescription;
+    
+    // Get original dates for comparison
+    const originalStartDate = session.startDate.split('T')[0];
+    const originalEndDate = session.expectedEndDate ? session.expectedEndDate.split('T')[0] : '';
+    
+    // Check if everything is identical
+    const isIdenticalOffer = (
+      currentSkill1Id === originalSkill1Id &&
+      currentSkill2Id === originalSkill2Id &&
+      currentDesc1.trim() === session.descriptionOfService1.trim() &&
+      currentDesc2.trim() === session.descriptionOfService2.trim() &&
+      startDate === originalStartDate &&
+      expectedEndDate === originalEndDate
+    );
+
+    if (isIdenticalOffer) {
+      showAlert('warning', 'You cannot submit the same offer as a counter offer. Please modify at least one aspect of the session (skills, descriptions, or dates).');
+      return;
+    }
+
     // Validate ObjectId format
     const isValidObjectId = (id: string) => {
       return typeof id === 'string' && /^[0-9a-fA-F]{24}$/.test(id);

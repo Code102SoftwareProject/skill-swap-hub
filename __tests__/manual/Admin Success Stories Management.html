@@ -1,0 +1,152 @@
+
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Admin Success Stories Management Test Results</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        .header h1 { margin: 0 0 10px 0; color: #333; }
+                        .header p { margin: 5px 0; color: #666; }
+                        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        .pass { background-color: #d4edda; color: #155724; }
+                        .fail { background-color: #f8d7da; color: #721c24; }
+                        .blocked { background-color: #fff3cd; color: #856404; }
+                        .not-executed { background-color: #e2e3e5; color: #383d41; }
+                        .test-id { font-weight: bold; }
+                        .priority-high { color: #dc3545; font-weight: bold; }
+                        .priority-medium { color: #fd7e14; font-weight: bold; }
+                        .priority-low { color: #20c997; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>👨‍💼 Admin Success Stories Management Test Results</h1>
+                        <p><strong>Tester:</strong> Aditha Buwaneka</p>
+                        <p><strong>Version:</strong> Not specified</p>
+                        <p><strong>Browser:</strong> chrome</p>
+                        <p><strong>Device:</strong> desktop</p>
+                        <p><strong>Test Date:</strong> 2025-07-18</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Case ID</th>
+                                <th>Test Name</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Expected Result</th>
+                                <th>Actual Result</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            
+                    <tr>
+                        <td class="test-id">TC-ADMIN-002</td>
+                        <td>Admin Dashboard - Pending Stories View</td>
+                        <td>dashboard</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Admin sees all pending user-submitted stories with user info and preview content</td>
+                        <td>Admin dashboard shows 8 pending stories: Sarah Johnson's React story, Mike Chen's Python story, etc. Each shows user name, photo, story title, preview text, submission date, and Review/Reject buttons</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-003</td>
+                        <td>Story Review Process - Content Reading</td>
+                        <td>review</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Admin can access full story content with user context for informed review decision</td>
+                        <td>Clicked Sarah's story, modal shows full 500-word story about learning React, user profile shows verified skills in React, story mentions specific mentor name, authentic content ready for approval</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-004</td>
+                        <td>Story Approval Process</td>
+                        <td>approval</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Story approved, status updated, immediately available for homepage display</td>
+                        <td>Approved Sarah's React story, status changed from 'Pending' to 'Published', story now appears in homepage carousel, user receives approval notification</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-005</td>
+                        <td>Story Rejection Process</td>
+                        <td>approval</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Story rejected with reason, user notified, story marked as rejected</td>
+                        <td> Rejected story with reason 'Content not related to skill exchange experience', user received notification with feedback, story status changed to 'Rejected', removed from pending queue</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-006</td>
+                        <td>Content Moderation - Quality Control</td>
+                        <td>moderation</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Admin can effectively moderate content ensuring only quality, authentic stories are published</td>
+                        <td>Reviewed 10 stories: approved 7 authentic skill exchange stories, rejected 2 promotional spam posts, rejected 1 inappropriate content, maintained quality standards for homepage display</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-007</td>
+                        <td>Bulk Story Management</td>
+                        <td>dashboard</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Admin can efficiently process multiple stories with proper sorting and filtering tools</td>
+                        <td>Filtered stories by 'Last 7 days', sorted by submission date, processed 15 stories in 20 minutes, search function found specific user's story quickly</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-008</td>
+                        <td>Story Edit Capabilities</td>
+                        <td>moderation</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Admin can make minor corrections while preserving story authenticity</td>
+                        <td>dited Sarah's story to fix 3 typos and improve paragraph formatting, maintained her original voice and content meaning, approved edited version for publication</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-009</td>
+                        <td>Publication Status Control</td>
+                        <td>publication</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Admin can control publication status with immediate effect on homepage display</td>
+                        <td>Unpublished outdated story from 2023, immediately removed from homepage carousel, republished updated story, appeared in carousel within 5 seconds</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-ADMIN-010</td>
+                        <td>Homepage Integration Verification</td>
+                        <td>homepage</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Approved stories appear immediately on homepage with proper formatting</td>
+                        <td>Approved Mike's Python story at 2:30 PM, checked homepage at 2:31 PM, story appeared in carousel as slide 3, proper formatting with user photo and story text, auto-advancing correctly</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            
