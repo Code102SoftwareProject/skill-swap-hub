@@ -9,7 +9,7 @@ import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
 import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
-import { Info, AlertTriangle, Users, Calendar, Search, Filter, BarChart3, Award, Target, Activity, BookOpen, Settings, TrendingUp, Layers, Eye, Edit2, Trash2, Lock } from 'lucide-react';
+import { Info, AlertTriangle, Users, Calendar, Search, Filter, BarChart3, Award, Target, Activity, BookOpen, Settings, TrendingUp, Layers, Eye, Edit2, Trash2, Lock, ChevronDown } from 'lucide-react';
 
 const SkillsPage = () => {
   const { showToast } = useToast();
@@ -34,13 +34,14 @@ const SkillsPage = () => {
   const [selectedUsageStatus, setSelectedUsageStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
 
-  // Fetch user skills and used skill IDs on component mount
-  useEffect(() => {
-    fetchUserData();
-  }, []);
+  // Custom dropdown states for mobile
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showProficiencyDropdown, setShowProficiencyDropdown] = useState(false);
+  const [showUsageDropdown, setShowUsageDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Function to fetch user skills and used skill IDs
-  const fetchUserData = async () => {
+  const fetchUserData = React.useCallback(async () => {
     setLoading(true);
     try {
       // Fetch skills
@@ -76,7 +77,12 @@ const SkillsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
+
+  // Fetch user skills and used skill IDs on component mount
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   // Check if a skill is used in a listing
   const isSkillUsedInListing = (skillId: string) => {
@@ -299,6 +305,90 @@ const SkillsPage = () => {
     return indicators;
   };
 
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setShowCategoryDropdown(false);
+    setShowProficiencyDropdown(false);
+    setShowUsageDropdown(false);
+    setShowSortDropdown(false);
+  };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-dropdown')) {
+        closeAllDropdowns();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // Truncate category names for mobile
+  const truncateCategory = (category: string, maxLength: number = 20) => {
+    if (category.length <= maxLength) return category;
+    return category.slice(0, maxLength) + '...';
+  };
+
+  // Custom dropdown component for mobile
+  const CustomDropdown = ({ 
+    value, 
+    options, 
+    onChange, 
+    placeholder, 
+    isOpen, 
+    setIsOpen, 
+    renderValue,
+    className = ""
+  }: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+    placeholder: string;
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+    renderValue?: (value: string) => string;
+    className?: string;
+  }) => (
+    <div className={`custom-dropdown relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => {
+          closeAllDropdowns();
+          setIsOpen(!isOpen);
+        }}
+        className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 text-left flex items-center justify-between"
+      >
+        <span className="truncate">
+          {renderValue ? renderValue(value) : (options.find(opt => opt.value === value)?.label || placeholder)}
+        </span>
+        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-xs hover:bg-blue-50 ${
+                value === option.value ? 'bg-blue-100 text-blue-800' : 'text-gray-900'
+              }`}
+            >
+              <span className="block truncate">{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   // Render skill card - matching your screenshot exactly
   const renderSkillCard = (skill: UserSkill) => {
     const isUsedInListing = isSkillUsedInListing(skill.id);
@@ -403,6 +493,40 @@ const SkillsPage = () => {
     );
   };
 
+  // Category options for dropdown
+  const categoryOptions = [
+    { value: 'all', label: 'All Categories' },
+    ...categories.map(category => ({ 
+      value: category, 
+      label: truncateCategory(category) 
+    }))
+  ];
+
+  // Proficiency options
+  const proficiencyOptions = [
+    { value: 'all', label: 'All Levels' },
+    { value: 'Expert', label: 'Expert' },
+    { value: 'Intermediate', label: 'Intermediate' },
+    { value: 'Beginner', label: 'Beginner' }
+  ];
+
+  // Usage status options
+  const usageOptions = [
+    { value: 'all', label: 'All Status' },
+    { value: 'used', label: 'Used' },
+    { value: 'unused', label: 'Unused' },
+    { value: 'listings', label: 'In Listings' },
+    { value: 'matches', label: 'In Matches' }
+  ];
+
+  // Sort options
+  const sortOptions = [
+    { value: 'name', label: 'Sort by Name' },
+    { value: 'category', label: 'Sort by Category' },
+    { value: 'proficiency', label: 'Sort by Level' },
+    { value: 'usage', label: 'Sort by Usage' }
+  ];
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-4">
@@ -450,17 +574,23 @@ const SkillsPage = () => {
                 <div className="text-xs text-yellow-600">Beginner</div>
               </div>
               
-              <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-md p-2 text-center">
+              <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-md p-2 text-center relative">
                 <div className="flex justify-center mb-1">
-                  <Users className="w-4 h-4 text-purple-600" />
+                  {/* Match indicator - same as skill cards */}
+                  <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center">
+                    <Users className="w-3 h-3 text-white" />
+                  </div>
                 </div>
                 <div className="text-lg font-bold text-purple-800">{skillStats.usedInMatches}</div>
                 <div className="text-xs text-purple-600">In Matches</div>
               </div>
               
-              <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-md p-2 text-center">
+              <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-md p-2 text-center relative">
                 <div className="flex justify-center mb-1">
-                  <Calendar className="w-4 h-4 text-indigo-600" />
+                  {/* Listing indicator - same as skill cards */}
+                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-white rounded-full"></div>
+                  </div>
                 </div>
                 <div className="text-lg font-bold text-indigo-800">{skillStats.usedInListings}</div>
                 <div className="text-xs text-indigo-600">In Listings</div>
@@ -492,66 +622,136 @@ const SkillsPage = () => {
               />
             </div>
 
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.5rem center'
-              }}
-            >
-              <option value="all">All Categories</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
-              ))}
-            </select>
+            {/* Use custom dropdowns for mobile responsiveness */}
+            <div className="block sm:hidden">
+              <CustomDropdown
+                value={selectedCategory}
+                options={categoryOptions}
+                onChange={setSelectedCategory}
+                placeholder="All Categories"
+                isOpen={showCategoryDropdown}
+                setIsOpen={setShowCategoryDropdown}
+                renderValue={(value) => value === 'all' ? 'All Categories' : truncateCategory(value, 15)}
+              />
+            </div>
 
-            <select
-              value={selectedProficiency}
-              onChange={(e) => setSelectedProficiency(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.5rem center'
-              }}
-            >
-              <option value="all">All Levels</option>
-              <option value="Expert">Expert</option>
-              <option value="Intermediate">Intermediate</option>
-              <option value="Beginner">Beginner</option>
-            </select>
+            <div className="block sm:hidden">
+              <CustomDropdown
+                value={selectedProficiency}
+                options={proficiencyOptions}
+                onChange={setSelectedProficiency}
+                placeholder="All Levels"
+                isOpen={showProficiencyDropdown}
+                setIsOpen={setShowProficiencyDropdown}
+              />
+            </div>
 
-            <select
+            <div className="hidden sm:block">
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
+              >
+                <option value="all">All Categories</option>
+                {categories.map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="hidden sm:block">
+              <select
+                value={selectedProficiency}
+                onChange={(e) => setSelectedProficiency(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
+              >
+                <option value="all">All Levels</option>
+                <option value="Expert">Expert</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Beginner">Beginner</option>
+              </select>
+            </div>
+
+            <div className="hidden lg:block">
+              <CustomDropdown
+                value={selectedUsageStatus}
+                options={usageOptions}
+                onChange={setSelectedUsageStatus}
+                placeholder="All Status"
+                isOpen={showUsageDropdown}
+                setIsOpen={setShowUsageDropdown}
+                className="lg:hidden"
+              />
+              <select
+                value={selectedUsageStatus}
+                onChange={(e) => setSelectedUsageStatus(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8 hidden lg:block"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
+              >
+                <option value="all">All Status</option>
+                <option value="used">Used</option>
+                <option value="unused">Unused</option>
+                <option value="listings">In Listings</option>
+                <option value="matches">In Matches</option>
+              </select>
+            </div>
+
+            <div className="hidden lg:block">
+              <CustomDropdown
+                value={sortBy}
+                options={sortOptions}
+                onChange={setSortBy}
+                placeholder="Sort by Name"
+                isOpen={showSortDropdown}
+                setIsOpen={setShowSortDropdown}
+                className="lg:hidden"
+              />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8 hidden lg:block"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
+              >
+                <option value="name">Sort by Name</option>
+                <option value="category">Sort by Category</option>
+                <option value="proficiency">Sort by Level</option>
+                <option value="usage">Sort by Usage</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Mobile-only additional filters row */}
+          <div className="grid grid-cols-2 gap-2 mt-2 sm:hidden">
+            <CustomDropdown
               value={selectedUsageStatus}
-              onChange={(e) => setSelectedUsageStatus(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.5rem center'
-              }}
-            >
-              <option value="all">All Status</option>
-              <option value="used">Used</option>
-              <option value="unused">Unused</option>
-              <option value="listings">In Listings</option>
-              <option value="matches">In Matches</option>
-            </select>
-
-            <select
+              options={usageOptions}
+              onChange={setSelectedUsageStatus}
+              placeholder="All Status"
+              isOpen={showUsageDropdown}
+              setIsOpen={setShowUsageDropdown}
+            />
+            <CustomDropdown
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                backgroundPosition: 'right 0.5rem center'
-              }}
-            >
-              <option value="name">Sort by Name</option>
-              <option value="category">Sort by Category</option>
-              <option value="proficiency">Sort by Level</option>
-              <option value="usage">Sort by Usage</option>
-            </select>
+              options={sortOptions}
+              onChange={setSortBy}
+              placeholder="Sort by Name"
+              isOpen={showSortDropdown}
+              setIsOpen={setShowSortDropdown}
+            />
           </div>
         </div>
       )}
@@ -590,6 +790,7 @@ const SkillsPage = () => {
               setSelectedCategory('all');
               setSelectedProficiency('all');
               setSelectedUsageStatus('all');
+              closeAllDropdowns();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
