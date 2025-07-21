@@ -7,7 +7,7 @@ import { ReportsTable } from "./reporting/ReportsTable";
 import type { EmailFlow } from "./reporting/types";
 import { ReportDetailsModal } from "./reporting/ReportDetailsModal";
 
-import { Mail, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 // Local interfaces to ensure TypeScript compatibility
 interface AdminReportUser {
   _id: string;
@@ -249,11 +249,10 @@ export default function AdminReports() {
   };
 
   const handleSendNotification = async (reportId: string) => {
-    if (
-      !confirm(
-        'Send formal investigation emails to both users?\n\n• Reported user will be asked for their side of the story\n• Reporting user will be asked for additional information\n• Both users will have 3 days to respond\n• Report status will change to "Under Review"\n\nProceed?'
-      )
-    ) {
+    // single, concise confirmation
+    if (!window.confirm(
+      'Have you sent email to both parties?\n\nThe report’s status will now change to "Under Review".'
+    )) {
       return;
     }
 
@@ -285,9 +284,8 @@ export default function AdminReports() {
         )
       );
 
-      alert(
-        "Investigation emails sent successfully!\n\n• Both users have been notified\n• They have 3 days to respond\n• Check your Gmail inbox for their responses\n• Report status updated to 'Under Review'"
-      );
+     
+      toast.success('Status updated to Under Review');
     } catch (err) {
       console.error("Error sending notification:", err);
       alert(
@@ -847,11 +845,11 @@ SkillSwapHub Admin Team`;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6  text-gray-900 dark:text-gray-900">
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-bold text-gray-900">
+            <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-900">
               Admin Reports Dashboard
             </CardTitle>
             <p className="text-gray-600 mt-1">

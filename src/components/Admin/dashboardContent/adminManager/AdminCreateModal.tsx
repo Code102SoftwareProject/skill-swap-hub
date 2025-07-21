@@ -58,10 +58,12 @@ export default function AdminCreateModal({
   const isPasswordValid = pwd === "" ? null : pwdRegex.test(pwd);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ">
       {/* Modal backdrop and container */}
       <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-xl font-bold mb-4">Create New Admin</h2>
+        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-gray-900">
+          Create New Admin
+        </h2>
         <form onSubmit={onSubmit} className="space-y-4">
           {/* ── Username & Email ───────────────────────────────────────── */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -73,7 +75,9 @@ export default function AdminCreateModal({
               <input
                 type="text"
                 value={form.username}
-                onChange={e => onChange({ ...form, username: e.target.value })}
+                onChange={(e) =>
+                  onChange({ ...form, username: e.target.value })
+                }
                 placeholder="At least 4 characters"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 required
@@ -89,14 +93,14 @@ export default function AdminCreateModal({
                 <input
                   type="email"
                   value={form.email}
-                  onChange={e => onChange({ ...form, email: e.target.value })}
+                  onChange={(e) => onChange({ ...form, email: e.target.value })}
                   placeholder="admin@example.com"
                   className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                     email === ""
                       ? "border-gray-300"
                       : isEmailValid
-                      ? "border-green-300"
-                      : "border-red-300"
+                        ? "border-green-300"
+                        : "border-red-300"
                   }`}
                   required
                 />
@@ -133,14 +137,16 @@ export default function AdminCreateModal({
               <input
                 type={showPassword ? "text" : "password"}
                 value={form.password}
-                onChange={e => onChange({ ...form, password: e.target.value })}
+                onChange={(e) =>
+                  onChange({ ...form, password: e.target.value })
+                }
                 placeholder="Min 8 chars, 1 uppercase, 1 digit"
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                   pwd === ""
                     ? "border-gray-300"
                     : isPasswordValid
-                    ? "border-green-300"
-                    : "border-red-300"
+                      ? "border-green-300"
+                      : "border-red-300"
                 }`}
                 required
                 minLength={8}
@@ -173,8 +179,8 @@ export default function AdminCreateModal({
             </label>
             <select
               value={form.role}
-              onChange={e => onChange({ ...form, role: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => onChange({ ...form, role: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-900"
             >
               <option value={ROLE_ADMIN}>Admin</option>
               <option value={ROLE_SUPER_ADMIN}>Super Admin</option>
@@ -190,7 +196,7 @@ export default function AdminCreateModal({
               {form.role === ROLE_SUPER_ADMIN ? (
                 // Super admins have all permissions granted
                 <div className="space-y-2">
-                  {availablePermissions.map(perm => (
+                  {availablePermissions.map((perm) => (
                     <div
                       key={perm.key}
                       className="flex items-start bg-purple-50 p-2 rounded"
@@ -211,8 +217,8 @@ export default function AdminCreateModal({
                 // Regular admins see all except the manage_admins permission
                 <div className="space-y-2">
                   {availablePermissions
-                    .filter(p => p.key !== "manage_admins")
-                    .map(perm => (
+                    .filter((p) => p.key !== "manage_admins")
+                    .map((perm) => (
                       <div
                         key={perm.key}
                         className="flex items-start bg-gray-50 p-2 rounded"
@@ -250,7 +256,7 @@ export default function AdminCreateModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-900 dark:text-gray-900"
             >
               Cancel
             </button>
