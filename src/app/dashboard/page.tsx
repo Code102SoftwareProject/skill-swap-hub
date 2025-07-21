@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import UserSidebar from '@/components/User/UserSidebar';
@@ -20,7 +20,7 @@ import { FeedbackForm } from '@/components/Dashboard/feedback/FeedbackForm';
 import ReviewsContent from '@/components/Dashboard/ReviewsContent';
 
 
-export default function UserDashboardPage() {
+function UserDashboardPageContent() {
   const { user, isLoading: authLoading } = useAuth();
   const searchParams = useSearchParams();
   const [activeComponent, setActiveComponent] = useState('dashboard');
@@ -168,5 +168,23 @@ export default function UserDashboardPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+/**
+ * Main UserDashboardPage component with Suspense boundary for useSearchParams
+ */
+export default function UserDashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+    }>
+      <UserDashboardPageContent />
+    </Suspense>
   );
 }

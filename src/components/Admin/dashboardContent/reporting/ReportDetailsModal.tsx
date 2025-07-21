@@ -16,12 +16,12 @@ import type { AdminReport, EmailFlow } from "./types";
 const MODAL_TITLE = "Report Details";
 const REPORT_ID_LABEL = "Report ID:";
 const CLOSE_BUTTON_TEXT = "✕ Close";
-const REPORTING_USER_TITLE = "👤 Reporting User";
-const REPORTED_USER_TITLE = "🚨 Reported User";
-const SESSION_DETAILS_TITLE = "🔄 Session Details";
-const REPORT_REASON_TITLE = "⚠️ Report Reason";
-const DESCRIPTION_TITLE = "📝 Detailed Description";
-const EVIDENCE_FILES_TITLE = "📎 Evidence Files";
+const REPORTING_USER_TITLE = " Reporting User";
+const REPORTED_USER_TITLE = " Reported User";
+const SESSION_DETAILS_TITLE = " Session Details";
+const REPORT_REASON_TITLE = " Report Reason";
+const DESCRIPTION_TITLE = " Detailed Description";
+const EVIDENCE_FILES_TITLE = " Evidence Files";
 const NO_EMAIL_FALLBACK = "No email";
 const SESSION_ID_LABEL = "Session ID:";
 const SERVICE_1_LABEL = "Service 1:";
@@ -74,8 +74,8 @@ export function ReportDetailsModal({
         {/* HEADER - Modal title and close button */}
         <div className="flex justify-between items-center p-6 border-b">
           <div>
-            <h2 className="text-2xl font-semibold">{MODAL_TITLE}</h2>
-            <p className="text-sm text-gray-500 mt-1">
+            <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-900">{MODAL_TITLE}</h2>
+            <p className="text-sm text-gray-500 mt-1 text-gray-900 dark:text-gray-900">
               {REPORT_ID_LABEL} <code className="font-mono">{report._id}</code>
             </p>
           </div>
@@ -90,7 +90,7 @@ export function ReportDetailsModal({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Reporting User */}
             <section className="bg-gray-50 p-4 rounded-lg border">
-              <h4 className="font-semibold mb-2">{REPORTING_USER_TITLE}</h4>
+              <h4 className="font-semibold mb-2 text-gray-900 dark:text-gray-900">{REPORTING_USER_TITLE}</h4>
               <p className="font-medium">
                 {formatName(
                   report.reportedBy?.firstName,

@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
+
+// Force dynamic rendering for this page since it uses search parameters
+export const dynamic = 'force-dynamic';
 
 import Sidebar from "@/components/messageSystem/Sidebar";
 import ChatHeader from "@/components/messageSystem/ChatHeader";
@@ -18,11 +21,9 @@ import { fetchChatRoom, markChatRoomMessagesAsRead, fetchUserChatRooms } from "@
 import { preloadChatMessages, updateCachedMessages, setProgressCallback } from "@/services/messagePreloader";
 
 /**
- * * ChatPage Component
- * Main component for handling user messaging functionality
- * Uses centralized socket context for connection management
+ * ChatPageContent - Inner component that uses search params
  */
-export default function ChatPage() {
+function ChatPageContent() {
   // * Authentication state from context
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
@@ -345,5 +346,18 @@ export default function ChatPage() {
         </div>
       </div>
     </ApiOptimizationProvider>
+  );
+}
+
+/**
+ * * ChatPage Component
+ * Main component wrapped with Suspense for useSearchParams
+ * Uses centralized socket context for connection management
+ */
+export default function ChatPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading chat...</div>}>
+      <ChatPageContent />
+    </Suspense>
   );
 }
