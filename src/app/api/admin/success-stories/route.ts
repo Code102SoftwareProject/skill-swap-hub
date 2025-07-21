@@ -26,13 +26,20 @@ async function verifyAdminToken(request: NextRequest) {
 // GET - Fetch all feedback entries with success stories (for admin)
 export async function GET(request: NextRequest) {
   try {
+    console.log("Starting GET request for success stories");
+    
+    // Connect to database
     await connect();
+    console.log("Database connected successfully");
 
     // Ensure User and Admin models are registered for populate operations
     User;
     Admin;
+    console.log("Models registered");
 
     const adminData = await verifyAdminToken(request);
+    console.log("Admin verification result:", adminData ? "Success" : "Failed");
+    
     if (!adminData) {
       return NextResponse.json(
         { success: false, message: "Unauthorized" },
@@ -46,12 +53,23 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || "";
     const status = searchParams.get("status") || "all"; // all, published, unpublished
 
+    console.log("Query params:", { page, limit, search, status });
+
     const skip = (page - 1) * limit;
 
+    // First, let's check if we can query the Feedback collection at all
+    const totalFeedbackCount = await Feedback.countDocuments({});
+    console.log(`Total feedback entries in database: ${totalFeedbackCount}`);
+    
+    // Check how many have success stories
+    const feedbackWithStoriesCount = await Feedback.countDocuments({
+      successStory: { $exists: true, $ne: "" }
+    });
+    console.log(`Feedback entries with success stories: ${feedbackWithStoriesCount}`);
+    
     // Build query for feedback entries with success stories
+    // Admin can see all success stories, not filtered by canSuccessStoryPost
     const query: any = {
-      userId: { $ne: null },
-      canSuccessStoryPost: true,
       successStory: { $exists: true, $ne: "" }
     };
     
@@ -67,34 +85,51 @@ export async function GET(request: NextRequest) {
       query.isPublished = status === "published";
     }
 
+    console.log("MongoDB query:", JSON.stringify(query, null, 2));
+
     // Get feedback entries with success stories
     const feedbackWithStories = await Feedback.find(query)
       .populate("userId", "firstName lastName email avatar")
       .sort({ date: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean(); // Add lean() for better performance
+
+    console.log(`Found ${feedbackWithStories.length} feedback entries`);
 
     // Transform feedback data to match expected success story format
     const transformedStories = feedbackWithStories
       .filter(feedback => feedback.userId !== null)
-      .map(feedback => ({
-        _id: feedback._id,
-        userId: feedback.userId,
-        title: feedback.adminTitle || `${feedback.rating}-Star Experience`,
-        description: feedback.successStory,
-        feedback: feedback.feedback,
-        rating: feedback.rating,
-        isPublished: feedback.isPublished,
-        publishedAt: feedback.isPublished ? feedback.date : null,
-        createdAt: feedback.date,
-        updatedAt: feedback.date,
-        displayName: feedback.displayName,
-        isAnonymous: feedback.isAnonymous
-      }));
+      .map(feedback => {
+        try {
+          return {
+            _id: feedback._id,
+            userId: feedback.userId,
+            title: feedback.adminTitle || `${feedback.rating || 5}-Star Experience`,
+            description: feedback.successStory,
+            feedback: feedback.feedback,
+            rating: feedback.rating || 5,
+            isPublished: feedback.isPublished || false,
+            publishedAt: feedback.isPublished ? feedback.date : null,
+            createdAt: feedback.date,
+            updatedAt: feedback.date,
+            displayName: feedback.isAnonymous ? 'Anonymous' : (feedback.displayName || 'Unknown User'),
+            isAnonymous: feedback.isAnonymous || false,
+            canSuccessStoryPost: feedback.canSuccessStoryPost || false
+          };
+        } catch (mapError) {
+          console.error("Error transforming feedback:", mapError, feedback);
+          return null;
+        }
+      })
+      .filter(story => story !== null); // Remove any null entries from transformation errors
+
+    console.log(`Transformed ${transformedStories.length} success stories`);
 
     const total = await Feedback.countDocuments(query);
+    console.log(`Total documents matching query: ${total}`);
 
-    return NextResponse.json({
+    const response = {
       success: true,
       data: {
         successStories: transformedStories,
@@ -107,94 +142,30 @@ export async function GET(request: NextRequest) {
           hasPrevPage: page > 1,
         },
       },
-    });
+    };
+
+    console.log("Returning response with", transformedStories.length, "stories");
+    return NextResponse.json(response);
   } catch (error) {
-    console.error("Error fetching success stories:", error);
+    console.error("Detailed error in GET success stories:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error
+    });
     return NextResponse.json(
-      { success: false, message: "Failed to fetch success stories" },
+      { success: false, message: `Server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
 }
 
-// POST - Create a new feedback entry with success story (admin-created)
+// POST - Admin cannot create new success stories, only users can
+// This endpoint is disabled as per requirements
 export async function POST(request: NextRequest) {
-  try {
-    await connect();
-
-    const adminData = await verifyAdminToken(request);
-    if (!adminData) {
-      return NextResponse.json(
-        { success: false, message: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-
-    const { userId, title, description, feedback, rating, isPublished } = await request.json();
-
-    // Validate required fields
-    if (!userId || !description || !feedback) {
-      return NextResponse.json(
-        { success: false, message: "User ID, success story, and feedback are required" },
-        { status: 400 }
-      );
-    }
-
-    // Verify user exists
-    const user = await User.findById(userId);
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // Create feedback entry with success story
-    const feedbackEntry = new Feedback({
-      userId,
-      feedback: feedback,
-      successStory: description,
-      rating: rating || 5,
-      adminTitle: title,
-      canSuccessStoryPost: true,
-      isAnonymous: false,
-      isPublished,
-      displayName: `${user.firstName} ${user.lastName}`,
-    });
-
-    await feedbackEntry.save();
-
-    // Populate user details for response
-    await feedbackEntry.populate("userId", "firstName lastName email avatar");
-
-    // Transform response to match expected format
-    const transformedStory = {
-      _id: feedbackEntry._id,
-      userId: feedbackEntry.userId,
-      title: feedbackEntry.adminTitle || `${feedbackEntry.rating}-Star Experience`,
-      description: feedbackEntry.successStory,
-      feedback: feedbackEntry.feedback,
-      rating: feedbackEntry.rating,
-      isPublished: feedbackEntry.isPublished,
-      publishedAt: feedbackEntry.isPublished ? feedbackEntry.date : null,
-      createdAt: feedbackEntry.date,
-      updatedAt: feedbackEntry.date,
-      displayName: feedbackEntry.displayName,
-      isAnonymous: feedbackEntry.isAnonymous
-    };
-
-    return NextResponse.json({
-      success: true,
-      message: "Success story created successfully",
-      data: transformedStory,
-    });
-  } catch (error) {
-    console.error("Error creating success story:", error);
-    return NextResponse.json(
-      { success: false, message: "Failed to create success story" },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json(
+    { success: false, message: "Admin cannot create new success stories. Only users can submit feedback with success stories." },
+    { status: 403 }
+  );
 }
 
 // PUT - Update a feedback entry's success story details
@@ -216,6 +187,32 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json(
         { success: false, message: "Feedback ID is required" },
         { status: 400 }
+      );
+    }
+
+    // Find the feedback entry first to check canSuccessStoryPost
+    const existingFeedback = await Feedback.findById(id);
+    if (!existingFeedback) {
+      console.error("Feedback entry not found with ID:", id);
+      return NextResponse.json(
+        { success: false, message: "Feedback entry not found" },
+        { status: 404 }
+      );
+    }
+
+    console.log("Existing feedback:", {
+      id: existingFeedback._id,
+      canSuccessStoryPost: existingFeedback.canSuccessStoryPost,
+      isPublished: existingFeedback.isPublished,
+      newPublishState: isPublished
+    });
+
+    // Only allow publishing if user gave consent (canSuccessStoryPost: true)
+    if (isPublished === true && !existingFeedback.canSuccessStoryPost) {
+      console.warn("Attempted to publish without consent");
+      return NextResponse.json(
+        { success: false, message: "Cannot publish success story without user consent" },
+        { status: 403 }
       );
     }
 
@@ -253,8 +250,9 @@ export async function PUT(request: NextRequest) {
       publishedAt: feedback.isPublished ? feedback.date : null,
       createdAt: feedback.date,
       updatedAt: feedback.date,
-      displayName: feedback.displayName,
-      isAnonymous: feedback.isAnonymous
+      displayName: feedback.isAnonymous ? 'Anonymous' : feedback.displayName,
+      isAnonymous: feedback.isAnonymous,
+      canSuccessStoryPost: feedback.canSuccessStoryPost
     };
 
     return NextResponse.json({
@@ -263,9 +261,13 @@ export async function PUT(request: NextRequest) {
       data: transformedStory,
     });
   } catch (error) {
-    console.error("Error updating success story:", error);
+    console.error("Detailed error in PUT success stories:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error
+    });
     return NextResponse.json(
-      { success: false, message: "Failed to update success story" },
+      { success: false, message: `Failed to update success story: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
@@ -308,9 +310,13 @@ export async function DELETE(request: NextRequest) {
       message: "Success story deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting success story:", error);
+    console.error("Detailed error in DELETE success stories:", {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace',
+      error
+    });
     return NextResponse.json(
-      { success: false, message: "Failed to delete success story" },
+      { success: false, message: `Failed to delete success story: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }
     );
   }
