@@ -60,7 +60,7 @@ interface DeleteModalProps {
   userName?: string;
 }
 
-const DEBOUNCE_DELAY = 300;
+const DEBOUNCE_DELAY = 100; // Reduced for better responsiveness
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
 const SORT_FIELDS = [
   { value: "createdAt", label: "Created At" },
