@@ -3,6 +3,7 @@
 import React from "react";
 import {
   Mail,
+  MailCheck,
   Loader2,
   AlertOctagon,
   ShieldX,
@@ -172,12 +173,12 @@ export function ReportsTable({
                           ? "bg-blue-200 text-blue-700 cursor-not-allowed"
                           : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                       }`}
-                      title="Send investigation emails"
+                      title="Mark as Under Review"
                     >
                       {sendingEmails === report._id ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
                       ) : (
-                        <Mail className="h-3 w-3" />
+                        <MailCheck className="h-3 w-3" />
                       )}
                     </button>
                   )}
