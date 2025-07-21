@@ -511,7 +511,7 @@ export default function SuccessStoriesContent() {
   }
 
   return (
-    <div className="w-full max-w-none -mx-6 px-6 min-h-screen bg-gray-50">
+    <div className="w-full max-w-none mx-auto px-6 min-h-screen bg-gray-50">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Success Stories Management</h1>
