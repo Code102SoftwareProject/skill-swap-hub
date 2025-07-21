@@ -78,17 +78,14 @@ UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   try {
-    // If this is a Google OAuth user, they don't have a password
-    if (this.isGoogleUser && !this.password) {
-      return false;
-    }
-
-    // If no password is set, return false
+    // If no password is set, return false (regardless of Google user status)
     if (!this.password) {
+      console.log("No password set for this user");
       return false;
     }
 
     console.log("Comparing passwords...");
+    console.log("User type:", this.isGoogleUser ? "Google user" : "Regular user");
     console.log("Candidate password length:", candidatePassword.length);
     console.log("Stored password hash length:", this.password.length);
 

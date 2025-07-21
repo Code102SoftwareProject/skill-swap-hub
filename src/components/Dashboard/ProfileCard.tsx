@@ -13,6 +13,7 @@ import {
   isSameMonth,
   isSameDay,
 } from 'date-fns';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 type UserType = {
   _id: string;
@@ -145,7 +146,7 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
       <div className="flex flex-col items-center">
         <div className="w-24 h-24 rounded-full overflow-hidden">
           <Image
-            src={user.avatar ? `/api/file/retrieve?fileUrl=${encodeURIComponent(user.avatar)}` : '/profile.png'}
+            src={processAvatarUrl(user.avatar) || '/profile.png'}
             alt="Profile"
             width={96}
             height={96}
