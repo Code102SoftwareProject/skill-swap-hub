@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
@@ -18,11 +18,11 @@ import { fetchChatRoom, markChatRoomMessagesAsRead, fetchUserChatRooms } from "@
 import { preloadChatMessages, updateCachedMessages, setProgressCallback } from "@/services/messagePreloader";
 
 /**
- * * ChatPage Component
+ * * ChatPageContent Component
  * Main component for handling user messaging functionality
  * Uses centralized socket context for connection management
  */
-export default function ChatPage() {
+function ChatPageContent() {
   // * Authentication state from context
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
@@ -345,5 +345,23 @@ export default function ChatPage() {
         </div>
       </div>
     </ApiOptimizationProvider>
+  );
+}
+
+/**
+ * Main ChatPage component with Suspense boundary for useSearchParams
+ */
+export default function ChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p>Loading chat...</p>
+        </div>
+      </div>
+    }>
+      <ChatPageContent />
+    </Suspense>
   );
 }

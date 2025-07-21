@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import connect from "@/lib/db";
-import SuccessStory from "@/lib/models/successStorySchema";
+import { Feedback } from "@/lib/models/feedbackSchema";
 import User from "@/lib/models/userSchema";
 import Admin from "@/lib/models/adminSchema";
 import jwt from "jsonwebtoken";
@@ -23,7 +23,7 @@ async function verifyAdminToken(request: NextRequest) {
   }
 }
 
-// GET - Fetch all success stories (for admin)
+// GET - Fetch all feedback entries with success stories (for admin)
 export async function GET(request: NextRequest) {
   try {
     await connect();
@@ -48,15 +48,18 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * limit;
 
-    // Build query
+    // Build query for feedback entries with success stories
     const query: any = {
-      userId: { $ne: null } // Exclude stories where userId is null
+      userId: { $ne: null },
+      canSuccessStoryPost: true,
+      successStory: { $exists: true, $ne: "" }
     };
     
     if (search) {
       query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
+        { adminTitle: { $regex: search, $options: "i" } },
+        { successStory: { $regex: search, $options: "i" } },
+        { feedback: { $regex: search, $options: "i" } }
       ];
     }
 
@@ -64,23 +67,37 @@ export async function GET(request: NextRequest) {
       query.isPublished = status === "published";
     }
 
-    // Get success stories with user details
-    const successStories = await SuccessStory.find(query)
+    // Get feedback entries with success stories
+    const feedbackWithStories = await Feedback.find(query)
       .populate("userId", "firstName lastName email avatar")
-      .populate("createdBy", "username")
-      .sort({ createdAt: -1 })
+      .sort({ date: -1 })
       .skip(skip)
       .limit(limit);
 
-    // Additional filter to ensure populated userId is not null
-    const validStories = successStories.filter(story => story.userId !== null);
+    // Transform feedback data to match expected success story format
+    const transformedStories = feedbackWithStories
+      .filter(feedback => feedback.userId !== null)
+      .map(feedback => ({
+        _id: feedback._id,
+        userId: feedback.userId,
+        title: feedback.adminTitle || `${feedback.rating}-Star Experience`,
+        description: feedback.successStory,
+        feedback: feedback.feedback,
+        rating: feedback.rating,
+        isPublished: feedback.isPublished,
+        publishedAt: feedback.isPublished ? feedback.date : null,
+        createdAt: feedback.date,
+        updatedAt: feedback.date,
+        displayName: feedback.displayName,
+        isAnonymous: feedback.isAnonymous
+      }));
 
-    const total = await SuccessStory.countDocuments(query);
+    const total = await Feedback.countDocuments(query);
 
     return NextResponse.json({
       success: true,
       data: {
-        successStories: validStories,
+        successStories: transformedStories,
         pagination: {
           page,
           limit,
@@ -100,7 +117,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new success story
+// POST - Create a new feedback entry with success story (admin-created)
 export async function POST(request: NextRequest) {
   try {
     await connect();
@@ -113,12 +130,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, title, description, image, isPublished } = await request.json();
+    const { userId, title, description, feedback, rating, isPublished } = await request.json();
 
     // Validate required fields
-    if (!userId || !title || !description) {
+    if (!userId || !description || !feedback) {
       return NextResponse.json(
-        { success: false, message: "User ID, title, and description are required" },
+        { success: false, message: "User ID, success story, and feedback are required" },
         { status: 400 }
       );
     }
@@ -132,27 +149,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create success story
-    const successStory = new SuccessStory({
+    // Create feedback entry with success story
+    const feedbackEntry = new Feedback({
       userId,
-      title,
-      description,
-      image,
+      feedback: feedback,
+      successStory: description,
+      rating: rating || 5,
+      adminTitle: title,
+      canSuccessStoryPost: true,
+      isAnonymous: false,
       isPublished,
-      publishedAt: isPublished ? new Date() : null,
-      createdBy: adminData.userId,
+      displayName: `${user.firstName} ${user.lastName}`,
     });
 
-    await successStory.save();
+    await feedbackEntry.save();
 
     // Populate user details for response
-    await successStory.populate("userId", "firstName lastName email avatar");
-    await successStory.populate("createdBy", "username");
+    await feedbackEntry.populate("userId", "firstName lastName email avatar");
+
+    // Transform response to match expected format
+    const transformedStory = {
+      _id: feedbackEntry._id,
+      userId: feedbackEntry.userId,
+      title: feedbackEntry.adminTitle || `${feedbackEntry.rating}-Star Experience`,
+      description: feedbackEntry.successStory,
+      feedback: feedbackEntry.feedback,
+      rating: feedbackEntry.rating,
+      isPublished: feedbackEntry.isPublished,
+      publishedAt: feedbackEntry.isPublished ? feedbackEntry.date : null,
+      createdAt: feedbackEntry.date,
+      updatedAt: feedbackEntry.date,
+      displayName: feedbackEntry.displayName,
+      isAnonymous: feedbackEntry.isAnonymous
+    };
 
     return NextResponse.json({
       success: true,
       message: "Success story created successfully",
-      data: successStory,
+      data: transformedStory,
     });
   } catch (error) {
     console.error("Error creating success story:", error);
@@ -163,7 +197,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PUT - Update a success story
+// PUT - Update a feedback entry's success story details
 export async function PUT(request: NextRequest) {
   try {
     await connect();
@@ -176,44 +210,57 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const { id, title, description, image, isPublished } = await request.json();
+    const { id, title, isPublished } = await request.json();
 
     if (!id) {
       return NextResponse.json(
-        { success: false, message: "Success story ID is required" },
+        { success: false, message: "Feedback ID is required" },
         { status: 400 }
       );
     }
 
     const updateData: any = {};
     
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (image !== undefined) updateData.image = image;
+    // Only allow updating admin title and publication status
+    if (title !== undefined) updateData.adminTitle = title;
     if (isPublished !== undefined) {
       updateData.isPublished = isPublished;
-      updateData.publishedAt = isPublished ? new Date() : null;
     }
 
-    const successStory = await SuccessStory.findByIdAndUpdate(
+    const feedback = await Feedback.findByIdAndUpdate(
       id,
       updateData,
       { new: true }
     )
-      .populate("userId", "firstName lastName email avatar")
-      .populate("createdBy", "username");
+      .populate("userId", "firstName lastName email avatar");
 
-    if (!successStory) {
+    if (!feedback) {
       return NextResponse.json(
-        { success: false, message: "Success story not found" },
+        { success: false, message: "Feedback entry not found" },
         { status: 404 }
       );
     }
 
+    // Transform response to match expected format
+    const transformedStory = {
+      _id: feedback._id,
+      userId: feedback.userId,
+      title: feedback.adminTitle || `${feedback.rating}-Star Experience`,
+      description: feedback.successStory,
+      feedback: feedback.feedback,
+      rating: feedback.rating,
+      isPublished: feedback.isPublished,
+      publishedAt: feedback.isPublished ? feedback.date : null,
+      createdAt: feedback.date,
+      updatedAt: feedback.date,
+      displayName: feedback.displayName,
+      isAnonymous: feedback.isAnonymous
+    };
+
     return NextResponse.json({
       success: true,
       message: "Success story updated successfully",
-      data: successStory,
+      data: transformedStory,
     });
   } catch (error) {
     console.error("Error updating success story:", error);
@@ -224,7 +271,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-// DELETE - Delete a success story
+// DELETE - Delete a feedback entry (success story)
 export async function DELETE(request: NextRequest) {
   try {
     await connect();
@@ -242,16 +289,16 @@ export async function DELETE(request: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { success: false, message: "Success story ID is required" },
+        { success: false, message: "Feedback ID is required" },
         { status: 400 }
       );
     }
 
-    const successStory = await SuccessStory.findByIdAndDelete(id);
+    const feedback = await Feedback.findByIdAndDelete(id);
 
-    if (!successStory) {
+    if (!feedback) {
       return NextResponse.json(
-        { success: false, message: "Success story not found" },
+        { success: false, message: "Feedback entry not found" },
         { status: 404 }
       );
     }
