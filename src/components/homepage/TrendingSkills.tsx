@@ -2,8 +2,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Users, Star, Clock, ArrowRight } from 'lucide-react';
+import { TrendingUp, Users, Star, Clock, ArrowRight, UserPlus, LogIn, Settings, BookOpen } from 'lucide-react';
 import { getTrendingSkills, TrendingSkill } from '@/services/trendingService';
+import { useAuth } from '@/lib/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 const TrendingSkills: React.FC = () => {
   const [trendingSkills, setTrendingSkills] = useState<TrendingSkill[]>([]);
@@ -11,6 +13,8 @@ const TrendingSkills: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalMatches, setTotalMatches] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     const fetchTrendingSkills = async () => {
@@ -227,23 +231,80 @@ const TrendingSkills: React.FC = () => {
           ))}
         </div>
 
-        {/* Call to Action */}
+        {/* Call to Action - Dynamic based on authentication */}
         <div className="text-center">
           <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 backdrop-blur-sm rounded-2xl p-8 text-white border border-cyan-300/20">
             <h3 className="text-2xl font-bold mb-4">Ready to Join the Trend?</h3>
-            <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
-              Add these trending skills to your profile or create listings to connect with other learners. 
-              The more you participate, the better matches you'll get!
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="bg-cyan-300 text-[#006699] px-6 py-3 rounded-lg font-semibold hover:bg-cyan-200 transition-colors inline-flex items-center gap-2">
-                Add My Skills
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <button className="border border-cyan-300 text-cyan-300 px-6 py-3 rounded-lg font-semibold hover:bg-cyan-300/10 transition-colors">
-                Browse All Skills
-              </button>
-            </div>
+            
+            {/* Show different content based on authentication status */}
+            {!authLoading && (
+              <>
+                {user ? (
+                  // Logged in user content
+                  <div>
+                    <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+                      Welcome back, <span className="text-cyan-300 font-semibold">{user.firstName}</span>! 
+                      Ready to add these trending skills to your profile or explore your dashboard?
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <button 
+                        className="bg-cyan-300 text-[#006699] px-6 py-3 rounded-lg font-semibold hover:bg-cyan-200 transition-colors inline-flex items-center gap-2"
+                        onClick={() => router.push('/dashboard')}
+                      >
+                        <Settings className="w-4 h-4" />
+                        My Dashboard
+                      </button>
+                      <button 
+                        className="border border-cyan-300 text-cyan-300 px-6 py-3 rounded-lg font-semibold hover:bg-cyan-300/10 transition-colors inline-flex items-center gap-2"
+                        onClick={() => router.push('/dashboard?component=myskill')}
+                      >
+                        <BookOpen className="w-4 h-4" />
+                        My Skills
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  // Not logged in user content
+                  <div>
+                    <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+                      Join our vibrant community to access these trending skills and connect with learners worldwide. 
+                      Start your skill exchange journey today!
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                      <button 
+                        className="bg-cyan-300 text-[#006699] px-6 py-3 rounded-lg font-semibold hover:bg-cyan-200 transition-colors inline-flex items-center gap-2"
+                        onClick={() => router.push('/register')}
+                      >
+                        <UserPlus className="w-4 h-4" />
+                        Join Now
+                      </button>
+                      <button 
+                        className="border border-cyan-300 text-cyan-300 px-6 py-3 rounded-lg font-semibold hover:bg-cyan-300/10 transition-colors inline-flex items-center gap-2"
+                        onClick={() => router.push('/login')}
+                      >
+                        <LogIn className="w-4 h-4" />
+                        Login
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Loading state */}
+            {authLoading && (
+              <div>
+                <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+                  Add these trending skills to your profile or create listings to connect with other learners. 
+                  The more you participate, the better matches you'll get!
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button className="bg-cyan-300/50 text-[#006699] px-6 py-3 rounded-lg font-semibold cursor-not-allowed inline-flex items-center gap-2">
+                    Loading...
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
