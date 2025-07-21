@@ -102,6 +102,7 @@ export default function ReportTab({
               
               return (
                 <div key={report._id} className={`border rounded-lg p-4 ${
+                  report.status === 'resolved' ? 'border-green-200 bg-green-50' :
                   isReportedUser ? 'border-red-200 bg-red-50' : 'border-gray-200'
                 }`}>
                   <div className="flex items-start justify-between mb-2">
@@ -122,24 +123,38 @@ export default function ReportTab({
                     // Show when current user is being reported
                     <div className="mb-2">
                       <div className="flex items-center space-x-2 mb-1">
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                        <h4 className="font-medium text-red-900">
+                        {report.status === 'resolved' ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-red-600" />
+                        )}
+                        <h4 className={`font-medium ${report.status === 'resolved' ? 'text-green-900' : 'text-red-900'}`}>
                           You were reported by {getReporterName()}
                         </h4>
                       </div>
-                      <p className="text-sm text-red-700 mb-1">
+                      <p className={`text-sm mb-1 ${report.status === 'resolved' ? 'text-green-700' : 'text-red-700'}`}>
                         <strong>Reason:</strong> {reportService.getReasonDisplayText(report.reason)}
                       </p>
-                      <p className="text-sm text-red-700 mb-2">
+                      <p className={`text-sm mb-2 ${report.status === 'resolved' ? 'text-green-700' : 'text-red-700'}`}>
                         <strong>Details:</strong> {report.description}
                       </p>
-                      <div className="text-xs text-red-600 bg-red-100 p-2 rounded border border-red-200">
-                        <p className="font-medium mb-1">Report Status: {report.status === 'pending' ? 'Under Review' : report.status}</p>
-                        <p>
-                          Our team will validate this report shortly. If you believe this report was made in error, 
-                          please contact support with your session details.
-                        </p>
-                      </div>
+                      {report.status === 'resolved' ? (
+                        <div className="text-xs text-green-600 bg-green-100 p-2 rounded border border-green-200">
+                          <p className="font-medium mb-1">✅ Report Resolved</p>
+                          <p>
+                            This report has been reviewed and resolved by our admin team. You were contacted by an admin 
+                            regarding this matter. If you have any questions about the resolution, please contact support.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-red-600 bg-red-100 p-2 rounded border border-red-200">
+                          <p className="font-medium mb-1">Report Status: {report.status === 'pending' ? 'Under Review' : report.status}</p>
+                          <p>
+                            Our team will validate this report shortly. If you believe this report was made in error, 
+                            please contact support with your session details.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     // Show when current user made the report
@@ -150,12 +165,21 @@ export default function ReportTab({
                       <p className="text-sm text-gray-700 mb-2">
                         {report.description}
                       </p>
-                      <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
-                        <p>
-                          Report submitted against the other user in this session. 
-                          Status: <span className="font-medium">{report.status === 'pending' ? 'Under Review' : report.status}</span>
-                        </p>
-                      </div>
+                      {report.status === 'resolved' ? (
+                        <div className="text-xs text-green-600 bg-green-50 p-2 rounded border border-green-200">
+                          <p>
+                            ✅ Report resolved by admin team. The reported user was contacted and appropriate action was taken.
+                            Status: <span className="font-medium">Resolved</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded border border-blue-200">
+                          <p>
+                            Report submitted against the other user in this session. 
+                            Status: <span className="font-medium">{report.status === 'pending' ? 'Under Review' : report.status}</span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                   
