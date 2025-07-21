@@ -229,36 +229,43 @@ const SkillsPage = () => {
         }`}
       >
         <div className="px-5 py-5 h-full flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <h3 className="text-lg font-semibold text-blue-700">{truncateText(skill.skillTitle, 14)}</h3>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className={`inline-block px-2.5 py-0.5 text-xs rounded-full font-medium ${
+          <div className="flex flex-col gap-2">
+            {/* Title row with proficiency level always inline */}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-lg font-semibold text-blue-700 flex-1 truncate">
+                {skill.skillTitle}
+              </h3>
+              <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium whitespace-nowrap flex-shrink-0 ${
                 skill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
                 skill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
                 'bg-yellow-100 text-yellow-800'
               }`}>
                 {skill.proficiencyLevel}
               </span>
-              
-              {/* Status indicators */}
-              {statusIndicators.map((indicator, index) => (
-                <div 
-                  key={index}
-                  className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                    indicator.color === 'blue' ? 'bg-blue-500' :
-                    indicator.color === 'purple' ? 'bg-purple-500' : 'bg-gray-500'
-                  }`}
-                  title={indicator.text}
-                >
-                  {indicator.type === 'listing' && (
-                    <div className="w-2 h-2 bg-white rounded-full"></div>
-                  )}
-                  {indicator.type === 'match' && (
-                    <Users className="w-3 h-3 text-white" />
-                  )}
-                </div>
-              ))}
             </div>
+            
+            {/* Status indicators row */}
+            {statusIndicators.length > 0 && (
+              <div className="flex items-center gap-2">
+                {statusIndicators.map((indicator, index) => (
+                  <div 
+                    key={index}
+                    className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                      indicator.color === 'blue' ? 'bg-blue-500' :
+                      indicator.color === 'purple' ? 'bg-purple-500' : 'bg-gray-500'
+                    }`}
+                    title={indicator.text}
+                  >
+                    {indicator.type === 'listing' && (
+                      <div className="w-2 h-2 bg-white rounded-full"></div>
+                    )}
+                    {indicator.type === 'match' && (
+                      <Users className="w-3 h-3 text-white" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           
           {/* Status text */}
