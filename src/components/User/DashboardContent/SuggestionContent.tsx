@@ -253,7 +253,7 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
                 <span className="block w-20 h-1 bg-blue-500 mt-2 rounded-full"></span>
               </h1>
               <p className="text-sm text-gray-600 mt-2">
-                Help us improve by submitting ideas, reporting issues, or asking questions.
+                Help us improve by submitting ideas, reporting issues, or requesting feature.
               </p>
             </div>
 
