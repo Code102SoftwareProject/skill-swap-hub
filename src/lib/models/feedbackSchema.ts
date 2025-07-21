@@ -69,4 +69,4 @@ const feedbackSchema = new Schema<IFeedback>({
   }
 });
 
-export const Feedback = model<IFeedback>('Feedback', feedbackSchema);
+export const Feedback = mongoose.models.Feedback || model<IFeedback>('Feedback', feedbackSchema);
