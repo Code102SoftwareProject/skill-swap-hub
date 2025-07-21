@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { IChatRoom } from "@/types/chat";
 import { Search } from "lucide-react";
 import {
@@ -311,8 +311,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
         });
       });
 
-      // Update unread counts if the message is not from current user
-      if (messageData.senderId !== userId) {
+      // Update unread counts if the message is not from current user AND not viewing that chat room
+      if (messageData.senderId !== userId && messageData.chatRoomId !== selectedChatRoomId) {
         setUnreadCounts(prevCounts => ({
           ...prevCounts,
           [messageData.chatRoomId]: (prevCounts[messageData.chatRoomId] || 0) + 1
@@ -327,7 +327,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [socket, userId, fetchChatRooms]);
+  }, [socket, userId, fetchChatRooms, selectedChatRoomId]);
 
   /**
    * Effect hook that clears unread count when a chat room is selected
@@ -381,7 +381,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
           placeholder="Search by name..."
           className="w-full pl-6 md:pl-8 pr-2 py-1 md:py-2 bg-primary text-bgcolor rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary font-body"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
         />
       </div>
 

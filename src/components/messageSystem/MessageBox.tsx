@@ -342,6 +342,38 @@ export default function MessageBox({
     }
   }, [messages, newMessage]);
 
+  // ! Function to fetch message from database for reply
+  const fetchMessageForReply = async (message: IMessage): Promise<IMessage> => {
+    // If message already has a database _id, return it as is
+    if (message._id && !message._id.startsWith('temp-')) {
+      return message;
+    }
+    
+    // Otherwise, fetch from database by matching content, senderId, and approximate timestamp
+    try {
+      const messagesData = await fetchChatMessages(chatRoomId);
+      if (messagesData && messagesData.length > 0) {
+        // Find the message by content and senderId (most recent if duplicates)
+        const foundMessage = messagesData
+          .filter((msg: IMessage) => 
+            msg.content === message.content && 
+            msg.senderId === message.senderId &&
+            msg.chatRoomId === message.chatRoomId
+          )
+          .sort((a: IMessage, b: IMessage) => (b.sentAt || 0) - (a.sentAt || 0))[0]; // Get most recent match
+        
+        if (foundMessage) {
+          return foundMessage;
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching message from database:", error);
+    }
+    
+    // If we couldn't find it in database, return the original message
+    return message;
+  };
+
   // ! Function to scroll to a particular message 
   const scrollToMessage = (messageId: string) => {
     const messageElement = messageRefs.current[messageId];
@@ -372,6 +404,7 @@ export default function MessageBox({
     replyFor: string | { _id?: string; senderId?: string; content?: string }
   ): ReplyContent => {
     
+    // Handle case where replyFor is an object with message details (from socket)
     if (typeof replyFor === "object" && replyFor !== null) {
       if ("content" in replyFor && "senderId" in replyFor) {
         let senderName: string;
@@ -392,7 +425,7 @@ export default function MessageBox({
       }
     }
     
-    // NEW: Handle case where replyFor is just a message ID string
+    // Handle case where replyFor is just a message ID string (from database)
     if (typeof replyFor === "string") {
       // Find the original message in the current messages array
       const originalMessage = messages.find(msg => msg._id === replyFor);
@@ -488,7 +521,13 @@ export default function MessageBox({
               >
                 {/* Reply button - show on hover */}
                 <button
-                  onClick={() => onReplySelect && msg._id && onReplySelect(msg)}
+                  onClick={async () => {
+                    if (onReplySelect) {
+                      // Fetch the message from database to ensure we have the correct _id
+                      const messageWithDbId = await fetchMessageForReply(msg);
+                      onReplySelect(messageWithDbId);
+                    }
+                  }}
                   className="absolute top-1 right-1 bg-white/80 p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Reply"
                 >
