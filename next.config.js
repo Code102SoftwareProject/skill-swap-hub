@@ -50,6 +50,26 @@ const nextConfig = {
         hostname: "localhost", // Development server HTTPS
         pathname: "/api/**",
       },
+      {
+        protocol: "https",
+        hostname: "*.vercel.app", // Vercel deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.netlify.app", // Netlify deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.herokuapp.com", // Heroku deployment domains
+        pathname: "/api/**",
+      },
+      {
+        protocol: "https",
+        hostname: process.env.NEXT_PUBLIC_DOMAIN || "code102.site", // Custom production domain
+        pathname: "/api/**",
+      },
     ],
   },
 };
