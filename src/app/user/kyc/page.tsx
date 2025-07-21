@@ -28,7 +28,7 @@ const FILE_CONSTRAINTS = {
 // Regex patterns for validating NIC (National Identity Card) formats
 const NIC_PATTERNS = {
   OLD_NIC: /^[0-9]{9}[VvXx]$/, // Old format: 9 digits followed by V or X
-  NEW_NIC: /^[0-9]{12}$/, // New format: 12 digits
+  NEW_NIC: /^(19[0-9]{2}|20[0-9]{2}|2100)[0-9]{8}$/, // New format: 12 digits
 };
 
 
