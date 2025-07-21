@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import Image from "next/image";
 import { 
   Users, 
   Plus, 
@@ -13,7 +16,8 @@ import {
   BookOpen,
   Star,
   Calendar,
-  User
+  User,
+  X
 } from "lucide-react";
 
 interface User {
@@ -57,7 +61,9 @@ export default function SuccessStoriesContent() {
   const [successStories, setSuccessStories] = useState<SuccessStory[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searching, setSearching] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -72,16 +78,49 @@ export default function SuccessStoriesContent() {
     isPublished: false,
   });
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset to page 1 when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter]);
+
+  // Clear search function
+  const clearSearch = useCallback(() => {
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+  }, []);
+
+  // Handle keyboard shortcuts
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      clearSearch();
+    }
+  }, [clearSearch]);
+
+  // Memoize search params to prevent unnecessary re-renders
+  const searchParams = useMemo(() => ({
+    page: currentPage.toString(),
+    limit: "10",
+    search: debouncedSearchTerm,
+    status: statusFilter,
+  }), [currentPage, debouncedSearchTerm, statusFilter]);
+
   // Fetch success stories
-  const fetchSuccessStories = async () => {
+  const fetchSuccessStories = useCallback(async (isInitialLoad = false) => {
     try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: currentPage.toString(),
-        limit: "10",
-        search: searchTerm,
-        status: statusFilter,
-      });
+      if (isInitialLoad) {
+        setLoading(true);
+      }
+      
+      const params = new URLSearchParams(searchParams);
 
       const response = await fetch(`/api/admin/success-stories?${params}`, {
         credentials: "include", // Important for cookies
@@ -126,12 +165,14 @@ export default function SuccessStoriesContent() {
       console.error("Error fetching success stories:", error);
       alert(`Error loading success stories: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
-      setLoading(false);
+      if (isInitialLoad) {
+        setLoading(false);
+      }
     }
-  };
+  }, [searchParams, debouncedSearchTerm, statusFilter]);
 
   // Fetch users for dropdown
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const response = await fetch("/api/admin/users", {
         credentials: "include", // Important for cookies
@@ -148,25 +189,35 @@ export default function SuccessStoriesContent() {
       console.error("Error fetching users:", error);
       alert("Failed to fetch users. Please check your connection and try again.");
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchSuccessStories();
-    fetchUsers();
-  }, [currentPage, searchTerm, statusFilter]);
+    // Only show loading spinner on initial load
+    const isInitialLoad = successStories.length === 0 && debouncedSearchTerm === "" && statusFilter === 'all';
+    fetchSuccessStories(isInitialLoad);
+    if (isInitialLoad) {
+      fetchUsers();
+    }
+  }, [fetchSuccessStories, fetchUsers, successStories.length, debouncedSearchTerm, statusFilter]);
 
   // Handle form submission - Only for editing
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!editingStory) {
-      alert("Admin cannot create new success stories. Only users can submit feedback with success stories.");
+      toast.error("Admin cannot create new success stories. Only users can submit feedback with success stories.", {
+        position: "top-right",
+        autoClose: 5000,
+      });
       return;
     }
     
     // Check consent before allowing publish
     if (formData.isPublished && !editingStory.canSuccessStoryPost) {
-      alert("Cannot publish this success story because the user did not give consent for publication.");
+      toast.error("Cannot publish this success story because the user did not give consent for publication.", {
+        position: "top-right",
+        autoClose: 5000,
+      });
       return;
     }
     
@@ -195,6 +246,10 @@ export default function SuccessStoriesContent() {
       const data = await response.json();
 
       if (data.success) {
+        toast.success(
+          `Success story "${formData.title || editingStory.title}" updated successfully!`,
+          { position: "top-right", autoClose: 3000 }
+        );
         setShowCreateForm(false);
         setEditingStory(null);
         setFormData({
@@ -205,24 +260,79 @@ export default function SuccessStoriesContent() {
           rating: 5,
           isPublished: false,
         });
-        fetchSuccessStories();
+        fetchSuccessStories(false);
       } else {
-        alert(data.message || "Failed to update success story");
+        toast.error(data.message || "Failed to update success story", {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
     } catch (error) {
       console.error("Error updating success story:", error);
-      alert(`Failed to update success story: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to update success story: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { position: "top-right", autoClose: 5000 }
+      );
     }
   };
 
   // Handle delete
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this success story?")) {
+  const handleDelete = async (story: SuccessStory) => {
+    const storyTitle = story.title || 'this success story';
+    
+    // Show confirmation toast
+    const confirmToast = () => {
+      return new Promise((resolve) => {
+        const toastId = toast(
+          <div className="flex flex-col space-y-3">
+            <div className="font-medium text-red-600">
+              Delete Success Story?
+            </div>
+            <div className="text-sm text-gray-600">
+              "{storyTitle}"
+            </div>
+            <div className="text-xs text-red-500 font-medium">
+              ⚠️ This action cannot be undone!
+            </div>
+            <div className="flex space-x-2 justify-end">
+              <button
+                onClick={() => {
+                  toast.dismiss(toastId);
+                  resolve(false);
+                }}
+                className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(toastId);
+                  resolve(true);
+                }}
+                className="px-3 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>,
+          {
+            position: "top-center",
+            autoClose: false,
+            closeButton: false,
+            draggable: false,
+            closeOnClick: false,
+          }
+        );
+      });
+    };
+
+    const confirmed = await confirmToast();
+    if (!confirmed) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/admin/success-stories?id=${id}`, {
+      const response = await fetch(`/api/admin/success-stories?id=${story._id}`, {
         method: "DELETE",
         credentials: "include", // Important for cookies
       });
@@ -238,13 +348,23 @@ export default function SuccessStoriesContent() {
       const data = await response.json();
 
       if (data.success) {
-        fetchSuccessStories();
+        toast.success(
+          `Success story "${storyTitle}" deleted successfully!`,
+          { position: "top-right", autoClose: 3000 }
+        );
+        fetchSuccessStories(false);
       } else {
-        alert(data.message || "Failed to delete success story");
+        toast.error(data.message || "Failed to delete success story", {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
     } catch (error) {
       console.error("Error deleting success story:", error);
-      alert(`Failed to delete success story: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to delete success story: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { position: "top-right", autoClose: 5000 }
+      );
     }
   };
 
@@ -252,7 +372,69 @@ export default function SuccessStoriesContent() {
   const handleTogglePublish = async (story: SuccessStory) => {
     // Check if user gave consent before allowing publish
     if (!story.isPublished && !story.canSuccessStoryPost) {
-      alert("Cannot publish this success story because the user did not give consent for publication.");
+      toast.error("Cannot publish this success story because the user did not give consent for publication.", {
+        position: "top-right",
+        autoClose: 5000,
+      });
+      return;
+    }
+
+    // Show confirmation toast
+    const storyTitle = story.title || 'this success story';
+    
+    const confirmToast = () => {
+      return new Promise((resolve) => {
+        const toastId = toast(
+          <div className="flex flex-col space-y-3">
+            <div className="font-medium text-gray-900">
+              {story.isPublished ? 'Unpublish Story?' : 'Publish Story?'}
+            </div>
+            <div className="text-sm text-gray-600">
+              "{storyTitle}"
+            </div>
+            <div className="text-xs text-gray-500">
+              {story.isPublished 
+                ? 'This will remove it from the public homepage.' 
+                : 'This will make it visible on the public homepage.'}
+            </div>
+            <div className="flex space-x-2 justify-end">
+              <button
+                onClick={() => {
+                  toast.dismiss(toastId);
+                  resolve(false);
+                }}
+                className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  toast.dismiss(toastId);
+                  resolve(true);
+                }}
+                className={`px-3 py-1 text-xs text-white rounded transition-colors ${
+                  story.isPublished 
+                    ? 'bg-yellow-500 hover:bg-yellow-600' 
+                    : 'bg-green-500 hover:bg-green-600'
+                }`}
+              >
+                {story.isPublished ? 'Unpublish' : 'Publish'}
+              </button>
+            </div>
+          </div>,
+          {
+            position: "top-center",
+            autoClose: false,
+            closeButton: false,
+            draggable: false,
+            closeOnClick: false,
+          }
+        );
+      });
+    };
+
+    const confirmed = await confirmToast();
+    if (!confirmed) {
       return;
     }
     
@@ -280,13 +462,23 @@ export default function SuccessStoriesContent() {
       const data = await response.json();
 
       if (data.success) {
-        fetchSuccessStories();
+        toast.success(
+          `Success story ${story.isPublished ? 'unpublished' : 'published'} successfully!`,
+          { position: "top-right", autoClose: 3000 }
+        );
+        fetchSuccessStories(false);
       } else {
-        alert(data.message || "Failed to update success story");
+        toast.error(data.message || "Failed to update success story", {
+          position: "top-right",
+          autoClose: 5000,
+        });
       }
     } catch (error) {
       console.error("Error updating success story:", error);
-      alert(`Failed to update success story: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(
+        `Failed to update success story: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        { position: "top-right", autoClose: 5000 }
+      );
     }
   };
 
@@ -358,32 +550,53 @@ export default function SuccessStoriesContent() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="w-full bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
+      {/* Enhanced Filters */}
+      <div className="w-full bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1 min-w-0">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Stories
+            </label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search stories..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white placeholder-gray-400"
+                placeholder="Search by title, user, or description... (Press Escape to clear)"
+                className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white placeholder-gray-400 transition-all duration-200 hover:border-gray-400 text-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
               />
+              {searchTerm && (
+                <button
+                  onClick={clearSearch}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                  title="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
+            {debouncedSearchTerm && (
+              <div className="mt-2 text-xs text-gray-500">
+                Found {successStories.length} result{successStories.length !== 1 ? 's' : ''} for "{debouncedSearchTerm}"
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Filter className="w-4 h-4 text-gray-400" />
+          <div className="flex-shrink-0 sm:w-48">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Filter by Status
+            </label>
             <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
               <select
-                className="border border-gray-300 rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white appearance-none cursor-pointer hover:border-gray-400 transition-colors min-w-[140px]"
+                className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 bg-white appearance-none cursor-pointer hover:border-gray-400 transition-colors text-sm"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
-                <option value="all" className="text-gray-900">All Stories</option>
-                <option value="published" className="text-gray-900">Published</option>
-                <option value="unpublished" className="text-gray-900">Unpublished</option>
+                <option value="all" className="text-gray-900">All Stories ({totalStories})</option>
+                <option value="published" className="text-gray-900">Published ({publishedStories})</option>
+                <option value="unpublished" className="text-gray-900">Unpublished ({unpublishedStories})</option>
               </select>
               <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                 <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -393,49 +606,102 @@ export default function SuccessStoriesContent() {
             </div>
           </div>
         </div>
+        
+        {/* Active filters summary */}
+        {(debouncedSearchTerm || statusFilter !== 'all') && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm text-gray-600 font-medium">Active filters:</span>
+              {debouncedSearchTerm && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  Search: {debouncedSearchTerm}
+                  <button
+                    onClick={clearSearch}
+                    className="ml-2 text-blue-600 hover:text-blue-800"
+                    title="Clear search"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {statusFilter !== 'all' && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  Status: {statusFilter}
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className="ml-2 text-gray-600 hover:text-gray-800"
+                    title="Clear filter"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {(debouncedSearchTerm || statusFilter !== 'all') && (
+                <button
+                  onClick={() => {
+                    clearSearch();
+                    setStatusFilter('all');
+                  }}
+                  className="text-xs text-gray-500 hover:text-gray-700 underline"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Success Stories Table */}
       <div className="w-full bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed">
+        <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '25%'}}>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/4">
                   User
                 </th>
-                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '30%'}}>
+                <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/3">
                   Title
                 </th>
-                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                   Rating
                 </th>
-                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '8%'}}>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
                   Consent
                 </th>
-                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '10%'}}>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                   Status
                 </th>
-                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '12%'}}>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                   Created
                 </th>
-                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider" style={{width: '7%'}}>
+                <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-20">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {successStories.map((story) => (
-                <tr key={story._id} className="hover:bg-gray-50">
+                <tr 
+                  key={story._id} 
+                  className={`transition-colors duration-200 ${
+                    story.isPublished 
+                      ? 'bg-green-50 hover:bg-green-100 border-l-4 border-green-400' 
+                      : 'hover:bg-gray-50'
+                  }`}
+                >
                   <td className="px-3 py-3">
                     <div className="flex items-center min-w-0">
                       <div className="flex-shrink-0 h-8 w-8">
                         {story.userId?.avatar ? (
-                          <img
-                            className="h-8 w-8 rounded-full"
-                            src={story.userId.avatar}
-                            alt=""
-                          />
+                          <div style={{ width: 32, height: 32 }} className="rounded-full overflow-hidden">
+                            <Image
+                              src={story.userId.avatar}
+                              alt=""
+                              width={32}
+                              height={32}
+                            />
+                          </div>
                         ) : (
                           <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
                             <User className="h-4 w-4 text-gray-500" />
@@ -458,7 +724,7 @@ export default function SuccessStoriesContent() {
                         {story.title}
                       </div>
                       <div className="text-xs text-gray-600 truncate">
-                        {story.description.substring(0, 60)}...
+                        {story.description.substring(0, 60) + '...'}
                       </div>
                     </div>
                   </td>
@@ -492,10 +758,7 @@ export default function SuccessStoriesContent() {
                   </td>
                   <td className="px-2 py-3 whitespace-nowrap text-center">
                     <div className="text-xs text-gray-700">
-                      {new Date(story.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: '2-digit'
-                      })}
+                      {new Date(story.createdAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit' })}
                     </div>
                   </td>
                   <td className="px-2 py-3 whitespace-nowrap text-center">
@@ -503,17 +766,19 @@ export default function SuccessStoriesContent() {
                       <button
                         onClick={() => handleTogglePublish(story)}
                         disabled={!story.canSuccessStoryPost && !story.isPublished}
-                        className={`p-1 rounded ${
+                        className={`p-1 rounded transition-all duration-200 ${
                           !story.canSuccessStoryPost && !story.isPublished
                             ? "text-gray-400 cursor-not-allowed"
                             : story.isPublished
-                            ? "text-yellow-600 hover:text-yellow-900 hover:bg-yellow-100"
-                            : "text-green-600 hover:text-green-900 hover:bg-green-100"
+                            ? "text-yellow-600 hover:text-yellow-900 hover:bg-yellow-100 hover:scale-110"
+                            : "text-green-600 hover:text-green-900 hover:bg-green-100 hover:scale-110"
                         }`}
                         title={
                           !story.canSuccessStoryPost && !story.isPublished
-                            ? "Cannot publish without user consent"
-                            : story.isPublished ? "Unpublish" : "Publish"
+                            ? "Cannot publish without user consent - Click for confirmation"
+                            : story.isPublished 
+                            ? "Click to unpublish (will show confirmation)" 
+                            : "Click to publish (will show confirmation)"
                         }
                       >
                         {story.isPublished ? (
@@ -530,19 +795,18 @@ export default function SuccessStoriesContent() {
                         <Edit className="w-3 h-3" />
                       </button>
                       <button
-                        onClick={() => handleDelete(story._id)}
-                        className="p-1 rounded text-red-600 hover:text-red-900 hover:bg-red-100"
-                        title="Delete"
+                        onClick={() => handleDelete(story)}
+                        className="p-1 rounded text-red-600 hover:text-red-900 hover:bg-red-100 transition-all duration-200 hover:scale-110"
+                        title="Click to delete (will show confirmation)"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
                   </td>
                 </tr>
-              ))
+              ))}
             </tbody>
           </table>
-        </div>
 
         {successStories.length === 0 && (
           <div className="text-center py-12 px-4">
@@ -663,6 +927,9 @@ export default function SuccessStoriesContent() {
           </div>
         </div>
       )}
+
+      {/* Toast Container */}
+      <ToastContainer />
     </div>
   );
 }

@@ -102,6 +102,19 @@ export async function GET(request: NextRequest) {
       .filter(feedback => feedback.userId !== null)
       .map(feedback => {
         try {
+          // Determine display name for admin with same logic as public API
+          let displayName;
+          if (feedback.isAnonymous) {
+            displayName = 'Anonymous';
+          } else if (feedback.displayName && feedback.displayName.trim() && feedback.displayName.trim() !== "User") {
+            // User provided a custom display name (but not the generic "User" fallback)
+            displayName = feedback.displayName.trim();
+          } else {
+            // User didn't choose anonymous AND didn't provide display name = show actual name
+            // This also handles cases where displayName is "User" from old data
+            displayName = `${feedback.userId.firstName} ${feedback.userId.lastName}`.trim();
+          }
+
           return {
             _id: feedback._id,
             userId: feedback.userId,
@@ -113,7 +126,7 @@ export async function GET(request: NextRequest) {
             publishedAt: feedback.isPublished ? feedback.date : null,
             createdAt: feedback.date,
             updatedAt: feedback.date,
-            displayName: feedback.isAnonymous ? 'Anonymous' : (feedback.displayName || 'Unknown User'),
+            displayName: displayName,
             isAnonymous: feedback.isAnonymous || false,
             canSuccessStoryPost: feedback.canSuccessStoryPost || false
           };
