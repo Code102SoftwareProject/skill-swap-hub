@@ -30,7 +30,11 @@ interface ListingWithMatchStatus extends SkillListing {
   matchDetails?: any[];
 }
 
-const ListingsContent: React.FC = () => {
+interface ListingsContentProps {
+  onNavigateToSkills?: () => void;
+}
+
+const ListingsContent: React.FC<ListingsContentProps> = ({ onNavigateToSkills }) => {
   const { showToast } = useToast();
   
   // State management
@@ -308,9 +312,12 @@ const ListingsContent: React.FC = () => {
               <h3 className="text-sm font-medium text-yellow-800">No Skills Added</h3>
               <p className="text-sm text-yellow-700">
                 You need to add skills to your profile before creating listings. 
-                <a href="/dashboard?component=myskill" className="ml-1 font-medium underline hover:no-underline">
+                <button 
+                  onClick={onNavigateToSkills}
+                  className="ml-1 font-medium underline hover:no-underline text-yellow-700 cursor-pointer"
+                >
                   Add skills now
-                </a>
+                </button>
               </p>
             </div>
           </div>
@@ -438,12 +445,12 @@ const ListingsContent: React.FC = () => {
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-gray-700">First, add some skills to your profile:</p>
-              <a
-                href="/dashboard?component=myskill"
+              <button
+                onClick={onNavigateToSkills}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
               >
                 Add Skills First
-              </a>
+              </button>
             </div>
           )}
         </div>

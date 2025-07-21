@@ -23,6 +23,7 @@ interface MessageBoxProps {
   participantInfo?: { id: string, name: string };
   showSearch?: boolean;
   onCloseSearch?: () => void;
+  skipCache?: boolean; // Add prop to skip cache and force API load
 }
 
 
@@ -154,6 +155,7 @@ export default function MessageBox({
   participantInfo,
   showSearch = false,
   onCloseSearch,
+  skipCache = false, // Add skipCache prop with default false
 }: MessageBoxProps) {
   const { socket, onlineUsers } = useSocket();
   
@@ -226,21 +228,24 @@ export default function MessageBox({
       // Clear existing messages FIRST
       setMessages([]);
       
-      // Check if messages are already cached
-      const cachedMessages = getCachedMessages(chatRoomId);
-      
-      if (cachedMessages) {
-        // Use cached messages for instant loading
-        console.log(`Loading ${cachedMessages.length} cached messages for room ${chatRoomId}`);
-        setMessages(cachedMessages);
-        return;
+      // Check if we should skip cache (e.g., user coming from dashboard with notifications)
+      if (!skipCache) {
+        // Check if messages are already cached
+        const cachedMessages = getCachedMessages(chatRoomId);
+        
+        if (cachedMessages) {
+          // Use cached messages for instant loading
+          console.log(`Loading ${cachedMessages.length} cached messages for room ${chatRoomId}`);
+          setMessages(cachedMessages);
+          return;
+        }
       }
 
-      // If not cached, show loading and fetch from API
+      // If not cached or skipCache is true, show loading and fetch from API
       setIsLoading(true);
       
       try {
-        console.log(`Fetching messages from API for room ${chatRoomId}`);
+        console.log(`Fetching messages from API for room ${chatRoomId} ${skipCache ? '(forced from API)' : ''}`);
         const messagesData = await fetchChatMessages(chatRoomId);
         if (messagesData && messagesData.length > 0) {
           setMessages(messagesData);
@@ -253,7 +258,7 @@ export default function MessageBox({
     }
     
     loadMessages();
-  }, [chatRoomId, userId]);
+  }, [chatRoomId, userId, skipCache]);
 
   // ! Append new messages if they arrive
   useEffect(() => {

@@ -27,7 +27,7 @@ export default function VerifiedAvatar({ userId, avatarUrl, size = 96, className
   return (
     <div className={`relative`} style={{ width: size, height: size }}>
       <Image
-        src={avatarUrl ? `/api/file/retrieve?fileUrl=${encodeURIComponent(avatarUrl)}` : '/profile.png'}
+        src={avatarUrl || '/profile.png'}
         alt="User Avatar"
         width={size}
         height={size}

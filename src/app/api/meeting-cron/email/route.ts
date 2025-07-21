@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 import Meeting from '@/lib/models/meetingSchema';
 import User from '@/lib/models/userSchema';
+import MeetingEmailNotification from '@/lib/models/meetingEmailNotificationSchema';
 import connect from '@/lib/db';
 
 // Create nodemailer transporter using Gmail SMTP
@@ -208,11 +209,30 @@ async function sendMeetingReminders() {
 
     let emailsSent = 0;
     let errors = [];
+    let skippedMeetings = 0;
 
     // Process each meeting
     for (const meeting of upcomingMeetings) {
       try {
         console.log(`📧 Processing meeting ${meeting._id}`);
+        
+        // Check if notifications have already been sent for this meeting
+        const existingNotification = await MeetingEmailNotification.getNotificationStatus(meeting._id);
+        
+        if (existingNotification) {
+          console.log(`⏭️ Meeting ${meeting._id} notification status:`, {
+            senderNotified: existingNotification.senderNotified,
+            receiverNotified: existingNotification.receiverNotified,
+            notificationSentAt: existingNotification.notificationSentAt
+          });
+          
+          // If both users have already been notified, skip this meeting
+          if (existingNotification.senderNotified && existingNotification.receiverNotified) {
+            console.log(`⏭️ Skipping meeting ${meeting._id} - both users already notified`);
+            skippedMeetings++;
+            continue;
+          }
+        }
         
         // Get populated user data
         const sender = meeting.senderId as any;
@@ -229,58 +249,78 @@ async function sendMeetingReminders() {
           receiver: `${receiver.firstName} ${receiver.lastName} (${receiver.email})`
         });
 
-        // Create email content for sender
-        const senderEmail = createMeetingReminderEmail(
-          sender.firstName,
-          sender.lastName,
-          receiver.firstName,
-          receiver.lastName,
-          meeting.meetingTime,
-          meeting.description,
-          meeting._id.toString()
-        );
+        // Check if we need to send email to sender
+        if (!existingNotification?.senderNotified) {
+          // Create email content for sender
+          const senderEmail = createMeetingReminderEmail(
+            sender.firstName,
+            sender.lastName,
+            receiver.firstName,
+            receiver.lastName,
+            meeting.meetingTime,
+            meeting.description,
+            meeting._id.toString()
+          );
 
-        // Create email content for receiver
-        const receiverEmail = createMeetingReminderEmail(
-          receiver.firstName,
-          receiver.lastName,
-          sender.firstName,
-          sender.lastName,
-          meeting.meetingTime,
-          meeting.description,
-          meeting._id.toString()
-        );
-
-        // Send email to sender
-        try {
-          await transporter.sendMail({
-            from: `"SkillSwap Hub" <${process.env.MEETING_NOTI_MAIL}>`,
-            to: sender.email,
-            subject: senderEmail.subject,
-            html: senderEmail.html,
-            text: senderEmail.text
-          });
-          console.log(`✅ Email sent to sender: ${sender.email}`);
-          emailsSent++;
-        } catch (emailError: any) {
-          console.error(`❌ Failed to send email to sender ${sender.email}:`, emailError);
-          errors.push(`Failed to send email to sender ${sender.email}: ${emailError?.message || 'Unknown error'}`);
+          // Send email to sender
+          try {
+            await transporter.sendMail({
+              from: `"SkillSwap Hub" <${process.env.MEETING_NOTI_MAIL}>`,
+              to: sender.email,
+              subject: senderEmail.subject,
+              html: senderEmail.html,
+              text: senderEmail.text
+            });
+            console.log(`✅ Email sent to sender: ${sender.email}`);
+            emailsSent++;
+            
+            // Mark sender as notified
+            await MeetingEmailNotification.markUserNotified(meeting._id, 'sender');
+            console.log(`✅ Marked sender as notified for meeting ${meeting._id}`);
+            
+          } catch (emailError: any) {
+            console.error(`❌ Failed to send email to sender ${sender.email}:`, emailError);
+            errors.push(`Failed to send email to sender ${sender.email}: ${emailError?.message || 'Unknown error'}`);
+          }
+        } else {
+          console.log(`⏭️ Sender already notified for meeting ${meeting._id}`);
         }
 
-        // Send email to receiver
-        try {
-          await transporter.sendMail({
-            from: `"SkillSwap Hub" <${process.env.MEETING_NOTI_MAIL}>`,
-            to: receiver.email,
-            subject: receiverEmail.subject,
-            html: receiverEmail.html,
-            text: receiverEmail.text
-          });
-          console.log(`✅ Email sent to receiver: ${receiver.email}`);
-          emailsSent++;
-        } catch (emailError: any) {
-          console.error(`❌ Failed to send email to receiver ${receiver.email}:`, emailError);
-          errors.push(`Failed to send email to receiver ${receiver.email}: ${emailError?.message || 'Unknown error'}`);
+        // Check if we need to send email to receiver
+        if (!existingNotification?.receiverNotified) {
+          // Create email content for receiver
+          const receiverEmail = createMeetingReminderEmail(
+            receiver.firstName,
+            receiver.lastName,
+            sender.firstName,
+            sender.lastName,
+            meeting.meetingTime,
+            meeting.description,
+            meeting._id.toString()
+          );
+
+          // Send email to receiver
+          try {
+            await transporter.sendMail({
+              from: `"SkillSwap Hub" <${process.env.MEETING_NOTI_MAIL}>`,
+              to: receiver.email,
+              subject: receiverEmail.subject,
+              html: receiverEmail.html,
+              text: receiverEmail.text
+            });
+            console.log(`✅ Email sent to receiver: ${receiver.email}`);
+            emailsSent++;
+            
+            // Mark receiver as notified
+            await MeetingEmailNotification.markUserNotified(meeting._id, 'receiver');
+            console.log(`✅ Marked receiver as notified for meeting ${meeting._id}`);
+            
+          } catch (emailError: any) {
+            console.error(`❌ Failed to send email to receiver ${receiver.email}:`, emailError);
+            errors.push(`Failed to send email to receiver ${receiver.email}: ${emailError?.message || 'Unknown error'}`);
+          }
+        } else {
+          console.log(`⏭️ Receiver already notified for meeting ${meeting._id}`);
         }
 
         // Small delay between emails to avoid rate limiting
@@ -292,13 +332,14 @@ async function sendMeetingReminders() {
       }
     }
 
-    console.log(`🎉 Meeting reminder job completed. Emails sent: ${emailsSent}`);
+    console.log(`🎉 Meeting reminder job completed. Emails sent: ${emailsSent}, Meetings skipped: ${skippedMeetings}`);
 
     return {
       success: true,
       message: `Meeting reminders processed successfully`,
       processed: upcomingMeetings.length,
       emailsSent,
+      skippedMeetings,
       errors: errors.length > 0 ? errors : undefined
     };
 

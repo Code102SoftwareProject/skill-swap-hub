@@ -25,7 +25,8 @@ import {
 } from "@/services/meetingApiServices";
 import { fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
-import { debouncedApiService } from '@/services/debouncedApiService';
+import { imageOptimizationService } from '@/services/imageOptimizationService';
+import { useBatchAvatarPreload } from '@/hooks/useOptimizedAvatar';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
@@ -99,6 +100,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [showSavedNotes, setShowSavedNotes] = useState(false);
   const [selectedNote, setSelectedNote] = useState<MeetingNote | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
+
+  // Use batch avatar preloading hook like Sidebar does
+  const { preloadAvatars } = useBatchAvatarPreload();
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -323,7 +327,7 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     }
   }, [userId, otherUserId, meetings.length, fetchCancellationAlerts]);
 
-  // Fetch user profiles for all meeting participants
+  // Fetch user profiles for all meeting participants (matching Sidebar approach exactly)
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
     if (currentMeetings.length === 0) return;
     
@@ -333,55 +337,78 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       uniqueUserIds.add(meeting.receiverId);
     });
 
-    // Fetch profiles for each unique user ID
+    if (uniqueUserIds.size === 0) return;
+
+    console.log(`Fetching profiles for ${uniqueUserIds.size} users in MeetingBox`);
+    
+    // Clear image cache to ensure fresh avatar loading
+    imageOptimizationService.clearCache();
+    console.log('Cleared image cache for fresh avatar loading');
+
+    // Prepare data for batch avatar preloading
+    const avatarData: Array<{
+      userId: string;
+      firstName?: string;
+      avatarUrl?: string;
+    }> = [];
+
+    // Fetch each profile individually - exactly like Sidebar does
     for (const id of uniqueUserIds) {
-      const cacheKey = `profile-${id}`;
-      
       try {
-        const profileData = await debouncedApiService.makeRequest(
-          cacheKey,
-          async () => {
-            return await fetchUserProfile(id);
-          },
-          60000 // 1 minute cache for profiles
-        );
-        
-        if (profileData) {
-          setUserProfiles(prev => {
-            // Check if we already have this profile to prevent unnecessary updates
-            if (prev[id] && 
-                prev[id].firstName === profileData.firstName && 
-                prev[id].lastName === profileData.lastName &&
-                prev[id].avatar === profileData.avatar) {
-              return prev; // No change needed
-            }
-            
-            return {
-              ...prev,
-              [id]: {
-                firstName: profileData.firstName,
-                lastName: profileData.lastName,
-                avatar: profileData.avatar
-              }
-            };
+        const userData = await fetchUserProfile(id);
+
+        if (userData) {
+          console.log(`Profile fetched for user ${id}:`, userData);
+          setUserProfiles((prev) => ({
+            ...prev,
+            [id]: userData, // Store complete userData object like Sidebar
+          }));
+
+          // Add to avatar preload data
+          avatarData.push({
+            userId: id,
+            firstName: userData.firstName,
+            avatarUrl: userData.avatar
           });
+        } else {
+          console.log(`No profile found for user ${id}, setting fallback`);
+          setUserProfiles((prev) => ({
+            ...prev,
+            [id]: {
+              firstName: "Unknown",
+              lastName: "User",
+            },
+          }));
         }
       } catch (err) {
         console.error(`Error fetching profile for user ${id}:`, err);
+        setUserProfiles((prev) => ({
+          ...prev,
+          [id]: {
+            firstName: "Unknown",
+            lastName: "User",
+          },
+        }));
       }
     }
-  }, []);
 
-  // Fetch user profiles when meetings change (with debouncing)
+    // Batch preload avatars for better performance - like Sidebar does
+    if (avatarData.length > 0) {
+      try {
+        await preloadAvatars(avatarData, 'small');
+        console.log(`Preloaded ${avatarData.length} avatars in MeetingBox`);
+      } catch (error) {
+        console.warn('Avatar preloading failed in MeetingBox:', error);
+      }
+    }
+  }, [preloadAvatars]);
+
+  // Fetch user profiles when meetings change (like Sidebar does)
   useEffect(() => {
-    if (meetings.length === 0) return;
-    
-    const timeoutId = setTimeout(() => {
+    if (meetings.length > 0) {
       fetchUserProfiles(meetings);
-    }, 300);
-    
-    return () => clearTimeout(timeoutId);
-  }, [meetings, fetchUserProfiles]);
+    }
+  }, [fetchUserProfiles, meetings]);
 
   // Check if notes exist for meetings
   const checkMeetingNotes = useCallback(async (currentMeetings: Meeting[]) => {

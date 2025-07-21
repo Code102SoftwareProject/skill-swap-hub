@@ -34,7 +34,11 @@ export default function SavedNotesList({
   onDownloadNotes
 }: SavedNotesListProps) {
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Date not available';
+    
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date not available';
+    
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -96,15 +100,8 @@ export default function SavedNotesList({
           </div>
 
           {/* Meeting Info */}
-          {note.meetingInfo && (
+          {note.meetingInfo && note.meetingInfo.meetingTime && (
             <div className="text-xs text-gray-600 mb-2">
-              <div className="flex items-center gap-1 mb-1">
-                <Calendar className="w-3 h-3" />
-                <span className={note.meetingInfo.isDeleted ? 'text-red-600 italic' : ''}>
-                  Meeting: {note.meetingInfo.description}
-                  {note.meetingInfo.isDeleted && ' (Removed)'}
-                </span>
-              </div>
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 <span>{formatDate(note.meetingInfo.meetingTime)}</span>

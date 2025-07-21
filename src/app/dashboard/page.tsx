@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import UserSidebar from '@/components/User/UserSidebar';
 import NavBar from '@/components/homepage/Navbar';
@@ -21,15 +22,21 @@ import ReviewsContent from '@/components/Dashboard/ReviewsContent';
 
 export default function UserDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
   const [activeComponent, setActiveComponent] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Load from localStorage when the component mounts
+  // Load from URL parameters or localStorage when the component mounts
   useEffect(() => {
-    const savedComponent = localStorage.getItem('activeComponent');
-    if (savedComponent) {
-      setActiveComponent(savedComponent);
+    const componentParam = searchParams.get('component');
+    if (componentParam) {
+      setActiveComponent(componentParam);
+    } else {
+      const savedComponent = localStorage.getItem('activeComponent');
+      if (savedComponent) {
+        setActiveComponent(savedComponent);
+      }
     }
     
     // Check if we're in mobile view
@@ -45,7 +52,7 @@ export default function UserDashboardPage() {
     // Add resize listener
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
+  }, [searchParams]);
 
   // Save to localStorage when activeComponent changes
   useEffect(() => {
@@ -77,7 +84,7 @@ export default function UserDashboardPage() {
       case 'myskill':
         return <MySkillsContent key={activeComponent} />;
       case 'listings':
-        return <ListingsContent key={activeComponent} />;
+        return <ListingsContent key={activeComponent} onNavigateToSkills={() => setActiveComponent('myskill')} />;
       case 'matches':
         return <MatchesContent key={activeComponent} />;
       case 'meeting':

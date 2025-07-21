@@ -157,6 +157,15 @@ export default function InboxContent() {
                 className="flex items-center gap-1 px-4 py-2 rounded bg-red-500 text-white hover:bg-red-600 transition disabled:opacity-60" disabled={actionLoading}>
                 <Trash2 className="w-4 h-4" /> Delete
               </button>
+              {/* Reply Button */}
+              <a
+                href={`mailto:${selected.email}`}
+                className="flex items-center gap-1 px-4 py-2 rounded bg-yellow-500 text-white hover:bg-yellow-600 transition disabled:opacity-60"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Mail className="w-4 h-4" /> Reply
+              </a>
             </div>
           </div>
         ) : (

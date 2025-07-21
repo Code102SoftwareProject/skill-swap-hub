@@ -1,0 +1,329 @@
+
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Authentication System Test Results</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        .header h1 { margin: 0 0 10px 0; color: #333; }
+                        .header p { margin: 5px 0; color: #666; }
+                        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        .pass { background-color: #d4edda; color: #155724; }
+                        .fail { background-color: #f8d7da; color: #721c24; }
+                        .blocked { background-color: #fff3cd; color: #856404; }
+                        .not-executed { background-color: #e2e3e5; color: #383d41; }
+                        .test-steps { max-width: 200px; }
+                        .test-id { font-weight: bold; }
+                        .priority-high { color: #dc3545; font-weight: bold; }
+                        .priority-medium { color: #fd7e14; font-weight: bold; }
+                        .priority-low { color: #20c997; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>🔐 Authentication System Test Results</h1>
+                        <p><strong>Tester:</strong> Aditha Buwaneka</p>
+                        <p><strong>Version:</strong> Not specified</p>
+                        <p><strong>Browser:</strong> chrome</p>
+                        <p><strong>Device:</strong> desktop</p>
+                        <p><strong>Test Date:</strong> 2025-07-18</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Case ID</th>
+                                <th>Test Name</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Expected Result</th>
+                                <th>Actual Result</th>
+                                <th>Status</th>
+                                <th>Execution Date</th>
+                                <th>Notes</th>
+                                <th>Bug Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            
+                    <tr>
+                        <td class="test-id">TC-REG-001</td>
+                        <td>Valid User Registration</td>
+                        <td>registration</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>User account created successfully, automatic login, redirect to dashboard</td>
+                        <td>User 'John Doe' registered with email 'john.doe@test.com', JWT token generated, redirected to user dashboard with welcome message</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-REG-002</td>
+                        <td>Duplicate Email Registration</td>
+                        <td>registration</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Error message: 'Email already in use' with 409 status</td>
+                        <td>System correctly rejected registration for 'existing@test.com' with clear error message, user can try different email</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-REG-003</td>
+                        <td>Password Strength Validation</td>
+                        <td>validation</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Real-time feedback shows password strength, color-coded progress bar, prevents weak passwords</td>
+                        <td>Password 'Test123!' showed green strength indicator, form allowed submission with strong password confirmation</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LOGIN-001</td>
+                        <td>Valid Email/Password Login</td>
+                        <td>login</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Successful login, JWT token generated, redirect to user dashboard</td>
+                        <td>User 'test@example.com' logged in successfully, received JWT token, redirected to /user/dashboard with navigation showing logged-in state</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LOGIN-002</td>
+                        <td>Invalid Credentials Login</td>
+                        <td>login</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Error message: 'Invalid email or password', no token generated</td>
+                        <td>System correctly rejected login for wrong password, showed clear error message without revealing which field was incorrect (security best practice)</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-GOOGLE-001</td>
+                        <td>Google OAuth Login - New User</td>
+                        <td>google</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>New account created automatically, profile completion required, JWT token generated</td>
+                        <td>New Google user 'jane.smith@gmail.com' account created, profile marked as incomplete, redirected to profile completion page</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-GOOGLE-002</td>
+                        <td>Google OAuth Login - Existing User</td>
+                        <td>google</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Immediate login to existing account, redirect to dashboard</td>
+                        <td>Existing Google user logged in immediately, JWT token generated, redirected to user dashboard with all profile data intact</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-RESET-001</td>
+                        <td>Password Reset Request</td>
+                        <td>password-reset</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>6-digit OTP sent via SendGrid, confirmation message shown, OTP stored with 5-minute expiry</td>
+                        <td> OTP '123456' sent to 'user@test.com', email received within 30 seconds, confirmation message displayed, countdown timer started</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-RESET-002</td>
+                        <td>OTP Verification</td>
+                        <td>password-reset</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Valid OTP accepted, reset token generated, redirect to password reset form</td>
+                        <td>OTP '123456' verified successfully, reset token 'eyJhbGciOiJIUzI1NiI...' generated, redirected to new password form</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-RESET-003</td>
+                        <td>OTP Expiry Validation</td>
+                        <td>password-reset</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Error message: 'OTP has expired', option to resend new OTP</td>
+                        <td>Expired OTP '123456' correctly rejected after 6 minutes, clear error message shown, resend button enabled</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-RESET-004</td>
+                        <td>New Password Creation</td>
+                        <td>password-reset</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Password updated successfully, bcrypt hash stored, confirmation message, redirect to login</td>
+                        <td>New password 'NewPass123!' set successfully, password hashed with bcrypt, confirmation message shown, redirected to login page</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-001</td>
+                        <td>Session Expiry Warning</td>
+                        <td>session</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Warning popup appears before expiry, option to extend session, automatic logout if ignored</td>
+                        <td>Warning popup appeared 5 minutes before expiry, 'Extend Session' button worked, session extended for another 24 hours</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-002</td>
+                        <td>Automatic Session Cleanup</td>
+                        <td>session</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>JWT token removed from localStorage, user redirected to homepage, authentication state cleared</td>
+                        <td> Logout successful, localStorage cleared, auth_token removed, user state reset, redirected to homepage with login buttons visible</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-003</td>
+                        <td>Remember Me Functionality</td>
+                        <td>session</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Remember Me extends session, maintains login across browser sessions, longer token expiry</td>
+                        <td>Normal login: 24h expiry, Remember Me login: 30-day expiry, browser restart maintained login state, token valid for extended period</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-004</td>
+                        <td>Session Persistence Across Browser Tabs</td>
+                        <td>session</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Session state synchronized across all browser tabs, logout affects all tabs</td>
+                        <td>ab 1 login reflected in Tab 2 immediately, logout from Tab 1 automatically logged out Tab 2, consistent session state across tabs</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-005</td>
+                        <td>Session Token Refresh</td>
+                        <td>session</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Token automatically refreshed before expiry, seamless user experience, session extended</td>
+                        <td>Original token expires at 2:00 PM, automatic refresh at 1:55 PM issued new token expiring at 2:00 PM next day, user unaware of refresh</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-006</td>
+                        <td>Concurrent Session Management</td>
+                        <td>session</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Multiple concurrent sessions allowed, logout from one device doesn't affect others</td>
+                        <td>Desktop and mobile sessions both active simultaneously, logout from mobile kept desktop session active, each device maintains independent session</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-007</td>
+                        <td>Session Security - Invalid Token Handling</td>
+                        <td>session</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Invalid tokens rejected, user redirected to login, clear error message, security maintained</td>
+                        <td>Modified token rejected with 401 Unauthorized, automatic redirect to login page, error message: 'Session invalid, please log in again', no access to protected content</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-SESSION-008</td>
+                        <td>Session Activity Tracking</td>
+                        <td>session</td>
+                        <td class="priority-low">LOW</td>
+                        <td>User activity tracked, idle sessions timeout, activity extends session automatically</td>
+                        <td>Last activity timestamp updated with each action, 30-minute idle timeout warning appeared, user activity reset timeout timer, session extended based on activity</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-VAL-001</td>
+                        <td>Email Format Validation</td>
+                        <td>validation</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Real-time validation shows errors for invalid formats, accepts valid email</td>
+                        <td>Invalid email 'testgmail.com' showed red error border, valid email 'test@gmail.com' showed green checkmark</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-VAL-002</td>
+                        <td>Required Fields Validation</td>
+                        <td>validation</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Form prevents submission with missing required fields, shows specific error messages</td>
+                        <td>Empty firstName field showed 'First Name is required' error, form submission blocked until all required fields filled</td>
+                        <td class="pass">PASS</td>
+                        <td>2025-07-18</td>
+                        <td>-</td>
+                        <td>-</td>
+                    </tr>
+                
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            
