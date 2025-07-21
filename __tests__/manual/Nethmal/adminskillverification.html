@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skill Verification Test Results - Table</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; color: #333; }
+        h1 { color: #059669; }
+        table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; word-wrap: break-word; }
+        th { background-color: #f8fafc; font-weight: 600; color: #374151; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .status-pass { color: #16a34a; font-weight: bold; }
+        .status-fail { color: #dc2626; font-weight: bold; }
+        .status-blocked { color: #d97706; font-weight: bold; }
+        .status-not-executed { color: #6b7280; }
+        
+        .col-objective { width: 25%; }
+        .col-type { width: 10%; }
+        .col-priority { width: 8%; }
+        .col-status { width: 8%; }
+        .col-result { width: 25%; }
+        .col-steps { width: 12%; }
+        .col-expected { width: 12%; }
+        
+        pre { margin: 0; white-space: pre-wrap; font-family: inherit; }
+    </style>
+</head>
+<body>
+    <h1>Skill Verification Test Results</h1>
+    <p><strong>Tester:</strong> Nethmal</p>
+    <p><strong>Version:</strong> N/A</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Export Date:</strong> 2025-07-21</p>
+    <table>
+        <thead>
+            <tr>
+                <th class="col-objective">Objective</th>
+                <th class="col-type">Type</th>
+                <th class="col-priority">Priority</th>
+                <th class="col-status">Status</th>
+                <th class="col-result">Actual Result</th>
+                <th class="col-steps">Test Steps</th>
+                <th class="col-expected">Expected Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-objective">Verify loading state is shown initially</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Loading spinner and 'Refreshing...' text were displayed as expected</pre></td>
+                <td class="col-steps"><pre>1. Render the VerificationRequests component
+2. Check for loading spinner
+3. Check for 'Refreshing...' text</pre></td>
+                <td class="col-expected"><pre>Loading spinner and text are displayed</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify requests are displayed after loading</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>All requests and count were displayed correctly with mock data</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Wait for loading to complete
+3. Check for skill names in list
+4. Check for request count text</pre></td>
+                <td class="col-expected"><pre>Requests and count are displayed correctly</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify search and filter controls are visible</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Search input and status filter buttons were visible after loading</pre></td>
+                <td class="col-steps"><pre>1. Render component
+2. Wait for loading to complete
+3. Check for search input
+4. Check for status filter buttons</pre></td>
+                <td class="col-expected"><pre>All controls are displayed</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify requests can be filtered by status</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Filtering by 'Pending' status correctly displayed only pending requests</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Click 'Pending' filter button
+3. Check displayed requests</pre></td>
+                <td class="col-expected"><pre>Only pending requests are shown</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify requests can be searched by skill name</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Searching for 'React' correctly filtered requests to show only React-related ones</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Type 'React' in search field
+3. Check displayed requests</pre></td>
+                <td class="col-expected"><pre>Only React-related requests are shown</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify request details are shown when clicked</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Details panel appeared with correct user and skill information when request was clicked</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Click on a request card
+3. Check for details panel
+4. Verify user and skill details</pre></td>
+                <td class="col-expected"><pre>Details panel shows correct information</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify request can be approved</td>
+                <td class="col-type">interaction</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>API call was made with correct approved status when approve button was clicked</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Open request details
+3. Click 'Approve' button
+4. Verify API call</pre></td>
+                <td class="col-expected"><pre>Correct API call is made with approved status</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify request can be rejected with feedback</td>
+                <td class="col-type">interaction</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>API call was made with rejected status and feedback text when reject button was clicked after entering feedback</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Open request details
+3. Enter feedback text
+4. Click 'Reject' button
+5. Verify API call</pre></td>
+                <td class="col-expected"><pre>Correct API call is made with rejected status and feedback</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify documents can be viewed</td>
+                <td class="col-type">interaction</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Document was successfully fetched and opened when view button was clicked</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Open request details
+3. Click 'View' on a document
+4. Verify document fetch</pre></td>
+                <td class="col-expected"><pre>Document is fetched and opened</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify fetch errors are handled gracefully</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Error message was displayed when component received error response</pre></td>
+                <td class="col-steps"><pre>1. Render component with error response
+2. Wait for loading to complete
+3. Check error message</pre></td>
+                <td class="col-expected"><pre>Error message is displayed</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify empty state is shown when no requests</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Empty state message was displayed when component received empty response</pre></td>
+                <td class="col-steps"><pre>1. Render component with empty response
+2. Wait for loading to complete
+3. Check empty state message</pre></td>
+                <td class="col-expected"><pre>Empty state message is displayed</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify missing user data is handled</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Fallback text was shown for missing name fields when incomplete user data was provided</pre></td>
+                <td class="col-steps"><pre>1. Render component with missing name fields
+2. Wait for loading to complete
+3. Check user display</pre></td>
+                <td class="col-expected"><pre>Fallback text is shown for missing names</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify rejection requires feedback</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Reject button was disabled until feedback was entered, then became enabled</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Open request details
+3. Verify reject button is disabled
+4. Enter feedback
+5. Verify reject button is enabled</pre></td>
+                <td class="col-expected"><pre>Reject button only enabled with feedback</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify proper ARIA attributes</td>
+                <td class="col-type">accessibility</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Filter buttons had correct aria-pressed attributes and search field had proper aria-label</pre></td>
+                <td class="col-steps"><pre>1. Render component
+2. Check filter buttons for aria-pressed
+3. Check search field for aria-label</pre></td>
+                <td class="col-expected"><pre>Proper ARIA attributes are present</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify keyboard navigation works</td>
+                <td class="col-type">accessibility</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>All interactive elements were accessible via keyboard with visible focus states</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock data
+2. Tab through interactive elements
+3. Verify focus states</pre></td>
+                <td class="col-expected"><pre>All interactive elements are keyboard accessible</pre></td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 30px; padding: 20px; background-color: #f8fafc; border-radius: 8px;">
+        <h2>Test Execution Summary</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Total Tests</h3>
+                <div style="font-size: 24px; font-weight: bold;">15</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Passed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #16a34a;">15</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Failed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #dc2626;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Blocked</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #d97706;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Not Executed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #6b7280;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Pass Rate</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #10b981;">100%</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
