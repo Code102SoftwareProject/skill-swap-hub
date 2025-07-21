@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import Image from 'next/image';
 import {
   format,
   addMonths,
@@ -13,17 +12,21 @@ import {
   isSameMonth,
   isSameDay,
 } from 'date-fns';
+
 import { processAvatarUrl } from '@/utils/avatarUtils';
+
+import VerifiedAvatar from '@/components/VerifiedAvatar';
+
 
 type UserType = {
   _id: string;
   name: string;
   email: string;
   avatar?: string;
-  firstName?: string; // if your data splits name
+  firstName?: string;
   lastName?: string;
   title?: string;
-}; 
+};
 
 interface ProfileCardProps {
   userId: string;
@@ -32,10 +35,10 @@ interface ProfileCardProps {
 const ProfileCard = ({ userId }: ProfileCardProps) => {
   const [user, setUser] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
 
-  // Calendar controls
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
@@ -125,11 +128,10 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
         if (data.success) {
           setUser(data.user);
         } else {
-          console.error('User not found or error:', data.message);
           setUser(null);
         }
       } catch (error) {
-        console.error('Fetch user failed:', error);
+        console.error('Error fetching user:', error);
         setUser(null);
       } finally {
         setLoading(false);
@@ -142,8 +144,9 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
   if (!user) return <div>User not found</div>;
 
   return (
-    <div className="bg-white shadow-lg rounded-2xl p-6 w-full max-w-sm">
+    <div className="bg-white shadow-xl rounded-2xl p-6 w-full max-w-sm">
       <div className="flex flex-col items-center">
+
         <div className="w-24 h-24 rounded-full overflow-hidden">
           <Image
             src={processAvatarUrl(user.avatar) || '/profile.png'}
@@ -154,12 +157,20 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
           />
         </div>
         <h2 className="mt-4 text-lg font-semibold">
+
+        <VerifiedAvatar
+          userId={user._id}
+          avatarUrl={user.avatar}
+          size={96}
+        />
+        <h2 className="mt-4 text-lg font-semibold text-gray-800">
+
           {user.firstName} {user.lastName}
         </h2>
         <p className="text-sm text-gray-500">{user.title || 'No title provided'}</p>
       </div>
-	  
-	  <div className="mt-6">
+
+      <div className="mt-6">
         {renderHeader()}
         {renderDays()}
         <div className="mt-2">{calendarCells}</div>
