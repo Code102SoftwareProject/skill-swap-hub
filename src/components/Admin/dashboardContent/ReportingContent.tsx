@@ -7,7 +7,7 @@ import { ReportsTable } from "./reporting/ReportsTable";
 import type { EmailFlow } from "./reporting/types";
 import { ReportDetailsModal } from "./reporting/ReportDetailsModal";
 
-import { Mail, Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
 // Local interfaces to ensure TypeScript compatibility
 interface AdminReportUser {
   _id: string;
@@ -847,11 +847,11 @@ SkillSwapHub Admin Team`;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6  text-gray-900 dark:text-gray-900">
       <Card className="w-full">
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle className="text-2xl font-bold text-gray-900">
+            <CardTitle className="text-2xl font-bold text-gray-900 dark:text-gray-900">
               Admin Reports Dashboard
             </CardTitle>
             <p className="text-gray-600 mt-1">
