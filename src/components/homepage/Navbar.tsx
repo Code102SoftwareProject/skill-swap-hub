@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface NavbarProps {
   onSidebarToggle?: () => void;
@@ -103,8 +104,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
 
   const isLoggedIn = !!user && !isLoading;
   const displayName = user ? user.firstName : 'User';
-  // Use the same avatar logic as ProfileCard and UserNavBar
-  const userImage = user?.avatar ? `/api/file/retrieve?fileUrl=${encodeURIComponent(user.avatar)}` : '/Avatar.png';
+  // Use avatar utility to properly handle Google URLs and other avatar types
+  const userImage = processAvatarUrl(user?.avatar) || '/Avatar.png';
 
   return (
     <>

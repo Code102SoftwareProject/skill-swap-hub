@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext'; // Update the path if different
 import Image from 'next/image';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 
 export default function ProfileForm() {
@@ -204,7 +205,7 @@ export default function ProfileForm() {
               <Image
                 src={
                   formState.avatarUrl
-                    ? `/api/file/retrieve?fileUrl=${encodeURIComponent(formState.avatarUrl)}`
+                    ? processAvatarUrl(formState.avatarUrl) || '/default-avatar.png'
                     : '/default-avatar.png'
                 }
                 alt="Profile"

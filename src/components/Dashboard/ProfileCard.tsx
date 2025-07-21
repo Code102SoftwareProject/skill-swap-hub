@@ -12,7 +12,11 @@ import {
   isSameMonth,
   isSameDay,
 } from 'date-fns';
+
+import { processAvatarUrl } from '@/utils/avatarUtils';
+
 import VerifiedAvatar from '@/components/VerifiedAvatar';
+
 
 type UserType = {
   _id: string;
@@ -142,12 +146,25 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
   return (
     <div className="bg-white shadow-xl rounded-2xl p-6 w-full max-w-sm">
       <div className="flex flex-col items-center">
+
+        <div className="w-24 h-24 rounded-full overflow-hidden">
+          <Image
+            src={processAvatarUrl(user.avatar) || '/profile.png'}
+            alt="Profile"
+            width={96}
+            height={96}
+            className="object-cover w-full h-full"
+          />
+        </div>
+        <h2 className="mt-4 text-lg font-semibold">
+
         <VerifiedAvatar
           userId={user._id}
           avatarUrl={user.avatar}
           size={96}
         />
         <h2 className="mt-4 text-lg font-semibold text-gray-800">
+
           {user.firstName} {user.lastName}
         </h2>
         <p className="text-sm text-gray-500">{user.title || 'No title provided'}</p>
