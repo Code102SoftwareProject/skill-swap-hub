@@ -148,7 +148,7 @@ const ProfileCard = ({ userId }: ProfileCardProps) => {
       <div className="flex flex-col items-center">
         <VerifiedAvatar
           userId={user._id}
-          avatarUrl={user.avatar}
+          avatarUrl={processAvatarUrl(user.avatar)}
           size={96}
         />
         <h2 className="mt-4 text-lg font-semibold text-gray-800">
