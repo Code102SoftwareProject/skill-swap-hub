@@ -2,9 +2,6 @@ import cron from "node-cron";
 import { assignAllEligibleBadges } from "@/app/api/badge-assignments/badgeService";
 
 // Schedule badge assignment to run daily at midnight (00:00)
-// You can change the time by modifying the cron expression
-// Format: '0 0 * * *' = "At 00:00 (midnight) every day"
-// Format: '0 2 * * *' = "At 02:00 (2 AM) every day"
 
 const scheduleBadgeAssignment = () => {
   // Run daily at midnight
