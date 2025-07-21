@@ -13,7 +13,7 @@ interface CacheEntry<T> {
 class CacheService {
   private cache = new Map<string, CacheEntry<any>>();
   private readonly DEFAULT_TTL = 30000; // 30 seconds
-  private readonly SHORT_TTL = 10000; // 10 seconds
+
 
   /**
    * Get data from cache if valid, otherwise return null

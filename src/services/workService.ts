@@ -16,7 +16,7 @@ export interface ApiResponse<T = any> {
 
 export class WorkService {
   /**
-   * Upload a single file and return the URL
+   * ! Upload a single file and return the URL
    */
   static async uploadFile(file: File): Promise<string | null> {
     try {
