@@ -18,7 +18,9 @@ import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessSt
 
 // Import AdminManagementContent directly to avoid chunk loading issues
 import AdminManagementContent from "../../../components/Admin/dashboardContent/AdminManagementContent";
-import AdminModerationPanel from '@/components/Admin/dashboardContent/AdminModerationPanel';
+import AdminModerationPanel from "@/components/Admin/dashboardContent/AdminModerationPanel";
+
+import { cacheService } from "@/services/cacheService";
 
 // Constants to avoid magic strings
 const COMPONENTS = {
@@ -156,30 +158,47 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const verifyAdminAuth = async () => {
-      try {
-        // Use the same verification endpoint as AdminProtected component
-        const response = await fetch("/api/admin/verify-auth", {
-          method: "GET",
-          credentials: "include", // Important for cookies
-        });
+      const cacheKey = "admin_auth";
 
-        const data = await response.json();
-
-        if (!response.ok || !data.authenticated) {
-          console.log("Authentication failed, redirecting to login");
+      // 1) Try to read from cache
+      const cached = cacheService.get<{
+        authenticated: boolean;
+        admin?: Admin;
+      }>(cacheKey);
+      if (cached) {
+        // cache hit
+        if (!cached.authenticated) {
           setAuthError(
             "Your session has expired or you do not have admin privileges."
           );
-          setTimeout(() => {
-            router.replace("/admin/login");
-          }, 3000);
+          setTimeout(() => router.replace("/admin/login"), 3000);
+          return;
+        }
+        setAdminData(cached.admin!);
+        setIsLoading(false);
+        return;
+      }
+
+      // 2) Cache miss → fetch from server
+      try {
+        const response = await fetch("/api/admin/verify-auth", {
+          method: "GET",
+          credentials: "include",
+        });
+        const data = await response.json();
+
+        // Store the raw result in cache (TTL = 30s)
+        cacheService.set(cacheKey, data);
+
+        if (!response.ok || !data.authenticated) {
+          setAuthError(
+            "Your session has expired or you do not have admin privileges."
+          );
+          setTimeout(() => router.replace("/admin/login"), 3000);
           return;
         }
 
-        // Authentication is valid, store admin data
-        if (data.admin) {
-          setAdminData(data.admin);
-        }
+        setAdminData(data.admin);
         setIsLoading(false);
       } catch (error) {
         console.error("Authentication error:", error);
@@ -190,12 +209,9 @@ export default function AdminDashboard() {
           "error",
           "Authentication failed. Redirecting to login page..."
         );
-        setTimeout(() => {
-          router.replace("/admin/login");
-        }, 3000);
+        setTimeout(() => router.replace("/admin/login"), 3000);
       }
     };
-
     verifyAdminAuth();
   }, [router]);
 
@@ -212,6 +228,9 @@ export default function AdminDashboard() {
       if (!response.ok) {
         throw new Error("Logout failed");
       }
+
+      //  Invalidate cached auth so we re-fetch on next visit
+      cacheService.invalidate("admin_auth");
 
       addToast("success", "Logout successful. Redirecting...");
       // Force redirect to login page
@@ -311,10 +330,12 @@ export default function AdminDashboard() {
           return (
             <SuggestionsContent
               key={activeComponent}
-              onNavigateToPanel={() => setActiveComponent('AdminModerationPanel')}
+              onNavigateToPanel={() =>
+                setActiveComponent("AdminModerationPanel")
+              }
             />
           );
-        case 'AdminModerationPanel':
+        case "AdminModerationPanel":
           return <AdminModerationPanel key={activeComponent} />;
         case COMPONENTS.SYSTEM:
           return <SystemContent key={activeComponent} />;
