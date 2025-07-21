@@ -24,7 +24,9 @@ interface OnlineLogResponse {
   message?: string;
   data?: {
     userId: string;
-    lastOnline: string;
+    lastOnline: string | Date;
+    _id?: string;
+    __v?: number;
   };
 }
 
@@ -172,6 +174,7 @@ export async function fetchLastOnline(userId: string) {
     const data = (await response.json()) as OnlineLogResponse;
 
     if (data.success && data.data?.lastOnline) {
+      // The API returns the full OnlineLog document, so extract the lastOnline field
       return data.data.lastOnline;
     }
 

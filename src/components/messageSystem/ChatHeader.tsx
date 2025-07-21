@@ -60,6 +60,26 @@ export default function ChatHeader({
     }
   }, [initialParticipantInfo, otherUserId]);
 
+  // Main effect for handling chat changes and user status
+  useEffect(() => {
+    // Reset all user-related state immediately when chat changes
+    setLastOnline(null);
+    setOtherUserName(initialParticipantInfo?.name || "Chat Participant");
+    
+    // Set otherUserId immediately if available from initialParticipantInfo
+    if (initialParticipantInfo?.id) {
+      setOtherUserId(initialParticipantInfo.id);
+      
+      // Use a small delay to fetch last online data
+      const timeoutId = setTimeout(() => {
+        // Always fetch last online data, let the component decide what to show
+        fetchUserLastOnline(initialParticipantInfo.id);
+      }, 200);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [chatRoomId, initialParticipantInfo]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -111,7 +131,7 @@ export default function ChatHeader({
       const lastOnlineData = await fetchLastOnline(id);
 
       if (lastOnlineData) {
-        const parsedDate = parseISO(lastOnlineData);
+        const parsedDate = parseISO(lastOnlineData.toString());
         if (!isNaN(parsedDate.getTime())) {
           setLastOnline(parsedDate);
         } else {
@@ -127,9 +147,6 @@ export default function ChatHeader({
       setLastOnline(null);
     }
   };
-
-  // Memoized function to avoid recreating it on every render
-  const fetchUserLastOnlineMemoized = useCallback(fetchUserLastOnline, []);
 
   const checkActiveSessions = useCallback(async () => {
     try {
@@ -150,17 +167,6 @@ export default function ChatHeader({
       setHasActiveMeetings(false);
     }
   }, [userId]);
-
-  // Fetch last online time when user goes offline (using onlineUsers from context)
-  useEffect(() => {
-    if (otherUserId && !isOnline && !lastOnline) {
-      // Only fetch if user is offline and we don't have last online data
-      fetchUserLastOnlineMemoized(otherUserId);
-    } else if (otherUserId && isOnline) {
-      // Clear last online when user comes online
-      setLastOnline(null);
-    }
-  }, [otherUserId, isOnline, lastOnline, fetchUserLastOnlineMemoized]);
 
   // Request online users list when otherUserId is available
   useEffect(() => {
@@ -209,10 +215,8 @@ export default function ChatHeader({
 
     const handleUserOffline = (data: { userId: string }) => {
       if (data.userId === otherUserId) {
-        // User went offline - fetch updated last online time with slight delay
-        setTimeout(() => {
-          fetchUserLastOnlineMemoized(otherUserId);
-        }, 500); // Reduced delay for faster updates
+        // User went offline - fetch updated last online time immediately
+        fetchUserLastOnline(otherUserId);
       }
     };
 
@@ -224,7 +228,7 @@ export default function ChatHeader({
       socket.off("user_online", handleUserOnline);
       socket.off("user_offline", handleUserOffline);
     };
-  }, [socket, otherUserId, refreshOnlineUsers, fetchUserLastOnlineMemoized]);
+  }, [socket, otherUserId, refreshOnlineUsers]);
 
   useEffect(() => {
     if (!socket || !otherUserId) return;
