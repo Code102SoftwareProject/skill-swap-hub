@@ -91,8 +91,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             {/* Status Badge Only */}
             <div className="flex flex-col items-end gap-1">
               <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color}`}>
-                <StatusIcon className="w-3 h-3 mr-1" />
-                {statusConfig.text}
+                <StatusIcon className="w-3 h-3" />
               </span>
             </div>
           </div>
