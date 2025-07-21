@@ -5,7 +5,6 @@ import React, {
   useContext,
   useState,
   useEffect,
-  useCallback,
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
@@ -78,59 +77,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [sessionTimer, setSessionTimer] = useState<NodeJS.Timeout | null>(null);
   const router = useRouter();
 
-  // Clear session timer (handles both setTimeout and setInterval)
-  const clearSessionTimer = useCallback(() => {
-    if (sessionTimer) {
-      // Clear both timeout and interval (one will be a no-op)
-      clearTimeout(sessionTimer);
-      clearInterval(sessionTimer);
-      setSessionTimer(null);
-      console.log("🧹 Session timer/interval cleared");
-    }
-  }, [sessionTimer]);
-
-  // PROTECTED session expiry handler - ONLY ONE POPUP
-  const handleSessionExpiry = useCallback(() => {
-    // STRONG PROTECTION: Prevent any duplicate calls
-    if (isSessionExpiring || isSessionExpired || hasSessionExpired) {
-      console.log("❌ Session expiry already handled, ignoring duplicate call");
-      return;
-    }
-
-    console.log("✅ Session expired - showing popup (FIRST TIME ONLY)");
-
-    // Set ALL protection flags immediately
-    setIsSessionExpiring(true);
-    setHasSessionExpired(true);
-
-    // Clear timer first
-    if (sessionTimer) {
-      clearTimeout(sessionTimer);
-      clearInterval(sessionTimer);
-      setSessionTimer(null);
-    }
-
-    // Clear all auth data
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user");
-    localStorage.removeItem("resetToken");
-    localStorage.removeItem("resetEmail");
-
-    // Reset auth state
-    setToken(null);
-    setUser(null);
-
-    // Show the popup
-    setIsSessionExpired(true);
-
-    // Reset protection flag after modal shows
-    setTimeout(() => {
-      setIsSessionExpiring(false);
-    }, 1000);
-  }, [isSessionExpiring, isSessionExpired, hasSessionExpired, sessionTimer]);
-
   // Setup automatic session expiry timer
-  const setupSessionTimer = useCallback((tokenToMonitor: string) => {
+  const setupSessionTimer = (tokenToMonitor: string) => {
     // Clear any existing timer
     if (sessionTimer) {
       clearTimeout(sessionTimer);
@@ -181,7 +129,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setSessionTimer(timer);
     }
-  }, [sessionTimer, handleSessionExpiry]);
+  };
+
+  // Clear session timer (handles both setTimeout and setInterval)
+  const clearSessionTimer = () => {
+    if (sessionTimer) {
+      // Clear both timeout and interval (one will be a no-op)
+      clearTimeout(sessionTimer);
+      clearInterval(sessionTimer);
+      setSessionTimer(null);
+      console.log("🧹 Session timer/interval cleared");
+    }
+  };
+
+  // PROTECTED session expiry handler - ONLY ONE POPUP
+  const handleSessionExpiry = () => {
+    // STRONG PROTECTION: Prevent any duplicate calls
+    if (isSessionExpiring || isSessionExpired || hasSessionExpired) {
+      console.log("❌ Session expiry already handled, ignoring duplicate call");
+      return;
+    }
+
+    console.log("✅ Session expired - showing popup (FIRST TIME ONLY)");
+
+    // Set ALL protection flags immediately
+    setIsSessionExpiring(true);
+    setHasSessionExpired(true);
+
+    // Clear timer
+    clearSessionTimer();
+
+    // Clear all auth data
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("resetToken");
+    localStorage.removeItem("resetEmail");
+
+    // Reset auth state
+    setToken(null);
+    setUser(null);
+
+    // Show the popup
+    setIsSessionExpired(true);
+
+    // Reset protection flag after modal shows
+    setTimeout(() => {
+      setIsSessionExpiring(false);
+    }, 1000);
+  };
 
   // Initialize auth on app start
   useEffect(() => {
@@ -259,7 +254,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearSessionTimer();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Login function
