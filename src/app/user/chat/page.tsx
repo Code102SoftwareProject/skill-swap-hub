@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { IMessage } from "@/types/chat";
 import { ChevronRight } from "lucide-react";
 
@@ -25,6 +26,7 @@ export default function ChatPage() {
   // * Authentication state from context
   const { user, isLoading: authLoading } = useAuth();
   const userId = user?._id;
+  const searchParams = useSearchParams(); // Get URL search parameters
 
   // * Get socket from context instead of managing it locally
   const { socket, joinRoom, sendMessage, startTyping, stopTyping} = useSocket();
@@ -44,6 +46,17 @@ export default function ChatPage() {
   const [sessionUpdateTrigger, setSessionUpdateTrigger] = useState<number>(0);
   const [messagesPreloaded, setMessagesPreloaded] = useState<boolean>(false);
   const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
+  const [forceRefresh, setForceRefresh] = useState<boolean>(false); // Add state to force refresh
+
+  // Check if user came from dashboard (via URL param or recent navigation)
+  useEffect(() => {
+    const fromDashboard = searchParams.get('from') === 'dashboard';
+    if (fromDashboard) {
+      setForceRefresh(true);
+      // Reset the flag after a short delay to avoid affecting subsequent navigations
+      setTimeout(() => setForceRefresh(false), 1000);
+    }
+  }, [searchParams]);
 
   /**
    * * Event Handlers
@@ -306,6 +319,7 @@ export default function ChatPage() {
                     participantInfo={selectedParticipantInfo}
                     showSearch={showSearch}
                     onCloseSearch={() => setShowSearch(false)}
+                    skipCache={forceRefresh}
                   />
                 )}
               </div>

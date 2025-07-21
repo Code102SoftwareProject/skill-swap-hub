@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/context/AuthContext';
 import { useNotifications } from '@/lib/hooks/useNotifications';
 import { useUnreadMessages } from '@/lib/hooks/useUnreadMessages';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface NavbarProps {
   onSidebarToggle?: () => void;
@@ -103,7 +104,8 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
 
   const isLoggedIn = !!user && !isLoading;
   const displayName = user ? user.firstName : 'User';
-  const userImage = user?.avatar || '/Avatar.png';
+  // Use avatar utility to properly handle Google URLs and other avatar types
+  const userImage = processAvatarUrl(user?.avatar) || '/Avatar.png';
 
   return (
     <>
@@ -166,7 +168,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                       alt={displayName}
                       width={32}
                       height={32}
-                      className="object-cover"
+                      className="object-cover w-full h-full"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/Avatar.png';
+                        target.onerror = null;
+                      }}
                     />
                   </div>
                   <span className="font-medium">{displayName}</span>
@@ -269,7 +276,12 @@ const Navbar: React.FC<NavbarProps> = ({ onSidebarToggle, showSidebarToggle = fa
                     alt={displayName}
                     width={40}
                     height={40}
-                    className="object-cover"
+                    className="object-cover w-full h-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/Avatar.png';
+                      target.onerror = null;
+                    }}
                   />
                 </div>
                 <span className="font-medium text-white">{displayName}</span>

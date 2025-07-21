@@ -1,0 +1,218 @@
+
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Skill Listings Test Results</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+                        .header h1 { margin: 0 0 10px 0; color: #333; }
+                        .header p { margin: 5px 0; color: #666; }
+                        table { border-collapse: collapse; width: 100%; font-size: 12px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }
+                        th { background-color: #f2f2f2; font-weight: bold; }
+                        .pass { background-color: #d4edda; color: #155724; }
+                        .fail { background-color: #f8d7da; color: #721c24; }
+                        .blocked { background-color: #fff3cd; color: #856404; }
+                        .not-executed { background-color: #e2e3e5; color: #383d41; }
+                        .test-id { font-weight: bold; }
+                        .priority-high { color: #dc3545; font-weight: bold; }
+                        .priority-medium { color: #fd7e14; font-weight: bold; }
+                        .priority-low { color: #20c997; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📋 Skill Listings Test Results</h1>
+                        <p><strong>Tester:</strong> Aditha Buwaneka</p>
+                        <p><strong>Version:</strong> Not specified</p>
+                        <p><strong>Browser:</strong> chrome</p>
+                        <p><strong>Device:</strong> desktop</p>
+                        <p><strong>Test Date:</strong> 2025-07-18</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Test Case ID</th>
+                                <th>Test Name</th>
+                                <th>Category</th>
+                                <th>Priority</th>
+                                <th>Expected Result</th>
+                                <th>Actual Result</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            
+                    <tr>
+                        <td class="test-id">TC-LIST-001</td>
+                        <td>Create New Skill Listing - Valid Data</td>
+                        <td>create</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Listing created successfully, appears in user's listings with active status</td>
+                        <td>Created listing: Offering 'React' (Expert level) seeking 'Vue.js' with description 'Experienced React developer looking to learn Vue.js for new project', availability 'Weekends', status: Active</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-002</td>
+                        <td>Create Listing - Dual-Panel Interface</td>
+                        <td>create</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Dual-panel interface clearly separates offering and seeking skills with proper validation</td>
+                        <td>Offering panel populated with 8 user skills, selected 'JavaScript', seeking panel loaded Programming category with 15 skills, selected 'TypeScript', both panels showed selections clearly</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-003</td>
+                        <td>View All User Listings</td>
+                        <td>display</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>All user listings displayed with clear information layout and pagination</td>
+                        <td> 5 listings displayed: 3 Active, 2 Not Active. Each showing offering skill, seeking skill, creation date, and clear status badges with proper pagination controls</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-004</td>
+                        <td>Listing Search and Filter</td>
+                        <td>search</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Search and filtering work correctly with real-time results</td>
+                        <td>Search 'React' found 2 listings, filter 'Active' showed 3 listings, filter 'Programming' showed 6 listings, clear filters restored all 8 listings</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-005</td>
+                        <td>Edit Listing - Unprotected</td>
+                        <td>edit</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Listing updated successfully with new information</td>
+                        <td>Updated listing: Changed seeking skill from 'Vue.js' to 'Angular', updated availability from 'Weekends' to 'Evenings', added tag 'remote-friendly', changes saved successfully</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-006</td>
+                        <td>Edit Listing - Protection System</td>
+                        <td>protection</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Edit functionality disabled with clear explanation of protection reason</td>
+                        <td>Edit button disabled for React/Vue listing, tooltip shows: 'Cannot edit - involved in 2 active matches: TC-MATCH-001 (pending), TC-MATCH-002 (accepted)'</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-007</td>
+                        <td>Delete Listing - Unprotected</td>
+                        <td>delete</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Listing deleted successfully with confirmation</td>
+                        <td> HTML/CSS listing deleted after confirmation modal, removed from listings display, success toast: 'Listing deleted successfully'</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-008</td>
+                        <td>Delete Listing - Protection Validation</td>
+                        <td>protection</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Delete functionality blocked with detailed match information</td>
+                        <td>Delete button disabled, error modal: 'Cannot delete - this listing is involved in active skill matches: Exact match with John Doe (TC-MATCH-003), Partial match with Jane Smith (TC-MATCH-007)'</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-009</td>
+                        <td>Listing Status Management</td>
+                        <td>status</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Status changes work correctly and affect listing visibility in matching</td>
+                        <td>JavaScript listing toggled from Active to Not Active, status badge updated, listing excluded from new matches, toggle back to Active restored matching eligibility</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-010</td>
+                        <td>Listing Match Status Indicators</td>
+                        <td>display</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Clear visual indicators show which listings are involved in matches</td>
+                        <td>React listing shows 'In 2 Matches' badge, Python listing shows 'Pending Match' indicator, badges clickable to view match details</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-011</td>
+                        <td>Listing Statistics Display</td>
+                        <td>display</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Accurate statistics displayed with clear visual representation</td>
+                        <td>Statistics show: Total: 8 listings, Active: 5, Not Active: 3, In Matches: 3, Protected: 2, with color-coded indicators for each category</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-012</td>
+                        <td>Listing Form Validation</td>
+                        <td>create</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>Form validation prevents invalid submissions with clear error messages</td>
+                        <td> Form blocked with missing offering skill, description over 500 chars showed error, identical offering/seeking skills prevented, invalid tags format rejected</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-013</td>
+                        <td>Listing Availability and Tags</td>
+                        <td>create</td>
+                        <td class="priority-low">LOW</td>
+                        <td>Availability and tags are stored and displayed correctly</td>
+                        <td>Availability 'Monday-Friday evenings' saved correctly, tags 'remote, flexible, project-based' processed as separate tags, displayed as clickable badges</td>
+                        <td class="blocked">BLOCKED</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-014</td>
+                        <td>Real-time Match Protection Updates</td>
+                        <td>protection</td>
+                        <td class="priority-high">HIGH</td>
+                        <td>Protection status updates in real-time when matches change</td>
+                        <td> Vue.js listing protected during pending match, became editable when match was rejected, protection badge removed, edit/delete buttons enabled</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                    <tr>
+                        <td class="test-id">TC-LIST-015</td>
+                        <td>Mobile Responsive Listing Interface</td>
+                        <td>display</td>
+                        <td class="priority-medium">MEDIUM</td>
+                        <td>All listing functionality works properly on mobile with responsive design</td>
+                        <td> Mobile view shows listings in single column, create form adapts to screen, all buttons accessible via touch, dual-panel form stacks vertically</td>
+                        <td class="pass">PASS</td>
+                        <td>-</td>
+                    </tr>
+                
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            

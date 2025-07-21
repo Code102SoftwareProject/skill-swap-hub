@@ -13,7 +13,7 @@ export async function GET(
   try {
     await connect();
 
-    // Await the params Promise
+    // Fix: Destructure params after awaiting
     const { id: userId } = await params;
 
     if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {

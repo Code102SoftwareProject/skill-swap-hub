@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PersonalizedFeed Test Results - Table</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; color: #333; }
+        h1 { color: #059669; }
+        table { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 20px; table-layout: fixed; }
+        th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: left; vertical-align: top; word-wrap: break-word; }
+        th { background-color: #f8fafc; font-weight: 600; color: #374151; }
+        tr:nth-child(even) { background-color: #f8fafc; }
+        .status-pass { color: #16a34a; font-weight: bold; }
+        .status-fail { color: #dc2626; font-weight: bold; }
+        .status-blocked { color: #d97706; font-weight: bold; }
+        .status-not-executed { color: #6b7280; }
+        
+        .col-objective { width: 25%; }
+        .col-type { width: 10%; }
+        .col-priority { width: 8%; }
+        .col-status { width: 8%; }
+        .col-result { width: 25%; }
+        .col-steps { width: 12%; }
+        .col-expected { width: 12%; }
+        
+        pre { margin: 0; white-space: pre-wrap; font-family: inherit; }
+    </style>
+</head>
+<body>
+    <h1>PersonalizedFeed Test Results</h1>
+    <p><strong>Tester:</strong> Nethmal</p>
+    <p><strong>Version:</strong> N/A</p>
+    <p><strong>Browser:</strong> Chrome</p>
+    <p><strong>Export Date:</strong> 2025-07-21</p>
+    <table>
+        <thead>
+            <tr>
+                <th class="col-objective">Objective</th>
+                <th class="col-type">Type</th>
+                <th class="col-priority">Priority</th>
+                <th class="col-status">Status</th>
+                <th class="col-result">Actual Result</th>
+                <th class="col-steps">Test Steps</th>
+                <th class="col-expected">Expected Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="col-objective">Verify the component renders without crashing</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Component rendered successfully without any errors</pre></td>
+                <td class="col-steps"><pre>1. Import PersonalizedFeed component
+2. Render the component
+3. Check for any rendering errors</pre></td>
+                <td class="col-expected"><pre>Component renders without crashing</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify custom className is applied</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Custom className was successfully applied to the root element</pre></td>
+                <td class="col-steps"><pre>1. Render component with className prop
+2. Inspect DOM element
+3. Check for applied className</pre></td>
+                <td class="col-expected"><pre>Custom className is applied to root element</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify loading spinner is shown initially</td>
+                <td class="col-type">rendering</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Loading spinner appeared during initial load as expected</pre></td>
+                <td class="col-steps"><pre>1. Render the component
+2. Check for loading spinner element
+3. Verify spinner is visible</pre></td>
+                <td class="col-expected"><pre>Loading spinner is shown during initial load</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify post titles are displayed</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>All post titles were displayed correctly with mock data</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Check for post title in DOM</pre></td>
+                <td class="col-expected"><pre>Post title is displayed correctly</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify author names are displayed</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Author names appeared correctly for all posts</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Check for author name in DOM</pre></td>
+                <td class="col-expected"><pre>Author name is displayed correctly</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify forum titles are displayed</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Forum titles were displayed correctly for each post</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Check for forum title in DOM</pre></td>
+                <td class="col-expected"><pre>Forum title is displayed correctly</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify watch buttons are rendered</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Watch buttons appeared for each post as expected</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Check for watch buttons in DOM</pre></td>
+                <td class="col-expected"><pre>Watch buttons are rendered for each post</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify 'Trending Posts' title is shown by default</td>
+                <td class="col-type">data</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Default 'Trending Posts' title was displayed correctly</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Check for 'Trending Posts' title</pre></td>
+                <td class="col-expected"><pre>'Trending Posts' title is displayed by default</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify component handles API errors gracefully</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Component displayed error state without crashing when API error occurred</pre></td>
+                <td class="col-steps"><pre>1. Render component with error response
+2. Wait for loading to complete
+3. Check component state</pre></td>
+                <td class="col-expected"><pre>Component handles errors without crashing</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify empty posts response is handled</td>
+                <td class="col-type">error</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Empty state message was shown when no posts were available</pre></td>
+                <td class="col-steps"><pre>1. Render component with empty posts response
+2. Wait for loading to complete
+3. Check for empty state message</pre></td>
+                <td class="col-expected"><pre>Empty state message is shown when no posts exist</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify watch buttons are interactive</td>
+                <td class="col-type">interaction</td>
+                <td class="col-priority">high</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Watch buttons responded to clicks and triggered handlers correctly</pre></td>
+                <td class="col-steps"><pre>1. Render component with mock post data
+2. Wait for loading to complete
+3. Click watch button
+4. Verify click handler is called</pre></td>
+                <td class="col-expected"><pre>Watch buttons are clickable and trigger handlers</pre></td>
+            </tr>
+            <tr>
+                <td class="col-objective">Verify responsive layout behavior</td>
+                <td class="col-type">style</td>
+                <td class="col-priority">medium</td>
+                <td class="status-pass col-status">Pass</td>
+                <td class="col-result"><pre>Component adapted correctly to different screen sizes from mobile to desktop</pre></td>
+                <td class="col-steps"><pre>1. Render component
+2. Test at different viewport sizes
+3. Check layout adjustments</pre></td>
+                <td class="col-expected"><pre>Component adapts to different screen sizes</pre></td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div style="margin-top: 30px; padding: 20px; background-color: #f8fafc; border-radius: 8px;">
+        <h2>Test Execution Summary</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px;">
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Total Tests</h3>
+                <div style="font-size: 24px; font-weight: bold;">12</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Passed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #16a34a;">12</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Failed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #dc2626;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Blocked</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #d97706;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Not Executed</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #6b7280;">0</div>
+            </div>
+            <div style="background: white; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
+                <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #374151;">Pass Rate</h3>
+                <div style="font-size: 24px; font-weight: bold; color: #10b981;">100%</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

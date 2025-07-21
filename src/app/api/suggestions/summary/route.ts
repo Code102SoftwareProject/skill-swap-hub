@@ -29,21 +29,31 @@ export async function GET() {
   try {
     await connect();
 
-    // Only fetch pending suggestions
-    const suggestions = await Suggestion.find({ status: 'Pending' });
+    // Fetch pending suggestions and populate user info to check blocked status
+    const suggestions = await Suggestion.find({ status: 'Pending' }).populate('userId', 'isBlocked');
+    
+    // Filter out suggestions from blocked users
+    const filteredSuggestions = suggestions.filter(suggestion => {
+      // If userId is populated and user is blocked, exclude the suggestion
+      if (suggestion.userId && typeof suggestion.userId === 'object' && 'isBlocked' in suggestion.userId) {
+        return !suggestion.userId.isBlocked;
+      }
+      // If userId is not populated or doesn't have isBlocked field, include the suggestion
+      return true;
+    });
 
-    // If no pending suggestions, return empty summary
-    if (suggestions.length === 0) {
+    // If no pending suggestions from non-blocked users, return empty summary
+    if (filteredSuggestions.length === 0) {
       return NextResponse.json({ 
         totalGroups: 0, 
         summary: [],
-        message: 'No pending suggestions found',
+        message: 'No pending suggestions from active users found',
         insights: null
       });
     }
 
     // STEP 1: Category Analysis
-    const categoryStats = suggestions.reduce((acc: Record<string, { suggestions: any[], totalLength: number, words: Set<string> }>, suggestion) => {
+    const categoryStats = filteredSuggestions.reduce((acc: Record<string, { suggestions: any[], totalLength: number, words: Set<string> }>, suggestion) => {
       if (!acc[suggestion.category]) {
         acc[suggestion.category] = {
           suggestions: [],
@@ -71,7 +81,7 @@ export async function GET() {
     const categoryAnalysis: CategoryAnalysis[] = Object.entries(categoryStats).map(([category, stats]) => {
       const typedStats = stats as { suggestions: any[], totalLength: number, words: Set<string> };
       const count = typedStats.suggestions.length;
-      const percentage = (count / suggestions.length) * 100;
+      const percentage = (count / filteredSuggestions.length) * 100;
       const avgLength = Math.round(typedStats.totalLength / count);
       
       // Find common words in this category
@@ -107,22 +117,22 @@ export async function GET() {
 
     // STEP 3: Generate Overall Insights
     const insights: SummaryInsights = {
-      totalPending: suggestions.length,
+      totalPending: filteredSuggestions.length,
       categoryBreakdown: categoryAnalysis.sort((a, b) => b.count - a.count),
       topCategories: categoryAnalysis.slice(0, 3).map(c => c.category),
       urgentCategories: categoryAnalysis.filter(c => c.priority === 'high').map(c => c.category),
-      commonThemes: extractCommonThemes(suggestions),
+      commonThemes: extractCommonThemes(filteredSuggestions),
       actionRecommendations: generateActionRecommendations(categoryAnalysis),
       processingTime: Date.now()
     };
 
     // STEP 4: Similarity Analysis (Enhanced)
-    const similarityGroups = performSimilarityAnalysis(suggestions);
+    const similarityGroups = performSimilarityAnalysis(filteredSuggestions);
 
     return NextResponse.json({ 
       totalGroups: similarityGroups.length, 
       summary: similarityGroups,
-      totalPending: suggestions.length,
+      totalPending: filteredSuggestions.length,
       insights
     });
   } catch (error) {
