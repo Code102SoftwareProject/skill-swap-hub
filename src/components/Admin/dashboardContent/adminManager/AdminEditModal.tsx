@@ -200,60 +200,47 @@ export default function AdminEditModal({
               Permissions
             </label>
             <div className="border border-gray-300 rounded-lg p-3 max-h-40 overflow-y-auto">
-              {form.role === ROLE_SUPER_ADMIN ? (
-                // Super admin sees all permissions pre-checked
-                <div className="space-y-2">
-                  {availablePermissions.map((permission) => (
-                    <div
-                      key={permission.key}
-                      className="flex items-start bg-purple-50 p-2 rounded"
-                    >
-                      <CheckCircle className="mt-1 h-4 w-4 text-purple-600 flex-shrink-0" />
-                      <div className="ml-2 block text-sm">
-                        <span className="font-medium text-gray-900">
-                          {permission.label}
-                        </span>
-                        <span className="text-gray-500 block text-xs">
-                          {permission.description}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                // Regular admin can toggle each permission
-                <div className="space-y-2">
-                  {availablePermissions.map((permission) => (
-                    <div
-                      key={permission.key}
-                      className="flex items-start bg-gray-50 p-2 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={form.permissions.includes(permission.key)}
-                        onChange={() => {
-                          const has = form.permissions.includes(permission.key);
-                          const updated = has
-                            ? form.permissions.filter(
-                                (p) => p !== permission.key
-                              )
-                            : [...form.permissions, permission.key];
-                          onChange({ ...form, permissions: updated });
-                        }}
-                        className="mr-2"
-                      />
-                      <div className="block text-sm">
-                        <span className="font-medium text-gray-900">
-                          {permission.label}
-                        </span>
-                        <span className="text-gray-500 block text-xs">
-                          {permission.description}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* read-only list for both roles */}
+<div className="space-y-2">
+  {availablePermissions
+    .filter(p =>
+      form.role === ROLE_SUPER_ADMIN ||
+      (form.role === ROLE_ADMIN && p.key !== "manage_admins")
+    )
+    .map(p => (
+      <div
+        key={p.key}
+        className={`flex items-start p-2 rounded ${
+          form.role === ROLE_SUPER_ADMIN ? "bg-purple-50" : "bg-gray-50"
+        }`}
+      >
+        <CheckCircle
+          className={`mt-1 h-4 w-4 flex-shrink-0 ${
+            form.role === ROLE_SUPER_ADMIN
+              ? "text-purple-600"
+              : "text-green-600"
+          }`}
+        />
+        <div className="ml-2 text-sm">
+          <div className="font-medium text-gray-900">{p.label}</div>
+          <div className="text-xs text-gray-500">{p.description}</div>
+        </div>
+      </div>
+    ))}
+  {form.role === ROLE_ADMIN && (
+    <div className="flex items-start bg-red-50 p-2 rounded">
+      <XCircle className="mt-1 h-4 w-4 text-red-600 flex-shrink-0" />
+      <div className="ml-2 text-sm">
+        <div className="font-medium text-gray-900">Manage Admins</div>
+        <div className="text-xs text-red-500">
+          Not available for regular admins
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
+              
             </div>
           </div>
 
