@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 🔥 TESTING: Generate JWT token with 10 second expiry for normal login
+    // Generate JWT token with appropriate expiry based on Remember Me
     const token = jwt.sign(
       {
         userId: user._id,
@@ -75,19 +75,19 @@ export async function POST(req: Request) {
         name: `${user.firstName} ${user.lastName}`,
       },
       process.env.JWT_SECRET as string,
-      { expiresIn: rememberMe ? "30d" : "24h" } // 🚨 10 SECONDS FOR TESTING
+      { expiresIn: rememberMe ? "30d" : "24h" }
     );
 
-    // Optional: Log for debugging
+    // Log for debugging
     console.log(
-      "🧪 TEST TOKEN: Normal login expires in 10 seconds, Remember Me in 30 days"
+      `🔐 Token generated: ${rememberMe ? "Remember Me (30 days)" : "Normal login (24 hours)"}`
     );
     console.log("🕐 Current time:", new Date().toLocaleTimeString());
     console.log(
       "⏰ Token will expire at:",
       new Date(
-        Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 10000)
-      ).toLocaleTimeString()
+        Date.now() + (rememberMe ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000)
+      ).toLocaleString()
     );
 
     // Return success response with token and user info

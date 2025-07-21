@@ -12,11 +12,6 @@
 export function processAvatarUrl(avatarUrl: string | undefined, size?: 'small' | 'medium' | 'large'): string | undefined {
   if (!avatarUrl) return undefined;
 
-  // If it's already a relative URL or doesn't need processing, return as-is
-  if (avatarUrl.startsWith('/') || avatarUrl.startsWith('data:') || avatarUrl.startsWith('blob:')) {
-    return avatarUrl;
-  }
-
   // Build the API URL with optional size parameter
   const buildApiUrl = (baseParam: string, value: string) => {
     const url = new URL('/api/file/retrieve', typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
@@ -27,9 +22,23 @@ export function processAvatarUrl(avatarUrl: string | undefined, size?: 'small' |
     return url.toString();
   };
 
-  // If it's an R2 URL, convert to use retrieval API
-  if (avatarUrl.includes('r2.cloudflarestorage.com') || avatarUrl.includes('skillswaphub')) {
-    return buildApiUrl('fileUrl', avatarUrl);
+  // If it's already a relative URL or doesn't need processing, return as-is
+  if (avatarUrl.startsWith('/') || avatarUrl.startsWith('data:') || avatarUrl.startsWith('blob:')) {
+    return avatarUrl;
+  }
+
+  // If it's a Google profile picture URL, use it directly (don't route through file API)
+  if (avatarUrl.includes('googleusercontent.com') || avatarUrl.includes('googleapis.com')) {
+    return avatarUrl;
+  }
+
+  // If it's any other external URL (social media avatars, etc.), use directly
+  if (avatarUrl.startsWith('http://') || avatarUrl.startsWith('https://')) {
+    // Only route through file API if it's from our own storage domains
+    if (avatarUrl.includes('r2.cloudflarestorage.com') || avatarUrl.includes('skillswaphub')) {
+      return buildApiUrl('fileUrl', avatarUrl);
+    }
+    return avatarUrl;
   }
 
   // If it's a direct filename (like avatars/userId-timestamp-filename.jpg)
@@ -37,8 +46,8 @@ export function processAvatarUrl(avatarUrl: string | undefined, size?: 'small' |
     return buildApiUrl('file', avatarUrl);
   }
 
-  // For other URLs, try direct access first
-  return avatarUrl;
+  // For any other case, assume it's a filename and route through API
+  return buildApiUrl('file', avatarUrl);
 }
 
 /**

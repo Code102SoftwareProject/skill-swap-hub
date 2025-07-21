@@ -15,6 +15,7 @@ import VerificationRequests from "@/components/Admin/skillverifications";
 import ReportingContent from "@/components/Admin/dashboardContent/ReportingContent";
 import ForumReportsContent from "@/components/Admin/dashboardContent/ForumReportsContent";
 import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessStoriesContent";
+import InboxContent from '@/components/Admin/dashboardContent/InboxContent';
 
 // Import AdminManagementContent directly to avoid chunk loading issues
 import AdminManagementContent from "../../../components/Admin/dashboardContent/AdminManagementContent";
@@ -33,6 +34,7 @@ const COMPONENTS = {
   VERIFY_DOCUMENTS: "verify-documents",
   REPORTING: "reporting",
   FORUM_REPORTS: "forum-reports",
+  INBOX: "inbox", // Add this line
 };
 
 // Define interface for Admin data
@@ -324,6 +326,8 @@ export default function AdminDashboard() {
           return <ReportingContent key={activeComponent} />;
         case COMPONENTS.FORUM_REPORTS:
           return <ForumReportsContent key={activeComponent} />;
+        case COMPONENTS.INBOX:
+          return <InboxContent key={activeComponent} />;
         default:
           return <DashboardContent key={activeComponent} />;
       }
@@ -335,7 +339,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Toast notification container - fixed position in the top right corner */}
       <div className="fixed top-4 right-4 z-50 w-80">
         {toasts.map((toast) => (
@@ -343,20 +347,24 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Left sidebar with navigation options */}
-      <AdminSidebar
-        onNavigate={setActiveComponent}
-        activeComponent={activeComponent}
-        adminData={adminData}
-      />
+      {/* Left sidebar with navigation options - fixed position */}
+      <div className="fixed top-0 left-0 h-full">
+        <AdminSidebar
+          onNavigate={setActiveComponent}
+          activeComponent={activeComponent}
+          adminData={adminData}
+        />
+      </div>
 
-      {/* Main content area - takes remaining space with flex layout */}
-      <div className="flex flex-col flex-1 ">
-        {/* Top navigation bar */}
-        <AdminNavbar adminData={adminData} />
+      {/* Main content area - offset for sidebar and navbar */}
+      <div className="flex flex-col flex-1 ml-56"> {/* ml-56 matches sidebar width */}
+        {/* Top navigation bar - fixed position */}
+        <div className="fixed top-0 left-56 right-0 z-40"> {/* left-56 matches sidebar width */}
+          <AdminNavbar adminData={adminData} />
+        </div>
 
-        {/* Main content container with scrollable area and styling */}
-        <main className="p-6 mt-4 overflow-y-auto bg-gray-50 min-h-screen">
+        {/* Main content container with proper padding to account for fixed navbar */}
+        <main className="pt-20 px-6"> {/* pt-20 accounts for navbar height */}
           {renderContent()}
         </main>
       </div>
