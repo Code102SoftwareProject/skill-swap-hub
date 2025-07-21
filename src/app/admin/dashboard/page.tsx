@@ -18,6 +18,7 @@ import SuccessStoriesContent from "@/components/Admin/dashboardContent/SuccessSt
 
 // Import AdminManagementContent directly to avoid chunk loading issues
 import AdminManagementContent from "../../../components/Admin/dashboardContent/AdminManagementContent";
+import AdminModerationPanel from '@/components/Admin/dashboardContent/AdminModerationPanel';
 
 // Constants to avoid magic strings
 const COMPONENTS = {
@@ -307,7 +308,14 @@ export default function AdminDashboard() {
         case COMPONENTS.SUCCESS_STORIES:
           return <SuccessStoriesContent key={activeComponent} />;
         case COMPONENTS.SUGGESTIONS:
-          return <SuggestionsContent key={activeComponent} />;
+          return (
+            <SuggestionsContent
+              key={activeComponent}
+              onNavigateToPanel={() => setActiveComponent('AdminModerationPanel')}
+            />
+          );
+        case 'AdminModerationPanel':
+          return <AdminModerationPanel key={activeComponent} />;
         case COMPONENTS.SYSTEM:
           return <SystemContent key={activeComponent} />;
         case COMPONENTS.VERIFY_DOCUMENTS:
@@ -327,7 +335,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen">
       {/* Toast notification container - fixed position in the top right corner */}
       <div className="fixed top-4 right-4 z-50 w-80">
         {toasts.map((toast) => (
@@ -343,7 +351,7 @@ export default function AdminDashboard() {
       />
 
       {/* Main content area - takes remaining space with flex layout */}
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 ">
         {/* Top navigation bar */}
         <AdminNavbar adminData={adminData} />
 

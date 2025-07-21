@@ -566,7 +566,7 @@ export default function KYCContent() {
                             >
                               <Check className="h-4 w-4" />
                             </button>
-                            +{" "}
+
                             <button
                               onClick={() => {
                                 const reason = window.prompt(

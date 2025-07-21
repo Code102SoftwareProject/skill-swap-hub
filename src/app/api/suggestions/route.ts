@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import connect from '../../../lib/db';
 import Suggestion from '@/lib/models/Suggestion';
 import User from '@/lib/models/userSchema';
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     const userId = searchParams.get("userId");
     const status = searchParams.get("status");
 
-    const filter: any = {};
+    const filter: any = { isHidden: { $ne: true } }; // Exclude hidden suggestions
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
 
@@ -56,6 +56,22 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
+      );
+    }
+
+    // Check if user is blocked
+    const user = await User.findById(userId);
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    if (user.isBlocked) {
+      return NextResponse.json(
+        { error: 'Your account has been blocked from submitting suggestions. Please contact support if you believe this is an error.' },
+        { status: 403 }
       );
     }
 
