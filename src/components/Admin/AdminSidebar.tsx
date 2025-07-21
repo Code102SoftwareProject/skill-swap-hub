@@ -68,7 +68,6 @@ const navItems = [
     id: "inbox",
     label: "Inbox",
     icon: MessageSquare,
-    // permission: "manage_inbox", // Removed to make always visible
   },
   {
     id: "system",
@@ -124,7 +123,8 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
           const hasPermission =
             !item.permission ||
             !adminData ||
-            (adminData.permissions && adminData.permissions.includes(item.permission));
+            (adminData.permissions &&
+              adminData.permissions.includes(item.permission));
 
           if (!hasPermission && item.permission) return null;
 
@@ -139,7 +139,12 @@ const AdminSidebar: FC<AdminSidebarProps> = ({
                   : "text-gray-500 hover:bg-gray-100 border-transparent"
               )}
             >
-              <Icon className={clsx("w-5 h-5 mr-3", isActive ? "text-white" : "text-gray-400")} />
+              <Icon
+                className={clsx(
+                  "w-5 h-5 mr-3",
+                  isActive ? "text-white" : "text-gray-400"
+                )}
+              />
               <span className="text-sm font-medium">{item.label}</span>
             </button>
           );
