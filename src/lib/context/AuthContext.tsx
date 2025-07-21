@@ -103,8 +103,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsSessionExpiring(true);
     setHasSessionExpired(true);
 
-    // Clear timer
-    clearSessionTimer();
+    // Clear timer first
+    if (sessionTimer) {
+      clearTimeout(sessionTimer);
+      clearInterval(sessionTimer);
+      setSessionTimer(null);
+    }
 
     // Clear all auth data
     localStorage.removeItem("auth_token");
@@ -123,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setTimeout(() => {
       setIsSessionExpiring(false);
     }, 1000);
-  }, [isSessionExpiring, isSessionExpired, hasSessionExpired, clearSessionTimer]);
+  }, [isSessionExpiring, isSessionExpired, hasSessionExpired, sessionTimer]);
 
   // Setup automatic session expiry timer
   const setupSessionTimer = useCallback((tokenToMonitor: string) => {
@@ -255,7 +259,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => {
       clearSessionTimer();
     };
-  }, [clearSessionTimer, handleSessionExpiry, router, setupSessionTimer]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Login function
   const login = async (
