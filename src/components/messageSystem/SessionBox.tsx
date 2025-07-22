@@ -543,7 +543,10 @@ export default function SessionBox({ chatRoomId, userId, otherUserId, otherUser:
         isOpen={showCreateModal}
         onClose={() => {
           setShowCreateModal(false);
-          fetchSessions(); // Refresh sessions when modal closes
+          // Only fetch sessions if modal was actually used
+          if (showCreateModal) {
+            fetchSessions(); // Refresh sessions when modal closes
+          }
         }}
         currentUserId={userId}
         otherUserId={otherUserId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { X, Calendar, User, BookOpen, CheckCircle, XCircle } from 'lucide-react';
 import Alert from '@/components/ui/Alert';
 
@@ -12,6 +12,10 @@ interface UserSkill {
   categoryName: string;
   isVerified: boolean;
 }
+
+// Simple cache for skills to avoid refetching
+const skillsCache = new Map<string, { skills: UserSkill[], timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 interface CreateSessionModalProps {
   isOpen: boolean;
@@ -75,23 +79,78 @@ export default function CreateSessionModal({
   const fetchUserSkills = useCallback(async () => {
     setLoading(true);
     try {
-      // Fetch current user skills
-      const currentUserResponse = await fetch(`/api/skillsbyuser?userId=${currentUserId}`);
-      const currentUserData = await currentUserResponse.json();
+      const now = Date.now();
       
-      // Fetch other user skills
-      const otherUserResponse = await fetch(`/api/skillsbyuser?userId=${otherUserId}`);
-      const otherUserData = await otherUserResponse.json();
-
-      if (currentUserData.success) {
-        setCurrentUserSkills(currentUserData.skills);
+      // Check cache first
+      const currentUserCacheKey = `skills_${currentUserId}`;
+      const otherUserCacheKey = `skills_${otherUserId}`;
+      
+      const currentUserCached = skillsCache.get(currentUserCacheKey);
+      const otherUserCached = skillsCache.get(otherUserCacheKey);
+      
+      // Use cached data if available and not expired
+      const shouldFetchCurrentUser = !currentUserCached || (now - currentUserCached.timestamp > CACHE_DURATION);
+      const shouldFetchOtherUser = !otherUserCached || (now - otherUserCached.timestamp > CACHE_DURATION);
+      
+      if (!shouldFetchCurrentUser && !shouldFetchOtherUser) {
+        // Both are cached, use cached data
+        setCurrentUserSkills(currentUserCached!.skills);
+        setOtherUserSkills(otherUserCached!.skills);
+        setLoading(false);
+        return;
       }
       
-      if (otherUserData.success) {
-        setOtherUserSkills(otherUserData.skills);
+      // Prepare fetch promises
+      const fetchPromises = [];
+      
+      if (shouldFetchCurrentUser) {
+        fetchPromises.push(
+          fetch(`/api/skillsbyuser?userId=${currentUserId}`)
+            .then(res => res.json())
+            .then(data => ({ type: 'current', data }))
+        );
+      } else {
+        setCurrentUserSkills(currentUserCached!.skills);
       }
+      
+      if (shouldFetchOtherUser) {
+        fetchPromises.push(
+          fetch(`/api/skillsbyuser?userId=${otherUserId}`)
+            .then(res => res.json())
+            .then(data => ({ type: 'other', data }))
+        );
+      } else {
+        setOtherUserSkills(otherUserCached!.skills);
+      }
+      
+      // Fetch only what's needed
+      if (fetchPromises.length > 0) {
+        const results = await Promise.all(fetchPromises);
+        
+        results.forEach((result: any) => {
+          if (result.data.success) {
+            if (result.type === 'current') {
+              setCurrentUserSkills(result.data.skills);
+              // Cache the result
+              skillsCache.set(currentUserCacheKey, {
+                skills: result.data.skills,
+                timestamp: now
+              });
+            } else if (result.type === 'other') {
+              setOtherUserSkills(result.data.skills);
+              // Cache the result
+              skillsCache.set(otherUserCacheKey, {
+                skills: result.data.skills,
+                timestamp: now
+              });
+            }
+          }
+        });
+      }
+      
     } catch (error) {
       console.error('Error fetching skills:', error);
+      showAlert('error', 'Failed to load skills. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -100,18 +159,25 @@ export default function CreateSessionModal({
   // Fetch skills when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchUserSkills();
-      // Set default start date to tomorrow
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      setStartDate(tomorrow.toISOString().split('T')[0]);
+      // Only fetch if we don't have skills data or user IDs changed
+      if (currentUserSkills.length === 0 || otherUserSkills.length === 0) {
+        fetchUserSkills();
+      }
       
-      // Set default expected end date to 30 days from tomorrow
-      const defaultEndDate = new Date();
-      defaultEndDate.setDate(defaultEndDate.getDate() + 31);
-      setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+      // Set default dates only if not already set
+      if (!startDate) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        setStartDate(tomorrow.toISOString().split('T')[0]);
+      }
+      
+      if (!expectedEndDate) {
+        const defaultEndDate = new Date();
+        defaultEndDate.setDate(defaultEndDate.getDate() + 31);
+        setExpectedEndDate(defaultEndDate.toISOString().split('T')[0]);
+      }
     }
-  }, [isOpen, currentUserId, otherUserId, fetchUserSkills]);
+  }, [isOpen, fetchUserSkills, currentUserSkills.length, otherUserSkills.length, startDate, expectedEndDate]);
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
@@ -208,6 +274,93 @@ export default function CreateSessionModal({
     onClose();
   };
 
+  // Memoized skill list components for better performance
+  const CurrentUserSkillsList = useMemo(() => (
+    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+      {currentUserSkills.length === 0 ? (
+        <p className="text-gray-500 text-sm p-2">No skills available</p>
+      ) : (
+        currentUserSkills.map((skill) => (
+          <div
+            key={skill.id}
+            onClick={() => setSelectedMySkill(skill.id)}
+            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+              selectedMySkill === skill.id
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">{skill.skillTitle}</span>
+                {skill.isVerified ? (
+                  <span title="Verified Skill">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </span>
+                ) : (
+                  <span title="Unverified Skill">
+                    <XCircle className="h-4 w-4 text-gray-400" />
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                {skill.proficiencyLevel} • {skill.categoryName}
+              </div>
+              {skill.description && (
+                <div className="text-xs text-gray-500 mt-1 truncate">
+                  {skill.description}
+                </div>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  ), [currentUserSkills, selectedMySkill]);
+
+  const OtherUserSkillsList = useMemo(() => (
+    <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+      {otherUserSkills.length === 0 ? (
+        <p className="text-gray-500 text-sm p-2">No skills available</p>
+      ) : (
+        otherUserSkills.map((skill) => (
+          <div
+            key={skill.id}
+            onClick={() => setSelectedOtherSkill(skill.id)}
+            className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+              selectedOtherSkill === skill.id
+                ? 'border-blue-500 bg-blue-50'
+                : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-gray-900">{skill.skillTitle}</span>
+                {skill.isVerified ? (
+                  <span title="Verified Skill">
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </span>
+                ) : (
+                  <span title="Unverified Skill">
+                    <XCircle className="h-4 w-4 text-gray-400" />
+                  </span>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                {skill.proficiencyLevel} • {skill.categoryName}
+              </div>
+              {skill.description && (
+                <div className="text-xs text-gray-500 mt-1 truncate">
+                  {skill.description}
+                </div>
+              )}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  ), [otherUserSkills, selectedOtherSkill]);
+
   if (!isOpen) return null;
 
   return (
@@ -263,46 +416,7 @@ export default function CreateSessionModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select Your Skill
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-                  {currentUserSkills.length === 0 ? (
-                    <p className="text-gray-500 text-sm p-2">No skills available</p>
-                  ) : (
-                    currentUserSkills.map((skill) => (
-                      <div
-                        key={skill.id}
-                        onClick={() => setSelectedMySkill(skill.id)}
-                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedMySkill === skill.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{skill.skillTitle}</span>
-                            {skill.isVerified ? (
-                              <span title="Verified Skill">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              </span>
-                            ) : (
-                              <span title="Unverified Skill">
-                                <XCircle className="h-4 w-4 text-gray-400" />
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {skill.proficiencyLevel} • {skill.categoryName}
-                          </div>
-                          {skill.description && (
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              {skill.description}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {CurrentUserSkillsList}
                 {errors.mySkill && <p className="text-red-500 text-sm mt-1">{errors.mySkill}</p>}
               </div>
 
@@ -332,46 +446,7 @@ export default function CreateSessionModal({
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Select {otherUserName}'s Skill
                 </label>
-                <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
-                  {otherUserSkills.length === 0 ? (
-                    <p className="text-gray-500 text-sm p-2">No skills available</p>
-                  ) : (
-                    otherUserSkills.map((skill) => (
-                      <div
-                        key={skill.id}
-                        onClick={() => setSelectedOtherSkill(skill.id)}
-                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-                          selectedOtherSkill === skill.id
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-gray-900">{skill.skillTitle}</span>
-                            {skill.isVerified ? (
-                              <span title="Verified Skill">
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              </span>
-                            ) : (
-                              <span title="Unverified Skill">
-                                <XCircle className="h-4 w-4 text-gray-400" />
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {skill.proficiencyLevel} • {skill.categoryName}
-                          </div>
-                          {skill.description && (
-                            <div className="text-xs text-gray-500 mt-1 truncate">
-                              {skill.description}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                {OtherUserSkillsList}
                 {errors.otherSkill && <p className="text-red-500 text-sm mt-1">{errors.otherSkill}</p>}
               </div>
 
