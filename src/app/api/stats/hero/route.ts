@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import User from '@/lib/models/userSchema';
-import SkillList from '@/lib/models/skillList';
+import SkillList, { ISkill } from '@/lib/models/skillList';
 import SkillMatch from '@/lib/models/skillMatch';
 import { Feedback } from '@/lib/models/feedbackSchema';
 
@@ -18,7 +18,7 @@ export async function GET() {
     const skillLists = await SkillList.find({}).select('skills');
     const skillSet = new Set();
     skillLists.forEach(list => {
-      list.skills.forEach(skill => {
+      list.skills.forEach((skill: ISkill) => {
         skillSet.add(skill.name);
       });
     });
