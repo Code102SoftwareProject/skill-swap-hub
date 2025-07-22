@@ -13,7 +13,9 @@ import {
   ChevronDown, 
   ChevronRight, 
   AlertCircle,
-  Calendar
+  Calendar,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Session, CounterOffer, UserProfile } from '@/types';
@@ -83,6 +85,11 @@ export default function SessionCard({
 
     fetchCompletionStatus();
   }, [session._id, session.status, userId]);
+
+  // Function to check if a skill is verified
+  const isSkillVerified = (skill: any) => {
+    return skill?.verified === true || skill?.isVerified === true;
+  };
 
   // Helper functions
   const getSessionStatus = (session: Session) => {
@@ -198,15 +205,37 @@ export default function SessionCard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div className="bg-white p-3 rounded border">
             <div className="text-xs font-medium text-gray-600 mb-1">Offered Skill:</div>
-            <div className="text-sm font-semibold text-blue-900">
-              {counterOffer.skill1Id?.skillTitle || counterOffer.skill1Id?.skillName || 'Skill not available'}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm font-semibold text-blue-900">
+                {counterOffer.skill1Id?.skillTitle || counterOffer.skill1Id?.skillName || 'Skill not available'}
+              </div>
+              {isSkillVerified(counterOffer.skill1Id) ? (
+                <div title="Verified Skill">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                </div>
+              ) : (
+                <div title="Unverified Skill">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                </div>
+              )}
             </div>
             <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService1}</div>
           </div>
           <div className="bg-white p-3 rounded border">
             <div className="text-xs font-medium text-gray-600 mb-1">Requested Skill:</div>
-            <div className="text-sm font-semibold text-green-900">
-              {counterOffer.skill2Id?.skillTitle || counterOffer.skill2Id?.skillName || 'Skill not available'}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm font-semibold text-green-900">
+                {counterOffer.skill2Id?.skillTitle || counterOffer.skill2Id?.skillName || 'Skill not available'}
+              </div>
+              {isSkillVerified(counterOffer.skill2Id) ? (
+                <div title="Verified Skill">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                </div>
+              ) : (
+                <div title="Unverified Skill">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                </div>
+              )}
             </div>
             <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService2}</div>
           </div>
@@ -315,6 +344,15 @@ export default function SessionCard({
             <span className="font-medium text-blue-900">
               {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
             </span>
+            {isSkillVerified(session.skill1Id) ? (
+              <div title="Verified Skill">
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+              </div>
+            ) : (
+              <div title="Unverified Skill">
+                <Shield className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <span className="text-gray-500">by</span>
             <span className="text-gray-700">
               {session.user1Id._id === userId ? 'You' : 
@@ -328,6 +366,15 @@ export default function SessionCard({
             <span className="font-medium text-green-900">
               {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
             </span>
+            {isSkillVerified(session.skill2Id) ? (
+              <div title="Verified Skill">
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+              </div>
+            ) : (
+              <div title="Unverified Skill">
+                <Shield className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <span className="text-gray-500">by</span>
             <span className="text-gray-700">
               {session.user2Id._id === userId ? 'You' : 
@@ -357,9 +404,20 @@ export default function SessionCard({
               </div>
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
                 <div className="flex items-center justify-between">
-                  <h5 className="font-semibold text-blue-900 text-lg">
-                    {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
-                  </h5>
+                  <div className="flex items-center space-x-2">
+                    <h5 className="font-semibold text-blue-900 text-lg">
+                      {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {isSkillVerified(session.skill1Id) ? (
+                      <div title="Verified Skill">
+                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                      </div>
+                    ) : (
+                      <div title="Unverified Skill">
+                        <Shield className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
                   {session.skill1Id?.proficiencyLevel && (
                     <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
                       {session.skill1Id.proficiencyLevel}
@@ -385,9 +443,20 @@ export default function SessionCard({
               </div>
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
                 <div className="flex items-center justify-between">
-                  <h5 className="font-semibold text-green-900 text-lg">
-                    {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
-                  </h5>
+                  <div className="flex items-center space-x-2">
+                    <h5 className="font-semibold text-green-900 text-lg">
+                      {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {isSkillVerified(session.skill2Id) ? (
+                      <div title="Verified Skill">
+                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                      </div>
+                    ) : (
+                      <div title="Unverified Skill">
+                        <Shield className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
                   {session.skill2Id?.proficiencyLevel && (
                     <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
                       {session.skill2Id.proficiencyLevel}
