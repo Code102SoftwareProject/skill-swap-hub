@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
     const currentUserData = await User.find(
       { _id: { $in: Array.from(allUserIds) } },
       'firstName lastName avatar'
-    ).lean();
+    ).lean() as Array<{ _id: any; firstName?: string; lastName?: string; avatar?: string }>;
     
     // Create a map for quick lookup
     const userDataMap = new Map();
