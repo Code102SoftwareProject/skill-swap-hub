@@ -9,6 +9,7 @@ export interface UserSkill {
   skillTitle: string;
   proficiencyLevel: 'Beginner' | 'Intermediate' | 'Expert';
   description: string;
+  isVerified: boolean;
   createdAt: string;
   updatedAt?: string;
 }
