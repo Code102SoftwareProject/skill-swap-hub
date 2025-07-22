@@ -29,7 +29,7 @@ export default function MeetingPage() {
   const params = useParams();
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuth();
-  const meetingId = params.id as string;
+  const meetingId = (params?.id ?? '') as string;
 
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [otherUser, setOtherUser] = useState<User | null>(null);
