@@ -8,10 +8,6 @@ import { useAuth } from "@/lib/context/AuthContext";
 import { useToast } from "@/lib/context/ToastContext";
 import { handleSuspensionApiResponse } from '@/components/ui/SuspendedPopup'
 
-
-
-
-
 interface FormErrors {
   firstName?: string;
   lastName?: string;
@@ -41,6 +37,10 @@ const Register = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [agreeToTerms, setAgreeToTerms] = useState<boolean>(false);
+  
+  // Password visibility states
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -150,9 +150,6 @@ const Register = () => {
     try {
       const result = await register(formData);
 
- 
-
-
       // Check if the response indicates the user is suspended
       if (handleSuspensionApiResponse(result)) {
         // User is suspended, popup has been shown
@@ -190,6 +187,16 @@ const Register = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
+  // Toggle confirm password visibility
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
   };
 
   return (
@@ -357,19 +364,69 @@ const Register = () => {
               >
                 Password
               </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                className={`mt-1 block w-full p-2 border ${errors.password ? "border-red-500" : "border-gray-300"} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400 text-sm`}
-                placeholder="********"
-                value={formData.password}
-                onChange={handleChange}
-                aria-invalid={errors.password ? "true" : "false"}
-                aria-describedby={
-                  errors.password ? "password-error" : undefined
-                }
-              />
+              <div className="relative mt-1">
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  className={`block w-full p-2 pr-10 border ${errors.password ? "border-red-500" : "border-gray-300"} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400 text-sm password-input`}
+                  placeholder="********"
+                  value={formData.password}
+                  onChange={handleChange}
+                  aria-invalid={errors.password ? "true" : "false"}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
+                  style={{
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                  onClick={togglePasswordVisibility}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600" id="password-error">
                   {errors.password}
@@ -384,19 +441,69 @@ const Register = () => {
               >
                 Confirm Password
               </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                className={`mt-1 block w-full p-2 border ${errors.confirmPassword ? "border-red-500" : "border-gray-300"} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400 text-sm`}
-                placeholder="********"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                aria-invalid={errors.confirmPassword ? "true" : "false"}
-                aria-describedby={
-                  errors.confirmPassword ? "confirmPassword-error" : undefined
-                }
-              />
+              <div className="relative mt-1">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  className={`block w-full p-2 pr-10 border ${errors.confirmPassword ? "border-red-500" : "border-gray-300"} rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400 text-sm password-input`}
+                  placeholder="********"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  aria-invalid={errors.confirmPassword ? "true" : "false"}
+                  aria-describedby={
+                    errors.confirmPassword ? "confirmPassword-error" : undefined
+                  }
+                  style={{
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                  onClick={toggleConfirmPasswordVisibility}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p
                   className="mt-1 text-sm text-red-600"
@@ -487,6 +594,22 @@ const Register = () => {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        /* Hide browser default password reveal button */
+        .password-input::-ms-reveal,
+        .password-input::-ms-clear {
+          display: none;
+        }
+        
+        .password-input::-webkit-credentials-auto-fill-button {
+          display: none !important;
+          visibility: hidden;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+      `}</style>
     </div>
   );
 };
