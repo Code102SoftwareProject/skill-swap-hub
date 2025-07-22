@@ -98,6 +98,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
   // Skill verification state and effect (must be inside component)
   const [mySkillVerified, setMySkillVerified] = useState<boolean | null>(null);
   const [otherSkillVerified, setOtherSkillVerified] = useState<boolean | null>(null);
+  const [myKycStatus, setMyKycStatus] = useState<string | null>(null);
   useEffect(() => {
     async function fetchSkillVerification() {
       // My skill: use currentUserId
@@ -120,21 +121,30 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
     fetchSkillVerification();
   }, [currentUserId, match.myDetails, match.otherUser]);
 
-  // Fetch KYC status for the other user
+  // Fetch KYC status for both users
   useEffect(() => {
     async function fetchKycStatus() {
       try {
-        const res = await fetch(`/api/kyc/status?userId=${match.otherUser.userId}`);
-        const data = await res.json();
-        setOtherUserKycStatus(data.success ? data.status : null);
+        // Fetch other user's KYC status
+        const otherRes = await fetch(`/api/kyc/status?userId=${match.otherUser.userId}`);
+        const otherData = await otherRes.json();
+        setOtherUserKycStatus(otherData.success ? otherData.status : null);
+        
+        // Fetch my KYC status
+        if (currentUserId) {
+          const myRes = await fetch(`/api/kyc/status?userId=${currentUserId}`);
+          const myData = await myRes.json();
+          setMyKycStatus(myData.success ? myData.status : null);
+        }
       } catch (err) {
         setOtherUserKycStatus(null);
+        setMyKycStatus(null);
       }
     }
     if (match.otherUser.userId) {
       fetchKycStatus();
     }
-  }, [match.otherUser.userId]);
+  }, [match.otherUser.userId, currentUserId]);
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -389,7 +399,14 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
                     />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-blue-800">Your Profile</h3>
+                    <h3 className="font-semibold text-blue-800 flex items-center">
+                      Your Profile
+                      {(myKycStatus === 'Accepted' || myKycStatus === 'Approved') ? (
+                        <BadgeCheck className="w-4 h-4 ml-1 text-blue-500" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 ml-1 text-orange-500" aria-label="Not Verified" />
+                      )}
+                    </h3>
                     <p className="text-xs text-blue-600">Skills Exchange</p>
                   </div>
                 </div>
