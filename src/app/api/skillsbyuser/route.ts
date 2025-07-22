@@ -16,15 +16,24 @@ export async function GET(req: Request) {
       );
     }
 
+    // Add select to only fetch necessary fields for better performance
     const userSkills = await UserSkill.find({ userId })
-      .sort({ createdAt: -1 });
+      .select('_id skillTitle proficiencyLevel description categoryName isVerified userId createdAt')
+      .sort({ createdAt: -1 })
+      .lean(); // Use lean() for better performance when we don't need mongoose document methods
 
     return NextResponse.json({
       success: true,
       skills: userSkills
-    }, { status: 200 });
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' // Cache for 1 minute
+      }
+    });
 
   } catch (error: any) {
+    console.error('Error fetching user skills:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }
