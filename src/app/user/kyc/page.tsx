@@ -5,6 +5,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/context/AuthContext";
+import Link from "next/link";
+import { ArrowLeft} from "lucide-react";
+
 
 // API endpoint configuration for file uploads and KYC submission
 const API_ENDPOINTS = {
@@ -31,12 +34,8 @@ const NIC_PATTERNS = {
   NEW_NIC: /^(19[0-9]{2}|20[0-9]{2}|2100)[0-9]{8}$/, // New format: 12 digits
 };
 
-
-
 // User-facing messages for different scenarios
 const MESSAGES = {
-
-
   NIC_FORMAT_ERROR:
     "Invalid NIC format. Please enter either 9 digits followed by V/X or 12 digits",
   NIC_FORMAT_INFO:
@@ -45,7 +44,7 @@ const MESSAGES = {
     "Your face and both sides of your NIC should be clearly visible",
   FORM_INCOMPLETE: "Please fill all fields and upload all required photos",
   INVALID_NIC: "Please enter a valid NIC number",
-  
+
   NIC_UPLOAD_FAILED: "NIC file upload failed",
   PERSON_PHOTO_UPLOAD_FAILED: "Photo with NIC upload failed",
   KYC_SUBMISSION_FAILED: "KYC submission failed",
@@ -117,9 +116,9 @@ const initialFormState: KYCFormState = {
 
 export default function KYCForm() {
   // State management hooks
-  const { user, isLoading ,token} = useAuth();
+  const { user, isLoading, token } = useAuth();
   const router = useRouter();
-  
+
   const [nicError, setNicError] = useState<string | null>(null);
   const [fileError, setFileError] = useState<FileValidationError | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -128,9 +127,6 @@ export default function KYCForm() {
     isError: boolean;
   } | null>(null);
   const [formState, setFormState] = useState<KYCFormState>(initialFormState);
-
-
-  
 
   // 4) Your redirect-if-not-logged-in effect
 
@@ -147,7 +143,7 @@ export default function KYCForm() {
       </div>
     );
   }
-    const displayName = `${user.firstName} ${user.lastName}`.trim();
+  const displayName = `${user.firstName} ${user.lastName}`.trim();
 
   // Helper function to update specific form field
   const updateField = <K extends keyof KYCFormState>(
@@ -162,7 +158,6 @@ export default function KYCForm() {
     setFormState(initialFormState);
     setFileError(null);
     setNicError(null);
-   
 
     // Clear file input elements
     const fileInputs = document.querySelectorAll(
@@ -172,8 +167,6 @@ export default function KYCForm() {
       input.value = "";
     });
   };
-
- 
 
   // Validate file size and type
   const validateFile = (file: File): string | null => {
@@ -187,10 +180,6 @@ export default function KYCForm() {
 
     return null;
   };
-
- 
-
-  
 
   // Validate NIC format using regex patterns
   const validateNIC = (nicNumber: string): boolean => {
@@ -308,8 +297,7 @@ export default function KYCForm() {
         isError: true,
       });
       return;
-    } 
-   
+    }
 
     // Validate NIC format
     if (!validateNIC(formState.nic)) {
@@ -359,7 +347,7 @@ export default function KYCForm() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`, 
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           userId: user!._id,
@@ -413,6 +401,16 @@ export default function KYCForm() {
 
   return (
     <main className="bg-secondary px-6 py-12 flex items-center justify-center min-h-screen">
+      {/* Back button */}
+      <div className="absolute top-4 left-4">
+       <Link href="/dashboard">
+  <button className="flex items-center bg-white/50 text-blue-600 hover:bg-white/70 px-3 py-1 rounded-full shadow-sm backdrop-blur-sm">
+    <ArrowLeft size={16} className="mr-1"/>  
+    Dashboard
+  </button>
+</Link>
+
+      </div>
       <div className="flex flex-col md:flex-row max-w-5xl mx-auto bg-white rounded-xl shadow-lg w-full overflow-hidden">
         {/* Responsive image container - hidden on mobile */}
         <div className="md:w-1/2 hidden md:block">
@@ -434,7 +432,7 @@ export default function KYCForm() {
               {FORM_LABELS.TITLE}
             </h2>
             {/* Read-only Name field */}
-           <div>
+            <div>
               <label
                 htmlFor="displayName"
                 className="block text-sm font-medium text-gray-700 mb-1"
@@ -536,9 +534,7 @@ export default function KYCForm() {
             <button
               type="submit"
               className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-              disabled={
-                uploading || !!nicError || !!fileError
-              }
+              disabled={uploading || !!nicError || !!fileError}
               aria-busy={uploading}
             >
               {uploading ? FORM_LABELS.UPLOADING : FORM_LABELS.SUBMIT}

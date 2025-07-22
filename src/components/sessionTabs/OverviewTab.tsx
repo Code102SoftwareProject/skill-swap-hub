@@ -759,15 +759,18 @@ export default function OverviewTab({
                   )}
                   
                   {cancelRequest.initiatorId._id === currentUserId && cancelRequest.responseStatus === 'disputed' && (
-                    <>
-                      {/* Initiator can finalize after dispute */}
-                      <button
-                        onClick={() => setShowCancelFinalizeModal(true)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Finalize Cancellation
-                      </button>
-                    </>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <div className="flex items-start space-x-2">
+                        <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <h4 className="text-sm font-medium text-orange-900 mb-1">Cancellation Disputed</h4>
+                          <p className="text-sm text-orange-800">
+                            The other party has disputed your cancellation request. Since no agreement could be reached, 
+                            please contact our support team for assistance in resolving this matter.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
               )}
@@ -1015,9 +1018,9 @@ export default function OverviewTab({
 
       {/* Session Cancellation Modal */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md mx-auto max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center">
                 <XCircle className="w-6 h-6 text-red-500 mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1032,19 +1035,21 @@ export default function OverviewTab({
               </button>
             </div>
             
-            <CancelSessionForm 
-              onSubmit={handleCancelSession}
-              onCancel={() => setShowCancelModal(false)}
-            />
+            <div className="overflow-y-auto flex-1 p-6">
+              <CancelSessionForm 
+                onSubmit={handleCancelSession}
+                onCancel={() => setShowCancelModal(false)}
+              />
+            </div>
           </div>
         </div>
       )}
 
       {/* Session Cancellation Response Modal */}
       {showCancelResponseModal && cancelRequest && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg mx-4">
-            <div className="flex justify-between items-center mb-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg mx-auto max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 pb-4 border-b border-gray-200 flex-shrink-0">
               <div className="flex items-center">
                 <AlertCircle className="w-6 h-6 text-blue-500 mr-2" />
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1059,13 +1064,15 @@ export default function OverviewTab({
               </button>
             </div>
             
-            <CancelResponseForm 
-              onSubmit={handleCancelResponse}
-              onCancel={() => setShowCancelResponseModal(false)}
-              initiatorName={getUserName(cancelRequest.initiatorId)}
-              reason={cancelRequest.reason}
-              description={cancelRequest.description}
-            />
+            <div className="overflow-y-auto flex-1 p-6">
+              <CancelResponseForm 
+                onSubmit={handleCancelResponse}
+                onCancel={() => setShowCancelResponseModal(false)}
+                initiatorName={getUserName(cancelRequest.initiatorId)}
+                reason={cancelRequest.reason}
+                description={cancelRequest.description}
+              />
+            </div>
           </div>
         </div>
       )}
