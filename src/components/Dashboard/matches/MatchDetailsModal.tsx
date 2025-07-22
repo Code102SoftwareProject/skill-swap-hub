@@ -431,7 +431,7 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
                       {(otherUserKycStatus === 'Accepted' || otherUserKycStatus === 'Approved') ? (
                         <BadgeCheck className="w-4 h-4 ml-1 text-blue-500" />
                       ) : (
-                        <AlertCircle className="w-4 h-4 ml-1 text-orange-500" title="Not Verified" />
+                        <AlertCircle className="w-4 h-4 ml-1 text-orange-500" aria-label="Not Verified" />
                       )}
                     </h3>
                     <p className="text-xs text-gray-600">Partner Profile</p>

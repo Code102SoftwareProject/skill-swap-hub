@@ -51,7 +51,13 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/forums/${forumId}/posts`);
+      const response = await fetch(`/api/forums/${forumId}/posts`, {
+        // Add cache: 'no-store' to ensure we always get fresh data
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       
       if (!response.ok) {
         throw new Error('Failed to fetch forum posts');
@@ -59,6 +65,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
       
       const data = await response.json();
       setPosts(data.posts);
+      console.log('Fetched posts with updated view counts:', data.posts.map((p: Post) => ({ id: p._id, views: p.views })));
     } catch (err) {
       console.error('Error fetching forum posts:', err);
       setError('Unable to load posts. Please try again later.');
@@ -173,31 +180,28 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
     // Mark this post as clicked for visual feedback
     setClickedPosts(prev => new Set(prev).add(postId));
     
-    // Optimistically update view count for better UX
-    if (user) {
-      handleViewUpdate(postId);
+    // Update view count via API
+    try {
+      const response = await fetch(`/api/posts/${postId}/views`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ forumId }),
+      });
       
-      // Track view interaction for analytics (but don't duplicate the increment)
-      try {
-        await trackInteraction({
-          postId,
-          forumId,
-          interactionType: 'view',
-          timeSpent: 0
-        });
-      } catch (error) {
-        console.error('Error tracking interaction:', error);
-        // Revert the optimistic update if tracking fails
-        setPosts(prevPosts => 
-          prevPosts.map(post => 
-            post._id === postId 
-              ? { ...post, views: Math.max((post.views || 1) - 1, 0) } 
-              : post
-          )
-        );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.updated) {
+          // Update view count locally if it was actually incremented
+          handleViewUpdate(postId);
+        }
       }
+    } catch (error) {
+      console.error('Error updating view count:', error);
     }
     
+    // Navigate to the post detail page
     router.push(`/forum/${forumId}/posts/${postId}`);
   };
 

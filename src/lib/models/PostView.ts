@@ -3,7 +3,8 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IPostView extends Document {
   _id: string;
   postId: mongoose.Types.ObjectId;
-  userId: mongoose.Types.ObjectId;
+  userId?: mongoose.Types.ObjectId | null;
+  visitorId?: string | null;
   forumId: mongoose.Types.ObjectId;
   viewedAt: Date;
   timeSpent: number; // in seconds
@@ -21,8 +22,13 @@ const PostViewSchema = new Schema<IPostView>({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
-    index: true
+    index: true,
+    default: null
+  },
+  visitorId: {
+    type: String,
+    index: true,
+    default: null
   },
   forumId: {
     type: Schema.Types.ObjectId,
@@ -54,7 +60,9 @@ const PostViewSchema = new Schema<IPostView>({
 
 // Compound indexes for better query performance
 PostViewSchema.index({ userId: 1, postId: 1 });
+PostViewSchema.index({ visitorId: 1, postId: 1 });
 PostViewSchema.index({ userId: 1, viewedAt: -1 });
+PostViewSchema.index({ visitorId: 1, viewedAt: -1 });
 PostViewSchema.index({ postId: 1, viewedAt: -1 });
 PostViewSchema.index({ forumId: 1, viewedAt: -1 });
 

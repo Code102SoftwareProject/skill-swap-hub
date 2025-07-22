@@ -152,6 +152,18 @@ export default function SessionCard({
     return sessionCounterOffers.filter(co => co.status === 'accepted').length;
   };
 
+  const hasUserSentPendingCounterOffer = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.some(co => 
+      co.status === 'pending' && co.counterOfferedBy._id === userId
+    );
+  };
+
+  const hasAnyCounterOffer = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.length > 0;
+  };
+
   const renderCounterOffer = (counterOffer: CounterOffer) => {
     return (
       <div key={counterOffer._id} className={`border rounded-lg p-4 ${
@@ -427,24 +439,39 @@ export default function SessionCard({
                   <>
                     <button
                       onClick={() => onAcceptReject(session._id, 'accept')}
-                      disabled={processingSession === session._id}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasAnyCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasAnyCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
+                      }`}
+                      title={hasAnyCounterOffer(session._id) ? 'Cannot accept main offer when counter offers exist' : 'Accept session request'}
                     >
                       <CheckCircle className="h-4 w-4" />
                       <span>Accept</span>
                     </button>
                     <button
                       onClick={() => onCounterOffer(session._id)}
-                      disabled={processingSession === session._id}
-                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasUserSentPendingCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasUserSentPendingCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50'
+                      }`}
+                      title={hasUserSentPendingCounterOffer(session._id) ? 'You have already sent a counter offer for this session' : 'Send counter offer'}
                     >
                       <Edit className="h-4 w-4" />
-                      <span>Counter Offer</span>
+                      <span>{hasUserSentPendingCounterOffer(session._id) ? 'Counter Offer Sent' : 'Counter Offer'}</span>
                     </button>
                     <button
                       onClick={() => onAcceptReject(session._id, 'reject')}
-                      disabled={processingSession === session._id}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasAnyCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasAnyCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50'
+                      }`}
+                      title={hasAnyCounterOffer(session._id) ? 'Cannot reject main offer when counter offers exist' : 'Reject session request'}
                     >
                       <XCircle className="h-4 w-4" />
                       <span>Reject</span>
