@@ -93,14 +93,14 @@ const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}
   }, [fetchUserData]);
 
   // Check if a skill is used in a listing
-  const isSkillUsedInListing = (skillId: string) => {
+  const isSkillUsedInListing = React.useCallback((skillId: string) => {
     return usedSkillIds.includes(skillId);
-  };
+  }, [usedSkillIds]);
 
   // Check if a skill is used in active matches
-  const isSkillUsedInMatches = (skillId: string) => {
+  const isSkillUsedInMatches = React.useCallback((skillId: string) => {
     return matchUsedSkills?.usedSkillIds?.includes(skillId) || false;
-  };
+  }, [matchUsedSkills]);
 
   // Get match details for a skill
   const getSkillMatchDetails = (skillTitle: string) => {
@@ -187,7 +187,7 @@ const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}
       verified: verifiedSkills,
       unverified: unverifiedSkills
     };
-  }, [skills, usedSkillIds, matchUsedSkills]);
+  }, [skills, isSkillUsedInListing, isSkillUsedInMatches]);
 
   // Get unique categories for filter dropdown
   const categories = useMemo(() => {
@@ -252,7 +252,7 @@ const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}
     });
 
     return filtered;
-  }, [skills, searchTerm, selectedCategory, selectedProficiency, selectedUsageStatus, selectedVerificationStatus, sortBy, usedSkillIds, matchUsedSkills]);
+  }, [skills, searchTerm, selectedCategory, selectedProficiency, selectedUsageStatus, selectedVerificationStatus, sortBy, isSkillUsedInListing, isSkillUsedInMatches]);
 
   // Group filtered skills by category
   const skillsByCategory = filteredAndSortedSkills.reduce((acc, skill) => {
@@ -444,10 +444,10 @@ const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}
                   {skill.skillTitle}
                 </h3>
                 {skill.isVerified ? (
-                  <BadgeCheck className="w-5 h-5 text-green-500 flex-shrink-0" title="Verified Skill" />
+                  <BadgeCheck className="w-5 h-5 text-green-500 flex-shrink-0" aria-label="Verified Skill" />
                 ) : (
                   <div className="flex items-center gap-1">
-                    <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0" title="Skill Not Verified" />
+                    <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0" aria-label="Skill Not Verified" />
                     <button
                       onClick={navigateToSkillVerification}
                       className="w-4 h-4 text-blue-500 hover:text-blue-700 flex-shrink-0"
@@ -937,9 +937,9 @@ const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-semibold text-blue-700">{viewingSkill.skillTitle}</h3>
                     {viewingSkill.isVerified ? (
-                      <BadgeCheck className="w-6 h-6 text-green-500" title="Verified Skill" />
+                      <BadgeCheck className="w-6 h-6 text-green-500" aria-label="Verified Skill" />
                     ) : (
-                      <AlertCircle className="w-6 h-6 text-orange-400" title="Skill Not Verified" />
+                      <AlertCircle className="w-6 h-6 text-orange-400" aria-label="Skill Not Verified" />
                     )}
                   </div>
                   <span className={`px-3 py-1 text-sm rounded-full font-medium ${

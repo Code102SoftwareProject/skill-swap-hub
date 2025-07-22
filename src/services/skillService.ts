@@ -77,6 +77,7 @@ export const getUserSkills = async (): Promise<ApiResponse<UserSkill[]>> => {
         skillTitle: item.skillTitle,
         proficiencyLevel: item.proficiencyLevel,
         description: item.description,
+        isVerified: typeof item.isVerified === 'boolean' ? item.isVerified : false,
         createdAt: item.createdAt,
         updatedAt: item.updatedAt
       }));
@@ -128,6 +129,7 @@ export const addUserSkill = async (skillData: NewSkillData): Promise<ApiResponse
           skillTitle: item.skillTitle,
           proficiencyLevel: item.proficiencyLevel,
           description: item.description,
+          isVerified: typeof item.isVerified === 'boolean' ? item.isVerified : false,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt
         }
@@ -188,6 +190,7 @@ export const updateUserSkill = async (
             skillTitle: item.skillTitle,
             proficiencyLevel: item.proficiencyLevel,
             description: item.description,
+            isVerified: typeof item.isVerified === 'boolean' ? item.isVerified : false,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt
           }
