@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { SkillMatch } from '@/types/skillMatch';
-import { BadgeCheck, ArrowRightLeft, Eye, MessageCircle, Clock, CheckCircle, XCircle, Award, Calendar } from 'lucide-react';
+import { BadgeCheck, ArrowRightLeft, Eye, MessageCircle, Clock, CheckCircle, XCircle, Award, Calendar, AlertCircle } from 'lucide-react';
 import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface MatchCardProps {
@@ -12,6 +12,24 @@ interface MatchCardProps {
 }
 
 const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
+  const [otherUserKycStatus, setOtherUserKycStatus] = useState<string | null>(null);
+
+  // Fetch KYC status for the other user
+  useEffect(() => {
+    async function fetchKycStatus() {
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${match.otherUser.userId}`);
+        const data = await res.json();
+        setOtherUserKycStatus(data.success ? data.status : null);
+      } catch (err) {
+        setOtherUserKycStatus(null);
+      }
+    }
+    if (match.otherUser.userId) {
+      fetchKycStatus();
+    }
+  }, [match.otherUser.userId]);
+
   // Format date
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -222,7 +240,11 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
               >
                 {match.otherUser.firstName} {match.otherUser.lastName}
               </span>
-              <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+              {(otherUserKycStatus === 'Accepted' || otherUserKycStatus === 'Approved') ? (
+                <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0" title="Not Verified" />
+              )}
             </h3>
           </div>
           

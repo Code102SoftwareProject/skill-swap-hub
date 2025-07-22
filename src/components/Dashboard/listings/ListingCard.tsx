@@ -3,8 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { SkillListing } from '@/types/skillListing';
-import { BadgeCheck, Edit, Trash2, Eye, Users, Shield, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { BadgeCheck, Edit, Trash2, Eye, Users, Shield, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
 import { processAvatarUrl } from '@/utils/avatarUtils';
 
@@ -19,8 +20,10 @@ interface ListingCardProps {
 
 const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) => {
   const { user } = useAuth();
+  const router = useRouter();
   const [isOwner, setIsOwner] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
   
   useEffect(() => {
     // Check if the current user is the owner of this listing
@@ -28,6 +31,22 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
       setIsOwner(user._id === listing.userId);
     }
   }, [user, listing]);
+
+  // Fetch KYC status for the listing user
+  useEffect(() => {
+    async function fetchKycStatus() {
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${listing.userId}`);
+        const data = await res.json();
+        setKycStatus(data.success ? data.status : null);
+      } catch (err) {
+        setKycStatus(null);
+      }
+    }
+    if (listing.userId) {
+      fetchKycStatus();
+    }
+  }, [listing.userId]);
   
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -89,7 +108,17 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-gray-800 flex items-center truncate">
                   <span className="truncate">{listing.userDetails.firstName} {listing.userDetails.lastName}</span>
-                  <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+                  {(kycStatus === 'Accepted' || kycStatus === 'Approved') ? (
+                    <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+                  ) : (
+                    <button 
+                      onClick={() => router.push('/dashboard?component=setting')}
+                      title="Click to verify your account"
+                      className="inline-flex"
+                    >
+                      <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0 hover:text-orange-600 transition-colors cursor-pointer" />
+                    </button>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-500 truncate">
                   {formatDate(listing.createdAt)}
@@ -226,7 +255,18 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-800 flex items-center">
                     {listing.userDetails.firstName} {listing.userDetails.lastName}
-                    <BadgeCheck className="w-5 h-5 ml-2 text-blue-500" />
+                    {(kycStatus === 'Accepted' || kycStatus === 'Approved') ? (
+                      <BadgeCheck className="w-5 h-5 ml-2 text-blue-500" />
+                    ) : (
+                      <button 
+                        onClick={() => router.push('/dashboard?component=setting')} 
+                        className="ml-2 px-3 py-1 text-sm bg-orange-100 text-orange-600 rounded-full flex items-center hover:bg-orange-200 transition-colors"
+                        title="Click to verify your account"
+                      >
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        Verify
+                      </button>
+                    )}
                   </h3>
                   <p className="text-sm text-gray-500">
                     Posted on {formatDate(listing.createdAt)}
