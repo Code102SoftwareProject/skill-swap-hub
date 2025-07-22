@@ -138,11 +138,11 @@ export default function OverviewTab({
     }
   };
 
-  const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
-  const mySkill = session.user1Id._id === currentUserId ? session.skill1Id : session.skill2Id;
-  const otherSkill = session.user1Id._id === currentUserId ? session.skill2Id : session.skill1Id;
-  const myDescription = session.user1Id._id === currentUserId ? session.descriptionOfService1 : session.descriptionOfService2;
-  const otherDescription = session.user1Id._id === currentUserId ? session.descriptionOfService2 : session.descriptionOfService1;
+  const otherUser = session.user1Id?._id === currentUserId ? session.user2Id : session.user1Id;
+  const mySkill = session.user1Id?._id === currentUserId ? session.skill1Id : session.skill2Id;
+  const otherSkill = session.user1Id?._id === currentUserId ? session.skill2Id : session.skill1Id;
+  const myDescription = session.user1Id?._id === currentUserId ? session.descriptionOfService1 : session.descriptionOfService2;
+  const otherDescription = session.user1Id?._id === currentUserId ? session.descriptionOfService2 : session.descriptionOfService1;
 
   // Enhanced completion request handler
   const handleEnhancedCompletionRequest = () => {
