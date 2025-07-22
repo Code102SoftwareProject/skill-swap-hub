@@ -64,7 +64,8 @@ export async function POST(request: NextRequest) {
       interactionType, 
       timeSpent = 0,
       deviceType = 'desktop',
-      isComplete = false 
+      isComplete = false,
+      noRefresh = false
     } = body;
 
     console.log('Interaction tracking request:', { postId, forumId, interactionType, userId });
@@ -211,24 +212,30 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Set cache-control headers to prevent page refresh issues
+    const headers = new Headers();
+    headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.append('Pragma', 'no-cache');
+    headers.append('Expires', '0');
+
     return NextResponse.json({
       success: true,
-      message: 'Interaction tracked successfully'
+      message: 'Interaction tracked successfully',
+      noRefresh: noRefresh
+    }, {
+      headers: headers
     });
 
   } catch (error) {
     console.error('Error tracking interaction:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined,
-      userId,
-      timestamp: new Date().toISOString()
-    });
-    return NextResponse.json({
-      success: false,
-      message: 'Failed to track interaction',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    return NextResponse.json(
+      { 
+        success: false,
+        message: 'Internal server error',
+        error: error instanceof Error ? error.message : String(error)
+      },
+      { status: 500 }
+    );
   }
 }
 

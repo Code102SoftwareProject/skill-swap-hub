@@ -29,7 +29,7 @@ function UserDashboardPageContent() {
 
   // Load from URL parameters or localStorage when the component mounts
   useEffect(() => {
-    const componentParam = searchParams.get('component');
+    const componentParam = searchParams ? searchParams.get('component') : null;
     if (componentParam) {
       setActiveComponent(componentParam);
     } else {

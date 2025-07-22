@@ -49,7 +49,7 @@ const Footer: FC = () => {
             <ul className="space-y-3 text-sm">
               <li><Link href="/help" className="text-blue-100 hover:text-white transition-colors">Help Center</Link></li>
               <li><Link href="/safety" className="text-blue-100 hover:text-white transition-colors">Safety Guidelines</Link></li>
-              <li><Link href="/contact" className="text-blue-100 hover:text-white transition-colors">Contact Us</Link></li>
+              <li><Link href="/contact-us" className="text-blue-100 hover:text-white transition-colors">Contact Us</Link></li>
               <li><Link href="/feedback" className="text-blue-100 hover:text-white transition-colors">Feedback</Link></li>
               <li><Link href="/report" className="text-blue-100 hover:text-white transition-colors">Report Issue</Link></li>
             </ul>

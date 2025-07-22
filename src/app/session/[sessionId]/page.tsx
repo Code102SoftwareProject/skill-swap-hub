@@ -34,7 +34,7 @@ export default function SessionWorkspace() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const sessionId = params.sessionId as string;
+  const sessionId = (params?.sessionId ?? '') as string;
   const currentUserId = user?._id
   
   const [session, setSession] = useState<Session | null>(null);

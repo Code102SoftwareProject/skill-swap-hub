@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import { useAuth } from '@/lib/context/AuthContext';
 import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
+
 interface CreatePostPopupProps {
   forumId: string;
   isOpen: boolean;
@@ -34,6 +35,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Initialize Quill editor when modal opens
   useEffect(() => {
@@ -75,6 +77,13 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       quillRef.current = null;
       setContent('');
     }
+
+    // Clean up any pending requests when component unmounts
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [isOpen]);
 
   // Apply error styling to Quill editor
@@ -127,6 +136,8 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault(); // Prevent form submission
+    
     const files = e.target.files;
     if (!files || files.length === 0) {
       return;
@@ -179,7 +190,10 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
     });
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Prevent event bubbling
+    
     setImage(null);
     if (imagePreview) {
       URL.revokeObjectURL(imagePreview);
@@ -187,6 +201,112 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
     }
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string | null> => {
+    // Create a new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', `forum-${forumId}`);
+      
+      const response = await fetch('/api/file/upload', {
+        method: 'POST',
+        body: formData,
+        signal,
+        headers: {
+          'Accept': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload image');
+      }
+      
+      const data = await response.json();
+      return data.url || data.imageUrl;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Image upload aborted');
+        return null;
+      }
+      
+      console.error('Image upload error:', error);
+      Swal.fire({
+        icon: 'warning',
+        title: 'Image Upload Failed',
+        text: 'Continuing to create post without image',
+        confirmButtonColor: '#3b82f6',
+        timer: 2000
+      });
+      return null;
+    }
+  };
+
+  const createPost = async (imageUrl: string | null): Promise<boolean> => {
+    // Create a new AbortController for this request
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+    
+    try {
+      const currentUser = {
+        _id: user ? user._id : 'temp-user-id',
+        name: user ? user.firstName + " " + user.lastName : 'Current User',
+        avatar: user ? user.avatar : '/default-avatar.png',
+      };
+      
+      const postData = {
+        title,
+        content,
+        imageUrl,
+        author: currentUser
+      };
+      
+      const response = await fetch(`/api/forums/${forumId}/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(postData),
+        signal,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage;
+        
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error || errorData.message || errorData.details || 'Failed to create post';
+        } catch (e) {
+          errorMessage = errorText || 'Failed to create post';
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      return true;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        console.log('Post creation aborted');
+        return false;
+      }
+      
+      console.error('Error creating post:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Failed to Create Post',
+        text: errorMessage,
+        confirmButtonColor: '#3b82f6'
+      });
+      return false;
     }
   };
 
@@ -200,114 +320,46 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
     setIsSubmitting(true);
     
     try {
-      // First, upload the image if one exists
+      // First upload image if exists
       let imageUrl = null;
       if (image) {
-        const imageFormData = new FormData();
-        imageFormData.append('file', image);
-        imageFormData.append('forumId', forumId);
-        
-        try {
-          const uploadResponse = await fetch('/api/file/upload', {
-            method: 'POST',
-            body: imageFormData,
-          });
-          
-          if (!uploadResponse.ok) {
-            throw new Error('Failed to upload image');
-          }
-          
-          const uploadData = await uploadResponse.json();
-          imageUrl = uploadData.url || uploadData.imageUrl;
-        } catch (uploadError) {
-          console.error('Image upload error:', uploadError);
-          // Continue without image if upload fails
-          Swal.fire({
-            icon: 'warning',
-            title: 'Image Upload Failed',
-            text: 'Continuing to create post without image',
-            confirmButtonColor: '#3b82f6',
-            timer: 2000
-          });
+        imageUrl = await uploadImage(image);
+      }
+      
+      // Then create post with image URL
+      const success = await createPost(imageUrl);
+      
+      if (success) {
+        // Reset form
+        setTitle('');
+        setContent('');
+        if (quillRef.current) {
+          quillRef.current.setContents([]);
         }
-      }
-      
-      
-      const currentUser = {
-        _id: user ? user._id : 'temp-user-id',
-        name: user ? user.firstName+ " "+ user.lastName: 'Current User',
-        avatar: user ? user.avatar : '/default-avatar.png',
-      };
-      
-      // create the post with JSON data
-      const postData = {
-        title,
-        content,
-        imageUrl, // Will be null if no image or upload failed
-        author: currentUser
-      };
-      
-      // Post creation request with JSON data
-      const response = await fetch(`/api/forums/${forumId}/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(postData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        let errorMessage;
-        
-        try {
-          // Try to parse as JSON
-          const errorData = JSON.parse(errorText);
-          errorMessage = errorData.error || errorData.message || errorData.details || 'Failed to create post';
-        } catch (e) {
-          errorMessage = errorText || 'Failed to create post';
+        setImage(null);
+        if (imagePreview) {
+          URL.revokeObjectURL(imagePreview);
+          setImagePreview(null);
         }
+        setErrors({});
         
-        throw new Error(errorMessage);
+        // Show success notification
+        Swal.fire({
+          icon: 'success',
+          title: 'Post Created',
+          text: 'Your post has been published successfully!',
+          confirmButtonColor: '#3b82f6',
+          timer: 2000
+        });
+        
+        // Notify parent component
+        onPostCreated();
+        
+        // Close the popup
+        onClose();
       }
-      
-      // Reset form
-      setTitle('');
-      setContent('');
-      if (quillRef.current) {
-        quillRef.current.setContents([]);
-      }
-      setImage(null);
-      if (imagePreview) {
-        URL.revokeObjectURL(imagePreview);
-        setImagePreview(null);
-      }
-      setErrors({});
-      
-      // Show success notification
-      Swal.fire({
-        icon: 'success',
-        title: 'Post Created',
-        text: 'Your post has been published successfully!',
-        confirmButtonColor: '#3b82f6',
-        timer: 2000
-      });
-      
-      // Notify parent component
-      onPostCreated();
-      
-      // Close the popup
-      onClose();
     } catch (error) {
-      console.error('Error creating post:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      Swal.fire({
-        icon: 'error',
-        title: 'Failed to Create Post',
-        text: errorMessage,
-        confirmButtonColor: '#3b82f6'
-      });
+      console.error('Error in post creation process:', error);
     } finally {
       setIsSubmitting(false);
     }
