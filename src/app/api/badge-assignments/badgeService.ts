@@ -1101,13 +1101,13 @@ export const assignCodingNinjaBadge = async () => {
 
 /**
  * Assigns "Art Virtuoso" badge to users who have completed sessions offering Creative Arts & Entertainment skills
- * NOTE: Assuming categoryId 2 for "Creative Arts & Entertainment" based on typical ordering (Coding & Programming is 1)
+ * Creative Arts & Entertainment has categoryId: 7
  */
 export const assignArtVirtuosoBadge = async () => {
   try {
     console.log("Starting Art Virtuoso badge assignment...");
 
-    // Find completed sessions where a user offered a Creative Arts & Entertainment skill (categoryId: 2)
+    // Find completed sessions where a user offered a Creative Arts & Entertainment skill (categoryId: 7)
     const usersWithArtsSessions = await Session.aggregate([
       {
         $match: { status: "completed" },
@@ -1143,12 +1143,12 @@ export const assignArtVirtuosoBadge = async () => {
           preserveNullAndEmptyArrays: true,
         },
       },
-      // Find users who offered Creative Arts & Entertainment skills (categoryId: 2)
+      // Find users who offered Creative Arts & Entertainment skills (categoryId: 7)
       {
         $match: {
           $or: [
-            { "skill1Details.categoryId": 2 }, // user1 offered Creative Arts skill
-            { "skill2Details.categoryId": 2 }, // user2 offered Creative Arts skill
+            { "skill1Details.categoryId": 7 }, // user1 offered Creative Arts skill
+            { "skill2Details.categoryId": 7 }, // user2 offered Creative Arts skill
           ],
         },
       },
@@ -1157,14 +1157,14 @@ export const assignArtVirtuosoBadge = async () => {
         $project: {
           artsUsers: {
             $cond: {
-              if: { $eq: ["$skill1Details.categoryId", 2] },
+              if: { $eq: ["$skill1Details.categoryId", 7] },
               then: ["$user1Id"],
               else: [],
             },
           },
           artsUsers2: {
             $cond: {
-              if: { $eq: ["$skill2Details.categoryId", 2] },
+              if: { $eq: ["$skill2Details.categoryId", 7] },
               then: ["$user2Id"],
               else: [],
             },
