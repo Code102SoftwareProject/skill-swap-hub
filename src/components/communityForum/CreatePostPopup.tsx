@@ -236,7 +236,7 @@ const CreatePostPopup: React.FC<CreatePostPopupProps> = ({
       const currentUser = {
         _id: user ? user._id : 'temp-user-id',
         name: user ? user.firstName+ " "+ user.lastName: 'Current User',
-        avatar: 'user-avatar.png'
+        avatar: user ? user.avatar : '/default-avatar.png',
       };
       
       // create the post with JSON data

@@ -101,9 +101,14 @@ export default function CompletionRequestModal({
 
   if (!isOpen) return null;
 
+  // Early return if session is not provided or is invalid
+  if (!session || !session.user1Id || !session.user2Id) {
+    return null;
+  }
+
   // Calculate statistics
-  const myWorks = works.filter(w => w.provideUser._id === currentUserId);
-  const otherWorks = works.filter(w => w.provideUser._id !== currentUserId);
+  const myWorks = works.filter(w => w.provideUser && w.provideUser._id === currentUserId);
+  const otherWorks = works.filter(w => w.provideUser && w.provideUser._id !== currentUserId);
   
   const myAcceptedWorks = myWorks.filter(w => w.acceptanceStatus === 'accepted').length;
   const otherAcceptedWorks = otherWorks.filter(w => w.acceptanceStatus === 'accepted').length;
@@ -114,7 +119,7 @@ export default function CompletionRequestModal({
   const averageProgress = Math.round((myProgressPercentage + otherProgressPercentage) / 2);
 
   // Get other user info
-  const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
+  const otherUser = session?.user1Id?._id === currentUserId ? session?.user2Id : session?.user1Id;
   const otherUserName = otherUser?.firstName ? `${otherUser.firstName} ${otherUser.lastName || ''}`.trim() : 'Other participant';
 
   // Check if completion looks ready

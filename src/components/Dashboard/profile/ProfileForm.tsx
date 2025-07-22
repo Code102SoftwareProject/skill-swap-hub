@@ -178,8 +178,7 @@ export default function ProfileForm() {
     <div className="max-w-3xl mx-auto p-8 bg-white rounded-xl shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Profile Information</h1>
-          <p className="text-gray-500 mt-1">Manage your personal and professional details</p>
+          <h2 className="text-2xl font-semibold text-[#026aa1]">Your Profile </h2>
         </div>
         {!isEditing ? (
           <button

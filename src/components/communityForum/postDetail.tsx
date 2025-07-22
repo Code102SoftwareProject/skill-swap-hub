@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { ArrowLeft, Loader, MessageSquare, Send, ThumbsUp, ThumbsDown, Edit, X, AlertCircle, ImagePlus, Loader2 } from 'lucide-react';
@@ -79,6 +79,18 @@ const PostDetail = () => {
   const editReplyRef = useRef<HTMLTextAreaElement>(null);
   const editEditorRef = useRef<HTMLDivElement>(null);
   const editQuillRef = useRef<Quill | null>(null);
+  const viewTrackedRef = useRef<boolean>(false);
+
+  // Update the useEffect for view tracking
+  useEffect(() => {
+    // Reset view tracking when post changes
+    viewTrackedRef.current = false;
+  }, [postId]);
+
+  // Track initial post view - separate useEffect to avoid infinite loop
+  useEffect(() => {
+    // This is now handled by the dedicated API endpoint in another useEffect
+  }, []);
 
   // Fetch post details
   useEffect(() => {
@@ -142,6 +154,135 @@ const PostDetail = () => {
 
     fetchPostDetails();
   }, [postId]);
+
+  // Add a separate API call to increment view count
+  useEffect(() => {
+    const incrementViewCount = async () => {
+      if (!postId || !user || !token || !forumId || viewTrackedRef.current) return;
+      
+      try {
+        viewTrackedRef.current = true;
+        
+        // Call the API to update view count in the database
+        const response = await fetch('/api/posts/' + postId + '/views', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ forumId })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Update the post with the new view count from the server
+          setPost(prevPost => {
+            if (prevPost) {
+              return { ...prevPost, views: data.views };
+            }
+            return prevPost;
+          });
+          console.log('View count updated successfully:', data.views);
+        } else {
+          console.error('Failed to update view count');
+        }
+      } catch (error) {
+        console.error('Error updating view count:', error);
+      }
+    };
+    
+    incrementViewCount();
+  }, [postId, user, token, forumId]);
+
+  // Track time spent on post for analytics
+  useEffect(() => {
+    if (!post || !user || !token || !forumId) return;
+
+    const startTime = Date.now();
+    let timeSpent = 0;
+
+    const updateTimeSpent = () => {
+      timeSpent = Math.floor((Date.now() - startTime) / 1000);
+    };
+
+    const interval = setInterval(updateTimeSpent, 5000); // Update every 5 seconds
+
+    const handleBeforeUnload = () => {
+      updateTimeSpent();
+      if (timeSpent > 10) { // Only track if user spent more than 10 seconds
+        // Use fetch instead of sendBeacon for better compatibility
+        fetch('/api/user/interactions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            postId: post._id,
+            forumId: forumId,
+            interactionType: 'view',
+            timeSpent,
+            deviceType: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            isComplete: timeSpent > 30 // Consider complete if spent more than 30 seconds
+          })
+        }).catch(err => console.error('Error tracking time on unload:', err));
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        updateTimeSpent();
+        if (timeSpent > 10) {
+          // Call the API directly to avoid triggering useEffect loops
+          fetch('/api/user/interactions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              postId: post._id,
+              forumId: forumId,
+              interactionType: 'view',
+              timeSpent,
+              deviceType: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+              isComplete: timeSpent > 30
+            })
+          }).catch(err => console.error('Error tracking time spent:', err));
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
+      // Final time tracking when component unmounts
+      updateTimeSpent();
+      if (timeSpent > 10) {
+        // Use fetch directly to avoid state updates on unmount
+        fetch('/api/user/interactions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            postId: post._id,
+            forumId: forumId,
+            interactionType: 'view',
+            timeSpent,
+            deviceType: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            isComplete: timeSpent > 30
+          })
+        }).catch(err => console.error('Error tracking final time spent:', err));
+      }
+    };
+  }, [post, user, token, forumId]); // Removed trackPostView from dependencies
 
   // Cleanup image preview URL when component unmounts
   useEffect(() => {
@@ -215,7 +356,7 @@ const PostDetail = () => {
       const author = {
         _id: user._id, 
         name: `${user.firstName} ${user.lastName}`,
-       // avatar: user.avatar
+        avatar: user.avatar
       };
       
       const response = await fetch(`/api/posts/${postId}/replies`, {
@@ -988,6 +1129,7 @@ const PostDetail = () => {
                 fill
                 className="object-cover"
               />
+              
             </div>
             <div>
               <p className="font-medium text-blue-800">{post.author.name}</p>
@@ -1011,6 +1153,16 @@ const PostDetail = () => {
                   alt={`Image for ${post.title}`}
                   fill
                   className="object-contain"
+                  onError={(e) => {
+                    console.error('Failed to load post image:', post.imageUrl);
+                    // Use setState to hide the image on error
+                    if (post) {
+                      setPost({
+                        ...post,
+                        imageUrl: undefined
+                      });
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -1242,7 +1394,7 @@ const PostDetail = () => {
             <div className="flex items-start space-x-4">
               <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-blue-100 flex-shrink-0">
                 <Image 
-                  src={/*user.avatar ? getImageUrl(user.avatar) :*/ '/user-avatar.png'} 
+                  src={user.avatar ? getImageUrl(user.avatar) : '/user-avatar.png'} 
                   alt={`${user.firstName} ${user.lastName}`}
                   fill
                   className="object-cover"

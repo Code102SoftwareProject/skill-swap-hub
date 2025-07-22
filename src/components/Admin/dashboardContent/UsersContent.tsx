@@ -60,7 +60,7 @@ interface DeleteModalProps {
   userName?: string;
 }
 
-const DEBOUNCE_DELAY = 300;
+const DEBOUNCE_DELAY = 100; // Reduced for better responsiveness
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
 const SORT_FIELDS = [
   { value: "createdAt", label: "Created At" },
@@ -705,15 +705,17 @@ const UsersContent: React.FC = () => {
             {pagination.total} {pagination.total === 1 ? "user" : "users"} found
           </p>
         </div>
-        <SearchInput
-          value={search}
-          onChange={handleSearchChange}
-          onClear={clearSearch}
-        />
       </div>
       {/* Sorting & Page Size Controls */}
       <div className="mb-4 p-4">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-stretch sm:items-center bg-white/80 rounded-xl shadow-sm px-4 py-3 border border-gray-200">
+          <div className="w-full sm:w-80">
+            <SearchInput
+              value={search}
+              onChange={handleSearchChange}
+              onClear={clearSearch}
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <span className="inline-flex items-center gap-1">
               <svg
