@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { SkillListing } from '@/types/skillListing';
 import { BadgeCheck, Edit, Trash2, Eye, Users, Shield, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface ListingCardProps {
   listing: SkillListing & { 
@@ -60,6 +61,9 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
   const statusConfig = getStatusConfig(listing.status);
   const StatusIcon = statusConfig.icon;
   const canModify = isOwner && !listing.isUsedInMatches;
+  
+  // Process avatar URL or provide fallback
+  const userAvatar = processAvatarUrl(listing.userDetails.avatar) || '/Avatar.png';
 
   return (
     <>
@@ -70,11 +74,16 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             <div className="flex items-center flex-1 min-w-0">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 mr-3 flex-shrink-0">
                 <Image
-                  src={'/Avatar.png'}
+                  src={userAvatar}
                   alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                   width={40}
                   height={40}
                   className="object-cover w-full h-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/Avatar.png';
+                    target.onerror = null;
+                  }}
                 />
               </div>
               <div className="flex-1 min-w-0">
@@ -202,11 +211,16 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-4">
                   <Image
-                    src={'/Avatar.png'}
+                    src={userAvatar}
                     alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                     width={48}
                     height={48}
                     className="object-cover w-full h-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/Avatar.png';
+                      target.onerror = null;
+                    }}
                   />
                 </div>
                 <div className="flex-1">
