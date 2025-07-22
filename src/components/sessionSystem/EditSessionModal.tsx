@@ -53,6 +53,11 @@ export default function EditSessionModal({
   const [loading, setLoading] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
 
+  // State to store skill verification status  
+  const [skillVerificationStatus, setSkillVerificationStatus] = useState<{
+    [skillId: string]: boolean;
+  }>({});
+
   // Alert state
   const [alert, setAlert] = useState<{
     isOpen: boolean;
@@ -81,7 +86,19 @@ export default function EditSessionModal({
 
   // Function to check if a skill is verified
   const isSkillVerified = (skill: any) => {
-    return skill?.verified === true || skill?.isVerified === true;
+    if (!skill) return false;
+    
+    // Try to get skill ID
+    const skillId = skill._id || skill.id;
+    if (!skillId) return false;
+    
+    // Check our fetched verification status first
+    if (skillVerificationStatus.hasOwnProperty(skillId)) {
+      return skillVerificationStatus[skillId];
+    }
+    
+    // Fallback to skill object data if available
+    return skill.verified === true || skill.isVerified === true;
   };
 
   const fetchSkills = useCallback(async () => {
@@ -101,18 +118,38 @@ export default function EditSessionModal({
       if (userSkillsData.success) {
         console.log('User skills data:', userSkillsData.skills); // Debug log
         setUserSkills(userSkillsData.skills);
+        
+        // Update verification status map
+        const verificationMap: { [skillId: string]: boolean } = {};
+        userSkillsData.skills.forEach((skill: any) => {
+          const skillId = skill._id || skill.id;
+          if (skillId) {
+            verificationMap[skillId] = skill.isVerified || false;
+          }
+        });
+        setSkillVerificationStatus(prev => ({ ...prev, ...verificationMap }));
       }
       
       if (otherSkillsData.success) {
         console.log('Other user skills data:', otherSkillsData.skills); // Debug log
         setOtherUserSkills(otherSkillsData.skills);
+        
+        // Update verification status map
+        const verificationMap: { [skillId: string]: boolean } = {};
+        otherSkillsData.skills.forEach((skill: any) => {
+          const skillId = skill._id || skill.id;
+          if (skillId) {
+            verificationMap[skillId] = skill.isVerified || false;
+          }
+        });
+        setSkillVerificationStatus(prev => ({ ...prev, ...verificationMap }));
       }
     } catch (error) {
       console.error('Error fetching skills:', error);
     } finally {
       setSkillsLoading(false);
     }
-  }, [session, currentUserId]);
+  }, [session, currentUserId, setSkillVerificationStatus]);
 
   useEffect(() => {
     if (isOpen && session) {

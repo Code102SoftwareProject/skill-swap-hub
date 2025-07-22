@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Clock, 
   CheckCircle, 
@@ -69,6 +69,11 @@ export default function SessionCard({
 
   // Enhanced completion status using new API
   const [completionStatus, setCompletionStatus] = useState<CompletionStatus | null>(null);
+  
+  // State to store skill verification status
+  const [skillVerificationStatus, setSkillVerificationStatus] = useState<{
+    [skillId: string]: boolean;
+  }>({});
 
   // Fetch completion status for active sessions
   useEffect(() => {
@@ -86,10 +91,85 @@ export default function SessionCard({
     fetchCompletionStatus();
   }, [session._id, session.status, userId]);
 
+  // Fetch skill verification status
+  useEffect(() => {
+    const fetchSkillVerification = async () => {
+      const skillIds = new Set<string>();
+      
+      // Collect skill IDs from session and counter offers
+      if (session.skill1Id?._id || session.skill1Id) {
+        skillIds.add(session.skill1Id._id || session.skill1Id);
+      }
+      if (session.skill2Id?._id || session.skill2Id) {
+        skillIds.add(session.skill2Id._id || session.skill2Id);
+      }
+      
+      // Also collect from counter offers
+      const sessionCounterOffers = counterOffers[session._id] || [];
+      sessionCounterOffers.forEach(co => {
+        if (co.skill1Id?._id || co.skill1Id) {
+          skillIds.add(co.skill1Id._id || co.skill1Id);
+        }
+        if (co.skill2Id?._id || co.skill2Id) {
+          skillIds.add(co.skill2Id._id || co.skill2Id);
+        }
+      });
+      
+      if (skillIds.size > 0) {
+        try {
+          // Get user IDs involved in this session
+          const userIds = [session.user1Id._id || session.user1Id, session.user2Id._id || session.user2Id];
+          
+          // Fetch skills for both users
+          const promises = userIds.map(async (uid) => {
+            try {
+              const response = await fetch(`/api/skillsbyuser?userId=${uid}`);
+              const data = await response.json();
+              return data.success ? data.skills : [];
+            } catch (error) {
+              console.error(`Error fetching skills for user ${uid}:`, error);
+              return [];
+            }
+          });
+          
+          const [user1Skills, user2Skills] = await Promise.all(promises);
+          const allSkills = [...user1Skills, ...user2Skills];
+          
+          // Create verification map
+          const verificationMap: { [skillId: string]: boolean } = {};
+          allSkills.forEach((skill: any) => {
+            const skillId = skill._id || skill.id;
+            if (skillId && skillIds.has(skillId)) {
+              verificationMap[skillId] = skill.isVerified || false;
+            }
+          });
+          
+          setSkillVerificationStatus(verificationMap);
+        } catch (error) {
+          console.error('Error fetching skill verification:', error);
+        }
+      }
+    };
+
+    fetchSkillVerification();
+  }, [session._id, session.skill1Id, session.skill2Id, session.user1Id, session.user2Id, counterOffers]);
+
   // Function to check if a skill is verified
-  const isSkillVerified = (skill: any) => {
-    return skill?.verified === true || skill?.isVerified === true;
-  };
+  const isSkillVerified = useCallback((skill: any) => {
+    if (!skill) return false;
+    
+    // Try to get skill ID
+    const skillId = skill._id || skill.id || skill;
+    if (!skillId) return false;
+    
+    // Check our fetched verification status first
+    if (skillVerificationStatus.hasOwnProperty(skillId)) {
+      return skillVerificationStatus[skillId];
+    }
+    
+    // Fallback to skill object data if available
+    return skill.verified === true || skill.isVerified === true;
+  }, [skillVerificationStatus]);
 
   // Helper functions
   const getSessionStatus = (session: Session) => {
