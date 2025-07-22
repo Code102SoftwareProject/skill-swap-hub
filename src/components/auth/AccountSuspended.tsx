@@ -36,10 +36,10 @@ export default function AccountSuspended() {
 
   useEffect(() => {
     // Try to get suspension data from URL params
-    const reason = searchParams.get("reason");
-    const notes = searchParams.get("notes");
-    const date = searchParams.get("date");
-    const admin = searchParams.get("admin");
+    const reason = searchParams ? searchParams.get("reason") : null;
+    const notes = searchParams ? searchParams.get("notes") : null;
+    const date = searchParams ? searchParams.get("date") : null;
+    const admin = searchParams ? searchParams.get("admin") : null;
 
     if (reason || notes || date) {
       setSuspensionData({

@@ -11,7 +11,8 @@ import Chatbot from "@/components/chatassistant/chatbot";
 import { useUserPreferences } from '@/hooks/useUserPreferences';
 
 export default function ForumDetailsPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const id = (params?.id ?? '') as string;
   const router = useRouter();
   const { trackInteraction, getPersonalizedFeed } = useUserPreferences();
   const [forum, setForum] = useState<IForum | null>(null);
