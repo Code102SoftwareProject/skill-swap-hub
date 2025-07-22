@@ -5,7 +5,7 @@ import { X, Calendar, User, BookOpen, CheckCircle, XCircle } from 'lucide-react'
 import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
-  id: string;
+  _id: string;
   skillTitle: string;
   proficiencyLevel: string;
   description: string;
@@ -282,10 +282,10 @@ export default function CreateSessionModal({
       ) : (
         currentUserSkills.map((skill) => (
           <div
-            key={skill.id}
-            onClick={() => setSelectedMySkill(skill.id)}
+            key={skill._id}
+            onClick={() => setSelectedMySkill(skill._id)}
             className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-              selectedMySkill === skill.id
+              selectedMySkill === skill._id
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}
@@ -325,10 +325,10 @@ export default function CreateSessionModal({
       ) : (
         otherUserSkills.map((skill) => (
           <div
-            key={skill.id}
-            onClick={() => setSelectedOtherSkill(skill.id)}
+            key={skill._id}
+            onClick={() => setSelectedOtherSkill(skill._id)}
             className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
-              selectedOtherSkill === skill.id
+              selectedOtherSkill === skill._id
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
             }`}

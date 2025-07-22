@@ -18,7 +18,7 @@ export async function GET(req: Request) {
 
     // Add select to only fetch necessary fields for better performance
     const userSkills = await UserSkill.find({ userId })
-      .select('skillTitle proficiencyLevel description categoryName isVerified userId createdAt')
+      .select('_id skillTitle proficiencyLevel description categoryName isVerified userId createdAt')
       .sort({ createdAt: -1 })
       .lean(); // Use lean() for better performance when we don't need mongoose document methods
 
