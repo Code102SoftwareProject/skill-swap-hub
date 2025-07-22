@@ -152,6 +152,13 @@ export default function SessionCard({
     return sessionCounterOffers.filter(co => co.status === 'accepted').length;
   };
 
+  const hasUserSentPendingCounterOffer = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.some(co => 
+      co.status === 'pending' && co.counterOfferedBy._id === userId
+    );
+  };
+
   const renderCounterOffer = (counterOffer: CounterOffer) => {
     return (
       <div key={counterOffer._id} className={`border rounded-lg p-4 ${
@@ -435,11 +442,16 @@ export default function SessionCard({
                     </button>
                     <button
                       onClick={() => onCounterOffer(session._id)}
-                      disabled={processingSession === session._id}
-                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasUserSentPendingCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasUserSentPendingCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50'
+                      }`}
+                      title={hasUserSentPendingCounterOffer(session._id) ? 'You have already sent a counter offer for this session' : 'Send counter offer'}
                     >
                       <Edit className="h-4 w-4" />
-                      <span>Counter Offer</span>
+                      <span>{hasUserSentPendingCounterOffer(session._id) ? 'Counter Offer Sent' : 'Counter Offer'}</span>
                     </button>
                     <button
                       onClick={() => onAcceptReject(session._id, 'reject')}
