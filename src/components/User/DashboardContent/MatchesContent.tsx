@@ -527,6 +527,7 @@ const MatchesPage = () => {
                       key={match.id} 
                       match={match} 
                       onClick={() => viewMatchDetails(match)} 
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </div>

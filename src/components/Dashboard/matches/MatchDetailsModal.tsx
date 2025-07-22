@@ -10,6 +10,7 @@ import { fetchUserChatRooms } from '@/services/chatApiServices';
 import { useAuth } from '@/lib/context/AuthContext';
 import { BadgeCheck, ArrowRight, MessageCircle, Calendar, XCircle, CheckCircle, Clock, Award, BarChart3, Target, AlertCircle } from 'lucide-react';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import { getUserSkillsByUserId } from '@/services/skillServiceAdmin';
 
 interface MatchDetailsModalProps {
   match: SkillMatch;
@@ -93,6 +94,31 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
   const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
   const [otherUserKycStatus, setOtherUserKycStatus] = useState<string | null>(null);
+
+  // Skill verification state and effect (must be inside component)
+  const [mySkillVerified, setMySkillVerified] = useState<boolean | null>(null);
+  const [otherSkillVerified, setOtherSkillVerified] = useState<boolean | null>(null);
+  useEffect(() => {
+    async function fetchSkillVerification() {
+      // My skill: use currentUserId
+      if (currentUserId && match.myDetails && match.myDetails.offeringSkill) {
+        const res = await getUserSkillsByUserId(currentUserId);
+        if (res.success && res.data) {
+          const found = res.data.find((s: any) => s.skillTitle === match.myDetails.offeringSkill);
+          setMySkillVerified(found ? !!found.isVerified : false);
+        }
+      }
+      // Other user's skill
+      if (match.otherUser && match.otherUser.offeringSkill && match.otherUser.userId) {
+        const res = await getUserSkillsByUserId(match.otherUser.userId);
+        if (res.success && res.data) {
+          const found = res.data.find((s: any) => s.skillTitle === match.otherUser.offeringSkill);
+          setOtherSkillVerified(found ? !!found.isVerified : false);
+        }
+      }
+    }
+    fetchSkillVerification();
+  }, [currentUserId, match.myDetails, match.otherUser]);
 
   // Fetch KYC status for the other user
   useEffect(() => {
@@ -371,8 +397,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
                 <div className="space-y-3">
                   <div className="bg-white p-3 rounded border">
                     <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Offering</span>
-                    <h4 className="font-semibold text-gray-800 mt-1">
+                    <h4 className="font-semibold text-gray-800 mt-1 flex items-center gap-1">
                       {match.myDetails.offeringSkill}
+                      {mySkillVerified === true && <BadgeCheck className="w-4 h-4 text-green-500" />}
+                      {mySkillVerified === false && <AlertCircle className="w-4 h-4 text-orange-500" />}
                     </h4>
                     <p className="text-sm text-gray-600">
                       You'll teach this skill
@@ -441,8 +469,10 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
                 <div className="space-y-3">
                   <div className="bg-white p-3 rounded border">
                     <span className="text-xs font-medium text-green-600 uppercase tracking-wide">They Offer</span>
-                    <h4 className="font-semibold text-gray-800 mt-1">
+                    <h4 className="font-semibold text-gray-800 mt-1 flex items-center gap-1">
                       {match.otherUser.offeringSkill}
+                      {otherSkillVerified === true && <BadgeCheck className="w-4 h-4 text-green-500" />}
+                      {otherSkillVerified === false && <AlertCircle className="w-4 h-4 text-orange-500" />}
                     </h4>
                     <p className="text-sm text-gray-600">
                       {match.otherUser.firstName} will teach you this

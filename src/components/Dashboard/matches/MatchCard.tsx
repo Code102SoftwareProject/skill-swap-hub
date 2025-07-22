@@ -5,15 +5,16 @@ import Image from 'next/image';
 import { SkillMatch } from '@/types/skillMatch';
 import { BadgeCheck, ArrowRightLeft, Eye, MessageCircle, Clock, CheckCircle, XCircle, Award, Calendar, AlertCircle } from 'lucide-react';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import { getUserSkillsByUserId } from '@/services/skillServiceAdmin';
 
 interface MatchCardProps {
   match: SkillMatch;
   onClick: () => void;
+  currentUserId?: string; // Needed to look up myDetails userId
 }
 
-const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
+const MatchCard: React.FC<MatchCardProps> = ({ match, onClick, currentUserId }) => {
   const [otherUserKycStatus, setOtherUserKycStatus] = useState<string | null>(null);
-
   // Fetch KYC status for the other user
   useEffect(() => {
     async function fetchKycStatus() {
@@ -255,14 +256,6 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                 : "🔄 Partial match! They can teach you what you're seeking."}
             </p>
           </div>
-          
-          {/* Success indicators */}
-          {match.status === 'accepted' && (
-            <div className="inline-flex items-center text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full">
-              <MessageCircle className="w-3 h-3 mr-1" />
-              Chat available
-            </div>
-          )}
         </div>
       </div>
       
