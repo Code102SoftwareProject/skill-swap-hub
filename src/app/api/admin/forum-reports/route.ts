@@ -236,7 +236,7 @@ export async function PATCH(request: NextRequest) {
 				console.log(`Attempting to send notification to user ${userId}, type ${typeno}`);
 				
 				// Use direct URL instead of environment variable
-				const apiUrl = `http://localhost:3000/api/notification`;
+				const apiUrl = `https://code102.site/api/notification`;
 				console.log(`Sending notification to API endpoint: ${apiUrl}`);
 				
 				const payload = {
