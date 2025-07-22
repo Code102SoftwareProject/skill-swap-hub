@@ -25,10 +25,24 @@ const EnhancedHeroSection = () => {
   const router = useRouter();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isVisible, setIsVisible] = useState(false);
+  const [stats, setStats] = useState<{
+    activeLearners: number | null;
+    skillsAvailable: number | null;
+    successfulMatches: number | null;
+    totalMatches: number | null;
+    satisfactionRate: number | null;
+  }>({
+    activeLearners: null,
+    skillsAvailable: null,
+    successfulMatches: null,
+    totalMatches: null,
+    satisfactionRate: null,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     setIsVisible(true);
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({
         x: (e.clientX / window.innerWidth) * 100,
@@ -38,6 +52,25 @@ const EnhancedHeroSection = () => {
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  useEffect(() => {
+    // Fetch hero stats from backend
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
+        const res = await fetch('/api/stats/hero');
+        const data = await res.json();
+        if (data.success && data.data) {
+          setStats(data.data);
+        }
+      } catch (err) {
+        // Optionally handle error
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchStats();
   }, []);
 
   return (
@@ -144,13 +177,32 @@ const EnhancedHeroSection = () => {
         {/* Stats */}
         <div className={`grid grid-cols-2 md:grid-cols-4 gap-8 transform transition-all duration-1000 delay-800 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {[
-            { number: '50K+', label: 'Active Learners', icon: Users },
-            { number: '1000+', label: 'Skills Available', icon: BookOpen },
-            { number: '25K+', label: 'Successful Matches', icon: Star },
-            { number: '95%', label: 'Satisfaction Rate', icon: Award }
+            {
+              number: loadingStats || stats.activeLearners === null ? '...' : stats.activeLearners.toLocaleString(),
+              label: 'Active Learners',
+              icon: Users
+            },
+            {
+              number: loadingStats || stats.skillsAvailable === null ? '...' : stats.skillsAvailable.toLocaleString(),
+              label: 'Skills Available',
+              icon: BookOpen
+            },
+            {
+              number:
+                loadingStats || stats.totalMatches === null
+                  ? '...'
+                  : stats.totalMatches.toLocaleString(),
+              label: 'Total Matches',
+              icon: Star
+            },
+            {
+              number: loadingStats || stats.satisfactionRate === null ? '...' : `${stats.satisfactionRate}%`,
+              label: 'Satisfaction Rate',
+              icon: Award
+            }
           ].map((stat, index) => (
-            <div 
-              key={stat.label} 
+            <div
+              key={stat.label}
               className="text-center group"
               style={{ animationDelay: `${index * 100}ms` }}
             >
