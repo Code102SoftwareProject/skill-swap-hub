@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const skip = (page - 1) * limit;
-
+    
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(forumId)) {
       return NextResponse.json(
@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
     await connectToDatabase();
-
+    
     const posts = await Post.find({ 
       forumId, 
       $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
@@ -34,12 +34,18 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
+    
     const total = await Post.countDocuments({ 
       forumId, 
       $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
     });
-
+    
+    // Add cache control headers to prevent caching
+    const headers = new Headers();
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+    
     return NextResponse.json({
       posts,
       pagination: {
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
         limit,
         pages: Math.ceil(total / limit),
       },
-    });
+    }, { headers });
   } catch (error) {
     console.error('Error fetching forum posts:', error);
     return NextResponse.json(

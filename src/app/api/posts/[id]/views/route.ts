@@ -81,14 +81,13 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Get user ID from token
-    const userId = getUserIdFromToken(request);
-    if (!userId) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // Get user ID from token or generate a temporary ID from IP and user agent
+    let userId = getUserIdFromToken(request);
+    const ip = request.headers.get('x-forwarded-for') || 'unknown-ip';
+    const userAgent = request.headers.get('user-agent') || 'unknown-agent';
+    
+    // If no authenticated user, create a visitor ID from IP and user agent
+    const visitorId = userId || `visitor-${ip}-${userAgent.substring(0, 50)}`;
     
     // Get forum ID from request body
     const body = await request.json();
@@ -104,23 +103,36 @@ export async function POST(request: NextRequest) {
     await connectToDatabase();
     
     // Check if this is a new view or a recent duplicate
+    // Reduced cooldown to 1 minute to allow more frequent view counts
     const now = new Date();
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const oneMinuteAgo = new Date(now.getTime() - 1 * 60 * 1000);
     
     const existingView = await PostView.findOne({ 
       postId, 
-      userId,
-      viewedAt: { $gt: fiveMinutesAgo }
+      $or: [
+        { userId: visitorId },
+        { visitorId: visitorId }
+      ],
+      viewedAt: { $gt: oneMinuteAgo }
     });
+    
+    let post;
     
     // Only increment view count if this is not a recent duplicate view
     if (!existingView) {
       // Update or create post view record
       await PostView.findOneAndUpdate(
-        { postId, userId },
+        { 
+          postId, 
+          $or: [
+            { userId: visitorId },
+            { visitorId: visitorId }
+          ]
+        },
         {
           postId,
-          userId,
+          userId: userId || null,
+          visitorId: userId ? null : visitorId,
           forumId,
           viewedAt: now,
           deviceType: 'desktop', // Default value
@@ -130,7 +142,7 @@ export async function POST(request: NextRequest) {
       );
       
       // Increment view count on the post
-      const post = await Post.findByIdAndUpdate(
+      post = await Post.findByIdAndUpdate(
         postId,
         { $inc: { views: 1 } },
         { new: true }
@@ -146,11 +158,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         views: post.views,
-        message: 'View count incremented successfully'
+        message: 'View count incremented successfully',
+        updated: true
       });
     } else {
-      // Return current view count without incrementing
-      const post = await Post.findById(postId).select('views');
+      // Always fetch the latest view count from the database
+      post = await Post.findById(postId).select('views');
       
       if (!post) {
         return NextResponse.json(
@@ -162,7 +175,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         views: post.views,
-        message: 'Recent view already recorded'
+        message: 'Recent view already recorded',
+        updated: false
       });
     }
   } catch (error) {
