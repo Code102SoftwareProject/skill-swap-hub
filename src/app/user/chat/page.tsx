@@ -49,15 +49,45 @@ function ChatPageContent() {
   const [preloadProgress, setPreloadProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
   const [forceRefresh, setForceRefresh] = useState<boolean>(false); // Add state to force refresh
 
-  // Check if user came from dashboard (via URL param or recent navigation)
+  // Check if user came from dashboard and handle auto-selection of chat room
   useEffect(() => {
     const fromDashboard = searchParams.get('from') === 'dashboard';
+    const roomId = searchParams.get('roomId');
+    
     if (fromDashboard) {
       setForceRefresh(true);
       // Reset the flag after a short delay to avoid affecting subsequent navigations
       setTimeout(() => setForceRefresh(false), 1000);
     }
-  }, [searchParams]);
+    
+    // Auto-select chat room if roomId is provided
+    if (roomId && userId) {
+      // Retry mechanism for newly created chat rooms
+      const trySelectRoom = async (attempts = 0) => {
+        const maxAttempts = 3;
+        
+        try {
+          // Check if the room exists in user's chat rooms
+          const chatRooms = await fetchUserChatRooms(userId);
+          const roomExists = chatRooms.some(room => room._id === roomId);
+          
+          if (roomExists) {
+            handleChatSelect(roomId);
+          } else if (attempts < maxAttempts) {
+            // Room might still be being created, wait and retry
+            setTimeout(() => trySelectRoom(attempts + 1), 1000);
+          } else {
+            console.warn(`Chat room ${roomId} not found after ${maxAttempts} attempts`);
+          }
+        } catch (error) {
+          console.error('Error finding chat room:', error);
+        }
+      };
+      
+      // Small delay to ensure sidebar is loaded, then try to select room
+      setTimeout(() => trySelectRoom(), 500);
+    }
+  }, [searchParams, userId]);
 
   /**
    * * Event Handlers
