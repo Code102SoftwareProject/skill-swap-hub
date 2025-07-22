@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { SkillMatch } from '@/types/skillMatch';
@@ -8,7 +8,7 @@ import { useToast } from '@/lib/context/ToastContext';
 import { updateMatchStatus, acceptMatchAndCreateChatRoom } from '@/services/matchService';
 import { fetchUserChatRooms } from '@/services/chatApiServices';
 import { useAuth } from '@/lib/context/AuthContext';
-import { BadgeCheck, ArrowRight, MessageCircle, Calendar, XCircle, CheckCircle, Clock, Award, BarChart3, Target } from 'lucide-react';
+import { BadgeCheck, ArrowRight, MessageCircle, Calendar, XCircle, CheckCircle, Clock, Award, BarChart3, Target, AlertCircle } from 'lucide-react';
 import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface MatchDetailsModalProps {
@@ -92,6 +92,23 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
   const [showAcceptConfirmation, setShowAcceptConfirmation] = useState(false);
   const [showRejectConfirmation, setShowRejectConfirmation] = useState(false);
   const [openingChat, setOpeningChat] = useState(false);
+  const [otherUserKycStatus, setOtherUserKycStatus] = useState<string | null>(null);
+
+  // Fetch KYC status for the other user
+  useEffect(() => {
+    async function fetchKycStatus() {
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${match.otherUser.userId}`);
+        const data = await res.json();
+        setOtherUserKycStatus(data.success ? data.status : null);
+      } catch (err) {
+        setOtherUserKycStatus(null);
+      }
+    }
+    if (match.otherUser.userId) {
+      fetchKycStatus();
+    }
+  }, [match.otherUser.userId]);
   
   // Format date
   const formatDate = (dateString: string) => {
@@ -411,7 +428,11 @@ const MatchDetailsModal: React.FC<MatchDetailsModalProps> = ({ match, currentUse
                   <div>
                     <h3 className="font-semibold text-gray-800 flex items-center">
                       {match.otherUser.firstName} {match.otherUser.lastName}
-                      <BadgeCheck className="w-4 h-4 ml-1 text-blue-500" />
+                      {(otherUserKycStatus === 'Accepted' || otherUserKycStatus === 'Approved') ? (
+                        <BadgeCheck className="w-4 h-4 ml-1 text-blue-500" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 ml-1 text-orange-500" title="Not Verified" />
+                      )}
                     </h3>
                     <p className="text-xs text-gray-600">Partner Profile</p>
                   </div>
