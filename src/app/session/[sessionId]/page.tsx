@@ -34,7 +34,7 @@ export default function SessionWorkspace() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
-  const sessionId = params.sessionId as string;
+  const sessionId = (params?.sessionId ?? '') as string;
   const currentUserId = user?._id
   
   const [session, setSession] = useState<Session | null>(null);
@@ -152,7 +152,7 @@ export default function SessionWorkspace() {
     if (!session) return;
     
     try {
-      const otherUserId = session.user1Id._id === currentUserId ? session.user2Id._id : session.user1Id._id;
+      const otherUserId = session.user1Id?._id === currentUserId ? session.user2Id?._id : session.user1Id?._id;
       const response = await fetch(`/api/users/profile?id=${otherUserId}`);
       const data = await response.json();
       
@@ -413,11 +413,11 @@ export default function SessionWorkspace() {
     );
   }
 
-  const otherUser = session.user1Id._id === currentUserId ? session.user2Id : session.user1Id;
-  const mySkill = session.user1Id._id === currentUserId ? session.skill1Id : session.skill2Id;
-  const otherSkill = session.user1Id._id === currentUserId ? session.skill2Id : session.skill1Id;
-  const myDescription = session.user1Id._id === currentUserId ? session.descriptionOfService1 : session.descriptionOfService2;
-  const otherDescription = session.user1Id._id === currentUserId ? session.descriptionOfService2 : session.descriptionOfService1;
+  const otherUser = session.user1Id?._id === currentUserId ? session.user2Id : session.user1Id;
+  const mySkill = session.user1Id?._id === currentUserId ? session.skill1Id : session.skill2Id;
+  const otherSkill = session.user1Id?._id === currentUserId ? session.skill2Id : session.skill1Id;
+  const myDescription = session.user1Id?._id === currentUserId ? session.descriptionOfService1 : session.descriptionOfService2;
+  const otherDescription = session.user1Id?._id === currentUserId ? session.descriptionOfService2 : session.descriptionOfService1;
 
   // Get proper display name for other user
   const getOtherUserName = () => {

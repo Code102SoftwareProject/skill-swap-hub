@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   await connect();
   try {
     const body = await req.json();
-    console.log('Received body:', body);
+    console.log('Notification API - Received request body:', JSON.stringify(body));
 
     let { userId, typeno, description, targetDestination, broadcast } = body;
 
@@ -25,6 +25,7 @@ export async function POST(req: Request) {
     } else {
       // Validate userId is required when not broadcasting
       if (!userId) {
+        console.error('Notification API - Missing userId for non-broadcast notification');
         return NextResponse.json(
           { success: false, message: 'userId is required when not broadcasting' },
           { status: 400 }
@@ -33,6 +34,7 @@ export async function POST(req: Request) {
       
       // Validate userId is a valid MongoDB ObjectId
       if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error(`Notification API - Invalid userId format: ${userId}`);
         return NextResponse.json(
           { success: false, message: 'Invalid userId format' },
           { status: 400 }
@@ -42,6 +44,7 @@ export async function POST(req: Request) {
 
     // Validate required fields
     if (!typeno || !description) {
+      console.error('Notification API - Missing required fields:', { typeno, description });
       return NextResponse.json(
         { success: false, message: 'Missing required fields: typeno and description' },
         { status: 400 }
@@ -49,14 +52,18 @@ export async function POST(req: Request) {
     }
 
     // Find the notification type by its typeno
+    console.log(`Notification API - Looking for notification type with typeno: ${typeno}`);
     const notificationType = await NotificationType.findOne({ typeno });
     
     if (!notificationType) {
+      console.error(`Notification API - Invalid notification type: ${typeno} - not found in database`);
       return NextResponse.json(
         { success: false, message: 'Invalid notification type' },
         { status: 400 }
       );
     }
+
+    console.log(`Notification API - Found notification type: ${notificationType.name} (${notificationType._id})`);
 
     // Convert userId string to ObjectId if it's not null
     const userObjectId = userId ? new mongoose.Types.ObjectId(userId) : null;
@@ -70,35 +77,54 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     });
 
+    console.log(`Notification API - Created notification with ID: ${notification._id}`);
+
     // Send the notification to the socket server
     try {
       const socketServerUrl = process.env.NEXT_PUBLIC_SOCKET;
+      console.log(`Notification API - Socket server URL: ${socketServerUrl}`);
       
-      await fetch(`${socketServerUrl}emit-notification`, {
+      if (!socketServerUrl) {
+        console.warn('Notification API - NEXT_PUBLIC_SOCKET environment variable is not set');
+      }
+      
+      // Ensure the URL has a trailing slash if needed
+      const socketUrl = socketServerUrl?.endsWith('/') 
+        ? `${socketServerUrl}emit-notification` 
+        : `${socketServerUrl}/emit-notification`;
+      
+      console.log(`Notification API - Sending to socket URL: ${socketUrl}`);
+      
+      const socketPayload = {
+        userId: userId,
+        broadcast: broadcast === true,
+        description: description,
+        targetDestination: targetDestination,
+        type: notificationType.name,
+        color: notificationType.color,
+        notificationId: notification._id.toString()
+      };
+      
+      console.log(`Notification API - Socket payload: ${JSON.stringify(socketPayload)}`);
+      
+      const socketResponse = await fetch(socketUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: userId,
-          broadcast: broadcast === true,
-          description: description,
-          targetDestination: targetDestination,
-          type: notificationType.name,
-          color: notificationType.color,
-          notificationId: notification._id.toString()
-        })
+        body: JSON.stringify(socketPayload)
       });
       
-      console.log('Notification sent to socket server');
+      const socketData = await socketResponse.text();
+      console.log(`Notification API - Socket server response: ${socketResponse.status}`, socketData);
     } catch (socketError) {
-      console.error('Error sending notification to socket server:', socketError);
+      console.error('Notification API - Error sending notification to socket server:', socketError);
       // Continue even if the socket server fails
     }
 
     return NextResponse.json({ success: true, notification }, { status: 201 });
   } catch (error: any) {
-    console.error('Error creating notification:', error);
+    console.error('Notification API - Error creating notification:', error);
     return NextResponse.json(
       { success: false, message: error.message },
       { status: 500 }

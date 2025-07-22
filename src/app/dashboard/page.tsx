@@ -29,7 +29,7 @@ function UserDashboardPageContent() {
 
   // Load from URL parameters or localStorage when the component mounts
   useEffect(() => {
-    const componentParam = searchParams.get('component');
+    const componentParam = searchParams ? searchParams.get('component') : null;
     if (componentParam) {
       setActiveComponent(componentParam);
     } else {
@@ -82,7 +82,7 @@ function UserDashboardPageContent() {
     />
   );
       case 'myskill':
-        return <MySkillsContent key={activeComponent} />;
+        return <MySkillsContent key={activeComponent} onNavigateToSkillVerification={() => setActiveComponent('skillVerify')} />;
       case 'listings':
         return <ListingsContent key={activeComponent} onNavigateToSkills={() => setActiveComponent('myskill')} />;
       case 'matches':

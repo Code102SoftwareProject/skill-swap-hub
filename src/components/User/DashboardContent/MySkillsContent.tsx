@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { getUserSkills, deleteUserSkill } from '@/services/skillService';
 import { getSkillsUsedInMatches } from '@/services/trendingService';
 import { UserSkill } from '@/types/userSkill';
@@ -9,10 +10,15 @@ import { useToast } from '@/lib/context/ToastContext';
 import AddSkillForm from '@/components/Dashboard/skills/AddSkillForm';
 import EditSkillForm from '@/components/Dashboard/skills/EditSkillForm';
 import ConfirmationModal from '@/components/Dashboard/listings/ConfirmationModal';
-import { Info, AlertTriangle, Users, Calendar, Search, Filter, BarChart3, Award, Target, Activity, BookOpen, Settings, TrendingUp, Layers, Eye, Edit2, Trash2, Lock, ChevronDown } from 'lucide-react';
+import { Info, AlertTriangle, Users, Calendar, Search, Filter, BarChart3, Award, Target, Activity, BookOpen, Settings, TrendingUp, Layers, Eye, Edit2, Trash2, Lock, ChevronDown, BadgeCheck, AlertCircle, Clock, ExternalLink } from 'lucide-react';
 
-const SkillsPage = () => {
+interface MySkillsContentProps {
+  onNavigateToSkillVerification?: () => void;
+}
+
+const SkillsPage = ({ onNavigateToSkillVerification }: MySkillsContentProps = {}) => {
   const { showToast } = useToast();
+  const router = useRouter(); // Fallback for standalone usage
   const [skills, setSkills] = useState<UserSkill[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -32,12 +38,14 @@ const SkillsPage = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedProficiency, setSelectedProficiency] = useState<string>('all');
   const [selectedUsageStatus, setSelectedUsageStatus] = useState<string>('all');
+  const [selectedVerificationStatus, setSelectedVerificationStatus] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('name');
 
   // Custom dropdown states for mobile
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showProficiencyDropdown, setShowProficiencyDropdown] = useState(false);
   const [showUsageDropdown, setShowUsageDropdown] = useState(false);
+  const [showVerificationDropdown, setShowVerificationDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   // Function to fetch user skills and used skill IDs
@@ -85,14 +93,14 @@ const SkillsPage = () => {
   }, [fetchUserData]);
 
   // Check if a skill is used in a listing
-  const isSkillUsedInListing = (skillId: string) => {
+  const isSkillUsedInListing = React.useCallback((skillId: string) => {
     return usedSkillIds.includes(skillId);
-  };
+  }, [usedSkillIds]);
 
   // Check if a skill is used in active matches
-  const isSkillUsedInMatches = (skillId: string) => {
+  const isSkillUsedInMatches = React.useCallback((skillId: string) => {
     return matchUsedSkills?.usedSkillIds?.includes(skillId) || false;
-  };
+  }, [matchUsedSkills]);
 
   // Get match details for a skill
   const getSkillMatchDetails = (skillTitle: string) => {
@@ -165,6 +173,8 @@ const SkillsPage = () => {
     const usedInListings = skills.filter(s => isSkillUsedInListing(s.id)).length;
     const usedInMatches = skills.filter(s => isSkillUsedInMatches(s.id)).length;
     const categories = [...new Set(skills.map(s => s.categoryName))].length;
+    const verifiedSkills = skills.filter(s => s.isVerified).length;
+    const unverifiedSkills = skills.filter(s => !s.isVerified).length;
     
     return {
       total: totalSkills,
@@ -173,9 +183,11 @@ const SkillsPage = () => {
       beginner: beginnerSkills,
       usedInListings,
       usedInMatches,
-      categories
+      categories,
+      verified: verifiedSkills,
+      unverified: unverifiedSkills
     };
-  }, [skills, usedSkillIds, matchUsedSkills]);
+  }, [skills, isSkillUsedInListing, isSkillUsedInMatches]);
 
   // Get unique categories for filter dropdown
   const categories = useMemo(() => {
@@ -211,6 +223,12 @@ const SkillsPage = () => {
         if (selectedUsageStatus === 'matches' && !usedInMatch) return false;
       }
       
+      // Verification status filter
+      if (selectedVerificationStatus !== 'all') {
+        if (selectedVerificationStatus === 'verified' && !skill.isVerified) return false;
+        if (selectedVerificationStatus === 'unverified' && skill.isVerified) return false;
+      }
+      
       return true;
     });
 
@@ -234,7 +252,7 @@ const SkillsPage = () => {
     });
 
     return filtered;
-  }, [skills, searchTerm, selectedCategory, selectedProficiency, selectedUsageStatus, sortBy, usedSkillIds, matchUsedSkills]);
+  }, [skills, searchTerm, selectedCategory, selectedProficiency, selectedUsageStatus, selectedVerificationStatus, sortBy, isSkillUsedInListing, isSkillUsedInMatches]);
 
   // Group filtered skills by category
   const skillsByCategory = filteredAndSortedSkills.reduce((acc, skill) => {
@@ -275,6 +293,17 @@ const SkillsPage = () => {
     setViewingSkill(skill);
   };
 
+  // Navigate to skill verification page
+  const navigateToSkillVerification = () => {
+    if (onNavigateToSkillVerification) {
+      // Use dashboard navigation if available
+      onNavigateToSkillVerification();
+    } else {
+      // Fallback to router navigation for standalone usage
+      router.push('/user/skillverification');
+    }
+  };
+
   // Truncate text
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
@@ -310,6 +339,7 @@ const SkillsPage = () => {
     setShowCategoryDropdown(false);
     setShowProficiencyDropdown(false);
     setShowUsageDropdown(false);
+    setShowVerificationDropdown(false);
     setShowSortDropdown(false);
   };
 
@@ -409,9 +439,25 @@ const SkillsPage = () => {
           <div className="flex flex-col gap-2">
             {/* Title row with proficiency level always inline */}
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-lg font-semibold text-blue-700 flex-1 truncate">
-                {skill.skillTitle}
-              </h3>
+              <div className="flex items-center flex-1 min-w-0 gap-2">
+                <h3 className="text-lg font-semibold text-blue-700 truncate">
+                  {skill.skillTitle}
+                </h3>
+                {skill.isVerified ? (
+                  <BadgeCheck className="w-5 h-5 text-green-500 flex-shrink-0" aria-label="Verified Skill" />
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <AlertCircle className="w-5 h-5 text-orange-400 flex-shrink-0" aria-label="Skill Not Verified" />
+                    <button
+                      onClick={navigateToSkillVerification}
+                      className="w-4 h-4 text-blue-500 hover:text-blue-700 flex-shrink-0"
+                      title="Request Skill Verification"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <span className={`px-2.5 py-0.5 text-xs rounded-full font-medium whitespace-nowrap flex-shrink-0 ${
                 skill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
                 skill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
@@ -519,6 +565,13 @@ const SkillsPage = () => {
     { value: 'matches', label: 'In Matches' }
   ];
 
+  // Verification status options
+  const verificationOptions = [
+    { value: 'all', label: 'All Verification' },
+    { value: 'verified', label: 'Verified' },
+    { value: 'unverified', label: 'Unverified' }
+  ];
+
   // Sort options
   const sortOptions = [
     { value: 'name', label: 'Sort by Name' },
@@ -541,7 +594,7 @@ const SkillsPage = () => {
 
       {/* Overall Statistics */}
       {skills.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2 mb-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-2 mb-3">
               <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-md p-2 text-center">
                 <div className="flex justify-center mb-1">
                   <BookOpen className="w-4 h-4 text-blue-600" />
@@ -596,6 +649,29 @@ const SkillsPage = () => {
                 <div className="text-xs text-indigo-600">In Listings</div>
               </div>
               
+              <div className="bg-gradient-to-r from-emerald-50 to-emerald-100 rounded-md p-2 text-center">
+                <div className="flex justify-center mb-1">
+                  <BadgeCheck className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div className="text-lg font-bold text-emerald-800">{skillStats.verified}</div>
+                <div className="text-xs text-emerald-600">Verified</div>
+              </div>
+              
+              <button 
+                onClick={navigateToSkillVerification}
+                className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-md p-2 text-center hover:from-orange-100 hover:to-orange-200 transition-colors cursor-pointer"
+                title="Go to Skill Verification"
+              >
+                <div className="flex justify-center mb-1">
+                  <AlertCircle className="w-4 h-4 text-orange-600" />
+                </div>
+                <div className="text-lg font-bold text-orange-800">{skillStats.unverified}</div>
+                <div className="text-xs text-orange-600 flex items-center justify-center gap-1">
+                  Unverified
+                  <ExternalLink className="w-3 h-3" />
+                </div>
+              </button>
+              
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-md p-2 text-center">
                 <div className="flex justify-center mb-1">
                   <Layers className="w-4 h-4 text-gray-600" />
@@ -609,7 +685,7 @@ const SkillsPage = () => {
       {/* Search and Filters */}
       {skills.length > 0 && (
         <div className="bg-white rounded-md shadow-sm border p-3 mb-2">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
             {/* Search - Full width on mobile */}
             <div className="relative col-span-2 sm:col-span-3 lg:col-span-1">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
@@ -681,19 +757,10 @@ const SkillsPage = () => {
             </div>
 
             <div className="hidden lg:block">
-              <CustomDropdown
-                value={selectedUsageStatus}
-                options={usageOptions}
-                onChange={setSelectedUsageStatus}
-                placeholder="All Status"
-                isOpen={showUsageDropdown}
-                setIsOpen={setShowUsageDropdown}
-                className="lg:hidden"
-              />
               <select
                 value={selectedUsageStatus}
                 onChange={(e) => setSelectedUsageStatus(e.target.value)}
-                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8 hidden lg:block"
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
                 style={{
                   backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
                   backgroundPosition: 'right 0.5rem center'
@@ -704,6 +771,22 @@ const SkillsPage = () => {
                 <option value="unused">Unused</option>
                 <option value="listings">In Listings</option>
                 <option value="matches">In Matches</option>
+              </select>
+            </div>
+
+            <div className="hidden lg:block">
+              <select
+                value={selectedVerificationStatus}
+                onChange={(e) => setSelectedVerificationStatus(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
+              >
+                <option value="all">All Verification</option>
+                <option value="verified">Verified</option>
+                <option value="unverified">Unverified</option>
               </select>
             </div>
 
@@ -744,6 +827,18 @@ const SkillsPage = () => {
               isOpen={showUsageDropdown}
               setIsOpen={setShowUsageDropdown}
             />
+            <CustomDropdown
+              value={selectedVerificationStatus}
+              options={verificationOptions}
+              onChange={setSelectedVerificationStatus}
+              placeholder="All Verification"
+              isOpen={showVerificationDropdown}
+              setIsOpen={setShowVerificationDropdown}
+            />
+          </div>
+          
+          {/* Mobile sort filter row */}
+          <div className="grid grid-cols-1 gap-2 mt-2 sm:hidden">
             <CustomDropdown
               value={sortBy}
               options={sortOptions}
@@ -790,6 +885,7 @@ const SkillsPage = () => {
               setSelectedCategory('all');
               setSelectedProficiency('all');
               setSelectedUsageStatus('all');
+              setSelectedVerificationStatus('all');
               closeAllDropdowns();
             }}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
@@ -838,7 +934,14 @@ const SkillsPage = () => {
               
               <div className="border-b pb-3 mb-4">
                 <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-xl font-semibold text-blue-700">{viewingSkill.skillTitle}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-semibold text-blue-700">{viewingSkill.skillTitle}</h3>
+                    {viewingSkill.isVerified ? (
+                      <BadgeCheck className="w-6 h-6 text-green-500" aria-label="Verified Skill" />
+                    ) : (
+                      <AlertCircle className="w-6 h-6 text-orange-400" aria-label="Skill Not Verified" />
+                    )}
+                  </div>
                   <span className={`px-3 py-1 text-sm rounded-full font-medium ${
                     viewingSkill.proficiencyLevel === 'Expert' ? 'bg-blue-100 text-blue-800' :
                     viewingSkill.proficiencyLevel === 'Intermediate' ? 'bg-green-100 text-green-800' :
@@ -849,6 +952,37 @@ const SkillsPage = () => {
                 </div>
                 <div className="text-sm text-blue-600 mb-1">
                   {viewingSkill.categoryName}
+                </div>
+                
+                {/* Verification status */}
+                <div className="flex items-center gap-2">
+                  <div className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                    viewingSkill.isVerified 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-orange-100 text-orange-800'
+                  }`}>
+                    {viewingSkill.isVerified ? (
+                      <>
+                        <BadgeCheck className="w-3 h-3 mr-1" />
+                        Skill Verified
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Verification Needed
+                      </>
+                    )}
+                  </div>
+                  {!viewingSkill.isVerified && (
+                    <button
+                      onClick={navigateToSkillVerification}
+                      className="inline-flex items-center px-2 py-1 text-xs font-medium text-blue-700 bg-blue-50 rounded-full hover:bg-blue-100 transition-colors"
+                      title="Request Verification"
+                    >
+                      <ExternalLink className="w-3 h-3 mr-1" />
+                      Request Verification
+                    </button>
+                  )}
                 </div>
                 
                 {/* Status indicators */}

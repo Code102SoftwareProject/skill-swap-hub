@@ -506,15 +506,13 @@ const MatchesPage = () => {
           {['pending', 'accepted', 'rejected'].map(status => {
             const statusMatches = matchesToShow.filter(match => match.status === status);
             if (statusMatches.length === 0) return null;
-            
             const statusConfig = {
               pending: { title: 'Pending Matches', icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200' },
               accepted: { title: 'Active Matches', icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200' },
               rejected: { title: 'Declined Matches', icon: XCircle, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200' }
             }[status];
-            
+            if (!statusConfig) return null;
             const StatusIcon = statusConfig.icon;
-            
             return (
               <div key={status} className={`rounded-lg border ${statusConfig.border} ${statusConfig.bg} p-4`}>
                 <div className="flex items-center mb-4">
@@ -529,6 +527,7 @@ const MatchesPage = () => {
                       key={match.id} 
                       match={match} 
                       onClick={() => viewMatchDetails(match)} 
+                      currentUserId={currentUserId}
                     />
                   ))}
                 </div>

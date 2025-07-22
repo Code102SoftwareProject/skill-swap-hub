@@ -5,15 +5,16 @@ import Image from 'next/image';
 import { SkillMatch } from '@/types/skillMatch';
 import { BadgeCheck, ArrowRightLeft, Eye, MessageCircle, Clock, CheckCircle, XCircle, Award, Calendar, AlertCircle } from 'lucide-react';
 import { processAvatarUrl } from '@/utils/avatarUtils';
+import { getUserSkillsByUserId } from '@/services/skillServiceAdmin';
 
 interface MatchCardProps {
   match: SkillMatch;
   onClick: () => void;
+  currentUserId?: string; // Needed to look up myDetails userId
 }
 
-const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
+const MatchCard: React.FC<MatchCardProps> = ({ match, onClick, currentUserId }) => {
   const [otherUserKycStatus, setOtherUserKycStatus] = useState<string | null>(null);
-
   // Fetch KYC status for the other user
   useEffect(() => {
     async function fetchKycStatus() {
@@ -243,7 +244,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
               {(otherUserKycStatus === 'Accepted' || otherUserKycStatus === 'Approved') ? (
                 <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0" title="Not Verified" />
+                <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0" aria-label="Not Verified" />
               )}
             </h3>
           </div>
@@ -255,43 +256,18 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
                 : "🔄 Partial match! They can teach you what you're seeking."}
             </p>
           </div>
-          
-          {/* Success indicators */}
-          {match.status === 'accepted' && (
-            <div className="inline-flex items-center text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-full">
-              <MessageCircle className="w-3 h-3 mr-1" />
-              Chat available
-            </div>
-          )}
         </div>
       </div>
       
-      {/* Card Footer */}
+      {/* Card Footer - Centered status only */}
       <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-3 py-2 border-t border-gray-100">
-        <div className="flex items-center justify-between">
-          {/* Quick action based on status */}
-          <div className="flex-1 min-w-0">
-            <div className="text-xs text-gray-600 font-medium truncate">
-              {match.status === 'pending' && '⏳ Awaiting your response'}
-              {match.status === 'accepted' && '🚀 Ready to collaborate'}
-              {match.status === 'completed' && '✅ Successfully completed'}
-              {match.status === 'rejected' && '❌ Match declined'}
-            </div>
+        <div className="flex items-center justify-center">
+          <div className="text-xs text-gray-600 font-medium truncate text-center w-full">
+            {match.status === 'pending' && '⏳ Awaiting your response'}
+            {match.status === 'accepted' && '🚀 Ready to collaborate'}
+            {match.status === 'completed' && '✅ Successfully completed'}
+            {match.status === 'rejected' && '❌ Match declined'}
           </div>
-          
-          <button
-            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition-all duration-200 hover:bg-blue-50 px-2 py-1 rounded flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClick();
-            }}
-          >
-            <Eye className="w-4 h-4 mr-1" />
-            <span className="hidden sm:inline">
-              {match.status === 'accepted' ? 'Manage' : 'View Details'}
-            </span>
-            <span className="sm:hidden">View</span>
-          </button>
         </div>
       </div>
     </div>

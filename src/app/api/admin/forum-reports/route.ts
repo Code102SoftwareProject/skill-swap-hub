@@ -233,19 +233,35 @@ export async function PATCH(request: NextRequest) {
 		// Helper function to send notification
 		const sendNotification = async (userId: string, typeno: number, description: string) => {
 			try {
-				await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/notification`, {
+				console.log(`Attempting to send notification to user ${userId}, type ${typeno}`);
+				
+				// Use direct URL instead of environment variable
+				const apiUrl = `http://localhost:3000/api/notification`;
+				console.log(`Sending notification to API endpoint: ${apiUrl}`);
+				
+				const payload = {
+					userId,
+					typeno,
+					description,
+					targetDestination: '/forum',
+					broadcast: false,
+				};
+				console.log('Notification payload:', JSON.stringify(payload));
+				
+				const response = await fetch(apiUrl, {
 					method: 'POST',
 					headers: {
 						'Content-Type': 'application/json',
 					},
-					body: JSON.stringify({
-						userId,
-						typeno,
-						description,
-						targetDestination: '/forum',
-						broadcast: false,
-					}),
+					body: JSON.stringify(payload),
 				});
+				
+				const data = await response.json();
+				console.log('Notification API response:', JSON.stringify(data));
+				
+				if (!data.success) {
+					console.error('Notification API returned error:', data.message);
+				}
 			} catch (error) {
 				console.error('Error sending notification:', error);
 			}

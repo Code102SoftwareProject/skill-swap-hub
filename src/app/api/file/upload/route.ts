@@ -34,16 +34,49 @@ export async function POST(req: Request) {
     //  ! Upload to Cloudflare R2 with folder path
     const uploadResponse = await uploadFileToR2(fileBuffer, filePath, mimeType);
 
+    // Set headers to prevent caching
+    const headers = new Headers();
+    headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.append('Pragma', 'no-cache');
+    headers.append('Expires', '0');
+    headers.append('Surrogate-Control', 'no-store');
+    
     if (uploadResponse.success) {
-      return NextResponse.json({ message: "File uploaded", url: uploadResponse.url });
+      return NextResponse.json(
+        { message: "File uploaded", url: uploadResponse.url },
+        { 
+          status: 200,
+          headers: headers
+        }
+      );
     } else {
-      return NextResponse.json({ message: "Upload failed", error: uploadResponse.error }, { status: 500 });
+      return NextResponse.json(
+        { message: "Upload failed", error: uploadResponse.error },
+        { 
+          status: 500,
+          headers: headers
+        }
+      );
     }
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json({ 
-      message: "Server error", 
-      error: error instanceof Error ? error.message : String(error) 
-    }, { status: 500 });
+    
+    // Set headers to prevent caching even for errors
+    const headers = new Headers();
+    headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.append('Pragma', 'no-cache');
+    headers.append('Expires', '0');
+    headers.append('Surrogate-Control', 'no-store');
+    
+    return NextResponse.json(
+      { 
+        message: "Server error", 
+        error: error instanceof Error ? error.message : String(error) 
+      },
+      { 
+        status: 500,
+        headers: headers
+      }
+    );
   }
 }

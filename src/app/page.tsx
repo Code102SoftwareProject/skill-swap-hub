@@ -6,6 +6,7 @@ import Chatbot from "@/components/chatassistant/chatbot";
 import Footer from "@/components/homepage/Footer";
 import SuccessStoriesCarousel from "@/components/homepage/SuccessStoriesCarousel";
 import TrendingSkills from "@/components/homepage/TrendingSkills";
+import ContactUsSection from "@/components/homepage/ContactUsSection";
 import { 
   ArrowRight, 
   Sparkles, 
@@ -19,16 +20,40 @@ import {
   Play
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/context/AuthContext';
 
 // Enhanced Hero Section Component
 const EnhancedHeroSection = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  // Direct check - no extra state needed
+  const isUserLoggedIn = !!user && !!user._id;
+  
+  // Debug log
+  useEffect(() => {
+    console.log('Direct Auth Check - user:', user);
+    console.log('Direct Auth Check - isUserLoggedIn:', isUserLoggedIn);
+  }, [user, isUserLoggedIn]);
   const [isVisible, setIsVisible] = useState(false);
+  const [stats, setStats] = useState<{
+    activeLearners: number | null;
+    skillsAvailable: number | null;
+    successfulMatches: number | null;
+    totalMatches: number | null;
+    satisfactionRate: number | null;
+  }>({
+    activeLearners: null,
+    skillsAvailable: null,
+    successfulMatches: null,
+    totalMatches: null,
+    satisfactionRate: null,
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     setIsVisible(true);
-    
+
     const handleMouseMove = (e: MouseEvent) => {
       setMousePosition({
         x: (e.clientX / window.innerWidth) * 100,
@@ -38,6 +63,25 @@ const EnhancedHeroSection = () => {
 
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
+  useEffect(() => {
+    // Fetch hero stats from backend
+    const fetchStats = async () => {
+      try {
+        setLoadingStats(true);
+        const res = await fetch('/api/stats/hero');
+        const data = await res.json();
+        if (data.success && data.data) {
+          setStats(data.data);
+        }
+      } catch (err) {
+        // Optionally handle error
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+    fetchStats();
   }, []);
 
   return (
@@ -97,13 +141,15 @@ const EnhancedHeroSection = () => {
         <div className={`mb-8 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div 
             className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-full px-6 py-3 border border-cyan-300/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group"
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(isUserLoggedIn ? '/dashboard' : '/register')}
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
               <span className="text-sm font-medium text-cyan-100">New Features</span>
             </div>
-            <span className="text-sm text-blue-100">Check out the team dashboard</span>
+            <span className="text-sm text-blue-100">
+              {isUserLoggedIn ? 'Check out the dashboard' : 'Explore the dashboard'}
+            </span>
             <ArrowRight className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
@@ -129,13 +175,13 @@ const EnhancedHeroSection = () => {
         {/* CTA Buttons */}
         <div className={`flex flex-col sm:flex-row gap-4 justify-center mb-16 transform transition-all duration-1000 delay-600 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <button 
-            className="group bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-cyan-300 hover:to-blue-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 flex items-center justify-center gap-2"
-            onClick={() => router.push('/register')}
+            className="group bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-cyan-300 hover:to-blue-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 flex items-center justify-center gap-2 min-w-[220px] h-[60px]"
+            onClick={() => router.push(isUserLoggedIn ? '/dashboard' : '/register')}
           >
-            Join Now
+            {isUserLoggedIn ? 'Go to Dashboard' : 'Join Now'}
             <Zap className="w-5 h-5 group-hover:animate-pulse" />
           </button>
-          <button className="group bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
+          <button className="group bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 min-w-[220px] h-[60px]">
             <Play className="w-5 h-5" />
             Watch Demo
           </button>
@@ -144,13 +190,32 @@ const EnhancedHeroSection = () => {
         {/* Stats */}
         <div className={`grid grid-cols-2 md:grid-cols-4 gap-8 transform transition-all duration-1000 delay-800 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           {[
-            { number: '50K+', label: 'Active Learners', icon: Users },
-            { number: '1000+', label: 'Skills Available', icon: BookOpen },
-            { number: '25K+', label: 'Successful Matches', icon: Star },
-            { number: '95%', label: 'Satisfaction Rate', icon: Award }
+            {
+              number: loadingStats || stats.activeLearners === null ? '...' : stats.activeLearners.toLocaleString(),
+              label: 'Active Learners',
+              icon: Users
+            },
+            {
+              number: loadingStats || stats.skillsAvailable === null ? '...' : stats.skillsAvailable.toLocaleString(),
+              label: 'Skills Available',
+              icon: BookOpen
+            },
+            {
+              number:
+                loadingStats || stats.totalMatches === null
+                  ? '...'
+                  : stats.totalMatches.toLocaleString(),
+              label: 'Total Matches',
+              icon: Star
+            },
+            {
+              number: loadingStats || stats.satisfactionRate === null ? '...' : `${stats.satisfactionRate}%`,
+              label: 'Satisfaction Rate',
+              icon: Award
+            }
           ].map((stat, index) => (
-            <div 
-              key={stat.label} 
+            <div
+              key={stat.label}
               className="text-center group"
               style={{ animationDelay: `${index * 100}ms` }}
             >
@@ -190,6 +255,9 @@ export default function Home() {
       
       {/* Success Stories - Now with consistent blue theme */}
       <SuccessStoriesCarousel />
+      
+      {/* Contact Us Section */}
+      <ContactUsSection />
       
       {/* Footer */}
       <Footer />

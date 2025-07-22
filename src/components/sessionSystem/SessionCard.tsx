@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Clock, 
   CheckCircle, 
@@ -13,7 +13,9 @@ import {
   ChevronDown, 
   ChevronRight, 
   AlertCircle,
-  Calendar
+  Calendar,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Session, CounterOffer, UserProfile } from '@/types';
@@ -67,6 +69,11 @@ export default function SessionCard({
 
   // Enhanced completion status using new API
   const [completionStatus, setCompletionStatus] = useState<CompletionStatus | null>(null);
+  
+  // State to store skill verification status
+  const [skillVerificationStatus, setSkillVerificationStatus] = useState<{
+    [skillId: string]: boolean;
+  }>({});
 
   // Fetch completion status for active sessions
   useEffect(() => {
@@ -83,6 +90,86 @@ export default function SessionCard({
 
     fetchCompletionStatus();
   }, [session._id, session.status, userId]);
+
+  // Fetch skill verification status
+  useEffect(() => {
+    const fetchSkillVerification = async () => {
+      const skillIds = new Set<string>();
+      
+      // Collect skill IDs from session and counter offers
+      if (session.skill1Id?._id || session.skill1Id) {
+        skillIds.add(session.skill1Id._id || session.skill1Id);
+      }
+      if (session.skill2Id?._id || session.skill2Id) {
+        skillIds.add(session.skill2Id._id || session.skill2Id);
+      }
+      
+      // Also collect from counter offers
+      const sessionCounterOffers = counterOffers[session._id] || [];
+      sessionCounterOffers.forEach(co => {
+        if (co.skill1Id?._id || co.skill1Id) {
+          skillIds.add(co.skill1Id._id || co.skill1Id);
+        }
+        if (co.skill2Id?._id || co.skill2Id) {
+          skillIds.add(co.skill2Id._id || co.skill2Id);
+        }
+      });
+      
+      if (skillIds.size > 0) {
+        try {
+          // Get user IDs involved in this session
+          const userIds = [session.user1Id._id || session.user1Id, session.user2Id._id || session.user2Id];
+          
+          // Fetch skills for both users
+          const promises = userIds.map(async (uid) => {
+            try {
+              const response = await fetch(`/api/skillsbyuser?userId=${uid}`);
+              const data = await response.json();
+              return data.success ? data.skills : [];
+            } catch (error) {
+              console.error(`Error fetching skills for user ${uid}:`, error);
+              return [];
+            }
+          });
+          
+          const [user1Skills, user2Skills] = await Promise.all(promises);
+          const allSkills = [...user1Skills, ...user2Skills];
+          
+          // Create verification map
+          const verificationMap: { [skillId: string]: boolean } = {};
+          allSkills.forEach((skill: any) => {
+            const skillId = skill._id || skill.id;
+            if (skillId && skillIds.has(skillId)) {
+              verificationMap[skillId] = skill.isVerified || false;
+            }
+          });
+          
+          setSkillVerificationStatus(verificationMap);
+        } catch (error) {
+          console.error('Error fetching skill verification:', error);
+        }
+      }
+    };
+
+    fetchSkillVerification();
+  }, [session._id, session.skill1Id, session.skill2Id, session.user1Id, session.user2Id, counterOffers]);
+
+  // Function to check if a skill is verified
+  const isSkillVerified = useCallback((skill: any) => {
+    if (!skill) return false;
+    
+    // Try to get skill ID
+    const skillId = skill._id || skill.id || skill;
+    if (!skillId) return false;
+    
+    // Check our fetched verification status first
+    if (skillVerificationStatus.hasOwnProperty(skillId)) {
+      return skillVerificationStatus[skillId];
+    }
+    
+    // Fallback to skill object data if available
+    return skill.verified === true || skill.isVerified === true;
+  }, [skillVerificationStatus]);
 
   // Helper functions
   const getSessionStatus = (session: Session) => {
@@ -152,6 +239,18 @@ export default function SessionCard({
     return sessionCounterOffers.filter(co => co.status === 'accepted').length;
   };
 
+  const hasUserSentPendingCounterOffer = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.some(co => 
+      co.status === 'pending' && co.counterOfferedBy._id === userId
+    );
+  };
+
+  const hasAnyCounterOffer = (sessionId: string) => {
+    const sessionCounterOffers = counterOffers[sessionId] || [];
+    return sessionCounterOffers.length > 0;
+  };
+
   const renderCounterOffer = (counterOffer: CounterOffer) => {
     return (
       <div key={counterOffer._id} className={`border rounded-lg p-4 ${
@@ -186,15 +285,37 @@ export default function SessionCard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
           <div className="bg-white p-3 rounded border">
             <div className="text-xs font-medium text-gray-600 mb-1">Offered Skill:</div>
-            <div className="text-sm font-semibold text-blue-900">
-              {counterOffer.skill1Id?.skillTitle || counterOffer.skill1Id?.skillName || 'Skill not available'}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm font-semibold text-blue-900">
+                {counterOffer.skill1Id?.skillTitle || counterOffer.skill1Id?.skillName || 'Skill not available'}
+              </div>
+              {isSkillVerified(counterOffer.skill1Id) ? (
+                <div title="Verified Skill">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                </div>
+              ) : (
+                <div title="Unverified Skill">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                </div>
+              )}
             </div>
             <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService1}</div>
           </div>
           <div className="bg-white p-3 rounded border">
             <div className="text-xs font-medium text-gray-600 mb-1">Requested Skill:</div>
-            <div className="text-sm font-semibold text-green-900">
-              {counterOffer.skill2Id?.skillTitle || counterOffer.skill2Id?.skillName || 'Skill not available'}
+            <div className="flex items-center space-x-2">
+              <div className="text-sm font-semibold text-green-900">
+                {counterOffer.skill2Id?.skillTitle || counterOffer.skill2Id?.skillName || 'Skill not available'}
+              </div>
+              {isSkillVerified(counterOffer.skill2Id) ? (
+                <div title="Verified Skill">
+                  <ShieldCheck className="h-4 w-4 text-green-600" />
+                </div>
+              ) : (
+                <div title="Unverified Skill">
+                  <Shield className="h-4 w-4 text-gray-400" />
+                </div>
+              )}
             </div>
             <div className="text-xs text-gray-600 mt-1">{counterOffer.descriptionOfService2}</div>
           </div>
@@ -303,6 +424,15 @@ export default function SessionCard({
             <span className="font-medium text-blue-900">
               {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
             </span>
+            {isSkillVerified(session.skill1Id) ? (
+              <div title="Verified Skill">
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+              </div>
+            ) : (
+              <div title="Unverified Skill">
+                <Shield className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <span className="text-gray-500">by</span>
             <span className="text-gray-700">
               {session.user1Id._id === userId ? 'You' : 
@@ -316,6 +446,15 @@ export default function SessionCard({
             <span className="font-medium text-green-900">
               {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
             </span>
+            {isSkillVerified(session.skill2Id) ? (
+              <div title="Verified Skill">
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+              </div>
+            ) : (
+              <div title="Unverified Skill">
+                <Shield className="h-4 w-4 text-gray-400" />
+              </div>
+            )}
             <span className="text-gray-500">by</span>
             <span className="text-gray-700">
               {session.user2Id._id === userId ? 'You' : 
@@ -345,9 +484,20 @@ export default function SessionCard({
               </div>
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
                 <div className="flex items-center justify-between">
-                  <h5 className="font-semibold text-blue-900 text-lg">
-                    {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
-                  </h5>
+                  <div className="flex items-center space-x-2">
+                    <h5 className="font-semibold text-blue-900 text-lg">
+                      {session.skill1Id?.skillTitle || session.skill1Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {isSkillVerified(session.skill1Id) ? (
+                      <div title="Verified Skill">
+                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                      </div>
+                    ) : (
+                      <div title="Unverified Skill">
+                        <Shield className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
                   {session.skill1Id?.proficiencyLevel && (
                     <span className="text-xs bg-blue-200 text-blue-800 px-2 py-1 rounded-full">
                       {session.skill1Id.proficiencyLevel}
@@ -373,9 +523,20 @@ export default function SessionCard({
               </div>
               <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
                 <div className="flex items-center justify-between">
-                  <h5 className="font-semibold text-green-900 text-lg">
-                    {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
-                  </h5>
+                  <div className="flex items-center space-x-2">
+                    <h5 className="font-semibold text-green-900 text-lg">
+                      {session.skill2Id?.skillTitle || session.skill2Id?.skillName || 'Skill Not Found'}
+                    </h5>
+                    {isSkillVerified(session.skill2Id) ? (
+                      <div title="Verified Skill">
+                        <ShieldCheck className="h-5 w-5 text-green-600" />
+                      </div>
+                    ) : (
+                      <div title="Unverified Skill">
+                        <Shield className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
                   {session.skill2Id?.proficiencyLevel && (
                     <span className="text-xs bg-green-200 text-green-800 px-2 py-1 rounded-full">
                       {session.skill2Id.proficiencyLevel}
@@ -427,24 +588,39 @@ export default function SessionCard({
                   <>
                     <button
                       onClick={() => onAcceptReject(session._id, 'accept')}
-                      disabled={processingSession === session._id}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasAnyCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasAnyCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
+                      }`}
+                      title={hasAnyCounterOffer(session._id) ? 'Cannot accept main offer when counter offers exist' : 'Accept session request'}
                     >
                       <CheckCircle className="h-4 w-4" />
                       <span>Accept</span>
                     </button>
                     <button
                       onClick={() => onCounterOffer(session._id)}
-                      disabled={processingSession === session._id}
-                      className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasUserSentPendingCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasUserSentPendingCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-yellow-600 text-white hover:bg-yellow-700 disabled:opacity-50'
+                      }`}
+                      title={hasUserSentPendingCounterOffer(session._id) ? 'You have already sent a counter offer for this session' : 'Send counter offer'}
                     >
                       <Edit className="h-4 w-4" />
-                      <span>Counter Offer</span>
+                      <span>{hasUserSentPendingCounterOffer(session._id) ? 'Counter Offer Sent' : 'Counter Offer'}</span>
                     </button>
                     <button
                       onClick={() => onAcceptReject(session._id, 'reject')}
-                      disabled={processingSession === session._id}
-                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
+                      disabled={processingSession === session._id || hasAnyCounterOffer(session._id)}
+                      className={`px-4 py-2 rounded-lg transition-colors flex items-center space-x-2 ${
+                        hasAnyCounterOffer(session._id)
+                          ? 'bg-gray-400 text-gray-700 cursor-not-allowed opacity-50'
+                          : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50'
+                      }`}
+                      title={hasAnyCounterOffer(session._id) ? 'Cannot reject main offer when counter offers exist' : 'Reject session request'}
                     >
                       <XCircle className="h-4 w-4" />
                       <span>Reject</span>

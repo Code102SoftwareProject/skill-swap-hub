@@ -51,8 +51,8 @@ function ChatPageContent() {
 
   // Check if user came from dashboard and handle auto-selection of chat room
   useEffect(() => {
-    const fromDashboard = searchParams.get('from') === 'dashboard';
-    const roomId = searchParams.get('roomId');
+    const fromDashboard = searchParams ? searchParams.get('from') === 'dashboard' : false;
+    const roomId = searchParams ? searchParams.get('roomId') : null;
     
     if (fromDashboard) {
       setForceRefresh(true);

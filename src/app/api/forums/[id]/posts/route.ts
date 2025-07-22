@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10', 10);
     const page = parseInt(searchParams.get('page') || '1', 10);
     const skip = (page - 1) * limit;
-
+    
     // Validate MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(forumId)) {
       return NextResponse.json(
@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
     await connectToDatabase();
-
+    
     const posts = await Post.find({ 
       forumId, 
       $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
@@ -34,12 +34,18 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
-
+    
     const total = await Post.countDocuments({ 
       forumId, 
       $or: [{ isDeleted: { $ne: true } }, { isDeleted: { $exists: false } }] 
     });
-
+    
+    // Add cache control headers to prevent caching
+    const headers = new Headers();
+    headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.set('Pragma', 'no-cache');
+    headers.set('Expires', '0');
+    
     return NextResponse.json({
       posts,
       pagination: {
@@ -48,7 +54,7 @@ export async function GET(request: NextRequest) {
         limit,
         pages: Math.ceil(total / limit),
       },
-    });
+    }, { headers });
   } catch (error) {
     console.error('Error fetching forum posts:', error);
     return NextResponse.json(
@@ -137,11 +143,21 @@ export async function POST(request: NextRequest) {
     // Commit the transaction
     await session.commitTransaction();
     session.endSession();
+    
+    // Set headers to prevent caching
+    const headers = new Headers();
+    headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.append('Pragma', 'no-cache');
+    headers.append('Expires', '0');
+    headers.append('Surrogate-Control', 'no-store');
       
     return NextResponse.json({ 
       success: true,
       post: newPost 
-    }, { status: 201 });
+    }, { 
+      status: 201,
+      headers: headers
+    });
   } catch (error) {
     // Abort the transaction on error
     await session.abortTransaction();
@@ -150,9 +166,20 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     const errorStack = error instanceof Error ? error.stack : undefined;
     console.error('Error creating post:', errorMessage, errorStack);
+    
+    // Set headers to prevent caching even for errors
+    const headers = new Headers();
+    headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    headers.append('Pragma', 'no-cache');
+    headers.append('Expires', '0');
+    headers.append('Surrogate-Control', 'no-store');
+    
     return NextResponse.json(
       { error: 'Internal server error', details: errorMessage },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: headers
+      }
     );
   }
 }

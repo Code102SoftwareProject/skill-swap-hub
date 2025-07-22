@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { IChatRoom } from "@/types/chat";
 import { Search } from "lucide-react";
 import {
@@ -16,6 +16,23 @@ import { useBatchAvatarPreload } from "@/hooks/useOptimizedAvatar";
 import PreloadStatus from "@/components/messageSystem/PreloadStatus";
 import { decryptMessage } from "@/lib/messageEncryption/encryption";
 
+// Global cache for KYC statuses to prevent repeated API calls across component re-mounts
+const kycCache = new Map<string, { status: string | null; timestamp: number }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Cleanup function to remove expired cache entries
+const cleanupKYCCache = () => {
+  const now = Date.now();
+  for (const [key, value] of kycCache.entries()) {
+    if (now - value.timestamp > CACHE_DURATION) {
+      kycCache.delete(key);
+    }
+  }
+};
+
+// Run cleanup every minute to prevent memory leaks
+setInterval(cleanupKYCCache, 60 * 1000);
+
 interface SidebarProps {
   userId: string;
   selectedChatRoomId?: string | null;
@@ -30,6 +47,100 @@ interface UserProfile {
   firstName: string;
   lastName: string;
   avatar?: string;
+}
+
+/**
+ * Custom hook to fetch and cache KYC status for multiple users
+ * Uses global cache to prevent repeated API calls across component re-mounts
+ */
+function useKYCStatuses(userIds: string[]) {
+  const [kycStatuses, setKycStatuses] = useState<{[key: string]: string | null}>({});
+  const fetchingRef = useRef<Set<string>>(new Set());
+  
+  // Memoize the userIds string to prevent unnecessary re-renders
+  const userIdsString = useMemo(() => userIds.join(','), [userIds]);
+
+  // Initialize with cached values
+  useEffect(() => {
+    const initialStatuses: {[key: string]: string | null} = {};
+    const now = Date.now();
+    
+    userIds.forEach(userId => {
+      if (userId) {
+        const cached = kycCache.get(userId);
+        if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+          initialStatuses[userId] = cached.status;
+        }
+      }
+    });
+
+    if (Object.keys(initialStatuses).length > 0) {
+      setKycStatuses(initialStatuses);
+    }
+  }, [userIdsString, userIds]);
+
+  // Separate effect for fetching new data to avoid circular dependencies
+  useEffect(() => {
+    const fetchKYCStatuses = async () => {
+      const now = Date.now();
+      
+      // Filter out IDs that are already cached with valid data or currently being fetched
+      const idsToFetch = userIds.filter(userId => {
+        if (!userId) return false;
+        
+        const cached = kycCache.get(userId);
+        const isValid = cached && (now - cached.timestamp) < CACHE_DURATION;
+        const currentlyFetching = fetchingRef.current.has(userId);
+        
+        return !isValid && !currentlyFetching;
+      });
+
+      if (idsToFetch.length === 0) return;
+
+      console.log(`Fetching KYC statuses for ${idsToFetch.length} users:`, idsToFetch);
+
+      // Mark as fetching
+      idsToFetch.forEach(id => fetchingRef.current.add(id));
+
+      const newStatuses: {[key: string]: string | null} = {};
+      
+      try {
+        // Fetch in parallel for better performance
+        const fetchPromises = idsToFetch.map(async (userId) => {
+          try {
+            const res = await fetch(`/api/kyc/status?userId=${userId}`);
+            const data = await res.json();
+            const status = data.success ? data.status : null;
+            
+            // Cache the result
+            kycCache.set(userId, { status, timestamp: now });
+            newStatuses[userId] = status;
+          } catch (err) {
+            console.warn(`Failed to fetch KYC status for user ${userId}:`, err);
+            // Cache null result to prevent repeated failed requests
+            kycCache.set(userId, { status: null, timestamp: now });
+            newStatuses[userId] = null;
+          }
+        });
+
+        await Promise.all(fetchPromises);
+
+        // Update state only if we have new statuses
+        if (Object.keys(newStatuses).length > 0) {
+          setKycStatuses(prev => ({ ...prev, ...newStatuses }));
+        }
+      } finally {
+        // Clear fetching flags
+        idsToFetch.forEach(id => fetchingRef.current.delete(id));
+      }
+    };
+
+    if (userIds.length > 0) {
+      fetchKYCStatuses();
+    }
+  }, [userIdsString, userIds]); // Only depend on user IDs
+
+  return kycStatuses;
 }
 
 /**
@@ -77,7 +188,8 @@ function SidebarBox({
   isSelected,
   profile,
   userId,
-  unreadCount = 0
+  unreadCount = 0,
+  kycStatus
 }: { 
   otherParticipantName: string; 
   lastMessage: string;
@@ -85,20 +197,48 @@ function SidebarBox({
   profile?: UserProfile;
   userId: string;
   unreadCount?: number;
+  kycStatus?: string | null;
 }) {
   return (
     <div className="flex flex-row items-center space-x-2 p-1">
-      {/* Optimized Avatar */}
-      <OptimizedAvatar
-        userId={userId}
-        firstName={profile?.firstName}
-        lastName={profile?.lastName}
-        avatarUrl={profile?.avatar}
-        size="small"
-        className="flex-shrink-0"
-        priority={false}
-        lazy={true}
-      />
+      {/* Optimized Avatar with KYC Verification Overlay */}
+      <div className="relative flex-shrink-0">
+        <OptimizedAvatar
+          userId={userId}
+          firstName={profile?.firstName}
+          lastName={profile?.lastName}
+          avatarUrl={profile?.avatar}
+          size="small"
+          className="flex-shrink-0"
+          priority={false}
+          lazy={true}
+        />
+        
+        {/* KYC Verification Badge Overlay */}
+        {(kycStatus === 'Accepted' || kycStatus === 'Approved') && (
+          <div
+            className="absolute bottom-0 right-0 w-3 h-3 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-200"
+            title="KYC Verified"
+            style={{ 
+              right: '-1px', 
+              bottom: '-1px' 
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-2 h-2 text-blue-600"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 00-1.414 0L9 11.586 6.707 9.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l7-7a1 1 0 000-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </div>
+        )}
+      </div>
       
       <div className="flex flex-col min-w-0 flex-1">
         <span className="font-heading text-sm md:text-base truncate">{otherParticipantName}</span>
@@ -133,6 +273,16 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
   const [searchQuery, setSearchQuery] = useState("");
   const {socket}= useSocket();
   const { preloadAvatars } = useBatchAvatarPreload();
+
+  // Get all other participant IDs for KYC status fetching - memoized for performance
+  const otherUserIds = useMemo(() => {
+    return chatRooms.flatMap(chat => 
+      chat.participants.filter(participantId => participantId !== userId)
+    );
+  }, [chatRooms, userId]);
+  
+  // Fetch KYC statuses for all other participants
+  const kycStatuses = useKYCStatuses(otherUserIds);
 
   //* Component Specific Functions
 
@@ -465,6 +615,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
                   profile={profile}
                   userId={otherParticipantId}
                   unreadCount={unreadCounts[chat._id] || 0}
+                  kycStatus={kycStatuses[otherParticipantId]}
                 />
               </li>
             );

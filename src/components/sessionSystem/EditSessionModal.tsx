@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Calendar, User, BookOpen } from 'lucide-react';
+import { X, Calendar, User, BookOpen, CheckCircle, XCircle } from 'lucide-react';
 import Alert from '@/components/ui/Alert';
 
 interface UserSkill {
@@ -10,6 +10,9 @@ interface UserSkill {
   skillTitle: string;
   proficiencyLevel: string;
   categoryName: string;
+  description?: string;
+  isVerified?: boolean;
+  verified?: boolean;
 }
 
 interface Session {
@@ -50,6 +53,11 @@ export default function EditSessionModal({
   const [loading, setLoading] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
 
+  // State to store skill verification status  
+  const [skillVerificationStatus, setSkillVerificationStatus] = useState<{
+    [skillId: string]: boolean;
+  }>({});
+
   // Alert state
   const [alert, setAlert] = useState<{
     isOpen: boolean;
@@ -76,6 +84,23 @@ export default function EditSessionModal({
     setAlert(prev => ({ ...prev, isOpen: false }));
   };
 
+  // Function to check if a skill is verified
+  const isSkillVerified = (skill: any) => {
+    if (!skill) return false;
+    
+    // Try to get skill ID
+    const skillId = skill._id || skill.id;
+    if (!skillId) return false;
+    
+    // Check our fetched verification status first
+    if (skillVerificationStatus.hasOwnProperty(skillId)) {
+      return skillVerificationStatus[skillId];
+    }
+    
+    // Fallback to skill object data if available
+    return skill.verified === true || skill.isVerified === true;
+  };
+
   const fetchSkills = useCallback(async () => {
     if (!session) return;
     
@@ -93,18 +118,38 @@ export default function EditSessionModal({
       if (userSkillsData.success) {
         console.log('User skills data:', userSkillsData.skills); // Debug log
         setUserSkills(userSkillsData.skills);
+        
+        // Update verification status map
+        const verificationMap: { [skillId: string]: boolean } = {};
+        userSkillsData.skills.forEach((skill: any) => {
+          const skillId = skill._id || skill.id;
+          if (skillId) {
+            verificationMap[skillId] = skill.isVerified || false;
+          }
+        });
+        setSkillVerificationStatus(prev => ({ ...prev, ...verificationMap }));
       }
       
       if (otherSkillsData.success) {
         console.log('Other user skills data:', otherSkillsData.skills); // Debug log
         setOtherUserSkills(otherSkillsData.skills);
+        
+        // Update verification status map
+        const verificationMap: { [skillId: string]: boolean } = {};
+        otherSkillsData.skills.forEach((skill: any) => {
+          const skillId = skill._id || skill.id;
+          if (skillId) {
+            verificationMap[skillId] = skill.isVerified || false;
+          }
+        });
+        setSkillVerificationStatus(prev => ({ ...prev, ...verificationMap }));
       }
     } catch (error) {
       console.error('Error fetching skills:', error);
     } finally {
       setSkillsLoading(false);
     }
-  }, [session, currentUserId]);
+  }, [session, currentUserId, setSkillVerificationStatus]);
 
   useEffect(() => {
     if (isOpen && session) {
@@ -267,7 +312,14 @@ export default function EditSessionModal({
 
   if (!isOpen || !session) return null;
 
-  const otherUserName = session.user1Id._id === currentUserId ? session.user2Id.name : session.user1Id.name;
+  // Fix the other user name extraction
+  const otherUserName = session.user1Id._id === currentUserId 
+    ? (session.user2Id?.firstName && session.user2Id?.lastName 
+        ? `${session.user2Id.firstName} ${session.user2Id.lastName}`
+        : session.user2Id?.name || session.user2Id?.username || 'Unknown User')
+    : (session.user1Id?.firstName && session.user1Id?.lastName 
+        ? `${session.user1Id.firstName} ${session.user1Id.lastName}`
+        : session.user1Id?.name || session.user1Id?.username || 'Unknown User');
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -305,19 +357,46 @@ export default function EditSessionModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select your skill to offer:
                   </label>
-                  <select
-                    value={selectedUserSkill}
-                    onChange={(e) => setSelectedUserSkill(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Choose a skill...</option>
-                    {userSkills.map((skill) => (
-                      <option key={skill.id || skill._id} value={skill.id || skill._id}>
-                        {skill.skillTitle} ({skill.proficiencyLevel}) - {skill.categoryName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                    {userSkills.length === 0 ? (
+                      <p className="text-gray-500 text-sm p-2">No skills available</p>
+                    ) : (
+                      userSkills.map((skill) => (
+                        <div
+                          key={skill.id || skill._id}
+                          onClick={() => setSelectedUserSkill(skill.id || skill._id)}
+                          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedUserSkill === (skill.id || skill._id)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">{skill.skillTitle}</span>
+                              {isSkillVerified(skill) ? (
+                                <span title="Verified Skill">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                </span>
+                              ) : (
+                                <span title="Unverified Skill">
+                                  <XCircle className="h-4 w-4 text-gray-400" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {skill.proficiencyLevel} • {skill.categoryName}
+                            </div>
+                            {skill.description && (
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                {skill.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                   
                   <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">
                     Describe what you'll provide:
@@ -346,19 +425,46 @@ export default function EditSessionModal({
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Select skill you want from {otherUserName}:
                   </label>
-                  <select
-                    value={selectedOtherSkill}
-                    onChange={(e) => setSelectedOtherSkill(e.target.value)}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Choose a skill...</option>
-                    {otherUserSkills.map((skill) => (
-                      <option key={skill.id || skill._id} value={skill.id || skill._id}>
-                        {skill.skillTitle} ({skill.proficiencyLevel}) - {skill.categoryName}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="space-y-2 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2">
+                    {otherUserSkills.length === 0 ? (
+                      <p className="text-gray-500 text-sm p-2">No skills available</p>
+                    ) : (
+                      otherUserSkills.map((skill) => (
+                        <div
+                          key={skill.id || skill._id}
+                          onClick={() => setSelectedOtherSkill(skill.id || skill._id)}
+                          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedOtherSkill === (skill.id || skill._id)
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-gray-900">{skill.skillTitle}</span>
+                              {isSkillVerified(skill) ? (
+                                <span title="Verified Skill">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                </span>
+                              ) : (
+                                <span title="Unverified Skill">
+                                  <XCircle className="h-4 w-4 text-gray-400" />
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              {skill.proficiencyLevel} • {skill.categoryName}
+                            </div>
+                            {skill.description && (
+                              <div className="text-xs text-gray-500 mt-1 truncate">
+                                {skill.description}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
                   
                   <label className="block text-sm font-medium text-gray-700 mt-4 mb-2">
                     Describe what you want from {otherUserName}:

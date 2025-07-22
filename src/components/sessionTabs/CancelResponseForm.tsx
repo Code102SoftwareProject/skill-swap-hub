@@ -146,7 +146,7 @@ export default function CancelResponseForm({
             <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-yellow-800">
               <p className="font-medium">Note:</p>
-              <p>If you dispute this cancellation, the session initiator will have the final decision on whether to proceed with cancellation.</p>
+              <p>If you dispute this cancellation, the session will remain active and both parties will need to work together to resolve the issue. If no agreement can be reached, please contact our support team for assistance.</p>
             </div>
           </div>
         </div>
