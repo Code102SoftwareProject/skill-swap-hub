@@ -87,28 +87,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Calculate exact time until token expires
     const timeUntilExpiry = getTimeUntilExpiry(tokenToMonitor) * 1000; // Convert to milliseconds
 
+    // Check if token is valid
+    if (timeUntilExpiry <= 0) {
+      console.error("🚨 TOKEN ALREADY EXPIRED OR INVALID!");
+      return;
+    }
+
     console.log(
-      `🕐 Setting session timer for ${timeUntilExpiry / 1000} seconds`
+      `🕐 Setting session timer for ${Math.floor(timeUntilExpiry / 1000 / 60 / 60)} hours`
     );
     console.log(
-      `⏰ Session will expire at: ${new Date(Date.now() + timeUntilExpiry).toLocaleTimeString()}`
+      `⏰ Session will expire at: ${new Date(Date.now() + timeUntilExpiry).toLocaleString()}`
     );
 
-    // Set timer to show modal exactly when token expires
-    const timer = setTimeout(() => {
-      console.log("🚨 Session timer expired - showing modal automatically");
-      handleSessionExpiry();
-    }, timeUntilExpiry);
+    // JavaScript setTimeout has a maximum delay of ~24.8 days (2^31-1 milliseconds)
+    const MAX_TIMEOUT_MS = 2147483647; // Maximum safe setTimeout value
+    
+    if (timeUntilExpiry > MAX_TIMEOUT_MS) {
+      console.log("⚠️ Token expiry exceeds setTimeout limit, using periodic checks instead");
+      
+      // For very long expiry times (30+ days), check periodically instead
+      const checkInterval = setInterval(() => {
+        const remainingTime = getTimeUntilExpiry(tokenToMonitor) * 1000;
+        console.log(`🔄 Periodic check: ${remainingTime / 1000 / 60 / 60} hours remaining`);
+        
+        if (remainingTime <= 0) {
+          console.log("🚨 Periodic check detected expiry - showing modal");
+          clearInterval(checkInterval);
+          handleSessionExpiry();
+        }
+      }, 60000); // Check every minute for long-lived tokens
+      
+      // Store interval reference for cleanup (treating it as timer)
+      setSessionTimer(checkInterval as any);
+    } else {
+      // For normal timeouts (< 24.8 days), use regular setTimeout
+      const timer = setTimeout(() => {
+        console.log("🚨 Session timer expired - showing modal automatically");
+        handleSessionExpiry();
+      }, timeUntilExpiry);
 
-    setSessionTimer(timer);
+      setSessionTimer(timer);
+    }
   };
 
-  // Clear session timer
+  // Clear session timer (handles both setTimeout and setInterval)
   const clearSessionTimer = () => {
     if (sessionTimer) {
+      // Clear both timeout and interval (one will be a no-op)
       clearTimeout(sessionTimer);
+      clearInterval(sessionTimer);
       setSessionTimer(null);
-      console.log("🧹 Session timer cleared");
+      console.log("🧹 Session timer/interval cleared");
     }
   };
 

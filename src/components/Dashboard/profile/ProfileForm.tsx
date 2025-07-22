@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/context/AuthContext'; // Update the path if different
 import Image from 'next/image';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 
 export default function ProfileForm() {
@@ -115,6 +116,38 @@ export default function ProfileForm() {
     }
   };
 
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
+  const [kycRejectionReason, setKycRejectionReason] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchKycStatus = async () => {
+      if (!user?._id) return;
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${user._id}`);
+        const data = await res.json();
+
+        if (data.success) {
+          setKycStatus(data.status);
+          if (data.status === 'Rejected') {
+            setKycRejectionReason(data.reason || 'No reason provided');
+          } else {
+            setKycRejectionReason(null);
+          }
+        } else {
+          setKycStatus(null);
+          setKycRejectionReason(null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch KYC status:', err);
+        setKycStatus(null);
+        setKycRejectionReason(null);
+      }
+    };
+
+    fetchKycStatus();
+  }, [user?._id]);
+
+
   if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto p-8">
@@ -145,8 +178,7 @@ export default function ProfileForm() {
     <div className="max-w-3xl mx-auto p-8 bg-white rounded-xl shadow-sm border border-gray-100">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Profile Information</h1>
-          <p className="text-gray-500 mt-1">Manage your personal and professional details</p>
+          <h2 className="text-2xl font-semibold text-[#026aa1]">Your Profile </h2>
         </div>
         {!isEditing ? (
           <button
@@ -172,7 +204,7 @@ export default function ProfileForm() {
               <Image
                 src={
                   formState.avatarUrl
-                    ? `/api/file/retrieve?fileUrl=${encodeURIComponent(formState.avatarUrl)}`
+                    ? processAvatarUrl(formState.avatarUrl) || '/default-avatar.png'
                     : '/default-avatar.png'
                 }
                 alt="Profile"
@@ -343,6 +375,80 @@ export default function ProfileForm() {
           </div>
         )}
       </form>
+
+{/* Enhanced KYC Status UI */}
+<div className="mt-8 space-y-4">
+  {(kycStatus === 'Accepted' || kycStatus === 'Approved') && (
+    <div className="animate-fade-in">
+      <div className="inline-flex items-center px-4 py-3 bg-green-50 border border-green-200 text-green-800 rounded-lg font-medium text-sm shadow-sm">
+        {/* Green verified tick icon */}
+        <svg className="w-5 h-5 mr-2 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+        </svg>
+        <span>KYC Verified</span>
+      </div>
+      <p className="mt-2 text-sm text-green-600">Your identity verification is complete.</p>
+    </div>
+  )}
+
+  {kycStatus === "Not Reviewed" && (
+    <div className="animate-fade-in">
+      <div className="inline-flex items-center px-4 py-3 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg font-medium text-sm shadow-sm">
+        <svg className="w-5 h-5 mr-2 text-yellow-500 animate-pulse" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+        </svg>
+        <span>KYC Under Review</span>
+      </div>
+      <p className="mt-2 text-sm text-yellow-600">We're verifying your documents. This typically takes 1-2 business days.</p>
+    </div>
+  )}
+
+  {kycStatus === 'Rejected' && (
+    <div className="animate-fade-in">
+      <div className="inline-flex items-center px-4 py-3 bg-red-50 border border-red-200 text-red-800 rounded-lg font-medium text-sm shadow-sm">
+        <svg className="w-5 h-5 mr-2 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+        </svg>
+        <span>KYC Rejected</span>
+      </div>
+      <div className="mt-3 p-4 bg-red-50 rounded-lg border border-red-100">
+        <h4 className="font-medium text-red-800 text-sm mb-2">Reason for rejection:</h4>
+        <p className="text-red-700 text-sm mb-3">{kycRejectionReason || 'No reason provided'}</p>
+        <a
+          href="/user/kyc"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+        >
+          Resubmit KYC
+        </a>
+      </div>
+    </div>
+  )}
+
+  {kycStatus === null && (
+    <div className="animate-fade-in">
+      <div className="inline-flex items-center px-4 py-3 bg-gray-50 border border-gray-200 text-gray-800 rounded-lg font-medium text-sm shadow-sm">
+        <svg className="w-5 h-5 mr-2 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        </svg>
+        <span>Identity Not Verified</span>
+      </div>
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
+        <h4 className="font-medium text-blue-800 text-sm mb-2">Verification required</h4>
+        <p className="text-blue-700 text-sm mb-3">Complete KYC to access all platform features.</p>
+        <a
+          href="/user/kyc"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+          <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V8z" clipRule="evenodd" />
+          </svg>
+          Start Verification
+        </a>
+      </div>
+    </div>
+  )}
+</div>
+
     </div>
   );
 }

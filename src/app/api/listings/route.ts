@@ -59,9 +59,29 @@ export async function GET(req: Request) {
       .sort({ createdAt: -1 }) // Newest first
       .limit(100); // Limit to 100 listings for performance
     
+    // For user's own listings, update userDetails with current user data to ensure avatars are up-to-date
+    let processedListings = listings;
+    
+    if (queryType === 'mine') {
+      const currentUser = await User.findById(userId).select('firstName lastName avatar');
+      
+      if (currentUser) {
+        processedListings = listings.map(listing => {
+          const listingObj = listing.toObject();
+          // Update userDetails with current user data for own listings
+          listingObj.userDetails = {
+            firstName: currentUser.firstName,
+            lastName: currentUser.lastName,
+            avatar: currentUser.avatar
+          };
+          return listingObj;
+        });
+      }
+    }
+    
     return NextResponse.json({ 
       success: true, 
-      data: listings 
+      data: processedListings 
     });
   } catch (error) {
     console.error('Error fetching listings:', error);

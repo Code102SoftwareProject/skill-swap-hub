@@ -1,10 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { debounce } from 'lodash-es';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { debounce } from "lodash-es";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 //import { processAvatarUrl } from '@/utils/avatarUtils';
-import { processAvatarUrl } from '@/utils/imageUtils';
-import Image from 'next/image';
+import { processAvatarUrl } from "@/utils/imageUtils";
+import Image from "next/image";
+import { UserRoundX } from "lucide-react";
 // Types
 interface User {
   _id: string;
@@ -59,7 +60,7 @@ interface DeleteModalProps {
   userName?: string;
 }
 
-const DEBOUNCE_DELAY = 300;
+const DEBOUNCE_DELAY = 100; // Reduced for better responsiveness
 const PAGE_SIZE_OPTIONS = [5, 10, 20, 50, 100];
 const SORT_FIELDS = [
   { value: "createdAt", label: "Created At" },
@@ -252,7 +253,6 @@ const UserAvatar: React.FC<{ user: User; size?: "sm" | "md" | "lg" }> = ({
   );
 };
 
-
 const DeleteButton: React.FC<{ onClick: () => void; label: string }> = ({
   onClick,
   label,
@@ -309,20 +309,7 @@ const SuspendButton: React.FC<{
         />
       </svg>
     ) : (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-        strokeWidth={1.5}
-        stroke="#f59e0b"
-        className="w-6 h-6"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"
-        />
-      </svg>
+      <UserRoundX className="w-6 h-6 text-yellow-500" />
     )}
   </button>
 );
@@ -718,15 +705,17 @@ const UsersContent: React.FC = () => {
             {pagination.total} {pagination.total === 1 ? "user" : "users"} found
           </p>
         </div>
-        <SearchInput
-          value={search}
-          onChange={handleSearchChange}
-          onClear={clearSearch}
-        />
       </div>
       {/* Sorting & Page Size Controls */}
       <div className="mb-4 p-4">
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-6 items-stretch sm:items-center bg-white/80 rounded-xl shadow-sm px-4 py-3 border border-gray-200">
+          <div className="w-full sm:w-80">
+            <SearchInput
+              value={search}
+              onChange={handleSearchChange}
+              onClear={clearSearch}
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <span className="inline-flex items-center gap-1">
               <svg

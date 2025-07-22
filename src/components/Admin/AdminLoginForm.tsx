@@ -98,7 +98,7 @@ export default function AdminLoginForm() {
 
         {/* Right side login form */}
         <div className="md:w-1/2 w-full p-8">
-          <h2 className="text-2xl font-semibold mb-6 text-center">
+          <h2 className="text-2xl font-semibold mb-6 text-center text-gray-900 dark:text-gray-900">
             Admin Login
           </h2>
 

@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   criteriaOptions,
   validateBadgeInput,
-  handleImageFileChange,
   uploadBadgeImage,
   API_ENDPOINTS,
   validateImageFile,
@@ -203,7 +202,7 @@ const BadgeForm = ({ onBadgeAdded }: BadgeFormProps) => {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg space-y-4">
+    <div className="bg-white p-6 rounded-lg shadow-lg space-y-4 text-gray-900 dark:text-gray-900">
       <h2 className="text-2xl font-bold mb-4">Add New Badge</h2>
 
       {formError && (

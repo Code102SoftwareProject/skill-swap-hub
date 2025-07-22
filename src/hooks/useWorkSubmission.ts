@@ -135,13 +135,29 @@ export function useWorkSubmission(
       return;
     }
     
-    const newFiles = files.map(file => ({
+    const maxSizeMB = 25;
+    const maxSizeBytes = maxSizeMB * 1024 * 1024; // 25MB in bytes
+    
+    // Filter out files that are too large (secondary validation)
+    const validFiles = files.filter(file => {
+      if (file.size > maxSizeBytes) {
+        onError?.(`File "${file.name}" is too large. Maximum file size is ${maxSizeMB}MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+        return false;
+      }
+      return true;
+    });
+    
+    if (validFiles.length === 0) {
+      return; // No valid files to add
+    }
+    
+    const newFiles = validFiles.map(file => ({
       file,
       title: file.name.split('.').slice(0, -1).join('.') || 'Uploaded File'
     }));
     
     setWorkFiles(prev => [...prev, ...newFiles]);
-  }, [workFiles.length, onWarning]);
+  }, [workFiles.length, onWarning, onError]);
 
   const removeFile = useCallback((index: number) => {
     setWorkFiles(prev => prev.filter((_, i) => i !== index));

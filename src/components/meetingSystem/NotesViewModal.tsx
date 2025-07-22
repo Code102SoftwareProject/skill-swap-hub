@@ -32,7 +32,11 @@ export default function NotesViewModal({
   onDownload
 }: NotesViewModalProps) {
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'Date not available';
+    
     const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Date not available';
+    
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -81,17 +85,10 @@ export default function NotesViewModal({
         {/* Content */}
         <div className="p-4 overflow-y-auto max-h-[calc(90vh-200px)]">
           {/* Meeting Info */}
-          {note.meetingInfo && (
+          {note.meetingInfo && note.meetingInfo.meetingTime && (
             <div className="bg-gray-50 rounded-lg p-3 mb-4">
               <h3 className="text-sm font-medium text-gray-900 mb-2">Meeting Details</h3>
               <div className="space-y-1 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  <span className={note.meetingInfo.isDeleted ? 'text-red-600' : ''}>
-                    {note.meetingInfo.description}
-                    {note.meetingInfo.isDeleted && ' (Removed Meeting)'}
-                  </span>
-                </div>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   <span>{formatDate(note.meetingInfo.meetingTime)}</span>

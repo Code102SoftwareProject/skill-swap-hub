@@ -6,14 +6,21 @@ import { ChevronLeft, ChevronRight, Star, User, Quote } from "lucide-react";
 interface SuccessStory {
   _id: string;
   userId: {
+    _id: string;
     firstName: string;
     lastName: string;
     avatar?: string;
   } | null;
+  user: {
+    name: string;
+    avatar?: string;
+  };
   title: string;
   description: string;
   image?: string;
   publishedAt: string;
+  rating?: number;
+  isAnonymous?: boolean;
 }
 
 export default function SuccessStoriesCarousel() {
@@ -166,13 +173,11 @@ export default function SuccessStoriesCarousel() {
                         
                         {/* User Info */}
                         <div className="flex items-center justify-center">
-
                           <div className="flex items-center bg-white/20 backdrop-blur-sm rounded-full px-4 py-2 border border-cyan-300/20">
-
-                            {story.userId?.avatar ? (
+                            {(story.user?.avatar || story.userId?.avatar) ? (
                               <img
-                                src={story.userId.avatar}
-                                alt={`${story.userId.firstName} ${story.userId.lastName}`}
+                                src={story.user?.avatar || story.userId?.avatar}
+                                alt={story.user?.name || 'User avatar'}
                                 className="w-10 h-10 rounded-full mr-3 border-2 border-cyan-300/30"
                               />
                             ) : (
@@ -181,13 +186,24 @@ export default function SuccessStoriesCarousel() {
                               </div>
                             )}
                             <div className="text-left">
-
                               <p className="font-semibold text-sm text-white">
-                                {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
+                                {story.user?.name || 'Anonymous User'}
                               </p>
                               <p className="text-xs text-blue-200">
                                 {new Date(story.publishedAt).toLocaleDateString()}
                               </p>
+                              {story.rating && (
+                                <div className="flex items-center mt-1">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star
+                                      key={i}
+                                      className={`w-3 h-3 ${
+                                        i < story.rating ? 'text-yellow-300 fill-current' : 'text-gray-400'
+                                      }`}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -235,44 +251,7 @@ export default function SuccessStoriesCarousel() {
           )}
         </div>
 
-        {/* Small Cards Preview */}
-        {successStories.length > 3 && (
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {successStories.slice(0, 3).map((story, index) => (
-              <div
-                key={story._id}
-                className="bg-white/10 backdrop-blur-sm rounded-lg shadow-lg p-6 hover:shadow-xl transition-all duration-300 cursor-pointer border border-white/20 hover:bg-white/15"
-                onClick={() => goToSlide(index)}
-              >
-                <div className="flex items-center mb-3">
-                  {story.userId?.avatar ? (
-                    <img
-                      src={story.userId.avatar}
-                      alt={`${story.userId.firstName} ${story.userId.lastName}`}
-                      className="w-8 h-8 rounded-full mr-3 border border-cyan-300/30"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-cyan-300/20 flex items-center justify-center mr-3 border border-cyan-300/30">
-                      <User className="w-4 h-4 text-cyan-300" />
-                    </div>
-                  )}
-                  <div>
 
-                    <p className="font-semibold text-sm text-white">
-                      {story.userId ? `${story.userId.firstName} ${story.userId.lastName}` : 'Anonymous User'}
-                    </p>
-                  </div>
-                </div>
-                <h4 className="font-semibold text-white mb-2">
-                  {story.title}
-                </h4>
-                <p className="text-blue-100 text-sm line-clamp-2">
-                  {story.description}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </section>
   );

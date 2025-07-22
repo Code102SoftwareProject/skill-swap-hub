@@ -24,12 +24,17 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    // Update the KYC record with new status and review timestamp
+    // Pull rejectionReason if provided
+    const { id, status, rejectionReason } = body;
+
+    // Update the KYC record with new status, review timestamp, and optional reason
     const updatedRecord = await KYC.findByIdAndUpdate(
-      body.id,
+      id,
       {
-        status: body.status,
+        status,
         reviewed: new Date(),
+        // only include the field when rejecting
+        ...(rejectionReason ? { rejectionReason } : {}),
       },
       { new: true } // Return updated document instead of original
     );

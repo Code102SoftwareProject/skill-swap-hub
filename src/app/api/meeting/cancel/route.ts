@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: otherUserId,
-          typeno: 5, // Meeting cancellation notification
+          typeno: 10, // MEETING_CANCELLED
           description: `${cancellerName} has cancelled your meeting scheduled for ${new Date(meeting.meetingTime).toLocaleDateString()}. Reason: ${reason.trim()}`,
           targetDestination: '/dashboard'
         })

@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Calendar, Plus, FileText, ChevronDown, ChevronRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import CreateMeetingModal from '@/components/meetingSystem/CreateMeetingModal';
 import CancelMeetingModal from '@/components/meetingSystem/CancelMeetingModal';
+import CancellationAlert from '@/components/meetingSystem/CancellationAlert';
 import MeetingList from '@/components/meetingSystem/MeetingList';
 import SavedNotesList from '@/components/meetingSystem/SavedNotesList';
 import NotesViewModal from '@/components/meetingSystem/NotesViewModal';
 import Meeting from '@/types/meeting';
+import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
 import { 
   fetchMeetings, 
   createMeeting, 
@@ -14,6 +15,7 @@ import {
   cancelMeetingWithReason,
   fetchMeetingCancellation,
   acknowledgeMeetingCancellation,
+  fetchUnacknowledgedCancellations,
   checkMeetingNotesExist,
   fetchAllUserMeetingNotes,
   downloadMeetingNotesFile,
@@ -23,7 +25,8 @@ import {
 } from "@/services/meetingApiServices";
 import { fetchChatRoom, fetchUserProfile } from "@/services/chatApiServices";
 import { invalidateUsersCaches } from '@/services/sessionApiServices';
-import { debouncedApiService } from '@/services/debouncedApiService';
+import { imageOptimizationService } from '@/services/imageOptimizationService';
+import { useBatchAvatarPreload } from '@/hooks/useOptimizedAvatar';
 import Alert from '@/components/ui/Alert';
 import ConfirmationDialog from '@/components/ui/ConfirmationDialog';
 
@@ -44,6 +47,7 @@ interface CancellationAlert {
   cancelledAt: string;
   cancellerName: string;
   meetingTime: string;
+  meetingDescription?: string;
 }
 
 interface MeetingNote {
@@ -75,80 +79,6 @@ interface MeetingBoxProps {
 export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdate }: MeetingBoxProps) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // Animation variants
-  const containerVariants = {
-    hidden: { 
-      opacity: 0,
-      y: 20,
-      scale: 0.95
-    },
-    visible: { 
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-        staggerChildren: 0.1
-      }
-    },
-    exit: {
-      opacity: 0,
-      y: -20,
-      scale: 0.95,
-      transition: {
-        duration: 0.3,
-        ease: "easeIn"
-      }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { 
-      opacity: 0,
-      x: -20
-    },
-    visible: { 
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut"
-      }
-    }
-  };
-
-  const headerVariants = {
-    hidden: { 
-      opacity: 0,
-      y: -10
-    },
-    visible: { 
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-        delay: 0.1
-      }
-    }
-  };
-
-  const buttonHover = {
-    scale: 1.05,
-    transition: {
-      duration: 0.2,
-      ease: "easeInOut"
-    }
-  };
-
-  const buttonTap = {
-    scale: 0.95,
-    transition: {
-      duration: 0.1
-    }
-  };
   const [userProfiles, setUserProfiles] = useState<UserProfiles>({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -160,12 +90,19 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   const [checkingNotes, setCheckingNotes] = useState<{[meetingId: string]: boolean}>({});
   const [actionLoadingStates, setActionLoadingStates] = useState<{[meetingId: string]: string}>({});
 
+  // Cancellation alerts state
+  const [cancellationAlerts, setCancellationAlerts] = useState<CancellationAlert[]>([]);
+  const [loadingCancellationAlerts, setLoadingCancellationAlerts] = useState(false);
+
   // Saved notes states
   const [savedNotes, setSavedNotes] = useState<MeetingNote[]>([]);
   const [loadingSavedNotes, setLoadingSavedNotes] = useState(false);
   const [showSavedNotes, setShowSavedNotes] = useState(false);
   const [selectedNote, setSelectedNote] = useState<MeetingNote | null>(null);
   const [showNotesModal, setShowNotesModal] = useState(false);
+
+  // Use batch avatar preloading hook like Sidebar does
+  const { preloadAvatars } = useBatchAvatarPreload();
 
   // Alert and confirmation states
   const [alert, setAlert] = useState<{
@@ -230,6 +167,56 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     setConfirmation(prev => ({ ...prev, isOpen: false }));
   };
 
+  // Fetch cancellation alerts for the current user from the specific other user
+  const fetchCancellationAlerts = useCallback(async () => {
+    if (!userId || !otherUserId) return;
+    
+    try {
+      setLoadingCancellationAlerts(true);
+      const alerts = await fetchUnacknowledgedCancellations(userId);
+      
+      // Filter alerts to only show cancellations from the current chat partner
+      const filteredAlerts = (alerts || []).filter((alert: CancellationAlert) => {
+        // Check if this cancellation is related to a meeting with the current other user
+        // We can match by checking if the meeting involves both users
+        return meetings.some(meeting => 
+          meeting._id === alert.meetingId && 
+          (
+            (meeting.senderId === userId && meeting.receiverId === otherUserId) ||
+            (meeting.senderId === otherUserId && meeting.receiverId === userId)
+          )
+        );
+      });
+      
+      setCancellationAlerts(filteredAlerts);
+    } catch (error) {
+      console.error('Error fetching cancellation alerts:', error);
+      setCancellationAlerts([]);
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
+  }, [userId, otherUserId, meetings]);
+
+  // Handle acknowledging a cancellation
+  const handleAcknowledgeCancellation = async (cancellationId: string) => {
+    try {
+      setLoadingCancellationAlerts(true);
+      await acknowledgeMeetingCancellation(cancellationId, userId);
+      
+      // Remove the acknowledged cancellation from the list
+      setCancellationAlerts(prev => 
+        prev.filter(alert => alert._id !== cancellationId)
+      );
+      
+      showAlert('success', 'Cancellation acknowledged successfully');
+    } catch (error) {
+      console.error('Error acknowledging cancellation:', error);
+      showAlert('error', 'Failed to acknowledge cancellation');
+    } finally {
+      setLoadingCancellationAlerts(false);
+    }
+  };
+
   // Check if a meeting is currently happening (in non-cancellation period)
   const isMeetingHappening = (meeting: Meeting): boolean => {
     if (meeting.state !== 'accepted') return false;
@@ -245,6 +232,9 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Get meetings that are currently happening
   const currentlyHappeningMeetings = meetings.filter(isMeetingHappening);
 
+  // Get meetings excluding currently happening ones for other categories
+  const meetingsExcludingCurrent = meetings.filter(meeting => !isMeetingHappening(meeting));
+
   // Update meeting statuses every minute to refresh currently happening meetings
   useEffect(() => {
     if (meetings.length === 0) return;
@@ -258,9 +248,18 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     return () => clearInterval(interval);
   }, [meetings.length]);
 
-  // Use API service to filter meetings
-  const filteredMeetings = filterMeetingsByType(meetings, userId);
-  const hasActiveMeetingsOrRequests = filteredMeetings.pendingRequests.length > 0 || filteredMeetings.upcomingMeetings.length > 0 || currentlyHappeningMeetings.length > 0;
+  // Use API service to filter meetings (excluding currently happening ones)
+  const filteredMeetings = filterMeetingsByType(meetingsExcludingCurrent, userId);
+  
+  // Additional filtering to ensure no overlap between currently happening and upcoming
+  const cleanedUpcomingMeetings = filteredMeetings.upcomingMeetings.filter(meeting => !isMeetingHappening(meeting));
+  
+  const finalFilteredMeetings = {
+    ...filteredMeetings,
+    upcomingMeetings: cleanedUpcomingMeetings
+  };
+  
+  const hasActiveMeetingsOrRequests = finalFilteredMeetings.pendingRequests.length > 0 || finalFilteredMeetings.upcomingMeetings.length > 0 || currentlyHappeningMeetings.length > 0;
 
   // Track if meetings have been loaded to prevent duplicate onMeetingUpdate calls
   const hasFetchedMeetings = useRef(false);
@@ -321,7 +320,14 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
     loadMeetings();
   }, [otherUserId, userId]);
 
-  // Fetch user profiles for all meeting participants
+  // Fetch cancellation alerts when userId, otherUserId, or meetings change
+  useEffect(() => {
+    if (userId && otherUserId && meetings.length > 0) {
+      fetchCancellationAlerts();
+    }
+  }, [userId, otherUserId, meetings.length, fetchCancellationAlerts]);
+
+  // Fetch user profiles for all meeting participants (matching Sidebar approach exactly)
   const fetchUserProfiles = useCallback(async (currentMeetings: Meeting[]) => {
     if (currentMeetings.length === 0) return;
     
@@ -331,55 +337,78 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
       uniqueUserIds.add(meeting.receiverId);
     });
 
-    // Fetch profiles for each unique user ID
+    if (uniqueUserIds.size === 0) return;
+
+    console.log(`Fetching profiles for ${uniqueUserIds.size} users in MeetingBox`);
+    
+    // Clear image cache to ensure fresh avatar loading
+    imageOptimizationService.clearCache();
+    console.log('Cleared image cache for fresh avatar loading');
+
+    // Prepare data for batch avatar preloading
+    const avatarData: Array<{
+      userId: string;
+      firstName?: string;
+      avatarUrl?: string;
+    }> = [];
+
+    // Fetch each profile individually - exactly like Sidebar does
     for (const id of uniqueUserIds) {
-      const cacheKey = `profile-${id}`;
-      
       try {
-        const profileData = await debouncedApiService.makeRequest(
-          cacheKey,
-          async () => {
-            return await fetchUserProfile(id);
-          },
-          60000 // 1 minute cache for profiles
-        );
-        
-        if (profileData) {
-          setUserProfiles(prev => {
-            // Check if we already have this profile to prevent unnecessary updates
-            if (prev[id] && 
-                prev[id].firstName === profileData.firstName && 
-                prev[id].lastName === profileData.lastName &&
-                prev[id].avatar === profileData.avatar) {
-              return prev; // No change needed
-            }
-            
-            return {
-              ...prev,
-              [id]: {
-                firstName: profileData.firstName,
-                lastName: profileData.lastName,
-                avatar: profileData.avatar
-              }
-            };
+        const userData = await fetchUserProfile(id);
+
+        if (userData) {
+          console.log(`Profile fetched for user ${id}:`, userData);
+          setUserProfiles((prev) => ({
+            ...prev,
+            [id]: userData, // Store complete userData object like Sidebar
+          }));
+
+          // Add to avatar preload data
+          avatarData.push({
+            userId: id,
+            firstName: userData.firstName,
+            avatarUrl: userData.avatar
           });
+        } else {
+          console.log(`No profile found for user ${id}, setting fallback`);
+          setUserProfiles((prev) => ({
+            ...prev,
+            [id]: {
+              firstName: "Unknown",
+              lastName: "User",
+            },
+          }));
         }
       } catch (err) {
         console.error(`Error fetching profile for user ${id}:`, err);
+        setUserProfiles((prev) => ({
+          ...prev,
+          [id]: {
+            firstName: "Unknown",
+            lastName: "User",
+          },
+        }));
       }
     }
-  }, []);
 
-  // Fetch user profiles when meetings change (with debouncing)
+    // Batch preload avatars for better performance - like Sidebar does
+    if (avatarData.length > 0) {
+      try {
+        await preloadAvatars(avatarData, 'small');
+        console.log(`Preloaded ${avatarData.length} avatars in MeetingBox`);
+      } catch (error) {
+        console.warn('Avatar preloading failed in MeetingBox:', error);
+      }
+    }
+  }, [preloadAvatars]);
+
+  // Fetch user profiles when meetings change (like Sidebar does)
   useEffect(() => {
-    if (meetings.length === 0) return;
-    
-    const timeoutId = setTimeout(() => {
+    if (meetings.length > 0) {
       fetchUserProfiles(meetings);
-    }, 300);
-    
-    return () => clearTimeout(timeoutId);
-  }, [meetings, fetchUserProfiles]);
+    }
+  }, [fetchUserProfiles, meetings]);
 
   // Check if notes exist for meetings
   const checkMeetingNotes = useCallback(async (currentMeetings: Meeting[]) => {
@@ -452,86 +481,26 @@ export default function MeetingBox({ chatRoomId, userId, onClose, onMeetingUpdat
   // Handle downloading notes
   const handleDownloadNotes = async (note: MeetingNote) => {
     try {
-      // Create markdown content directly from the note data
-      const meetingTitle = note.meetingInfo?.description || note.title;
-      const meetingDate = note.meetingInfo?.meetingTime || note.createdAt;
+      // Get the other user's name
+      const otherUserName = otherUserId && userProfiles[otherUserId] 
+        ? `${userProfiles[otherUserId].firstName} ${userProfiles[otherUserId].lastName}`.trim()
+        : 'User';
       
-      // Create a well-formatted markdown document
-      const formattedDate = new Date(meetingDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
+      const pdfData: MeetingNotePDFData = {
+        title: note.title,
+        content: note.content,
+        meetingId: note.meetingId,
+        createdAt: note.createdAt,
+        lastModified: note.lastModified,
+        wordCount: note.wordCount,
+        tags: note.tags,
+        isPrivate: note.isPrivate,
+        otherUserName: otherUserName,
+        meetingInfo: note.meetingInfo
+      };
       
-      const formattedTime = new Date(meetingDate).toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-
-      // Clean up the content
-      let formattedContent = note.content
-        .replace(/^## (.*$)/gm, '## $1')
-        .replace(/^# (.*$)/gm, '# $1')
-        .replace(/^> (.*$)/gm, '> $1')
-        .replace(/^- (.*$)/gm, '- $1')
-        .trim();
-
-      const markdownDocument = `# Meeting Notes
-
----
-
-## Meeting Information
-
-- **Meeting:** ${note.title}
-- **Date:** ${formattedDate}
-- **Time:** ${formattedTime}
-- **Meeting ID:** \`${note.meetingId}\`${note.meetingInfo?.isDeleted ? '\n- **Status:** ⚠️ Meeting Removed from System' : ''}
-
----
-
-## Content
-
-${formattedContent}
-
----
-
-## Meeting Details
-
-- **Word Count:** ${note.wordCount}
-- **Tags:** ${note.tags?.join(', ') || 'None'}
-- **Created:** ${new Date(note.createdAt).toLocaleDateString()}
-- **Last Updated:** ${new Date(note.lastModified).toLocaleDateString()}
-- **Privacy:** ${note.isPrivate ? 'Private' : 'Public'}${note.meetingInfo?.isDeleted ? '\n- **Note:** Original meeting has been removed from the system but notes are preserved' : ''}
-
----
-
-*Generated by SkillSwap Hub - Meeting Notes System*
-      `;
-      
-      // Create and trigger download
-      const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const fileName = `meeting-notes-${note.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}-${new Date(meetingDate).toISOString().split('T')[0]}.md`;
-      
-      // Create download link
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      
-      // Add to DOM, click, and remove
-      document.body.appendChild(a);
-      a.click();
-      
-      // Cleanup
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
-      
-      showAlert('success', 'Notes downloaded successfully!');
+      generateMeetingNotesPDF(pdfData);
+      showAlert('success', 'Notes downloaded successfully as PDF!');
     } catch (error: any) {
       console.error('Error downloading notes:', error);
       showAlert('error', 'Failed to download notes');
@@ -627,7 +596,7 @@ ${formattedContent}
     setShowCreateModal(true);
   };
 
-  // Create Meeting Function
+  //* Create Meeting Function
   const handleCreateMeeting = async (meetingData: any) => {
     if (!otherUserId) return;
     
@@ -682,6 +651,9 @@ ${formattedContent}
         if (onMeetingUpdateRef.current) {
           onMeetingUpdateRef.current();
         }
+        
+        // Refresh cancellation alerts in case there are new ones
+        fetchCancellationAlerts();
       } else {
         showAlert('error', 'Failed to cancel meeting');
       }
@@ -714,172 +686,66 @@ ${formattedContent}
 
   if (loading && meetings.length === 0) {
     return (
-      <motion.div 
-        className="p-6 text-center relative"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-      >
+      <div className="p-6 text-center relative">
         {/* Background pulse effect */}
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg"
-          animate={{
-            scale: [1, 1.02, 1],
-            opacity: [0.3, 0.6, 0.3],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg opacity-30" />
         
         <div className="relative z-10">
-          <motion.div 
-            className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"
-            animate={{ 
-              rotate: 360,
-              scale: [1, 1.1, 1]
-            }}
-            transition={{ 
-              rotate: { duration: 1, repeat: Infinity, ease: "linear" },
-              scale: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-            }}
-          />
-          <motion.p 
-            className="mt-2 text-gray-500"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.3 }}
-          >
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto" />
+          <p className="mt-2 text-gray-500">
             Loading meetings...
-          </motion.p>
+          </p>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
   return (
     <>
-      {/* Animated Background Elements */}
-      <motion.div 
-        className="absolute inset-0 pointer-events-none overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 0.4 }}
-        transition={{ duration: 1 }}
-      >
-        {/* Floating circles */}
-        <motion.div
-          className="absolute w-20 h-20 bg-blue-100 rounded-full"
-          style={{ top: '10%', left: '5%' }}
-          animate={{
-            y: [0, -20, 0],
-            x: [0, 10, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.div
-          className="absolute w-16 h-16 bg-purple-100 rounded-full"
-          style={{ top: '60%', right: '10%' }}
-          animate={{
-            y: [0, 15, 0],
-            x: [0, -8, 0],
-            scale: [1, 0.9, 1],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1
-          }}
-        />
-        <motion.div
-          className="absolute w-12 h-12 bg-green-100 rounded-full"
-          style={{ bottom: '15%', left: '15%' }}
-          animate={{
-            y: [0, -10, 0],
-            x: [0, 5, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 7,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2
-          }}
-        />
-      </motion.div>
-
-      <motion.div 
-        className="p-4 h-full flex flex-col relative z-10"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        exit="exit"
-      >
+      <div className="p-4 h-full flex flex-col relative z-10">
         {/* Header */}
-        <motion.div 
-          className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200"
-          variants={headerVariants}
-        >
-          <motion.div 
-            className="flex items-center space-x-3"
-            variants={itemVariants}
-          >
-            <motion.div
-              animate={{ 
-                rotate: [0, 5, -5, 0],
-                scale: [1, 1.1, 1]
-              }}
-              transition={{ 
-                duration: 2,
-                repeat: Infinity,
-                repeatDelay: 3,
-                ease: "easeInOut"
-              }}
-            >
+        <div className="flex items-center justify-between mb-4 pb-3 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div>
               <Calendar className="w-5 h-5 text-blue-600" />
-            </motion.div>
+            </div>
             <h2 className="text-lg font-semibold text-gray-900">Meetings</h2>
-          </motion.div>
-          <motion.button 
+          </div>
+          <button 
             onClick={handleScheduleMeetingClick}
             className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 text-sm"
             title="Schedule New Meeting"
-            variants={itemVariants}
-            whileHover={buttonHover}
-            whileTap={buttonTap}
           >
-            <motion.div
-              animate={{ rotate: [0, 90, 0] }}
-              transition={{ 
-                duration: 0.5,
-                ease: "easeInOut"
-              }}
-              whileHover={{ rotate: 90 }}
-            >
+            <div>
               <Plus className="w-4 h-4" />
-            </motion.div>
+            </div>
             <span>New</span>
-          </motion.button>
-        </motion.div>
+          </button>
+        </div>
+
+        {/* Cancellation Alerts */}
+        {cancellationAlerts.length > 0 && (
+          <div className="mb-4">
+            <div className="space-y-2">
+              {cancellationAlerts.map((cancellation) => (
+                <CancellationAlert
+                  key={cancellation._id}
+                  cancellation={cancellation}
+                  onAcknowledge={handleAcknowledgeCancellation}
+                  loading={loadingCancellationAlerts}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Meetings List */}
-        <motion.div 
-          className="flex-1 overflow-y-auto space-y-4"
-          variants={itemVariants}
-        >
+        <div className="flex-1 overflow-y-auto space-y-4">
           <MeetingList
-            pendingRequests={filteredMeetings.pendingRequests}
-            upcomingMeetings={filteredMeetings.upcomingMeetings}
-            pastMeetings={filteredMeetings.pastMeetings}
-            cancelledMeetings={filteredMeetings.cancelledMeetings}
+            pendingRequests={finalFilteredMeetings.pendingRequests}
+            upcomingMeetings={finalFilteredMeetings.upcomingMeetings}
+            pastMeetings={finalFilteredMeetings.pastMeetings}
+            cancelledMeetings={finalFilteredMeetings.cancelledMeetings}
             currentlyHappeningMeetings={currentlyHappeningMeetings}
             hasActiveMeetingsOrRequests={hasActiveMeetingsOrRequests}
             showPastMeetings={showPastMeetings}
@@ -896,108 +762,67 @@ ${formattedContent}
             onTogglePastMeetings={() => setShowPastMeetings(!showPastMeetings)}
             onToggleCancelledMeetings={() => setShowCancelledMeetings(!showCancelledMeetings)}
           />
-        </motion.div>
+        </div>
 
         {/* Saved Meeting Notes - Collapsible */}
-        <motion.div 
-          className="border-t border-gray-200 pt-4"
-          variants={itemVariants}
-        >
-          <motion.div 
-            className="border border-gray-200 rounded-lg overflow-hidden"
-            whileHover={{ scale: 1.01 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.button
+        <div className="border-t border-gray-200 pt-4">
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
               onClick={() => setShowSavedNotes(!showSavedNotes)}
               className="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 flex items-center justify-between text-sm font-medium text-gray-700 transition-colors"
-              whileHover={{ backgroundColor: "rgb(243 244 246)" }}
-              whileTap={{ scale: 0.98 }}
             >
               <div className="flex items-center">
-                <motion.div
-                  animate={{ 
-                    rotate: showSavedNotes ? [0, 10, -10, 0] : 0,
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ 
-                    duration: 0.3,
-                    ease: "easeInOut"
-                  }}
-                >
+                <div>
                   <FileText className="w-4 h-4 mr-2 text-purple-500" />
-                </motion.div>
+                </div>
                 <span>Saved Meeting Notes ({savedNotes.length})</span>
               </div>
-              <motion.div
-                animate={{ rotate: showSavedNotes ? 180 : 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
+              <div>
                 {showSavedNotes ? (
                   <ChevronDown className="w-4 h-4" />
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-              </motion.div>
-            </motion.button>
-            <AnimatePresence>
-              {showSavedNotes && (
-                <motion.div 
-                  className="p-4 bg-white"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3, ease: "easeInOut" }}
-                >
-                  <SavedNotesList
-                    notes={savedNotes}
-                    loading={loadingSavedNotes}
-                    onViewNotes={handleViewNotes}
-                    onDownloadNotes={handleDownloadNotes}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </motion.div>
-      </motion.div>
+              </div>
+            </button>
+            {showSavedNotes && (
+              <div className="p-4 bg-white">
+                <SavedNotesList
+                  notes={savedNotes}
+                  loading={loadingSavedNotes}
+                  onViewNotes={handleViewNotes}
+                  onDownloadNotes={handleDownloadNotes}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Modals */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CreateMeetingModal
-              onClose={() => setShowCreateModal(false)}
-              onCreate={handleCreateMeeting}
-              receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
-            />
-          </motion.div>
-        )}
+      {showCreateModal && (
+        <div>
+          <CreateMeetingModal
+            onClose={() => setShowCreateModal(false)}
+            onCreate={handleCreateMeeting}
+            receiverName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'this user'}
+          />
+        </div>
+      )}
 
-        {showCancelModal && meetingToCancel && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-          >
-            <CancelMeetingModal
-              meetingId={meetingToCancel}
-              onClose={() => {
-                setShowCancelModal(false);
-                setMeetingToCancel(null);
-              }}
-              onCancel={handleCancelMeeting}
-              userName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'User'}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showCancelModal && meetingToCancel && (
+        <div>
+          <CancelMeetingModal
+            meetingId={meetingToCancel}
+            onClose={() => {
+              setShowCancelModal(false);
+              setMeetingToCancel(null);
+            }}
+            onCancel={handleCancelMeeting}
+            userName={otherUserId ? userProfiles[otherUserId]?.firstName || 'User' : 'User'}
+          />
+        </div>
+      )}
 
       {/* Alert Component */}
       <Alert
@@ -1026,25 +851,18 @@ ${formattedContent}
       />
 
       {/* Notes View Modal */}
-      <AnimatePresence>
-        {showNotesModal && selectedNote && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            <NotesViewModal
-              note={selectedNote}
-              onClose={() => {
-                setShowNotesModal(false);
-                setSelectedNote(null);
-              }}
-              onDownload={handleDownloadNotes}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {showNotesModal && selectedNote && (
+        <div>
+          <NotesViewModal
+            note={selectedNote}
+            onClose={() => {
+              setShowNotesModal(false);
+              setSelectedNote(null);
+            }}
+            onDownload={handleDownloadNotes}
+          />
+        </div>
+      )}
     </>
   );
 }

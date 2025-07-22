@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from "@/lib/db";
 import UserPreference from '@/lib/models/UserPreference';
 import PostView from '@/lib/models/PostView';
+import Post from '@/lib/models/postSchema';
 import jwt from 'jsonwebtoken';
 
 // Ensure JWT_SECRET is available
@@ -171,6 +172,14 @@ export async function POST(request: NextRequest) {
     // Track post view separately for analytics
     if (interactionType === 'view') {
       try {
+        // Check if this is a new view or a recent duplicate
+        const existingView = await PostView.findOne({ postId, userId });
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        
+        const isNewView = !existingView;
+        const isRecentDuplicate = existingView && existingView.viewedAt > fiveMinutesAgo;
+
         await PostView.findOneAndUpdate(
           { postId, userId },
           {
@@ -184,6 +193,17 @@ export async function POST(request: NextRequest) {
           },
           { upsert: true, new: true }
         );
+
+        // Increment view count on the Post model only for new views (not recent duplicates)
+        if (isNewView && !isRecentDuplicate) {
+          await Post.findByIdAndUpdate(postId, {
+            $inc: { views: 1 }
+          });
+          console.log('Successfully incremented post view count');
+        } else if (isRecentDuplicate) {
+          console.log('Skipped view count increment - recent duplicate view detected');
+        }
+
         console.log('Successfully tracked post view');
       } catch (error) {
         console.error('Error tracking post view:', error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { IChatRoom } from "@/types/chat";
 import { Search } from "lucide-react";
 import {
@@ -311,8 +311,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
         });
       });
 
-      // Update unread counts if the message is not from current user
-      if (messageData.senderId !== userId) {
+      // Update unread counts if the message is not from current user AND not viewing that chat room
+      if (messageData.senderId !== userId && messageData.chatRoomId !== selectedChatRoomId) {
         setUnreadCounts(prevCounts => ({
           ...prevCounts,
           [messageData.chatRoomId]: (prevCounts[messageData.chatRoomId] || 0) + 1
@@ -327,7 +327,7 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
     return () => {
       socket.off("receive_message", handleReceiveMessage);
     };
-  }, [socket, userId, fetchChatRooms]);
+  }, [socket, userId, fetchChatRooms, selectedChatRoomId]);
 
   /**
    * Effect hook that clears unread count when a chat room is selected
@@ -381,11 +381,28 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
           placeholder="Search by name..."
           className="w-full pl-6 md:pl-8 pr-2 py-1 md:py-2 bg-primary text-bgcolor rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary font-body"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <ul className="space-y-1 md:space-y-2 overflow-y-auto max-h-[calc(100vh-120px)]">
+      {/* No chat rooms message */}
+      {chatRooms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+          <div className="mb-4">
+            <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-3">
+              <Search className="w-8 h-8 text-gray-400" />
+            </div>
+          </div>
+          <h3 className="text-lg font-semibold text-textcolor mb-2">No Chat Rooms Yet</h3>
+          <p className="text-sm text-gray-400 leading-relaxed">
+            Once you have a skill matching with another user, you will be assigned a chat room to start conversations.
+          </p>
+          <p className="text-xs text-gray-500 mt-2">
+            Keep exploring and connecting with others!
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-1 md:space-y-2 overflow-y-auto max-h-[calc(100vh-120px)]">
         {chatRooms
           // Sort by most recent message
           .sort((a, b) => {
@@ -452,7 +469,8 @@ export default function Sidebar({ userId, selectedChatRoomId, onChatSelect, prel
               </li>
             );
           })}
-      </ul>
+        </ul>
+      )}
     </div>
   );
 }

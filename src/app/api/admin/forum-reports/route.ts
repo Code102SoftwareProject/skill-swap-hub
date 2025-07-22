@@ -7,17 +7,77 @@ import { Forum } from '@/lib/models/Forum';
 import User from '@/lib/models/userSchema';
 import Admin from '@/lib/models/adminSchema';
 import { getUserIdFromToken } from '@/utils/jwtAuth';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
 
 // Ensure Forum model is registered
 Forum;
+
+// Define JWT secret key with fallback for development
+const JWT_SECRET = process.env.JWT_SECRET || "your-fallback-secret-key";
+
+/**
+ * Verifies admin authentication and required permissions
+ * @returns Object with verification result and admin data
+ */
+async function verifyAdminPermissions(requiredPermission = 'manage_reporting') {
+  try {
+    const cookieStore =  await cookies();
+    const token = cookieStore.get("adminToken")?.value;
+
+    if (!token) {
+      return { isAuthorized: false, error: "No authentication token" };
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    await dbConnect();
+    const admin = await Admin.findById(decoded.userId);
+
+    if (!admin) {
+      return { isAuthorized: false, error: "Admin not found" };
+    }
+    
+    if (admin.status !== 'active') {
+      return { isAuthorized: false, error: "Admin account is not active" };
+    }
+
+    // Check if admin has required permission or is super_admin
+    const hasPermission = admin.permissions.includes(requiredPermission) || admin.role === 'super_admin';
+    
+    if (!hasPermission) {
+      return { isAuthorized: false, error: "Insufficient permissions" };
+    }
+
+    return { 
+      isAuthorized: true, 
+      admin: {
+        id: admin._id,
+        username: admin.username,
+        role: admin.role,
+        permissions: admin.permissions
+      } 
+    };
+  } catch (error) {
+    console.error("Admin authentication error:", error);
+    return { isAuthorized: false, error: "Authentication failed" };
+  }
+}
 
 // GET - Get all forum post reports for admin dashboard
 export async function GET(request: NextRequest) {
 	try {
 		await dbConnect();
 
-		// TODO: Add admin authentication check here
-		// For now, we'll proceed without admin check for initial testing
+		// Verify admin authentication and permissions
+		const { isAuthorized, error } = await verifyAdminPermissions();
+		
+		if (!isAuthorized) {
+			return NextResponse.json(
+				{ success: false, message: error || "Unauthorized" },
+				{ status: 401 }
+			);
+		}
 
 		const { searchParams } = new URL(request.url);
 		const page = parseInt(searchParams.get('page') || '1');
@@ -126,14 +186,15 @@ export async function PATCH(request: NextRequest) {
 	try {
 		await dbConnect();
 
-		// TODO: Add admin authentication check here
-		// const adminId = getAdminIdFromToken(request);
-		// if (!adminId) {
-		// 	return NextResponse.json(
-		// 		{ success: false, message: 'Unauthorized' },
-		// 		{ status: 401 }
-		// 	);
-		// }
+		// Verify admin authentication and permissions
+		const { isAuthorized, admin, error } = await verifyAdminPermissions();
+		
+		if (!isAuthorized) {
+			return NextResponse.json(
+				{ success: false, message: error || "Unauthorized" },
+				{ status: 401 }
+			);
+		}
 
 		const { reportId, action, adminResponse, priority } = await request.json();
 
@@ -157,7 +218,9 @@ export async function PATCH(request: NextRequest) {
 		}
 
 		// Update fields based on action
-		const updateData: any = {};
+		const updateData: any = {
+			adminId: admin?.id // Set the admin ID who processed this report
+		};
 
 		if (priority) {
 			updateData.priority = priority;
@@ -275,7 +338,7 @@ export async function PATCH(request: NextRequest) {
 					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
 					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
 					
-					const warningMessage = `You have received a warning regarding your forum post ${postTitle}${forumName}. Please review our community guidelines to avoid further violations.${reportReason}${adminReason}\n\nRepeated violations may result in suspension or permanent ban.`;
+					const warningMessage = `You have received a warning regarding your forum post ${postTitle}${forumName}. Please review our community guidelines to avoid further violations.${reportReason}${adminReason}\n\nRepeated violations may result in content removal.`;
 					
 					// Send warning to post author (type 24 - Warning)
 					await sendNotification(
@@ -299,95 +362,6 @@ export async function PATCH(request: NextRequest) {
 						reporterMessage
 					);
 				}
-				break;
-
-			case 'suspend_user':
-				// Update user suspension status
-				if (report.postSnapshot?.authorId) {
-					await User.findByIdAndUpdate(report.postSnapshot.authorId, {
-						'suspension.isSuspended': true,
-						'suspension.suspendedAt': new Date(),
-						'suspension.reason': `Forum post violation: ${adminResponse || 'Inappropriate content'}`,
-					});
-					
-					// Create detailed suspension message
-					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
-					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
-					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
-					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
-					
-					const suspensionMessage = `Your account has been temporarily suspended due to violations in your forum post ${postTitle}${forumName}.${reportReason}${adminReason}\n\nDuring suspension, you cannot post or participate in forums. Please review our community guidelines. Contact support if you have questions about this decision.`;
-					
-					// Send suspension notification to user (type 26 - Account Suspended)
-					await sendNotification(
-						report.postSnapshot.authorId.toString(),
-						26,
-						suspensionMessage
-					);
-				}
-				if (report.reportedBy?._id) {
-					// Create detailed notification for reporter
-					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
-					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
-					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
-					
-					const reporterMessage = `Thank you for your report. The author of ${postTitle}${forumName} has been suspended for violating community guidelines.${adminAction}`;
-					
-					// Send notification to reporter
-					await sendNotification(
-						report.reportedBy._id.toString(),
-						23,
-						reporterMessage
-					);
-				}
-				updateData.status = 'resolved';
-				updateData.adminAction = 'suspend_user';
-				updateData.resolvedAt = new Date();
-				break;
-
-			case 'ban_user':
-				// Implement user ban
-				if (report.postSnapshot?.authorId) {
-					await User.findByIdAndUpdate(report.postSnapshot.authorId, {
-						'suspension.isSuspended': true,
-						'suspension.suspendedAt': new Date(),
-						'suspension.reason': `Permanent ban: ${adminResponse || 'Severe violation'}`,
-						'suspension.isPermanent': true,
-					});
-					
-					// Create detailed ban message
-					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'your post';
-					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
-					const adminReason = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
-					const reportReason = report.description ? `\n\nReported for: ${report.reportType.replace(/_/g, ' ')} - ${report.description}` : '';
-					
-					const banMessage = `Your account has been permanently banned due to severe violations of our community guidelines related to your forum post ${postTitle}${forumName}.${reportReason}${adminReason}\n\nThis decision is final. You will no longer be able to access the platform or participate in any forums.`;
-					
-					// Send ban notification to user (type 27 - Account Banned)
-					await sendNotification(
-						report.postSnapshot.authorId.toString(),
-						27,
-						banMessage
-					);
-				}
-				if (report.reportedBy?._id) {
-					// Create detailed notification for reporter
-					const postTitle = report.postSnapshot.title ? `"${report.postSnapshot.title}"` : 'the reported post';
-					const forumName = report.postSnapshot.forumTitle ? ` in "${report.postSnapshot.forumTitle}"` : '';
-					const adminAction = adminResponse ? `\n\nAdmin Notes: ${adminResponse}` : '';
-					
-					const reporterMessage = `Thank you for your report. The author of ${postTitle}${forumName} has been permanently banned for severe violations of community guidelines.${adminAction}`;
-					
-					// Send notification to reporter
-					await sendNotification(
-						report.reportedBy._id.toString(),
-						23,
-						reporterMessage
-					);
-				}
-				updateData.status = 'resolved';
-				updateData.adminAction = 'ban_user';
-				updateData.resolvedAt = new Date();
 				break;
 
 			default:
