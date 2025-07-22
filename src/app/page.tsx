@@ -20,11 +20,21 @@ import {
   Play
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/context/AuthContext';
 
 // Enhanced Hero Section Component
 const EnhancedHeroSection = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  // Direct check - no extra state needed
+  const isUserLoggedIn = !!user && !!user._id;
+  
+  // Debug log
+  useEffect(() => {
+    console.log('Direct Auth Check - user:', user);
+    console.log('Direct Auth Check - isUserLoggedIn:', isUserLoggedIn);
+  }, [user, isUserLoggedIn]);
   const [isVisible, setIsVisible] = useState(false);
   const [stats, setStats] = useState<{
     activeLearners: number | null;
@@ -131,13 +141,15 @@ const EnhancedHeroSection = () => {
         <div className={`mb-8 transform transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <div 
             className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md rounded-full px-6 py-3 border border-cyan-300/20 hover:bg-white/15 transition-all duration-300 cursor-pointer group"
-            onClick={() => router.push('/dashboard')}
+            onClick={() => router.push(isUserLoggedIn ? '/dashboard' : '/register')}
           >
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-cyan-300 animate-pulse" />
               <span className="text-sm font-medium text-cyan-100">New Features</span>
             </div>
-            <span className="text-sm text-blue-100">Check out the team dashboard</span>
+            <span className="text-sm text-blue-100">
+              {isUserLoggedIn ? 'Check out the dashboard' : 'Explore the dashboard'}
+            </span>
             <ArrowRight className="w-4 h-4 text-cyan-300 group-hover:translate-x-1 transition-transform" />
           </div>
         </div>
@@ -164,9 +176,9 @@ const EnhancedHeroSection = () => {
         <div className={`flex flex-col sm:flex-row gap-4 justify-center mb-16 transform transition-all duration-1000 delay-600 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <button 
             className="group bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-cyan-300 hover:to-blue-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 flex items-center justify-center gap-2"
-            onClick={() => router.push('/register')}
+            onClick={() => router.push(isUserLoggedIn ? '/dashboard' : '/register')}
           >
-            Join Now
+            {isUserLoggedIn ? 'Go to Dashboard' : 'Join Now'}
             <Zap className="w-5 h-5 group-hover:animate-pulse" />
           </button>
           <button className="group bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
