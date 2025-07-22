@@ -40,6 +40,9 @@ const Login = () => {
   }>({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
+  
+  // Password visibility state
+  const [showPassword, setShowPassword] = useState<boolean>(false);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -106,24 +109,24 @@ const Login = () => {
       );
 
       //  If user is suspended, show the popup and abort
-if (result.suspended) {
-  showSuspendedPopup(result.message, result.suspensionDetails);
-  return;
-}
-
-if (result.success) {
-  showToast('Login successful! Redirecting...', 'success');
-  // …redirect logic…
-  const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
-      if (redirectUrl) {
-        sessionStorage.removeItem('redirectAfterLogin');
-        router.push(redirectUrl);
-      } else {
-        router.push('/dashboard');
+      if (result.suspended) {
+        showSuspendedPopup(result.message, result.suspensionDetails);
+        return;
       }
-} else {
-  showToast(result.message || 'Login failed', 'error');
-}
+
+      if (result.success) {
+        showToast('Login successful! Redirecting...', 'success');
+        // …redirect logic…
+        const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+        if (redirectUrl) {
+          sessionStorage.removeItem('redirectAfterLogin');
+          router.push(redirectUrl);
+        } else {
+          router.push('/dashboard');
+        }
+      } else {
+        showToast(result.message || 'Login failed', 'error');
+      }
  
     } catch (error) {
       showToast('An error occurred. Please try again.', 'error');
@@ -149,14 +152,14 @@ if (result.success) {
       console.log('Google login result:', result);
 
       // 2 Suspension check
-    if (result.suspended) {
-      showSuspendedPopup(
-        result.message,
-        result.suspensionDetails,
-        () => console.log('User closed suspension popup')
-      );
-      return; // stop here
-    }
+      if (result.suspended) {
+        showSuspendedPopup(
+          result.message,
+          result.suspensionDetails,
+          () => console.log('User closed suspension popup')
+        );
+        return; // stop here
+      }
 
       if (result.success) {
         // Cancel any remaining Google prompts to prevent additional popups
@@ -194,6 +197,11 @@ if (result.success) {
 
   const handleGoogleError = (error: string) => {
     showToast(error, 'error');
+  };
+
+  // Toggle password visibility
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   // Show loading state while checking auth status
@@ -273,14 +281,62 @@ if (result.success) {
                 <input
                   id="password"
                   name="password"
-                  type="password"
-                  className={`pl-10 block w-full p-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400`}
+                  type={showPassword ? "text" : "password"}
+                  className={`pl-10 pr-10 block w-full p-2.5 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-black placeholder-gray-400 password-input`}
                   placeholder="********"
                   value={formData.password}
                   onChange={handleChange}
                   aria-invalid={errors.password ? 'true' : 'false'}
                   aria-describedby={errors.password ? "password-error" : undefined}
+                  style={{
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
                 />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center focus:outline-none"
+                  onClick={togglePasswordVisibility}
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
+                    </svg>
+                  )}
+                </button>
               </div>
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600" id="password-error">{errors.password}</p>
@@ -351,6 +407,22 @@ if (result.success) {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        /* Hide browser default password reveal button */
+        .password-input::-ms-reveal,
+        .password-input::-ms-clear {
+          display: none;
+        }
+        
+        .password-input::-webkit-credentials-auto-fill-button {
+          display: none !important;
+          visibility: hidden;
+          pointer-events: none;
+          position: absolute;
+          right: 0;
+        }
+      `}</style>
     </div>
   );
 };
