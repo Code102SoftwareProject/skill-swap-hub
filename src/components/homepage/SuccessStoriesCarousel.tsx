@@ -192,13 +192,13 @@ export default function SuccessStoriesCarousel() {
                               <p className="text-xs text-blue-200">
                                 {new Date(story.publishedAt).toLocaleDateString()}
                               </p>
-                              {story.rating && (
+                              {typeof story.rating === 'number' && (
                                 <div className="flex items-center mt-1">
                                   {[...Array(5)].map((_, i) => (
                                     <Star
                                       key={i}
                                       className={`w-3 h-3 ${
-                                        i < story.rating ? 'text-yellow-300 fill-current' : 'text-gray-400'
+                                        i < (story.rating ?? 0) ? 'text-yellow-300 fill-current' : 'text-gray-400'
                                       }`}
                                     />
                                   ))}

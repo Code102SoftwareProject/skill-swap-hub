@@ -82,7 +82,7 @@ function UserDashboardPageContent() {
     />
   );
       case 'myskill':
-        return <MySkillsContent key={activeComponent} />;
+        return <MySkillsContent key={activeComponent} onNavigateToSkillVerification={() => setActiveComponent('skillVerify')} />;
       case 'listings':
         return <ListingsContent key={activeComponent} onNavigateToSkills={() => setActiveComponent('myskill')} />;
       case 'matches':

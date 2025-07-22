@@ -115,7 +115,7 @@ export default function ProgressTab({
 
     // Work submissions
     works.forEach(work => {
-      const submitter = work.provideUser._id === currentUserId ? 'You' : getOtherUserName();
+      const submitter = work.provideUser?._id === currentUserId ? 'You' : getOtherUserName();
       events.push({
         date: new Date(work.provideDate),
         type: 'work_submission',

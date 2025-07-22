@@ -243,7 +243,7 @@ const MatchCard: React.FC<MatchCardProps> = ({ match, onClick }) => {
               {(otherUserKycStatus === 'Accepted' || otherUserKycStatus === 'Approved') ? (
                 <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0" title="Not Verified" />
+                <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0" aria-label="Not Verified" />
               )}
             </h3>
           </div>
