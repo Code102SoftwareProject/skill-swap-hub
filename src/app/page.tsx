@@ -6,6 +6,7 @@ import Chatbot from "@/components/chatassistant/chatbot";
 import Footer from "@/components/homepage/Footer";
 import SuccessStoriesCarousel from "@/components/homepage/SuccessStoriesCarousel";
 import TrendingSkills from "@/components/homepage/TrendingSkills";
+import ContactUsSection from "@/components/homepage/ContactUsSection";
 import { 
   ArrowRight, 
   Sparkles, 
@@ -242,6 +243,9 @@ export default function Home() {
       
       {/* Success Stories - Now with consistent blue theme */}
       <SuccessStoriesCarousel />
+      
+      {/* Contact Us Section */}
+      <ContactUsSection />
       
       {/* Footer */}
       <Footer />
