@@ -49,6 +49,25 @@ describe("KYCContent", () => {
     jest.clearAllMocks();
   });
 
+  it("shows loading state initially", () => {
+    mockFetch({ data: [] });
+    render(<KYCContent />);
+    expect(screen.getByText("Loading KYC records...")).toBeInTheDocument();
+  });
+
+  it("displays an error when the initial fetch fails", async () => {
+    mockFetch({ message: "Error" }, false); // ok = false
+    await act(async () => {
+      render(<KYCContent />);
+    });
+    await waitFor(() =>
+      expect(
+        screen.getByText("Failed to load KYC records")
+      ).toBeInTheDocument()
+    );
+    expect(toast.error).toHaveBeenCalledWith("Failed to load KYC records");
+  });
+
   it("renders records in table after fetch", async () => {
     const records = [
       {
@@ -78,11 +97,11 @@ describe("KYCContent", () => {
     });
 
     const rows = screen.getAllByRole("row");
-    const dataRows = rows.slice(1);
+   const dataRows = rows.slice(1);
     expect(dataRows).toHaveLength(2);
-    expect(
-      within(dataRows[0]).getByText("Not Reviewed")
-    ).toBeInTheDocument();
+    // the status spans may be split into multiple elements,
+    // so assert the row as a whole contains the full string:
+   expect(dataRows[0]).toHaveTextContent("Not Reviewed");
     expect(within(dataRows[1]).getByText("Accepted")).toBeInTheDocument();
   });
 
@@ -102,9 +121,7 @@ describe("KYCContent", () => {
     });
     await waitFor(() => screen.getByText("Charlie"));
 
-    const input = screen.getByPlaceholderText(
-      "Search by recipient name"
-    );
+    const input = screen.getByPlaceholderText("Search by recipient name");
     fireEvent.change(input, { target: { value: "bad!" } });
     expect(toast.error).toHaveBeenCalledWith(
       "Only letters, numbers, and spaces are allowed"
@@ -198,9 +215,7 @@ describe("KYCContent", () => {
         `/api/file/retrieve?fileUrl=${encodeURIComponent("/api.pdf")}`
       );
       expect(toast.loading).toHaveBeenCalledWith("Downloading file...");
-      expect(toast.success).toHaveBeenCalledWith(
-        "File downloaded successfully"
-      );
+      expect(toast.success).toHaveBeenCalledWith("File downloaded successfully");
     });
   });
 
