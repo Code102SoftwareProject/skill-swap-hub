@@ -142,10 +142,29 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
   }, []);
 
   /**
+   * Check if current user has already submitted a report for this session
+   */
+  const hasUserAlreadyReported = useCallback((): boolean => {
+    if (!currentUserId || !existingReports) return false;
+    
+    return existingReports.some(report => {
+      const reportedById = typeof report.reportedBy === 'object' ? report.reportedBy._id : report.reportedBy;
+      return reportedById === currentUserId;
+    });
+  }, [currentUserId, existingReports]);
+
+  /**
    * Validate form data
    */
   const validateForm = useCallback((): boolean => {
     const errors: typeof formErrors = {};
+
+    // Check if user has already submitted a report
+    if (hasUserAlreadyReported()) {
+      errors.reason = 'You have already submitted a report for this session';
+      setFormErrors(errors);
+      return false;
+    }
 
     if (!reportReason.trim()) {
       errors.reason = 'Please select a reason for the report';
@@ -165,7 +184,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
-  }, [reportReason, reportDescription, reportFiles]);
+  }, [reportReason, reportDescription, reportFiles, hasUserAlreadyReported]);
 
   /**
    * Handle file addition
@@ -249,6 +268,12 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
       return;
     }
 
+    // Check if user has already submitted a report
+    if (hasUserAlreadyReported()) {
+      showAlert('warning', 'You have already submitted a report for this session. Only one report per user is allowed per session.');
+      return;
+    }
+
     if (!validateForm()) {
       showAlert('warning', 'Please fix the form errors before submitting');
       return;
@@ -313,6 +338,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
   }, [
     session, 
     currentUserId, 
+    hasUserAlreadyReported,
     validateForm, 
     reportFiles, 
     reportReason, 
@@ -360,6 +386,7 @@ export const useReport = ({ session, currentUserId, showAlert, user }: UseReport
     
     // Validation
     formErrors,
+    hasUserAlreadyReported,
     
     // Actions
     handleFileAdd,

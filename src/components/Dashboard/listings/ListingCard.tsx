@@ -3,9 +3,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { SkillListing } from '@/types/skillListing';
-import { BadgeCheck, Edit, Trash2, Eye, Users, Shield, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { BadgeCheck, Edit, Trash2, Eye, Users, Shield, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/lib/context/AuthContext';
+import { processAvatarUrl } from '@/utils/avatarUtils';
 
 interface ListingCardProps {
   listing: SkillListing & { 
@@ -18,8 +20,10 @@ interface ListingCardProps {
 
 const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) => {
   const { user } = useAuth();
+  const router = useRouter();
   const [isOwner, setIsOwner] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [kycStatus, setKycStatus] = useState<string | null>(null);
   
   useEffect(() => {
     // Check if the current user is the owner of this listing
@@ -27,6 +31,22 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
       setIsOwner(user._id === listing.userId);
     }
   }, [user, listing]);
+
+  // Fetch KYC status for the listing user
+  useEffect(() => {
+    async function fetchKycStatus() {
+      try {
+        const res = await fetch(`/api/kyc/status?userId=${listing.userId}`);
+        const data = await res.json();
+        setKycStatus(data.success ? data.status : null);
+      } catch (err) {
+        setKycStatus(null);
+      }
+    }
+    if (listing.userId) {
+      fetchKycStatus();
+    }
+  }, [listing.userId]);
   
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
@@ -60,6 +80,9 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
   const statusConfig = getStatusConfig(listing.status);
   const StatusIcon = statusConfig.icon;
   const canModify = isOwner && !listing.isUsedInMatches;
+  
+  // Process avatar URL or provide fallback
+  const userAvatar = processAvatarUrl(listing.userDetails.avatar) || '/Avatar.png';
 
   return (
     <>
@@ -70,17 +93,32 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             <div className="flex items-center flex-1 min-w-0">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 mr-3 flex-shrink-0">
                 <Image
-                  src={'/Avatar.png'}
+                  src={userAvatar}
                   alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                   width={40}
                   height={40}
                   className="object-cover w-full h-full"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/Avatar.png';
+                    target.onerror = null;
+                  }}
                 />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-gray-800 flex items-center truncate">
                   <span className="truncate">{listing.userDetails.firstName} {listing.userDetails.lastName}</span>
-                  <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+                  {(kycStatus === 'Accepted' || kycStatus === 'Approved') ? (
+                    <BadgeCheck className="w-4 h-4 ml-1 text-blue-500 flex-shrink-0" />
+                  ) : (
+                    <button 
+                      onClick={() => router.push('/dashboard?component=setting')}
+                      title="Click to verify your account"
+                      className="inline-flex"
+                    >
+                      <AlertCircle className="w-4 h-4 ml-1 text-orange-500 flex-shrink-0 hover:text-orange-600 transition-colors cursor-pointer" />
+                    </button>
+                  )}
                 </h3>
                 <p className="text-xs text-gray-500 truncate">
                   {formatDate(listing.createdAt)}
@@ -91,8 +129,7 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
             {/* Status Badge Only */}
             <div className="flex flex-col items-end gap-1">
               <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${statusConfig.color}`}>
-                <StatusIcon className="w-3 h-3 mr-1" />
-                {statusConfig.text}
+                <StatusIcon className="w-3 h-3" />
               </span>
             </div>
           </div>
@@ -203,17 +240,33 @@ const ListingCard: React.FC<ListingCardProps> = ({ listing, onDelete, onEdit }) 
               <div className="flex items-center mb-6">
                 <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 mr-4">
                   <Image
-                    src={'/Avatar.png'}
+                    src={userAvatar}
                     alt={`${listing.userDetails.firstName} ${listing.userDetails.lastName}`}
                     width={48}
                     height={48}
                     className="object-cover w-full h-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = '/Avatar.png';
+                      target.onerror = null;
+                    }}
                   />
                 </div>
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-800 flex items-center">
                     {listing.userDetails.firstName} {listing.userDetails.lastName}
-                    <BadgeCheck className="w-5 h-5 ml-2 text-blue-500" />
+                    {(kycStatus === 'Accepted' || kycStatus === 'Approved') ? (
+                      <BadgeCheck className="w-5 h-5 ml-2 text-blue-500" />
+                    ) : (
+                      <button 
+                        onClick={() => router.push('/dashboard?component=setting')} 
+                        className="ml-2 px-3 py-1 text-sm bg-orange-100 text-orange-600 rounded-full flex items-center hover:bg-orange-200 transition-colors"
+                        title="Click to verify your account"
+                      >
+                        <AlertCircle className="w-4 h-4 mr-1" />
+                        Verify
+                      </button>
+                    )}
                   </h3>
                   <p className="text-sm text-gray-500">
                     Posted on {formatDate(listing.createdAt)}

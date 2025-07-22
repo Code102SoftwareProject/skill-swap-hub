@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forum Reports Test Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .meta-info {
+            background-color: #eaf2f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+            vertical-align: top;
+        }
+        
+        th {
+            background-color: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .priority-high {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .status-pass {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .test-steps, .expected-results {
+            padding-left: 20px;
+        }
+        
+        .test-steps ol {
+            padding-left: 20px;
+            margin: 0;
+        }
+        
+        .expected-results ul {
+            padding-left: 20px;
+            margin: 0;
+            list-style-type: none;
+        }
+        
+        .expected-results li:before {
+            content: "●";
+            margin-right: 5px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #7f8c8d;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <h1>Forum Reports Test Results</h1>
+    
+    <div class="meta-info">
+        <p><strong>Tester:</strong> Nethmal</p>
+        <p><strong>Browser:</strong> Chrome</p>
+        <p><strong>Version:</strong> N/A</p>
+        <p><strong>Export Date:</strong> 2025-07-21</p>
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Test ID</th>
+                <th>Description</th>
+                <th>Type</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Test Steps</th>
+                <th>Expected Result</th>
+                <th>API Endpoints</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>TC-RENDER-001</td>
+                <td>Render forum reports dashboard and displays reports</td>
+                <td>Rendering</td>
+                <td class="priority-high">[HIGH]</td>
+                <td class="status-pass">pass</td>
+                <td class="test-steps">
+                    <ol>
+                        <li>Render the ForumReportsContent component</li>
+                        <li>Check loading state initially</li>
+                        <li>Wait for reports to load</li>
+                        <li>Verify reports are displayed</li>
+                        <li>Check status filters are shown</li>
+                        <li>Verify priority badges are displayed</li>
+                        <li>Check AI analysis results are shown</li>
+                    </ol>
+                </td>
+                <td class="expected-results">
+                    <ul>
+                        <li>Loading state shown initially</li>
+                        <li>Reports displayed after loading</li>
+                        <li>Status filters visible</li>
+                        <li>Priority badges displayed correctly</li>
+                        <li>AI analysis results shown</li>
+                    </ul>
+                </td>
+                <td>GET /api/admin/forum-reports</td>
+            </tr>
+            <tr>
+                <td>TC-FUNC-001</td>
+                <td>Filters reports by status</td>
+                <td>Functionality</td>
+                <td class="priority-high">[HIGH]</td>
+                <td class="status-pass">pass</td>
+                <td class="test-steps">
+                    <ol>
+                        <li>Render the component</li>
+                        <li>Wait for reports to load</li>
+                        <li>Click on the Pending filter</li>
+                        <li>Check API call parameters</li>
+                        <li>Verify only pending reports are displayed</li>
+                    </ol>
+                </td>
+                <td class="expected-results">
+                    <ul>
+                        <li>API called with correct parameters</li>
+                        <li>Only pending reports displayed</li>
+                        <li>Other reports filtered out</li>
+                    </ul>
+                </td>
+                <td>GET /api/admin/forum-reports?status=pending</td>
+            </tr>
+            <tr>
+                <td>TC-FUNC-002</td>
+                <td>Takes action on a report</td>
+                <td>Functionality</td>
+                <td class="priority-high">[HIGH]</td>
+                <td class="status-pass">pass</td>
+                <td class="test-steps">
+                    <ol>
+                        <li>Render the component</li>
+                        <li>Wait for reports to load</li>
+                        <li>Click on View button for a report</li>
+                        <li>Verify report detail modal appears</li>
+                        <li>Select an action (Remove Post)</li>
+                        <li>Enter admin response</li>
+                        <li>Submit the action</li>
+                        <li>Check confirmation dialog</li>
+                        <li>Verify API call parameters</li>
+                        <li>Check for success message</li>
+                    </ol>
+                </td>
+                <td class="expected-results">
+                    <ul>
+                        <li>Report detail modal displayed</li>
+                        <li>Action selection works</li>
+                        <li>Admin response accepted</li>
+                        <li>Confirmation dialog shown</li>
+                        <li>API called with correct parameters</li>
+                        <li>Success message displayed</li>
+                    </ul>
+                </td>
+                <td>PATCH /api/admin/forum-reports</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <p>Generated by Test Automation Tool | Chrome Browser</p>
+    </div>
+</body>
+</html>

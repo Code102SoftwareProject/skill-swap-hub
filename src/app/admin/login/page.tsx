@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerAdminAuth } from "@/lib/auth/serverAdminAuth";
 import AdminLoginForm from "@/components/Admin/AdminLoginForm";
+export const dynamic = 'force-dynamic';
 
 /**
  * Admin Login Page

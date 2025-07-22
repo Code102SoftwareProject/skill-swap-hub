@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import SuggestionForm from "@/components/Dashboard/Suggestion/SuggestionForm";
 import SuggestionCard from "@/components/Dashboard/Suggestion/SuggestionCard";
 import { useAuth } from "@/lib/context/AuthContext";
+import { useToast } from "@/lib/context/ToastContext";
 
 // Type definitions
 type Suggestion = {
@@ -12,7 +13,7 @@ type Suggestion = {
   description: string;
   category: string;
   status: string;
-  createdAt: string; // ISO string date — make sure your backend sends this
+  createdAt: string;
   userId?: string;
 };
 
@@ -27,7 +28,13 @@ const statusOptions = [
 
 export default function SuggestionContent({ onNavigateToFeedback }: { onNavigateToFeedback?: () => void }) {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const userId = user?._id;
+  
+  // Add refs to track if we've already checked/shown toast
+  const hasCheckedBlockStatus = useRef(false);
+  const hasShownBlockedToast = useRef(false);
+  
   const [activeTab, setActiveTab] = useState<"form" | "history">("form");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -35,33 +42,51 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showPrompt, setShowPrompt] = useState(true);
+  const [isBlocked, setIsBlocked] = useState(false);
+  const [blockReason, setBlockReason] = useState("");
+  const [checkingBlockStatus, setCheckingBlockStatus] = useState(true);
+
+  // Debug: Log when showToast changes
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    if (showToastRef.current !== showToast) {
+      console.log('showToast function changed - this might cause infinite loop');
+      showToastRef.current = showToast;
+    }
+  });
 
   // Extract unique sorted categories from suggestions
   const categories = Array.from(new Set(suggestions.map((s) => s.category))).sort();
 
   // Filter suggestions by status, category, and date range
   const filteredSuggestions = suggestions.filter((suggestion) => {
-    // Status filter
     if (statusFilter !== "all" && suggestion.status.toLowerCase() !== statusFilter) {
       return false;
     }
-
-    // Category filter
     if (categoryFilter !== "all" && suggestion.category !== categoryFilter) {
       return false;
     }
-
     return true;
   });
 
   const handleSubmit = async (suggestion: NewSuggestion) => {
     if (!userId) return;
     try {
-      await fetch("/api/suggestions", {
+      const response = await fetch("/api/suggestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...suggestion, userId }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 403) {
+          setIsBlocked(true);
+          setBlockReason(errorData.error || "Your account has been blocked from submitting suggestions.");
+          return;
+        }
+        throw new Error(errorData.error || "Failed to submit suggestion");
+      }
 
       // Refresh suggestions after submit
       setLoading(true);
@@ -84,8 +109,49 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
       }
     } catch (err) {
       console.error("Submit error:", err);
+      setError(err instanceof Error ? err.message : "Failed to submit suggestion");
     }
   };
+
+  // FIXED VERSION: Check block status only once per userId
+  useEffect(() => {
+    if (!userId) {
+      hasCheckedBlockStatus.current = false;
+      hasShownBlockedToast.current = false;
+      return;
+    }
+
+    // Prevent multiple calls for the same user
+    if (hasCheckedBlockStatus.current) {
+      return;
+    }
+
+    console.log('Checking block status for user:', userId);
+    hasCheckedBlockStatus.current = true;
+
+    const checkBlockStatus = async () => {
+      try {
+        const res = await fetch(`/api/user/block-status?userId=${userId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setIsBlocked(data.isBlocked);
+          
+          if (data.isBlocked && !hasShownBlockedToast.current) {
+            setBlockReason("Your account has been blocked from submitting suggestions and feedback due to violation of our community guidelines.");
+            showToast("Your account has been blocked from submitting suggestions and feedback. Please contact support if you believe this is an error.", "error");
+            hasShownBlockedToast.current = true;
+            console.log('Blocked toast shown');
+          }
+        }
+      } catch (err) {
+        console.error("Failed to check block status:", err);
+      } finally {
+        setCheckingBlockStatus(false);
+      }
+    };
+
+    checkBlockStatus();
+  }, [userId]); // Remove showToast from dependencies
 
   useEffect(() => {
     if (!userId) return;
@@ -113,15 +179,24 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
     fetchSuggestions();
   }, [userId]);
 
-  if (!userId) {
-    return <p className="text-gray-500 italic p-6">Loading user...</p>;
+  if (!userId || checkingBlockStatus) {
+    return (
+      <div className="flex-1 text-gray-800">
+        <main className="p-6 max-w-7xl mx-auto">
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+            <p className="text-sm text-gray-500">Loading...</p>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
     <div className="flex-1 text-gray-800">
       <main className="p-6 max-w-7xl mx-auto">
-        {/* Feedback prompt */}
-        {showPrompt && (
+        {/* Feedback prompt - hidden for blocked users */}
+        {showPrompt && !isBlocked && (
           <div className="mb-6 text-center relative bg-blue-50 border border-blue-200 rounded p-3">
             <span className="text-gray-700">
               Please give us your valuable feedback to improve this platform.
@@ -151,10 +226,11 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
               activeTab === "form"
                 ? "border-b-2 border-blue-500 text-blue-600"
                 : "text-gray-500 hover:text-gray-700"
-            }`}
-            onClick={() => setActiveTab("form")}
+            } ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
+            onClick={() => !isBlocked && setActiveTab("form")}
+            disabled={isBlocked}
           >
-            Submit Suggestion
+            Submit Suggestion {isBlocked && "(Blocked)"}
           </button>
           <button
             className={`py-2 px-4 font-medium text-sm focus:outline-none ${
@@ -177,7 +253,7 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
                 <span className="block w-20 h-1 bg-blue-500 mt-2 rounded-full"></span>
               </h1>
               <p className="text-sm text-gray-600 mt-2">
-                Help us improve by submitting ideas, reporting issues, or asking questions.
+                Help us improve by submitting ideas, reporting issues, or requesting feature.
               </p>
             </div>
 
@@ -185,7 +261,11 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
               <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-gray-100 to-transparent"></div>
 
               <div className="mt-6 p-4">
-                <SuggestionForm onSubmit={handleSubmit} />
+                <SuggestionForm 
+                  onSubmit={handleSubmit} 
+                  isBlocked={isBlocked}
+                  blockReason={blockReason}
+                />
               </div>
             </div>
           </div>
@@ -209,7 +289,6 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
 
                 {/* Filters */}
                 <div className="flex flex-wrap gap-4 sm:gap-2 items-center w-full sm:w-auto">
-                  {/* Status Filter */}
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
@@ -222,7 +301,6 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
                     ))}
                   </select>
 
-                  {/* Category Filter */}
                   <select
                     value={categoryFilter}
                     onChange={(e) => setCategoryFilter(e.target.value)}
@@ -287,8 +365,6 @@ export default function SuggestionContent({ onNavigateToFeedback }: { onNavigate
             </div>
           </div>
         )}
-
-        
       </main>
     </div>
   );

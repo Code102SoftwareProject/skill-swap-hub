@@ -1,27 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   StickyNote, 
-  Save, 
-  Edit3, 
-  Tag, 
-  Eye, 
-  EyeOff, 
   X, 
-  Plus, 
-  Clock, 
-  Hash,
+  ChevronLeft, 
+  ChevronRight,
+  Save,
+  Download,
   Trash2,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Download,
-  Bold,
-  Italic,
-  Underline,
-  Highlighter,
-  Type,
-  List,
-  Quote
+  Hash,
+  Clock
 } from 'lucide-react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -29,12 +17,13 @@ import Highlight from '@tiptap/extension-highlight';
 import UnderlineExtension from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import { useMeetingNotes } from '@/hooks/useMeetingNotes';
-import '@/styles/tiptap.css';
+import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
 
 interface MeetingNotesSidebarProps {
   meetingId?: string;
   userId?: string;
   userName?: string;
+  otherUserName?: string;
   isVisible: boolean;
   onToggle: () => void;
 }
@@ -43,6 +32,7 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
   meetingId,
   userId,
   userName,
+  otherUserName,
   isVisible,
   onToggle
 }) => {
@@ -55,18 +45,12 @@ export const MeetingNotesSidebar: React.FC<MeetingNotesSidebarProps> = ({
     hasUnsavedChanges,
     updateContent,
     updateTitle,
-    addTag,
-    removeTag,
     togglePrivacy,
     saveNotes,
     deleteNotes
   } = useMeetingNotes({ meetingId, userId, userName });
 
-  const [isEditingTitle, setIsEditingTitle] = useState(false);
-  const [newTag, setNewTag] = useState('');
-  const [showTagInput, setShowTagInput] = useState(false);
-  const [currentTopic, setCurrentTopic] = useState('');
-  const titleInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Tiptap editor configuration
   const editor = useEditor({
@@ -115,203 +99,30 @@ Tips:
     if (editor && notes?.content !== editor.getHTML()) {
       editor.commands.setContent(notes?.content || '');
     }
-  }, [notes?.content, editor]);
-
-  // Cleanup editor on unmount
-  useEffect(() => {
-    return () => {
-      if (editor) {
-        editor.destroy();
-      }
-    };
-  }, [editor]);
-
-  // Focus title input when editing
-  useEffect(() => {
-    if (isEditingTitle && titleInputRef.current) {
-      titleInputRef.current.focus();
-      titleInputRef.current.select();
-    }
-  }, [isEditingTitle]);
-
-  const handleTitleSave = () => {
-    setIsEditingTitle(false);
-  };
-
-  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleTitleSave();
-    } else if (e.key === 'Escape') {
-      setIsEditingTitle(false);
-    }
-  };
-
-  const handleAddTag = () => {
-    if (newTag.trim()) {
-      addTag(newTag.trim());
-      setNewTag('');
-      setShowTagInput(false);
-    }
-  };
-
-  const handleTagKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleAddTag();
-    } else if (e.key === 'Escape') {
-      setNewTag('');
-      setShowTagInput(false);
-    }
-  };
+  }, [notes?.content]);
 
   const downloadNotes = () => {
     if (!notes?.content || !editor) return;
     
-    // Create a well-formatted markdown document
-    const formattedDate = new Date(notes.createdAt).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    const pdfData: MeetingNotePDFData = {
+      title: notes.title || 'Untitled Notes',
+      content: notes.content,
+      meetingId: notes.meetingId,
+      createdAt: notes.createdAt,
+      lastModified: new Date().toISOString(),
+      wordCount: getWordCount(),
+      userName: notes.userName,
+      otherUserName: otherUserName
+    };
     
-    const formattedTime = new Date(notes.createdAt).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-
-    // Convert HTML to markdown-like format for download
-    const htmlContent = editor.getHTML();
-    let formattedContent = htmlContent
-      .replace(/<h2[^>]*>(.*?)<\/h2>/g, '## $1')
-      .replace(/<h1[^>]*>(.*?)<\/h1>/g, '# $1')
-      .replace(/<h3[^>]*>(.*?)<\/h3>/g, '### $1')
-      .replace(/<strong[^>]*>(.*?)<\/strong>/g, '**$1**')
-      .replace(/<em[^>]*>(.*?)<\/em>/g, '*$1*')
-      .replace(/<u[^>]*>(.*?)<\/u>/g, '<u>$1</u>')
-      .replace(/<mark[^>]*>(.*?)<\/mark>/g, '==$1==')
-      .replace(/<blockquote[^>]*>(.*?)<\/blockquote>/g, '> $1')
-      .replace(/<li[^>]*>(.*?)<\/li>/g, '- $1')
-      .replace(/<[^>]*>/g, '') // Remove remaining HTML tags
-      .replace(/\n\s*\n/g, '\n\n') // Clean up extra whitespace
-      .trim();
-
-    const wordCount = getWordCount();
-    
-    const markdownDocument = `# Meeting Notes
-
----
-
-## Meeting Information
-
-- **Meeting:** ${notes.title || 'Untitled Notes'}
-- **Date:** ${formattedDate}
-- **Time:** ${formattedTime}
-- **Meeting ID:** \`${notes.meetingId}\`
-- **Author:** ${notes.userName || 'Unknown'}
-
----
-
-## Content
-
-${formattedContent}
-
----
-
-## Meeting Details
-
-- **Word Count:** ${wordCount}
-- **Tags:** ${notes.tags?.join(', ') || 'None'}
-- **Created:** ${new Date(notes.createdAt).toLocaleDateString()}
-- **Last Updated:** ${new Date().toLocaleDateString()}
-
----
-
-*Generated by SkillSwap Hub - Meeting Notes System*
-    `;
-    
-    const blob = new Blob([markdownDocument], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `meeting-notes-${notes.meetingId}-${new Date().toISOString().split('T')[0]}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    generateMeetingNotesPDF(pdfData);
   };
 
-  // Rich text editing functions for Tiptap
-  const formatBold = () => {
-    editor?.chain().focus().toggleBold().run();
-  };
-
-  const formatItalic = () => {
-    editor?.chain().focus().toggleItalic().run();
-  };
-
-  const formatUnderline = () => {
-    editor?.chain().focus().toggleUnderline().run();
-  };
-
-  const formatHighlight = () => {
-    editor?.chain().focus().toggleHighlight().run();
-  };
-
-  const insertTopic = () => {
-    if (currentTopic.trim() && editor) {
-      editor.chain().focus().setHeading({ level: 2 }).insertContent(currentTopic.trim()).insertContent('<p></p>').run();
-      setCurrentTopic('');
-    }
-  };
-
-  const insertBulletPoint = () => {
-    editor?.chain().focus().toggleBulletList().run();
-  };
-
-  const insertQuote = () => {
-    editor?.chain().focus().toggleBlockquote().run();
-  };
-
-  const handleTopicKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      insertTopic();
-    }
-  };
-
-  // Enhanced keyboard shortcuts for Tiptap
+  // Enhanced keyboard shortcuts for save
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.ctrlKey || e.metaKey) {
-      switch (e.key) {
-        case 'b':
-          e.preventDefault();
-          formatBold();
-          break;
-        case 'i':
-          e.preventDefault();
-          formatItalic();
-          break;
-        case 'u':
-          e.preventDefault();
-          formatUnderline();
-          break;
-        case 'h':
-          e.preventDefault();
-          formatHighlight();
-          break;
-        case 'q':
-          e.preventDefault();
-          insertQuote();
-          break;
-        case 'l':
-          e.preventDefault();
-          insertBulletPoint();
-          break;
-        case 's':
-          e.preventDefault();
-          saveNotes();
-          break;
-      }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveNotes();
     }
   };
 
@@ -369,34 +180,14 @@ ${formattedContent}
               </button>
             </div>
 
-            {/* Title Section */}
+            {/* Simple Title Input */}
             <div className="flex items-center space-x-2">
-              {isEditingTitle ? (
-                <input
-                  ref={titleInputRef}
-                  value={notes?.title || ''}
-                  onChange={(e) => updateTitle(e.target.value)}
-                  onBlur={handleTitleSave}
-                  onKeyDown={handleTitleKeyDown}
-                  className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter title..."
-                />
-              ) : (
-                <h3 
-                  className="flex-1 text-sm font-medium cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 rounded px-2 py-1 text-gray-900 dark:text-gray-100"
-                  onClick={() => setIsEditingTitle(true)}
-                  title="Click to edit title"
-                >
-                  {notes?.title || 'Untitled Notes'}
-                </h3>
-              )}
-              <button
-                onClick={() => setIsEditingTitle(true)}
-                className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-                title="Edit title"
-              >
-                <Edit3 size={12} />
-              </button>
+              <input
+                value={notes?.title || ''}
+                onChange={(e) => updateTitle(e.target.value)}
+                className="flex-1 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="Enter title..."
+              />
             </div>
           </div>
 
@@ -422,163 +213,7 @@ ${formattedContent}
                 {hasUnsavedChanges && (
                   <div className="w-1.5 h-1.5 bg-orange-500 rounded-full" title="Unsaved changes" />
                 )}
-                <button
-                  onClick={togglePrivacy}
-                  className={`p-1 rounded ${notes?.isPrivate ? 'text-gray-500' : 'text-blue-500'}`}
-                  title={notes?.isPrivate ? 'Private notes' : 'Shared notes'}
-                >
-                  {notes?.isPrivate ? <EyeOff size={10} /> : <Eye size={10} />}
-                </button>
               </div>
-            </div>
-          </div>
-
-          {/* Tags Section */}
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium text-gray-900 dark:text-gray-100">Tags</label>
-              <button
-                onClick={() => setShowTagInput(true)}
-                className="p-1 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"
-                title="Add tag"
-              >
-                <Plus size={12} />
-              </button>
-            </div>
-            
-            <div className="flex flex-wrap gap-1 mb-2">
-              {notes?.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 text-xs px-2 py-1 rounded-md"
-                >
-                  <Tag size={8} className="mr-1" />
-                  {tag}
-                  <button
-                    onClick={() => removeTag(tag)}
-                    className="ml-1 hover:text-red-600"
-                    title="Remove tag"
-                  >
-                    <X size={8} />
-                  </button>
-                </span>
-              ))}
-            </div>
-
-            {showTagInput && (
-              <div className="flex items-center space-x-2">
-                <input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={handleTagKeyDown}
-                  placeholder="Add tag..."
-                  className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-900"
-                  autoFocus
-                />
-                <button
-                  onClick={handleAddTag}
-                  className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 p-1 rounded"
-                >
-                  <Plus size={10} />
-                </button>
-                <button
-                  onClick={() => { setNewTag(''); setShowTagInput(false); }}
-                  className="text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 p-1 rounded"
-                >
-                  <X size={10} />
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Enhanced Rich Text Toolbar */}
-          <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Formatting</span>
-              </div>
-              
-              <div className="flex items-center space-x-1">
-                {/* Text Formatting */}
-                <button
-                  onClick={formatBold}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('bold') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
-                  }`}
-                  title="Bold (Ctrl+B)"
-                >
-                  <Bold size={12} />
-                </button>
-                <button
-                  onClick={formatItalic}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('italic') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
-                  }`}
-                  title="Italic (Ctrl+I)"
-                >
-                  <Italic size={12} />
-                </button>
-                <button
-                  onClick={formatUnderline}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('underline') ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : ''
-                  }`}
-                  title="Underline (Ctrl+U)"
-                >
-                  <Underline size={12} />
-                </button>
-                <button
-                  onClick={formatHighlight}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('highlight') ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' : ''
-                  }`}
-                  title="Highlight (Ctrl+H)"
-                >
-                  <Highlighter size={12} />
-                </button>
-
-                <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
-
-                {/* Lists and Structure */}
-                <button
-                  onClick={insertBulletPoint}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('bulletList') ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : ''
-                  }`}
-                  title="Bullet List (Ctrl+L)"
-                >
-                  <List size={12} />
-                </button>
-                <button
-                  onClick={insertQuote}
-                  className={`p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 ${
-                    editor?.isActive('blockquote') ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : ''
-                  }`}
-                  title="Quote (Ctrl+Q)"
-                >
-                  <Quote size={12} />
-                </button>
-              </div>
-            </div>
-            
-            {/* Topic Input */}
-            <div className="flex items-center space-x-2">
-              <Type size={12} className="text-gray-500 dark:text-gray-400" />
-              <input
-                value={currentTopic}
-                onChange={(e) => setCurrentTopic(e.target.value)}
-                onKeyDown={handleTopicKeyDown}
-                placeholder="Add topic/heading..."
-                className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-gray-900"
-              />
-              <button
-                onClick={insertTopic}
-                disabled={!currentTopic.trim()}
-                className="text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 disabled:text-gray-400 p-1 rounded"
-                title="Insert Topic"
-              >
-                <Plus size={10} />
-              </button>
             </div>
           </div>
 
@@ -596,6 +231,15 @@ ${formattedContent}
               <div 
                 className="flex-1 overflow-y-auto"
                 onKeyDown={handleKeyDown}
+                placeholder="Start typing your meeting notes here...
+
+💡 Use Ctrl+S to save your notes.
+
+Tips:
+- Keep it simple and focused
+- Write down key points and decisions
+- Note important action items"
+                className="flex-1 p-4 border-none resize-none focus:outline-none bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm leading-relaxed"
                 style={{ minHeight: '200px' }}
               >
                 <EditorContent 

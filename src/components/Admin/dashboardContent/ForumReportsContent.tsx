@@ -12,8 +12,6 @@ import {
 	CheckCircle,
 	XCircle,
 	AlertOctagon,
-	UserX,
-	Ban,
 	RefreshCw,
 	Search,
 	Filter,
@@ -179,22 +177,6 @@ const ForumReportsContent: React.FC = () => {
 						icon: 'warning' as const,
 						confirmButtonText: 'Yes, warn user',
 						confirmButtonColor: '#f59e0b'
-					};
-				case 'suspend_user':
-					return {
-						title: 'Suspend User',
-						text: 'Are you sure you want to suspend this user? They will be temporarily banned from posting and participating in the forum.',
-						icon: 'warning' as const,
-						confirmButtonText: 'Yes, suspend user',
-						confirmButtonColor: '#ea580c'
-					};
-				case 'ban_user':
-					return {
-						title: 'Ban User',
-						text: 'Are you sure you want to permanently ban this user? This is a severe action that will permanently block their access to the forum.',
-						icon: 'error' as const,
-						confirmButtonText: 'Yes, ban user',
-						confirmButtonColor: '#dc2626'
 					};
 				default:
 					return {
@@ -775,8 +757,6 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 		{ value: 'dismiss', label: 'Dismiss Report', color: 'text-gray-600', icon: XCircle },
 		...(report.status === 'pending' ? [{ value: 'remove_post', label: 'Remove Post', color: 'text-red-600', icon: AlertOctagon }] : []),
 		{ value: 'warn_user', label: 'Warn User', color: 'text-yellow-600', icon: AlertTriangle },
-		{ value: 'suspend_user', label: 'Suspend User', color: 'text-orange-600', icon: UserX },
-		{ value: 'ban_user', label: 'Ban User', color: 'text-red-700', icon: Ban },
 	];
 
 	const handleSubmit = async () => {
@@ -791,10 +771,6 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 					return { title: 'Remove Post', text: 'Are you sure you want to remove this post? This action cannot be undone.' };
 				case 'warn_user':
 					return { title: 'Warn User', text: 'Are you sure you want to issue a warning to this user?' };
-				case 'suspend_user':
-					return { title: 'Suspend User', text: 'Are you sure you want to suspend this user?' };
-				case 'ban_user':
-					return { title: 'Ban User', text: 'Are you sure you want to permanently ban this user? This is a severe action.' };
 				default:
 					return { title: 'Confirm Action', text: 'Are you sure you want to perform this action?' };
 			}
@@ -806,9 +782,9 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 		const result = await Swal.fire({
 			title: actionDetails.title,
 			text: actionDetails.text,
-			icon: selectedAction === 'ban_user' || selectedAction === 'remove_post' ? 'warning' : 'question',
+			icon: selectedAction === 'remove_post' ? 'warning' : 'question',
 			showCancelButton: true,
-			confirmButtonColor: selectedAction === 'ban_user' || selectedAction === 'remove_post' ? '#dc2626' : '#3b82f6',
+			confirmButtonColor: selectedAction === 'remove_post' ? '#dc2626' : '#3b82f6',
 			cancelButtonColor: '#6b7280',
 			confirmButtonText: `Yes, ${selectedAction.replace('_', ' ')}`,
 			cancelButtonText: 'Cancel',

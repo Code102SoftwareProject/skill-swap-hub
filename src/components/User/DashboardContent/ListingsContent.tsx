@@ -22,7 +22,12 @@ import {
   Clock, 
   XCircle,
   TrendingUp,
-  Calendar
+  Calendar,
+  ChevronDown,
+  BarChart3,
+  Target,
+  Activity,
+  Shield
 } from 'lucide-react';
 
 interface ListingWithMatchStatus extends SkillListing {
@@ -30,7 +35,11 @@ interface ListingWithMatchStatus extends SkillListing {
   matchDetails?: any[];
 }
 
-const ListingsContent: React.FC = () => {
+interface ListingsContentProps {
+  onNavigateToSkills?: () => void;
+}
+
+const ListingsContent: React.FC<ListingsContentProps> = ({ onNavigateToSkills }) => {
   const { showToast } = useToast();
   
   // State management
@@ -44,6 +53,10 @@ const ListingsContent: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  
+  // Custom dropdown states for mobile
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   
   // Delete confirmation state
   const [deletingListingId, setDeletingListingId] = useState<string | null>(null);
@@ -66,6 +79,25 @@ const ListingsContent: React.FC = () => {
   useEffect(() => {
     updateStats();
   }, [listings]);
+
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setShowStatusDropdown(false);
+    setShowCategoryDropdown(false);
+  };
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.custom-dropdown')) {
+        closeAllDropdowns();
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   // Function to fetch user listings and skills
   const fetchUserData = async () => {
@@ -236,63 +268,109 @@ const ListingsContent: React.FC = () => {
     }
   };
 
-  // Render statistics cards
+  // Custom dropdown component for mobile
+  const CustomDropdown = ({ 
+    value, 
+    options, 
+    onChange, 
+    placeholder, 
+    isOpen, 
+    setIsOpen, 
+    renderValue,
+    className = ""
+  }: {
+    value: string;
+    options: { value: string; label: string }[];
+    onChange: (value: string) => void;
+    placeholder: string;
+    isOpen: boolean;
+    setIsOpen: (open: boolean) => void;
+    renderValue?: (value: string) => string;
+    className?: string;
+  }) => (
+    <div className={`custom-dropdown relative ${className}`}>
+      <button
+        type="button"
+        onClick={() => {
+          closeAllDropdowns();
+          setIsOpen(!isOpen);
+        }}
+        className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 text-left flex items-center justify-between"
+      >
+        <span className="truncate">
+          {renderValue ? renderValue(value) : (options.find(opt => opt.value === value)?.label || placeholder)}
+        </span>
+        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-xs hover:bg-blue-50 ${
+                value === option.value ? 'bg-blue-100 text-blue-800' : 'text-gray-900'
+              }`}
+            >
+              <span className="block truncate">{option.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  // Render enhanced statistics cards
   const renderStatsCards = () => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center">
-          <Calendar className="w-8 h-8 text-blue-500 mr-3" />
-          <div>
-            <p className="text-sm text-gray-600">Total Listings</p>
-            <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-          </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+      <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-md p-2 text-center">
+        <div className="flex justify-center mb-1">
+          <Calendar className="w-4 h-4 text-blue-600" />
         </div>
+        <div className="text-lg font-bold text-blue-800">{stats.total}</div>
+        <div className="text-xs text-blue-600">Total Listings</div>
       </div>
       
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center">
-          <CheckCircle className="w-8 h-8 text-green-500 mr-3" />
-          <div>
-            <p className="text-sm text-gray-600">Active</p>
-            <p className="text-2xl font-bold text-green-600">{stats.active}</p>
-          </div>
+      <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-md p-2 text-center">
+        <div className="flex justify-center mb-1">
+          <CheckCircle className="w-4 h-4 text-green-600" />
         </div>
+        <div className="text-lg font-bold text-green-800">{stats.active}</div>
+        <div className="text-xs text-green-600">Active</div>
       </div>
       
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center">
-          <XCircle className="w-8 h-8 text-gray-500 mr-3" />
-          <div>
-            <p className="text-sm text-gray-600">Not Active</p>
-            <p className="text-2xl font-bold text-gray-600">{stats.notActive}</p>
-          </div>
+      <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-md p-2 text-center">
+        <div className="flex justify-center mb-1">
+          <XCircle className="w-4 h-4 text-gray-600" />
         </div>
+        <div className="text-lg font-bold text-gray-800">{stats.notActive}</div>
+        <div className="text-xs text-gray-600">Not Active</div>
       </div>
       
-      <div className="bg-white p-4 rounded-lg shadow-sm border">
-        <div className="flex items-center">
-          <AlertTriangle className="w-8 h-8 text-orange-500 mr-3" />
-          <div>
-            <p className="text-sm text-gray-600">In Matches</p>
-            <p className="text-2xl font-bold text-orange-600">{stats.inMatches}</p>
-          </div>
+      <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-md p-2 text-center">
+        <div className="flex justify-center mb-1">
+          <Shield className="w-4 h-4 text-orange-600" />
         </div>
+        <div className="text-lg font-bold text-orange-800">{stats.inMatches}</div>
+        <div className="text-xs text-orange-600">In Matches</div>
       </div>
     </div>
   );
 
   return (
-    <div className="p-6">
+    <div className="p-4">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">My Skill Listings</h1>
-          <p className="text-gray-600">Manage your skill exchange listings and track their status</p>
-        </div>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">My Skill Listings</h1>
         <button
           onClick={() => setShowNewForm(true)}
           disabled={userSkills.length === 0}
-          className="mt-4 md:mt-0 inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400 disabled:cursor-not-allowed text-sm"
         >
           <Plus className="w-4 h-4 mr-2" />
           Create New Listing
@@ -308,9 +386,12 @@ const ListingsContent: React.FC = () => {
               <h3 className="text-sm font-medium text-yellow-800">No Skills Added</h3>
               <p className="text-sm text-yellow-700">
                 You need to add skills to your profile before creating listings. 
-                <a href="/dashboard?component=myskill" className="ml-1 font-medium underline hover:no-underline">
+                <button 
+                  onClick={onNavigateToSkills}
+                  className="ml-1 font-medium underline hover:no-underline text-yellow-700 cursor-pointer"
+                >
                   Add skills now
-                </a>
+                </button>
               </p>
             </div>
           </div>
@@ -320,45 +401,74 @@ const ListingsContent: React.FC = () => {
       {/* Statistics Cards */}
       {!loading && listings.length > 0 && renderStatsCards()}
 
-      {/* Info banner about match protection */}
+      {/* Compact info banner about match protection */}
       {stats.inMatches > 0 && (
-        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <Users className="w-5 h-5 text-orange-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div>
-              <h3 className="text-sm font-medium text-orange-800">Active Match Protection</h3>
-              <p className="text-sm text-orange-700">
-                {stats.inMatches} of your listing{stats.inMatches > 1 ? 's are' : ' is'} currently involved in active skill matches. 
-                These listings cannot be modified until the matches are completed or cancelled.
-              </p>
-            </div>
+        <div className="mb-2 bg-orange-50 border border-orange-200 rounded px-3 py-2">
+          <div className="flex items-center text-xs text-orange-700">
+            <Shield className="w-3 h-3 text-orange-600 mr-2 flex-shrink-0" />
+            <span>
+              {stats.inMatches} listing{stats.inMatches > 1 ? 's' : ''} protected by active matches
+            </span>
           </div>
         </div>
       )}
 
       {/* Search and Filters */}
-      {!loading && listings.length > 0 && (
-        <div className="bg-white p-4 rounded-lg shadow-sm border mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      {listings.length > 0 && (
+        <div className="bg-white rounded-md shadow-sm border p-3 mb-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {/* Search - Full width on mobile */}
+            <div className="relative col-span-2 sm:col-span-1">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 w-3 h-3" />
               <input
                 type="text"
-                placeholder="Search skills, descriptions..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 placeholder-gray-500"
+                placeholder="Search..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-7 pr-3 py-1.5 border border-gray-200 rounded text-gray-900 placeholder-gray-500 text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
 
-            {/* Status Filter */}
-            <div className="relative">
-              <Filter className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            {/* Use custom dropdowns for mobile responsiveness */}
+            <div className="block sm:hidden">
+              <CustomDropdown
+                value={statusFilter}
+                options={[
+                  { value: 'all', label: 'All Statuses' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'not active', label: 'Not Active' }
+                ]}
+                onChange={setStatusFilter}
+                placeholder="All Statuses"
+                isOpen={showStatusDropdown}
+                setIsOpen={setShowStatusDropdown}
+              />
+            </div>
+
+            <div className="block sm:hidden">
+              <CustomDropdown
+                value={categoryFilter}
+                options={[
+                  { value: 'all', label: 'All Categories' },
+                  ...getUniqueCategories().map(category => ({ value: category, label: category }))
+                ]}
+                onChange={setCategoryFilter}
+                placeholder="All Categories"
+                isOpen={showCategoryDropdown}
+                setIsOpen={setShowCategoryDropdown}
+              />
+            </div>
+
+            {/* Desktop dropdowns */}
+            <div className="hidden sm:block">
               <select
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-gray-900"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
               >
                 <option value="all">All Statuses</option>
                 <option value="active">Active</option>
@@ -366,12 +476,15 @@ const ListingsContent: React.FC = () => {
               </select>
             </div>
 
-            {/* Category Filter */}
-            <div className="relative">
+            <div className="hidden sm:block">
               <select
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white text-gray-900"
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-200 rounded text-gray-900 bg-white text-xs focus:ring-1 focus:ring-blue-500 appearance-none bg-no-repeat bg-right bg-[length:16px_16px] pr-8"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.5rem center'
+                }}
               >
                 <option value="all">All Categories</option>
                 {getUniqueCategories().map(category => (
@@ -380,37 +493,27 @@ const ListingsContent: React.FC = () => {
               </select>
             </div>
           </div>
-
-          {/* Active filters display */}
-          {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {searchTerm && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800">
-                  Search: "{searchTerm}"
-                  <button onClick={() => setSearchTerm('')} className="ml-1 text-blue-600 hover:text-blue-800">×</button>
-                </span>
-              )}
-              {statusFilter !== 'all' && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-green-100 text-green-800">
-                  Status: {statusFilter}
-                  <button onClick={() => setStatusFilter('all')} className="ml-1 text-green-600 hover:text-green-800">×</button>
-                </span>
-              )}
-              {categoryFilter !== 'all' && (
-                <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800">
-                  Category: {categoryFilter}
-                  <button onClick={() => setCategoryFilter('all')} className="ml-1 text-purple-600 hover:text-purple-800">×</button>
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Results count */}
-          <div className="mt-3 text-sm font-medium text-gray-700">
-            Showing {filteredListings.length} of {listings.length} listings
-          </div>
         </div>
       )}
+
+      {/* Compact Info Row */}
+      <div className="flex items-center justify-between text-xs text-gray-600 mb-4">
+        <div>
+          {listings.length > 0 && (
+            <span>Showing {filteredListings.length} of {listings.length} listings</span>
+          )}
+        </div>
+        <div>
+          {stats.inMatches > 0 && (
+            <div className="flex items-center bg-orange-50 border border-orange-200 rounded px-2 py-1">
+              <Shield className="w-3 h-3 text-orange-600 mr-1" />
+              <span className="text-orange-700">
+                {stats.inMatches} protected by matches
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Loading State */}
       {loading && (
@@ -438,12 +541,12 @@ const ListingsContent: React.FC = () => {
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-gray-700">First, add some skills to your profile:</p>
-              <a
-                href="/dashboard?component=myskill"
+              <button
+                onClick={onNavigateToSkills}
                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium"
               >
                 Add Skills First
-              </a>
+              </button>
             </div>
           )}
         </div>
@@ -452,18 +555,19 @@ const ListingsContent: React.FC = () => {
       {/* No Results State */}
       {!loading && listings.length > 0 && filteredListings.length === 0 && (
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
-          <Search className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">No listings found</h3>
-          <p className="text-gray-600 mb-4">Try adjusting your search criteria or filters</p>
+          <Filter className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-xl font-medium text-gray-700 mb-2">No listings match your filters</h3>
+          <p className="text-gray-500 mb-4">Try adjusting your search or filter criteria</p>
           <button
             onClick={() => {
               setSearchTerm('');
               setStatusFilter('all');
               setCategoryFilter('all');
+              closeAllDropdowns();
             }}
-            className="text-blue-600 hover:text-blue-800 font-medium"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Clear all filters
+            Clear Filters
           </button>
         </div>
       )}

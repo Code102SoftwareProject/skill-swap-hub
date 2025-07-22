@@ -86,7 +86,7 @@ export default function SubmitWorkTab({
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Attach Files (Optional - Max 5 files, 100MB each)
+                Attach Files (Optional - Max 5 files, 25MB each)
               </label>
               
               {/* File Upload Input */}
@@ -94,7 +94,23 @@ export default function SubmitWorkTab({
                 type="file"
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
-                  addFiles(files);
+                  const maxSizeMB = 25;
+                  const maxSizeBytes = maxSizeMB * 1024 * 1024; // 25MB in bytes
+                  
+                  // Filter out files that are too large
+                  const validFiles = files.filter(file => {
+                    if (file.size > maxSizeBytes) {
+                      showAlert('error', `File "${file.name}" is too large. Maximum file size is ${maxSizeMB}MB. Current size: ${(file.size / (1024 * 1024)).toFixed(1)}MB`);
+                      return false;
+                    }
+                    return true;
+                  });
+                  
+                  // Only add valid files
+                  if (validFiles.length > 0) {
+                    addFiles(validFiles);
+                  }
+                  
                   // Clear the input
                   e.target.value = '';
                 }}

@@ -20,6 +20,7 @@ const MESSAGES = {
  * Interface for KYC request body structure
  */
 interface KYCRequest {
+  userId: string;
   nic: string;
   recipient: string;
   nicUrl: string;
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
 
     // Validate required fields
     const requiredFields: Array<keyof KYCRequest> = [
+      "userId",
       "nic",
       "recipient",
       "nicUrl",
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
 
     // Create new KYC record object using the data object
     const newRecord = new KYC({
+      userId: data.userId,
       nic: data.nic,
       recipient: data.recipient,
       dateSubmitted: new Date(),

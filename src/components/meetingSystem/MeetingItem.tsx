@@ -1,7 +1,8 @@
 import React from 'react';
 import { Calendar, Clock, Download, Video, XCircle } from 'lucide-react';
 import Meeting from '@/types/meeting';
-import { getMeetingStatus, downloadMeetingNotesFile, canCancelMeeting } from '@/services/meetingApiServices';
+import { getMeetingStatus, canCancelMeeting, checkMeetingNotesExist, fetchMeetingNotes } from '@/services/meetingApiServices';
+import { generateMeetingNotesPDF, MeetingNotePDFData } from '@/utils/pdfHandler';
 import OptimizedAvatar from '@/components/ui/OptimizedAvatar';
 
 interface UserProfile {
@@ -83,15 +84,28 @@ export default function MeetingItem({
   // Download notes for a meeting
   const handleDownloadNotes = async () => {
     try {
-      const success = await downloadMeetingNotesFile(
-        meeting._id, 
-        userId, 
-        `Meeting with ${otherUserName}`, 
-        meeting.meetingTime.toString()
-      );
+      const notesData = await fetchMeetingNotes(meeting._id, userId);
       
-      if (success) {
-        onAlert('success', 'Notes downloaded successfully as Markdown file!');
+      if (notesData) {
+        const pdfData: MeetingNotePDFData = {
+          title: notesData.title || `Meeting with ${otherUserName}`,
+          content: notesData.content,
+          meetingId: meeting._id,
+          createdAt: notesData.createdAt,
+          lastModified: notesData.lastModified,
+          wordCount: notesData.wordCount,
+          tags: notesData.tags,
+          isPrivate: notesData.isPrivate,
+          otherUserName: otherUserName,
+          meetingInfo: {
+            description: meeting.description,
+            meetingTime: meeting.meetingTime.toString(),
+            isDeleted: false
+          }
+        };
+        
+        generateMeetingNotesPDF(pdfData);
+        onAlert('success', 'Notes downloaded successfully as PDF!');
       } else {
         onAlert('info', 'No notes found for this meeting');
       }

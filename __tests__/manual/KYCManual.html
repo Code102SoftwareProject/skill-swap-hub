@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>KYC Test Results</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 20px;
+      }
+      h1 {
+        margin-bottom: 0.2em;
+      }
+      .meta p {
+        margin: 0.1em 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1em;
+      }
+      th,
+      td {
+        border: 1px solid #ccc;
+        padding: 8px;
+        vertical-align: top;
+      }
+      th {
+        background: #f0f0f0;
+        text-transform: uppercase;
+      }
+      .status-pass {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .status-fail {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .status-blocked {
+        background: #ffedd5;
+        color: #92400e;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>KYC Test Results</h1>
+    <div class="meta">
+      <p><strong>Tester:</strong> P. Renulucshmi</p>
+
+      <p><strong>Browser:</strong> Chrome</p>
+      <p><strong>Device:</strong> desktop</p>
+      <p><strong>Date:</strong> 2025-07-17</p>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Test Name</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th>Preconditions</th>
+          <th>Steps</th>
+          <th>Expected Result</th>
+          <th>Actual Result</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Upload valid NIC + selfie</td>
+          <td>CREATION</td>
+          <td>HIGH</td>
+          <td>User logged in; KYC form visible</td>
+          <td>
+            1. Enter full name<br />2. Enter valid NIC<br />3. Upload NIC file
+            (<2MB)<br />4. Upload selfie-with-NIC<br />5. Click Submit
+          </td>
+          <td>
+            New submission appears in Admin KYC list with status “Not Reviewed”
+          </td>
+          <td>new submission appears</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Reject blank-field submission</td>
+          <td>VALIDATION</td>
+          <td>HIGH</td>
+          <td>KYC page loaded</td>
+          <td>1. Leave all fields empty<br />2. Click Submit</td>
+          <td>
+            Inline errors under each field (“Full Name is required”, etc.); form
+            not submitted
+          </td>
+          <td>please fill out this field appeared</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Reject invalid NIC format</td>
+          <td>VALIDATION</td>
+          <td>MEDIUM</td>
+          <td>KYC form visible</td>
+          <td>1. Enter “abc123” in NIC Number<br />2. Click Submit</td>
+          <td>
+            Validation message “Enter a valid NIC” under NIC field; no
+            submission
+          </td>
+          <td>
+            Red inline error was there until we enter correct format "Enter
+            either Old NIC (9 digits + V/X) or New NIC (12 digits)"
+          </td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Reject oversize file upload</td>
+          <td>VALIDATION</td>
+          <td>MEDIUM</td>
+          <td>KYC form visible</td>
+          <td>1. Select >2MB file for NIC Document<br />2. Click Submit</td>
+          <td>Error toast “File must be under 2MB”; input resets</td>
+          <td>file must be less than 2MB inline error</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>View pending submissions</td>
+          <td>FILTERING</td>
+          <td>LOW</td>
+          <td>At least one KYC exists</td>
+          <td>1. Navigate to KYC tab<br />2. Observe table</td>
+          <td>
+            Table lists NIC, Recipient, Date Submitted, Status, Reviewed,
+            Documents, Accept/Reject
+          </td>
+          <td>yes all the columns were present</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Download NIC & selfie files</td>
+          <td>FUNCTIONALITY</td>
+          <td>MEDIUM</td>
+          <td>KYC list visible</td>
+          <td>1. Click download NIC icon<br />2. Click download Person icon</td>
+          <td>Each file downloads with correct name and content</td>
+          <td>file downloaded after a click</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Accept a KYC submission</td>
+          <td>WORKFLOW</td>
+          <td>HIGH</td>
+          <td>One “Not Reviewed” row present</td>
+          <td>1. Click green ✔<br />2. Confirm if prompted</td>
+          <td>Status → “Accepted”; Reviewed date = today</td>
+          <td>accepted as expected</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>Reject a KYC submission</td>
+          <td>WORKFLOW</td>
+          <td>HIGH</td>
+          <td>One “Not Reviewed” row present</td>
+          <td>1. Click red ✖<br />2. Confirm if prompted</td>
+          <td>Status → “Rejected”; Reviewed date = today</td>
+          <td>Rejected as expected</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>9</td>
+          <td>Search by recipient name</td>
+          <td>FILTERING</td>
+          <td>LOW</td>
+          <td>Multiple names present</td>
+          <td>1. Type partial name in search box</td>
+          <td>Table filters to matching Recipient rows</td>
+          <td>-</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>10</td>
+          <td>Sort by date submitted</td>
+          <td>SORTING</td>
+          <td>LOW</td>
+          <td>Table visible</td>
+          <td>1. Click Date Submitted header<br />2. Click again</td>
+          <td>Rows toggle ascending/descending by Date Submitted</td>
+          <td>yes it works as expected</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+        <tr>
+          <td>11</td>
+          <td>Filter by status</td>
+          <td>FILTERING</td>
+          <td>LOW</td>
+          <td>Various statuses exist</td>
+          <td>1. Open status dropdown<br />2. Select “Accepted”</td>
+          <td>Table shows only rows with Status = Accepted</td>
+          <td>only showed acccepted records</td>
+          <td class="status-pass">PASS</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
