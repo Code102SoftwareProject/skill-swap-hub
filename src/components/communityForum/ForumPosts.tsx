@@ -43,7 +43,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
-  const [clickedPosts, setClickedPosts] = useState<Set<string>>(new Set());
   
   
   const currentUserId = user ? user._id : 'current-user-id';
@@ -51,13 +50,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/forums/${forumId}/posts`, {
-        // Add cache: 'no-store' to ensure we always get fresh data
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
+      const response = await fetch(`/api/forums/${forumId}/posts`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch forum posts');
@@ -65,7 +58,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
       
       const data = await response.json();
       setPosts(data.posts);
-      console.log('Fetched posts with updated view counts:', data.posts.map((p: Post) => ({ id: p._id, views: p.views })));
     } catch (err) {
       console.error('Error fetching forum posts:', err);
       setError('Unable to load posts. Please try again later.');
@@ -78,38 +70,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
     if (forumId) {
       fetchPosts();
     }
-  }, [forumId, fetchPosts]);
-
-  // Refresh posts when component becomes visible (e.g., when returning from post detail)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && forumId) {
-        fetchPosts();
-      }
-    };
-
-    const handleFocus = () => {
-      if (forumId) {
-        fetchPosts();
-      }
-    };
-
-    // Also refresh when navigating back
-    const handlePopState = () => {
-      if (forumId) {
-        setTimeout(() => fetchPosts(), 100); // Small delay to ensure navigation is complete
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('popstate', handlePopState);
-    };
   }, [forumId, fetchPosts]);
 
   const handleCreatePost = () => {
@@ -127,17 +87,6 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
       prevPosts.map(post => 
         post._id === postId 
           ? { ...post, likes: newLikes, dislikes: newDislikes } 
-          : post
-      )
-    );
-  };
-
-  // Function to update view count locally
-  const handleViewUpdate = (postId: string) => {
-    setPosts(prevPosts => 
-      prevPosts.map(post => 
-        post._id === postId 
-          ? { ...post, views: (post.views || 0) + 1 } 
           : post
       )
     );
@@ -177,31 +126,16 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
 
   // Add this function to handle post click navigation
   const handlePostClick = async (postId: string) => {
-    // Mark this post as clicked for visual feedback
-    setClickedPosts(prev => new Set(prev).add(postId));
-    
-    // Update view count via API
-    try {
-      const response = await fetch(`/api/posts/${postId}/views`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ forumId }),
+    // Track view interaction only for authenticated users
+    if (user) {
+      await trackInteraction({
+        postId,
+        forumId,
+        interactionType: 'view',
+        timeSpent: 0
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.updated) {
-          // Update view count locally if it was actually incremented
-          handleViewUpdate(postId);
-        }
-      }
-    } catch (error) {
-      console.error('Error updating view count:', error);
     }
     
-    // Navigate to the post detail page
     router.push(`/forum/${forumId}/posts/${postId}`);
   };
 
@@ -286,7 +220,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
                   <div className="flex items-center space-x-4 mb-5">
                     <div className="relative w-12 h-12 rounded-full overflow-hidden border-2 border-blue-100 shadow-sm">
                       <Image 
-                        src={getImageUrl(post.author.avatar)} 
+                        src={getImageUrl(post.author.avatar)}
                         alt={post.author.name}
                         fill
                         className="object-cover"
@@ -350,12 +284,7 @@ const ForumPosts: React.FC<ForumPostsProps> = ({ forumId }) => {
 
                       {/* View count */}
                       <div className="flex items-center space-x-1 text-gray-500">
-                        <span className={`text-sm ${clickedPosts.has(post._id) ? 'text-blue-600 font-medium' : ''}`}>
-                          {post.views || 0} views
-                        </span>
-                        {clickedPosts.has(post._id) && (
-                          <span className="text-xs text-blue-500">+1</span>
-                        )}
+                        <span className="text-sm">{post.views || 0} views</span>
                       </div>
                     </div>
                     

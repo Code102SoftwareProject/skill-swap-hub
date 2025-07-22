@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
     
     // Get forum ID from request body
     const body = await request.json();
-    const { forumId } = body;
+    const { forumId, noRefresh = false } = body;
     
     if (!forumId || !mongoose.Types.ObjectId.isValid(forumId)) {
       return NextResponse.json(
@@ -155,11 +155,21 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Set cache-control headers to prevent page refresh issues
+      const headers = new Headers();
+      headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      headers.append('Pragma', 'no-cache');
+      headers.append('Expires', '0');
+      
       return NextResponse.json({
         success: true,
         views: post.views,
         message: 'View count incremented successfully',
-        updated: true
+        updated: true,
+        noRefresh: noRefresh
+      }, { 
+        status: 200,
+        headers: headers
       });
     } else {
       // Always fetch the latest view count from the database
@@ -172,11 +182,21 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      // Set cache-control headers to prevent page refresh issues
+      const headers = new Headers();
+      headers.append('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      headers.append('Pragma', 'no-cache');
+      headers.append('Expires', '0');
+      
       return NextResponse.json({
         success: true,
         views: post.views,
         message: 'Recent view already recorded',
-        updated: false
+        updated: false,
+        noRefresh: noRefresh
+      }, { 
+        status: 200,
+        headers: headers
       });
     }
   } catch (error) {
