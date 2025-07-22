@@ -81,46 +81,16 @@ const PostDetail = () => {
   const editQuillRef = useRef<Quill | null>(null);
   const viewTrackedRef = useRef<boolean>(false);
 
-  // Function to track post view
-  const trackPostView = useCallback(async (postId: string, forumId: string, timeSpent: number = 0, isComplete: boolean = false) => {
-    if (!user || !token) return;
+  // Update the useEffect for view tracking
+  useEffect(() => {
+    // Reset view tracking when post changes
+    viewTrackedRef.current = false;
+  }, [postId]);
 
-    try {
-      const response = await fetch('/api/user/interactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          postId,
-          forumId,
-          interactionType: 'view',
-          deviceType: /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-          timeSpent,
-          isComplete
-        })
-      });
-
-      if (response.ok) {
-        console.log('Post view tracked successfully');
-        
-        // Only update view count optimistically for initial views (timeSpent === 0)
-        if (timeSpent === 0) {
-          setPost(prevPost => {
-            if (prevPost && prevPost._id === postId) {
-              return { ...prevPost, views: (prevPost.views || 0) + 1 };
-            }
-            return prevPost;
-          });
-        }
-      } else {
-        console.error('Failed to track post view');
-      }
-    } catch (error) {
-      console.error('Error tracking post view:', error);
-    }
-  }, [user, token]);
+  // Track initial post view - separate useEffect to avoid infinite loop
+  useEffect(() => {
+    // This is now handled by the dedicated API endpoint in another useEffect
+  }, []);
 
   // Fetch post details
   useEffect(() => {
@@ -156,9 +126,6 @@ const PostDetail = () => {
           setEditImagePreview(getImageUrl(postData.post.imageUrl));
         }
         
-        // Track post view if user is logged in
-        // Removed from here to prevent infinite loop
-        
         // Fetch replies with better error handling
         try {
           const repliesResponse = await fetch(`/api/posts/${postId}/replies`);
@@ -188,19 +155,44 @@ const PostDetail = () => {
     fetchPostDetails();
   }, [postId]);
 
-  // Track initial post view - separate useEffect to avoid infinite loop
+  // Add a separate API call to increment view count
   useEffect(() => {
-    if (post && user && token && forumId && !loading && !viewTrackedRef.current) {
-      // Only track the initial view once when the post is loaded
-      viewTrackedRef.current = true;
-      trackPostView(post._id, forumId);
-    }
-  }, [post, user, token, forumId, loading, trackPostView]);
-
-  // Reset view tracking when post changes
-  useEffect(() => {
-    viewTrackedRef.current = false;
-  }, [postId]);
+    const incrementViewCount = async () => {
+      if (!postId || !user || !token || !forumId || viewTrackedRef.current) return;
+      
+      try {
+        viewTrackedRef.current = true;
+        
+        // Call the API to update view count in the database
+        const response = await fetch('/api/posts/' + postId + '/views', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ forumId })
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Update the post with the new view count from the server
+          setPost(prevPost => {
+            if (prevPost) {
+              return { ...prevPost, views: data.views };
+            }
+            return prevPost;
+          });
+          console.log('View count updated successfully:', data.views);
+        } else {
+          console.error('Failed to update view count');
+        }
+      } catch (error) {
+        console.error('Error updating view count:', error);
+      }
+    };
+    
+    incrementViewCount();
+  }, [postId, user, token, forumId]);
 
   // Track time spent on post for analytics
   useEffect(() => {
@@ -290,7 +282,7 @@ const PostDetail = () => {
         }).catch(err => console.error('Error tracking final time spent:', err));
       }
     };
-  }, [post, user, token, forumId]); // Remove trackPostView from dependencies
+  }, [post, user, token, forumId]); // Removed trackPostView from dependencies
 
   // Cleanup image preview URL when component unmounts
   useEffect(() => {
