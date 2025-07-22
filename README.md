@@ -118,5 +118,5 @@ GET http://localhost:3000/api/file/retrieve?fileUrl=https://r2.cloudflarestorage
 - **Cloudflare R2 Setup:** Ensure the correct bucket name and endpoint.
 
 ---
-🚀 *Ensure Cloudflare R2 is properly configured before using the APIs!*
+🚀 *Ensure Cloudflare R2 is properly configured before using the APIs*
 
