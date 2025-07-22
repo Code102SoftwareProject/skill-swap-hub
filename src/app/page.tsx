@@ -175,13 +175,13 @@ const EnhancedHeroSection = () => {
         {/* CTA Buttons */}
         <div className={`flex flex-col sm:flex-row gap-4 justify-center mb-16 transform transition-all duration-1000 delay-600 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}>
           <button 
-            className="group bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-cyan-300 hover:to-blue-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 flex items-center justify-center gap-2"
+            className="group bg-gradient-to-r from-cyan-400 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:from-cyan-300 hover:to-blue-400 transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-cyan-500/25 flex items-center justify-center gap-2 min-w-[220px] h-[60px]"
             onClick={() => router.push(isUserLoggedIn ? '/dashboard' : '/register')}
           >
             {isUserLoggedIn ? 'Go to Dashboard' : 'Join Now'}
             <Zap className="w-5 h-5 group-hover:animate-pulse" />
           </button>
-          <button className="group bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2">
+          <button className="group bg-white/10 backdrop-blur-md text-white px-8 py-4 rounded-2xl font-semibold text-lg border border-white/20 hover:bg-white/20 transform hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 min-w-[220px] h-[60px]">
             <Play className="w-5 h-5" />
             Watch Demo
           </button>
