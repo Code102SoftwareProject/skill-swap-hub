@@ -22,6 +22,9 @@ import {
 	MessageSquare,
 	User,
 	Calendar,
+	Copy,
+	History,
+	Layers,
 } from 'lucide-react';
 
 interface ForumPostReport {
@@ -92,12 +95,51 @@ const ForumReportsContent: React.FC = () => {
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [priorityFilter, setPriorityFilter] = useState('all');
 	const [aiResultFilter, setAiResultFilter] = useState('all');
+	const [multiReportFilter, setMultiReportFilter] = useState('all');
 	const [searchQuery, setSearchQuery] = useState('');
 
 	// Pagination
 	const [currentPage, setCurrentPage] = useState(1);
 	const [totalPages, setTotalPages] = useState(1);
 	const [totalCount, setTotalCount] = useState(0);
+
+	// Helper functions for multiple reports detection
+	const getPostReportsCount = useCallback((postId: string) => {
+		if (!postId) return { total: 0, pending: 0, resolved: 0 };
+		
+		const postReports = reports.filter(report => 
+			report.postId?._id === postId || 
+			report.postSnapshot.authorId === postId // fallback in case postId is null
+		);
+		
+		const pending = postReports.filter(r => 
+			r.status === 'pending' || r.status === 'under_review'
+		).length;
+		
+		const resolved = postReports.filter(r => 
+			r.status === 'resolved' || r.status === 'dismissed' || r.status === 'auto_resolved'
+		).length;
+		
+		return { total: postReports.length, pending, resolved };
+	}, [reports]);
+
+	const hasMultipleReports = useCallback((report: ForumPostReport) => {
+		const postId = report.postId?._id;
+		if (!postId) return false;
+		
+		const counts = getPostReportsCount(postId);
+		return counts.total > 1;
+	}, [getPostReportsCount]);
+
+	const getRelatedReports = useCallback((report: ForumPostReport) => {
+		const postId = report.postId?._id;
+		if (!postId) return [];
+		
+		return reports.filter(r => 
+			r._id !== report._id && 
+			(r.postId?._id === postId || r.postSnapshot.authorId === postId)
+		);
+	}, [reports]);
 
 	// Load reports
 	const fetchReports = useCallback(async () => {
@@ -136,18 +178,30 @@ const ForumReportsContent: React.FC = () => {
 
 	// Filter reports by search query
 	const filteredReports = useMemo(() => {
-		if (!searchQuery.trim()) return reports;
+		let filtered = reports;
 
-		const query = searchQuery.toLowerCase();
-		return reports.filter(report => 
-			report.postSnapshot.title.toLowerCase().includes(query) ||
-			report.postSnapshot.content.toLowerCase().includes(query) ||
-			report.postSnapshot.authorName.toLowerCase().includes(query) ||
-			report.reportedBy.firstName.toLowerCase().includes(query) ||
-			report.reportedBy.lastName.toLowerCase().includes(query) ||
-			report.description.toLowerCase().includes(query)
-		);
-	}, [reports, searchQuery]);
+		// Apply search filter
+		if (searchQuery.trim()) {
+			const query = searchQuery.toLowerCase();
+			filtered = filtered.filter(report => 
+				report.postSnapshot.title.toLowerCase().includes(query) ||
+				report.postSnapshot.content.toLowerCase().includes(query) ||
+				report.postSnapshot.authorName.toLowerCase().includes(query) ||
+				report.reportedBy.firstName.toLowerCase().includes(query) ||
+				report.reportedBy.lastName.toLowerCase().includes(query) ||
+				report.description.toLowerCase().includes(query)
+			);
+		}
+
+		// Apply multiple reports filter
+		if (multiReportFilter === 'multiple') {
+			filtered = filtered.filter(report => hasMultipleReports(report));
+		} else if (multiReportFilter === 'single') {
+			filtered = filtered.filter(report => !hasMultipleReports(report));
+		}
+
+		return filtered;
+	}, [reports, searchQuery, multiReportFilter, hasMultipleReports]);
 
 	// Handle admin actions
 	const handleAction = async (reportId: string, action: string, adminResponse: string = '') => {
@@ -379,7 +433,7 @@ const ForumReportsContent: React.FC = () => {
 			</div>
 
 			{/* Stats Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
 				<Card>
 					<CardContent className="p-4">
 						<div className="flex items-center">
@@ -399,6 +453,35 @@ const ForumReportsContent: React.FC = () => {
 								<p className="text-sm font-medium text-gray-500">Pending</p>
 								<p className="text-2xl font-bold text-gray-900">
 									{reports.filter(r => r.status === 'pending').length}
+								</p>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardContent className="p-4">
+						<div className="flex items-center">
+							<Layers className="h-8 w-8 text-orange-500" />
+							<div className="ml-3">
+								<p className="text-sm font-medium text-gray-500">Multi-Reported Posts</p>
+								<p className="text-2xl font-bold text-gray-900">
+									{(() => {
+										const postIds = new Set();
+										const multiReportedPosts = new Set();
+										
+										reports.forEach(report => {
+											const postId = report.postId?._id;
+											if (postId) {
+												if (postIds.has(postId)) {
+													multiReportedPosts.add(postId);
+												} else {
+													postIds.add(postId);
+												}
+											}
+										});
+										
+										return multiReportedPosts.size;
+									})()}
 								</p>
 							</div>
 						</div>
@@ -451,7 +534,7 @@ const ForumReportsContent: React.FC = () => {
 						</div>
 
 						{/* Filters */}
-						<div className="flex gap-2">
+						<div className="flex gap-2 flex-wrap">
 							<select
 								value={statusFilter}
 								onChange={(e) => setStatusFilter(e.target.value)}
@@ -475,6 +558,16 @@ const ForumReportsContent: React.FC = () => {
 								<option value="medium">Medium</option>
 								<option value="high">High</option>
 								<option value="critical">Critical</option>
+							</select>
+
+							<select
+								value={multiReportFilter}
+								onChange={(e) => setMultiReportFilter(e.target.value)}
+								className="px-3 py-2 border border-gray-300 rounded-md text-black"
+							>
+								<option value="all">All Posts</option>
+								<option value="multiple">Multiple Reports</option>
+								<option value="single">Single Report</option>
 							</select>
 
 							<select
@@ -534,16 +627,51 @@ const ForumReportsContent: React.FC = () => {
 											<td className="px-6 py-4">
 												<div className="space-y-2">
 													{/* Post Info */}
-													<div>
-														<h4 className="font-medium text-gray-900 truncate max-w-xs">
-															{report.postSnapshot.title}
-														</h4>
-														<p className="text-sm text-gray-500">
-															in {report.postSnapshot.forumTitle}
-														</p>
-														<p className="text-sm text-gray-500">
-															by {report.postSnapshot.authorName}
-														</p>
+													<div className="relative">
+														<div className="flex items-start justify-between">
+															<div className="flex-1">
+																<h4 className="font-medium text-gray-900 truncate max-w-xs">
+																	{report.postSnapshot.title}
+																</h4>
+																<p className="text-sm text-gray-500">
+																	in {report.postSnapshot.forumTitle}
+																</p>
+																<p className="text-sm text-gray-500">
+																	by {report.postSnapshot.authorName}
+																</p>
+															</div>
+															
+															{/* Multiple Reports Indicator */}
+															{hasMultipleReports(report) && (
+																<div className="ml-2 flex flex-col gap-1">
+																	{(() => {
+																		const counts = getPostReportsCount(report.postId?._id || '');
+																		return (
+																			<>
+																				{counts.total > 1 && (
+																					<div className="flex items-center bg-orange-100 text-orange-800 px-2 py-1 rounded-full text-xs font-medium">
+																						<Layers className="h-3 w-3 mr-1" />
+																						{counts.total} Reports
+																					</div>
+																				)}
+																				{counts.pending > 1 && (
+																					<div className="flex items-center bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+																						<Clock className="h-3 w-3 mr-1" />
+																						{counts.pending} Pending
+																					</div>
+																				)}
+																				{counts.resolved > 0 && (
+																					<div className="flex items-center bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+																						<History className="h-3 w-3 mr-1" />
+																						{counts.resolved} Resolved
+																					</div>
+																				)}
+																			</>
+																		);
+																	})()}
+																</div>
+															)}
+														</div>
 													</div>
 													
 													{/* Reporter Info */}
@@ -727,6 +855,7 @@ const ForumReportsContent: React.FC = () => {
 			{selectedReport && (
 				<ReportDetailModal
 					report={selectedReport}
+					relatedReports={getRelatedReports(selectedReport)}
 					onClose={() => setSelectedReport(null)}
 					onAction={handleAction}
 					isProcessing={processingAction === selectedReport._id}
@@ -739,6 +868,7 @@ const ForumReportsContent: React.FC = () => {
 // Report Detail Modal Component
 interface ReportDetailModalProps {
 	report: ForumPostReport;
+	relatedReports: ForumPostReport[];
 	onClose: () => void;
 	onAction: (reportId: string, action: string, adminResponse?: string) => Promise<void>;
 	isProcessing: boolean;
@@ -746,6 +876,7 @@ interface ReportDetailModalProps {
 
 const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 	report,
+	relatedReports,
 	onClose,
 	onAction,
 	isProcessing,
@@ -875,6 +1006,62 @@ const ReportDetailModal: React.FC<ReportDetailModalProps> = ({
 									</div>
 								</CardContent>
 							</Card>
+
+							{/* Related Reports */}
+							{relatedReports.length > 0 && (
+								<Card>
+									<CardHeader>
+										<CardTitle className="text-sm flex items-center">
+											<Layers className="h-4 w-4 mr-2" />
+											Related Reports ({relatedReports.length})
+										</CardTitle>
+									</CardHeader>
+									<CardContent>
+										<div className="space-y-3 max-h-60 overflow-y-auto">
+											{relatedReports.map((relatedReport) => (
+												<div key={relatedReport._id} className="border rounded-lg p-3 bg-gray-50">
+													<div className="flex items-center justify-between mb-2">
+														<div className="flex items-center gap-2">
+															<Badge className={relatedReport.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+																relatedReport.status === 'under_review' ? 'bg-blue-100 text-blue-800' :
+																relatedReport.status === 'resolved' ? 'bg-green-100 text-green-800' :
+																relatedReport.status === 'dismissed' ? 'bg-gray-100 text-gray-800' :
+																'bg-purple-100 text-purple-800'}>
+																{relatedReport.status.replace(/_/g, ' ')}
+															</Badge>
+															<Badge className={relatedReport.priority === 'low' ? 'bg-green-100 text-green-800' :
+																relatedReport.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+																relatedReport.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+																'bg-red-100 text-red-800'}>
+																{relatedReport.priority}
+															</Badge>
+														</div>
+														<span className="text-xs text-gray-500">
+															{new Date(relatedReport.createdAt).toLocaleDateString()}
+														</span>
+													</div>
+													<div className="space-y-1">
+														<p className="text-sm font-medium text-gray-900">
+															{relatedReport.reportType.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+														</p>
+														<p className="text-xs text-gray-600 line-clamp-2">
+															{relatedReport.description}
+														</p>
+														<p className="text-xs text-gray-500">
+															Reported by: {relatedReport.reportedBy.firstName} {relatedReport.reportedBy.lastName}
+														</p>
+														{relatedReport.adminAction && (
+															<p className="text-xs text-blue-600">
+																Action: {relatedReport.adminAction.replace(/_/g, ' ')}
+															</p>
+														)}
+													</div>
+												</div>
+											))}
+										</div>
+									</CardContent>
+								</Card>
+							)}
 						</div>
 
 						{/* Right Column - AI Analysis & Actions */}
