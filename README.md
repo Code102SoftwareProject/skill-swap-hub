@@ -32,7 +32,7 @@ Skill Swap Hub is a comprehensive platform that connects individuals looking to 
 ## ✨ Key Features
 
 ### 🎯 **Core Functionality**
-- **Smart Skill Matching**: AI-powered algorithm to match users based on skills offered and needed
+- **Smart Skill Matching**: system algorithm to match users based on skills offered and needed
 - **Real-time Chat System**: Secure messaging with file sharing and encryption
 - **Video Meeting Integration**: Built-in Daily.co integration for virtual skill sessions
 - **Session Management**: Complete workflow for creating, managing, and completing skill exchange sessions
@@ -222,7 +222,7 @@ Files are stored using Cloudflare R2 with automatic CDN distribution:
 ## 🎯 Core Components
 
 ### Skill Matching System
-- **Algorithm**: Intelligent matching based on user preferences
+- **Algorithm**: system matching based on user preferences
 - **Filters**: Location, skill level, availability
 - **Recommendations**: ML-powered user suggestions
 
