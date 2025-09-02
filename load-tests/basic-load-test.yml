@@ -1,0 +1,53 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    # Warm up phase - 5 users over 30 seconds
+    - duration: 30
+      arrivalRate: 5
+      name: "Warm up"
+    # Ramp up phase - gradually increase to 20 users over 2 minutes
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 20
+      name: "Ramp up load"
+    # Sustained load - 20 users for 3 minutes
+    - duration: 180
+      arrivalRate: 20
+      name: "Sustained load"
+    # Peak load test - 50 users for 1 minute
+    - duration: 60
+      arrivalRate: 50
+      name: "Peak load"
+
+scenarios:
+  - name: "Browse and interact with app"
+    weight: 100
+    flow:
+      # Test homepage
+      - get:
+          url: "/"
+          expect:
+            - statusCode: 200
+      
+      # Test API endpoints (without auth for now)
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: [200, 404]  # 404 is OK if endpoint doesn't exist
+      
+      # Test static assets
+      - get:
+          url: "/next.svg"
+          expect:
+            - statusCode: 200
+      
+      # Simulate user thinking time
+      - think: 2
+      
+      # Test another page (if exists)
+      - get:
+          url: "/login"
+          expect:
+            - statusCode: [200, 404]
+            
+      - think: 1

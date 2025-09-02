@@ -1,12 +1,19 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connect from "@/lib/db";
 import meetingSchema from "@/lib/models/meetingSchema";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   await connect();
   
   try {
+    // Validate authentication
+    const authResult = await validateAndExtractUserId(req);
+    if (!authResult) {
+      return NextResponse.json({ message: "Authentication required" }, { status: 401 });
+    }
+
     const { meetingId, cancelledBy, reason } = await req.json();
 
     // Validate input
@@ -17,12 +24,28 @@ export async function POST(req: Request) {
       );
     }
 
+    // Verify the cancelling user is the authenticated user
+    if (cancelledBy !== authResult.userId) {
+      return NextResponse.json(
+        { message: "Cannot cancel meeting on behalf of another user" },
+        { status: 403 }
+      );
+    }
+
     // Find the meeting
     const meeting = await meetingSchema.findById(meetingId);
     if (!meeting) {
       return NextResponse.json(
         { message: "Meeting not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify user authorization - only participants can cancel meetings
+    if (meeting.senderId.toString() !== authResult.userId && meeting.receiverId.toString() !== authResult.userId) {
+      return NextResponse.json(
+        { message: "Unauthorized to cancel this meeting" },
+        { status: 403 }
       );
     }
 

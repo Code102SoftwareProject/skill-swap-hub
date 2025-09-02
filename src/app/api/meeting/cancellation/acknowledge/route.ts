@@ -1,17 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import cancelMeetingSchema from '@/lib/models/cancelMeetingSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 export async function POST(request: NextRequest) {
   try {
     await connect();
 
-    const { meetingId, userId } = await request.json();
+    // Validate authentication
+    const userId = await validateAndExtractUserId(request);
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, message: "Authentication required" },
+        { status: 401 }
+      );
+    }
 
-    if (!meetingId || !userId) {
+    const { meetingId, userId: requestUserId } = await request.json();
+
+    if (!meetingId || !requestUserId) {
       return NextResponse.json(
         { success: false, message: 'Meeting ID and User ID are required' },
         { status: 400 }
+      );
+    }
+
+    // Verify the user can only acknowledge for themselves
+    if (requestUserId !== userId) {
+      return NextResponse.json(
+        { success: false, message: 'Cannot acknowledge cancellation for another user' },
+        { status: 403 }
       );
     }
 
@@ -21,7 +39,7 @@ export async function POST(request: NextRequest) {
       { 
         acknowledged: true,
         acknowledgedAt: new Date(),
-        acknowledgedBy: userId
+        acknowledgedBy: requestUserId
       },
       { new: true }
     );

@@ -31,6 +31,17 @@ interface OnlineLogResponse {
 }
 
 /**
+ * Helper function to get authentication headers
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('auth_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+}
+
+/**
  ** Fetch a chat room by chatRoomId
  *
  * @param chatRoomId - The unique identifier of the chat room to retrieve
@@ -227,7 +238,7 @@ export async function sendMessage(messageData: any) {
   try {
     const response = await fetch("/api/messages", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify(messageData),
     });
 
@@ -252,7 +263,7 @@ export async function sendMessage(messageData: any) {
         //  ! Create notification 
         await fetch("/api/notification", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             userId: recipientId,
             typeno: 2, // Type 2 for new message notification
@@ -279,7 +290,10 @@ export async function sendMessage(messageData: any) {
  */
 export async function fetchChatMessages(chatRoomId: string) {
   try {
-    const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`);
+    const response = await fetch(`/api/messages?chatRoomId=${chatRoomId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
 
     if (data.success) {
@@ -303,7 +317,7 @@ export async function markMessagesAsRead(messageIds: string[]) {
   try {
     const response = await fetch("/api/messages/read-status", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ messageIds }),
     });
 
@@ -322,7 +336,10 @@ export async function markMessagesAsRead(messageIds: string[]) {
  */
 export async function fetchUnreadMessageCount(userId: string) {
   try {
-    const response = await fetch(`/api/messages/unread-count?userId=${userId}`);
+    const response = await fetch(`/api/messages/unread-count?userId=${userId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
 
     if (data.success) {
@@ -344,7 +361,10 @@ export async function fetchUnreadMessageCount(userId: string) {
  */
 export async function fetchUnreadMessageCountsByRoom(userId: string) {
   try {
-    const response = await fetch(`/api/messages/unread-by-room?userId=${userId}`);
+    const response = await fetch(`/api/messages/unread-by-room?userId=${userId}`, {
+      method: "GET",
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
 
     if (data.success) {

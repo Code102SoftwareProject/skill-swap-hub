@@ -7,6 +7,16 @@ import { IMessage } from "@/types/chat";
 
 import { sendMessage as sendMessageService, fetchUserProfile } from "@/services/chatApiServices";
 
+/**
+ * Helper function to get authentication headers for file uploads
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('auth_token');
+  return {
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+}
+
 interface MessageInputProps {
   chatRoomId: string;
   senderId: string;
@@ -100,6 +110,7 @@ export default function MessageInput({
     try {
       const response = await fetch("/api/file/upload", {
         method: "POST",
+        headers: getAuthHeaders(),
         body: formData,
       });
 

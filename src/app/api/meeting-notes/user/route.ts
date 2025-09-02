@@ -2,16 +2,35 @@ import { NextRequest, NextResponse } from 'next/server';
 import connect from '@/lib/db';
 import MeetingNotes from '@/lib/models/meetingNotesSchema';
 import Meeting from '@/lib/models/meetingSchema';
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 export async function GET(req: NextRequest) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req);
+    if (!authResult.isValid) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Invalid or missing token' 
+      }, { status: 401 });
+    }
+
+    const authenticatedUserId = authResult.userId;
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const otherUserId = url.searchParams.get('otherUserId');
     
     if (!userId) {
       return NextResponse.json({ message: 'Missing userId parameter' }, { status: 400 });
+    }
+
+    // Verify that the authenticated user matches the requested userId
+    if (userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Cannot access other user\'s meeting notes' 
+      }, { status: 403 });
     }
     
     let query: any = { userId };
