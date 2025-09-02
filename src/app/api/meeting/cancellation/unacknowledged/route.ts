@@ -1,14 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connect from "@/lib/db";
 import cancelMeetingSchema from "@/lib/models/cancelMeetingSchema";
 import meetingSchema from "@/lib/models/meetingSchema";
 import userSchema from "@/lib/models/userSchema";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 // Get all unacknowledged cancellations for a user
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   await connect();
   
   try {
+    // Validate authentication
+    const authenticatedUserId = await validateAndExtractUserId(req);
+    if (!authenticatedUserId) {
+      return NextResponse.json({ message: "Authentication required" }, { status: 401 });
+    }
+
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
 
@@ -16,6 +23,14 @@ export async function GET(req: Request) {
       return NextResponse.json(
         { message: "User ID is required" },
         { status: 400 }
+      );
+    }
+
+    // Verify the user can only access their own unacknowledged cancellations
+    if (userId !== authenticatedUserId.userId) {
+      return NextResponse.json(
+        { message: "Cannot access unacknowledged cancellations for another user" },
+        { status: 403 }
       );
     }
 

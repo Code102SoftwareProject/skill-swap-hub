@@ -1,6 +1,7 @@
 import meetingSchema from "@/lib/models/meetingSchema";
 import { NextResponse } from "next/server";
 import connect from "@/lib/db";
+import { validateAndExtractUserId } from '@/utils/jwtAuth';
 
 // Daily.co configuration
 const DAILY_API_KEY = process.env.DAILY_API_KEY || "30a32b5fc8651595f2b981d1210cdd8b9e5b9caececb714da81b825a18f6aa11";
@@ -99,10 +100,28 @@ const testDailyAPI = async () => {
 export async function GET(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Invalid or missing token' 
+      }, { status: 401 });
+    }
+
+    const authenticatedUserId = authResult.userId;
     const url = new URL(req.url);
     const userId = url.searchParams.get('userId');
     const otherUserId = url.searchParams.get('otherUserId');
     
+    // Verify that the authenticated user matches the requested userId
+    if (userId && userId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Cannot access other user\'s meetings' 
+      }, { status: 403 });
+    }
+
     let query = {};
     if (userId && otherUserId) {
       // Fetch meetings between two specific users
@@ -120,8 +139,15 @@ export async function GET(req: Request) {
           { receiverId: userId }
         ]
       };
+    } else {
+      // If no userId provided, return meetings for authenticated user
+      query = {
+        $or: [
+          { senderId: authenticatedUserId },
+          { receiverId: authenticatedUserId }
+        ]
+      };
     }
-    // If no userId is provided, return empty array (don't return all meetings)
     
     const meetings = await meetingSchema.find(query);
     return NextResponse.json(meetings, { status: 200 });
@@ -133,7 +159,25 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Invalid or missing token' 
+      }, { status: 401 });
+    }
+
+    const authenticatedUserId = authResult.userId;
     const body = await req.json(); // Parse the JSON body first
+    
+    // Verify that the authenticated user is the sender
+    if (body.senderId !== authenticatedUserId) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Unauthorized - Cannot create meetings as another user' 
+      }, { status: 403 });
+    }
     
     // Check if users already have 2 active meetings
     const existingMeetings = await meetingSchema.find({

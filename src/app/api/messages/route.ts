@@ -4,6 +4,7 @@ import Message from "@/lib/models/messageSchema";
 import ChatRoom from "@/lib/models/chatRoomSchema";
 import mongoose from "mongoose";
 import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encryption";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
 /**
  ** POST handler - Creates a new message in a chat room
@@ -20,10 +21,28 @@ import { encryptMessage, decryptMessage } from "@/lib/messageEncryption/encrypti
 export async function POST(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedUserId = authResult.userId;
     const body = await req.json();
     //console.log("Received body:", body);
 
     const { chatRoomId, senderId, content, replyFor } = body;
+
+    // Verify that the authenticated user matches the senderId
+    if (senderId !== authenticatedUserId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Cannot send messages as another user" },
+        { status: 403 }
+      );
+    }
 
     // Check if content is a file link and skip encryption if it is
     const isFileLink = content.startsWith('File:');
@@ -57,7 +76,14 @@ export async function POST(req: Request) {
         { success: false, message: "Chat room not found" },
         { status: 404 }
       );
-      
+    }
+
+    // Verify that the authenticated user is a participant in the chat room
+    if (!chatRoom.participants.includes(authenticatedUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - User is not a participant in this chat room" },
+        { status: 403 }
+      );
     }
     
     const message = await Message.create({
@@ -122,6 +148,16 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedUserId = authResult.userId;
     const { searchParams } = new URL(req.url);
     const chatRoomId = searchParams.get("chatRoomId");
     const lastMessageOnly = searchParams.get("lastMessage") === "true";
@@ -134,6 +170,22 @@ export async function GET(req: Request) {
     }
 
     const chatRoomObjectId = new mongoose.Types.ObjectId(chatRoomId);
+
+    // Verify that the authenticated user is a participant in the chat room
+    const chatRoom = await ChatRoom.findById(chatRoomObjectId);
+    if (!chatRoom) {
+      return NextResponse.json(
+        { success: false, message: "Chat room not found" },
+        { status: 404 }
+      );
+    }
+
+    if (!chatRoom.participants.includes(authenticatedUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - User is not a participant in this chat room" },
+        { status: 403 }
+      );
+    }
 
     if (lastMessageOnly) {
       const lastMessage = await Message.findOne({ chatRoomId: chatRoomObjectId })
@@ -204,6 +256,16 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedUserId = authResult.userId;
     const body = await req.json();
     const { messageId } = body;
 
@@ -219,6 +281,15 @@ export async function PATCH(req: Request) {
       return NextResponse.json(
         { success: false, message: "Message not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify that the authenticated user is a participant in the chat room
+    const chatRoom = await ChatRoom.findById(existingMessage.chatRoomId);
+    if (!chatRoom || !chatRoom.participants.includes(authenticatedUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - User is not a participant in this chat room" },
+        { status: 403 }
       );
     }
 
@@ -260,6 +331,16 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   await connect();
   try {
+    // Authenticate user first
+    const authResult = validateAndExtractUserId(req as any);
+    if (!authResult.isValid) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Invalid or missing token" },
+        { status: 401 }
+      );
+    }
+
+    const authenticatedUserId = authResult.userId;
     const { searchParams } = new URL(req.url);
     const messageId = searchParams.get("messageId");
 
@@ -275,6 +356,23 @@ export async function DELETE(req: Request) {
       return NextResponse.json(
         { success: false, message: "Message not found" },
         { status: 404 }
+      );
+    }
+
+    // Verify that the authenticated user is either the sender or a participant in the chat room
+    const chatRoom = await ChatRoom.findById(existingMessage.chatRoomId);
+    if (!chatRoom || !chatRoom.participants.includes(authenticatedUserId)) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - User is not a participant in this chat room" },
+        { status: 403 }
+      );
+    }
+
+    // Additional check: Only the message sender can delete their own messages
+    if (existingMessage.senderId !== authenticatedUserId) {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized - Users can only delete their own messages" },
+        { status: 403 }
       );
     }
 

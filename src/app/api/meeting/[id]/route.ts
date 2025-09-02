@@ -1,11 +1,18 @@
 import meetingSchema from "@/lib/models/meetingSchema";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import connect from "@/lib/db";
+import { validateAndExtractUserId } from "@/utils/jwtAuth";
 
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await connect();
   
   try {
+    // Validate authentication
+    const authenticatedUserId = await validateAndExtractUserId(req);
+    if (!authenticatedUserId) {
+      return NextResponse.json({ message: "Authentication required" }, { status: 401 });
+    }
+
     const { id } = await params;
     
     if (!id) {
@@ -18,6 +25,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
     }
 
+    // Verify user authorization - only participants can access meeting details
+    if (meeting.senderId.toString() !== authenticatedUserId.userId && meeting.receiverId.toString() !== authenticatedUserId.userId) {
+      return NextResponse.json({ message: "Unauthorized to access this meeting" }, { status: 403 });
+    }
+
     return NextResponse.json(meeting, { status: 200 });
   } catch (error: any) {
     console.error('Error fetching meeting:', error);
@@ -25,10 +37,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 }
 
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   await connect();
   
   try {
+    // Validate authentication
+    const authenticatedUserId = await validateAndExtractUserId(req);
+    if (!authenticatedUserId) {
+      return NextResponse.json({ message: "Authentication required" }, { status: 401 });
+    }
+
     const { id } = await params;
     const updateData = await req.json();
     
@@ -40,6 +58,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     if (!meeting) {
       return NextResponse.json({ message: "Meeting not found" }, { status: 404 });
+    }
+
+    // Verify user authorization - only participants can update meetings
+    if (meeting.senderId.toString() !== authenticatedUserId.userId && meeting.receiverId.toString() !== authenticatedUserId.userId) {
+      return NextResponse.json({ message: "Unauthorized to update this meeting" }, { status: 403 });
     }
 
     // Update the meeting with the provided data

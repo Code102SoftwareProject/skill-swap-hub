@@ -2,6 +2,17 @@ import Meeting from "@/types/meeting";
 import { debouncedApiService } from './debouncedApiService';
 import { invalidateMeetingCache, invalidateUsersCaches } from './sessionApiServices';
 
+/**
+ * Helper function to get authentication headers
+ */
+function getAuthHeaders(): HeadersInit {
+  const token = localStorage.getItem('auth_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` })
+  };
+}
+
 // Notification helper functions
 /**
  * Send meeting notification to a user
@@ -15,9 +26,7 @@ async function sendMeetingNotification(userId: string, typeno: number, descripti
   try {
     const response = await fetch('/api/notification', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         userId,
         typeno,
@@ -46,7 +55,10 @@ async function sendMeetingNotification(userId: string, typeno: number, descripti
  */
 async function getUserName(userId: string): Promise<string> {
   try {
-    const response = await fetch(`/api/users/profile?id=${userId}`);
+    const response = await fetch(`/api/users/profile?id=${userId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
     
     if (data.success && data.user) {
@@ -74,7 +86,10 @@ export async function fetchMeetings(userId: string, otherUserId: string): Promis
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`);
+      const response = await fetch(`/api/meeting?userId=${userId}&otherUserId=${otherUserId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       
       if (!response.ok) {
         throw new Error(`Error fetching meetings: ${response.status}`);
@@ -106,7 +121,7 @@ export async function createMeeting(meetingData: {
   try {
     const response = await fetch('/api/meeting', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(meetingData),
     });
     
@@ -165,7 +180,7 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
     if (action === 'reject') {
       response = await fetch('/api/meeting/reject', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ meetingId }),
       });
     } else {
@@ -180,7 +195,7 @@ export async function updateMeeting(meetingId: string, action: 'accept' | 'rejec
       
       response = await fetch('/api/meeting', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(body),
       });
     }
@@ -273,7 +288,10 @@ export const fetchAllUserMeetings = async (userId: string): Promise<Meeting[]> =
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting?userId=${userId}`);
+      const response = await fetch(`/api/meeting?userId=${userId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP error ${response.status}`);
@@ -305,7 +323,7 @@ export async function cancelMeetingWithReason(
     const url = '/api/meeting/cancel';
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         meetingId,
         cancelledBy,
@@ -347,7 +365,10 @@ export async function fetchMeetingCancellation(meetingId: string, userId: string
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting/cancellation?meetingId=${meetingId}&userId=${userId}`);
+      const response = await fetch(`/api/meeting/cancellation?meetingId=${meetingId}&userId=${userId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) return null;
       return await response.json();
     },
@@ -367,7 +388,10 @@ export async function fetchUnacknowledgedCancellations(userId: string) {
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`);
+      const response = await fetch(`/api/meeting/cancellation/unacknowledged?userId=${userId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       if (!response.ok) return [];
       return await response.json();
     },
@@ -389,7 +413,7 @@ export async function acknowledgeMeetingCancellation(
   try {
     const response = await fetch('/api/meeting/cancellation', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         cancellationId,
         acknowledgedBy
@@ -423,7 +447,10 @@ export async function checkMeetingNotesExist(meetingId: string, userId: string):
   return debouncedApiService.makeRequest(
     cacheKey,
     async () => {
-      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+      const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       const data = await response.json();
       return response.ok && data._id && data.content && data.content.trim().length > 0;
     },
@@ -440,7 +467,10 @@ export async function checkMeetingNotesExist(meetingId: string, userId: string):
  */
 export async function fetchMeetingNotes(meetingId: string, userId: string) {
   try {
-    const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`);
+    const response = await fetch(`/api/meeting-notes?meetingId=${meetingId}&userId=${userId}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
     const data = await response.json();
     
     if (response.ok && data._id && data.content && data.content.trim().length > 0) {
@@ -468,7 +498,10 @@ export async function fetchAllUserMeetingNotes(userId: string, otherUserId?: str
     cacheKey,
     async () => {
       const url = `/api/meeting-notes/user?userId=${userId}${otherUserId ? `&otherUserId=${otherUserId}` : ''}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+      });
       
       if (!response.ok) {
         throw new Error(`Error fetching user meeting notes: ${response.status}`);
