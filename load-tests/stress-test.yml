@@ -1,0 +1,35 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    # Stress test - find breaking point
+    - duration: 60
+      arrivalRate: 10
+      name: "Light load"
+    - duration: 120
+      arrivalRate: 50
+      name: "Medium load"
+    - duration: 180
+      arrivalRate: 100
+      name: "Heavy load"
+    - duration: 120
+      arrivalRate: 200
+      name: "Stress load"
+    - duration: 60
+      arrivalRate: 300
+      name: "Breaking point"
+
+scenarios:
+  - name: "Stress test scenario"
+    weight: 100
+    flow:
+      - get:
+          url: "/"
+          expect:
+            - statusCode: [200, 500, 503]
+      
+      - think: 0.5
+      
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: [200, 404, 500, 503]

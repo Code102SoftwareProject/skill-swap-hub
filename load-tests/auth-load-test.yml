@@ -1,0 +1,62 @@
+config:
+  target: 'http://localhost:3000'
+  phases:
+    # Test with authenticated users
+    - duration: 60
+      arrivalRate: 10
+      name: "Authenticated user load"
+    - duration: 120
+      arrivalRate: 20
+      name: "Heavy authenticated load"
+
+  # Mock JWT tokens for testing (you'll need to replace with real tokens)
+  variables:
+    authToken: "your-jwt-token-here"
+
+scenarios:
+  - name: "Authenticated API Testing"
+    weight: 100
+    flow:
+      # Test authenticated endpoints
+      - post:
+          url: "/api/auth/login"
+          headers:
+            Content-Type: "application/json"
+          json:
+            email: "test@example.com"
+            password: "testpassword"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+          expect:
+            - statusCode: [200, 401, 404]
+      
+      - think: 1
+      
+      # Test messages API with auth
+      - get:
+          url: "/api/messages"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: [200, 401]
+      
+      - think: 2
+      
+      # Test meetings API with auth  
+      - get:
+          url: "/api/meeting"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: [200, 401]
+      
+      - think: 1
+      
+      # Test user profile
+      - get:
+          url: "/api/users/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          expect:
+            - statusCode: [200, 401, 400]
